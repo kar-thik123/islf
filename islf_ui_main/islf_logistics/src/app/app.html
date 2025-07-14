@@ -1,0 +1,10 @@
+<p-toast></p-toast>
+
+<div *ngIf="loading" class="loader-overlay">
+  <div class="loader-spinner">
+    <img src="assets/layout/images/logo.jpg" alt="Logo" class="loader-logo" />
+    <div class="loader-circle"></div>
+  </div>
+</div>
+
+<router-outlet></router-outlet>

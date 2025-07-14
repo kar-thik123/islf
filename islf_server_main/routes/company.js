@@ -1,0 +1,71 @@
+const express = require('express');
+const pool = require('../db');
+const router = express.Router();
+
+// Get all companies
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM companies ORDER BY code DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching companies:', err);
+    res.status(500).json({ error: 'Failed to fetch companies' });
+  }
+});
+
+// Get company by code
+router.get('/:code', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM companies WHERE code = $1', [req.params.code]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching company:', err);
+    res.status(500).json({ error: 'Failed to fetch company' });
+  }
+});
+
+// Create company
+router.post('/', async (req, res) => {
+  const { code, name, name2, gst, phone, landline, email, website, address1, address2 } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, address1, address2) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+      [code, name, name2, gst, phone, landline, email, website, address1, address2]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating company:', err);
+    res.status(500).json({ error: 'Failed to create company' });
+  }
+});
+
+// Update company
+router.put('/:code', async (req, res) => {
+  const { name, name2, gst, phone, landline, email, website, address1, address2 } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE companies SET name = $1, name2 = $2, gst = $3, phone = $4, landline = $5, email = $6, website = $7, address1 = $8, address2 = $9 WHERE code = $10 RETURNING *',
+      [name, name2, gst, phone, landline, email, website, address1, address2, req.params.code]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating company:', err);
+    res.status(500).json({ error: 'Failed to update company' });
+  }
+});
+
+// Delete company
+router.delete('/:code', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM companies WHERE code = $1 RETURNING *', [req.params.code]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting company:', err);
+    res.status(500).json({ error: 'Failed to delete company' });
+  }
+});
+
+module.exports = router; 
