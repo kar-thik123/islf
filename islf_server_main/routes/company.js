@@ -27,11 +27,11 @@ router.get('/:code', async (req, res) => {
 
 // Create company
 router.post('/', async (req, res) => {
-  const { code, name, name2, gst, phone, landline, email, website, address1, address2 } = req.body;
+  const { code, name, name2, gst, phone, landline, email, website, address1, address2, logo } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, address1, address2) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-      [code, name, name2, gst, phone, landline, email, website, address1, address2]
+      'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, address1, address2, logo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+      [code, name, name2, gst, phone, landline, email, website, address1, address2, logo]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -42,11 +42,11 @@ router.post('/', async (req, res) => {
 
 // Update company
 router.put('/:code', async (req, res) => {
-  const { name, name2, gst, phone, landline, email, website, address1, address2 } = req.body;
+  const { name, name2, gst, phone, landline, email, website, address1, address2, logo } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE companies SET name = $1, name2 = $2, gst = $3, phone = $4, landline = $5, email = $6, website = $7, address1 = $8, address2 = $9 WHERE code = $10 RETURNING *',
-      [name, name2, gst, phone, landline, email, website, address1, address2, req.params.code]
+      'UPDATE companies SET name = $1, name2 = $2, gst = $3, phone = $4, landline = $5, email = $6, website = $7, address1 = $8, address2 = $9, logo = $10 WHERE code = $11 RETURNING *',
+      [name, name2, gst, phone, landline, email, website, address1, address2, logo, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);

@@ -9,7 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 // Import and use the auth and password    routers
 const authRouter = require('./routes/auth');
@@ -28,6 +29,8 @@ const companyRouter = require('./routes/company');
 app.use('/api/company', companyRouter);
 const branchRouter = require('./routes/branch');
 app.use('/api/branch', branchRouter);
+const settingsRouter = require('./routes/settings');
+app.use('/api/settings', settingsRouter);
 
 // DB connection check
 const pool = require('./db');

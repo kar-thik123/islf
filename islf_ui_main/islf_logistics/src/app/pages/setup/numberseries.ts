@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
@@ -10,6 +10,11 @@ import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { NumberSeriesService, NumberSeries as NumberSeriesModel } from '@/services/number-series.service';
 import { AppLayout } from '@/layout/components/app.layout';
+import { Table } from 'primeng/table';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 
 interface NumberSeries {
   id?: number;
@@ -35,7 +40,8 @@ interface NumberSeries {
     InputTextModule,
     CheckboxModule,
     ToastModule,
-    
+    IconFieldModule,
+    InputIconModule
   ],
   providers: [MessageService],
   template: `
@@ -48,14 +54,22 @@ interface NumberSeries {
         </ng-template>
         <ng-template pTemplate="end">
           <div class="flex align-items-center gap-2">
-            <input pInputText type="text" placeholder="Search..." [(ngModel)]="searchTerm" />
+            <p-iconfield>
+              <p-inputicon styleClass="pi pi-search" />
+              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
+            </p-iconfield>
           </div>
         </ng-template>
       </p-toolbar>
       <p-table
-        [value]="filteredList()"
+        #dt
+        [value]="seriesList()"
         [paginator]="true"
-        [rows]="5"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 20]"
+        [globalFilterFields]="filterFields"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} series"
         [rowHover]="true"
         [responsiveLayout]="'scroll'"
       >
@@ -110,6 +124,11 @@ interface NumberSeries {
             </td>
           </tr>
         </ng-template>
+        <ng-template pTemplate="paginatorleft" let-state>
+          <div class="text-sm text-gray-600">
+            Total Series: {{ state.totalRecords }}
+          </div>
+        </ng-template>
       </p-table>
     </div>
   `
@@ -117,6 +136,8 @@ interface NumberSeries {
 export class NumberSeriesComponent implements OnInit {
   seriesList = signal<NumberSeries[]>([]);
   searchTerm = '';
+  filterFields: string[] = ['code', 'description', 'basecode'];
+  @ViewChild('dt') dt!: Table;
 
   constructor(
     private messageService: MessageService,
@@ -129,7 +150,16 @@ export class NumberSeriesComponent implements OnInit {
   }
 
   refreshList() {
-    this.numberSeriesService.getAll().subscribe(data => this.seriesList.set(data));
+    this.numberSeriesService.getAll().subscribe(data => {
+      this.seriesList.set(
+        data.map(item => ({
+          ...item,
+          isDefault: item.is_default,
+          isManual: item.is_manual,
+          isPrimary: item.is_primary
+        }))
+      );
+    });
   }
 
   goBack() {
@@ -230,4 +260,8 @@ export class NumberSeriesComponent implements OnInit {
       );
     });
   });
+
+  onGlobalFilter(table: Table, event: Event) {
+    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  }
 }

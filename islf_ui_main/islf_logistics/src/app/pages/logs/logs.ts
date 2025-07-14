@@ -35,7 +35,7 @@ interface LogEntry {
         [value]="logs()"
         [paginator]="true"
         [rows]="10"
-        [rowsPerPageOptions]="[10, 20, 30]"
+        [rowsPerPageOptions]="[10, 50, 100]"
         [globalFilterFields]="filterFields"
         [tableStyle]="{ 'min-width': '75rem' }"
         [showCurrentPageReport]="true"

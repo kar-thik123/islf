@@ -1,7 +1,7 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TableModule } from 'primeng/table';
+import { TableModule, Table } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { ToolbarModule } from 'primeng/toolbar';
 import { InputTextModule } from 'primeng/inputtext';
@@ -11,6 +11,8 @@ import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/number-series-relation.service';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 
 @Component({
   selector: 'app-number-series-relation',
@@ -25,7 +27,9 @@ import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/nu
     DropdownModule,
     CalendarModule,
     ToastModule,
-    DialogModule
+    DialogModule,
+    IconFieldModule,
+    InputIconModule
   ],
   providers: [MessageService],
   template: `
@@ -38,14 +42,22 @@ import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/nu
         </ng-template>
         <ng-template pTemplate="end">
           <div class="flex align-items-center gap-2">
-            <input pInputText type="text" placeholder="Search.." [(ngModel)]="searchTerm" />
+            <p-iconfield>
+              <p-inputicon styleClass="pi pi-search" />
+              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
+            </p-iconfield>
           </div>
         </ng-template>
       </p-toolbar>
       <p-table
-        [value]="filteredList()"
+        #dt
+        [value]="relationList()"
         [paginator]="true"
-        [rows]="5"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 20]"
+        [globalFilterFields]="filterFields"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} relations"
         [rowHover]="true"
         [responsiveLayout]="'scroll'"
       >
@@ -75,6 +87,11 @@ import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/nu
               <button pButton icon="pi pi-trash" severity="danger" (click)="deleteRow(rel)"></button>
             </td>
           </tr>
+        </ng-template>
+        <ng-template pTemplate="paginatorleft" let-state>
+          <div class="text-sm text-gray-600">
+            Total Relations: {{ state.totalRecords }}
+          </div>
         </ng-template>
       </p-table>
     </div>
@@ -178,6 +195,8 @@ export class NumberSeriesRelationComponent implements OnInit {
   displayDialog = false;
   selectedRow: NumberSeriesRelation | null = null;
   numberSeriesCodes: string[] = [];
+  filterFields: string[] = ['numberSeries', 'prefix'];
+  @ViewChild('dt') dt!: Table;
 
   constructor(
     private messageService: MessageService,
@@ -269,13 +288,7 @@ export class NumberSeriesRelationComponent implements OnInit {
     this.selectedRow = null;
   }
 
-  filteredList = computed(() => {
-    return this.relationList().filter(item => {
-      return (
-        !this.searchTerm ||
-        item.numberSeries?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        item.prefix?.toLowerCase().includes(this.searchTerm.toLowerCase())
-      );
-    });
-  });
+  onGlobalFilter(table: Table, event: Event) {
+    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  }
 }
