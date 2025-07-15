@@ -31,6 +31,8 @@ const branchRouter = require('./routes/branch');
 app.use('/api/branch', branchRouter);
 const settingsRouter = require('./routes/settings');
 app.use('/api/settings', settingsRouter);
+const userRouter = require('./routes/user');
+app.use('/api/user', userRouter);
 
 // DB connection check
 const pool = require('./db');

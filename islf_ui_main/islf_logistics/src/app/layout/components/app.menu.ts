@@ -57,6 +57,11 @@ export class AppMenu {
                         label: 'IT Setup',
                         icon: 'pi pi-sliders-h',
                         routerLink: ['/setup/it_setup']
+                    },
+                    {
+                        label:'User Management',
+                        icon:'pi pi-user',
+                        routerLink: ['/setup/user_management']
                     }
                 ]
             },

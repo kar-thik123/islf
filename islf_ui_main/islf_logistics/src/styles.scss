@@ -5,4 +5,41 @@
 
 /* Fix PrimeNG toast visibility and opacity */
 
+.section-header {
+  background: var(--primary-color, #1e3a8a); /* fallback to blue-900 */
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  margin-top: 3rem;
+  width: 100%;
+  grid-column: span 12 / span 12;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+}
+.company-header {
+  background: var(--primary-color, #1e3a8a); /* fallback to blue-900 */
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  
+  width: 100%;
+  grid-column: span 12 / span 12;
+  padding: 1.4rem 1rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  
+}
+.branch-header {
+  @apply grid grid-cols-2 items-center; /* two columns: left & right */
+  background: var(--primary-color, #1e3a8a);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  padding: 1.4rem 1rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
 
+  

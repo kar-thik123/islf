@@ -403,6 +403,9 @@ function getWidth(element) {
 function isVisible(element) {
   return !!(element && element.offsetParent != null);
 }
+function isHidden(element) {
+  return !isVisible(element);
+}
 function isRTL(element) {
   return element ? getComputedStyle(element).direction === "rtl" : false;
 }
@@ -531,6 +534,7 @@ export {
   getTargetElement,
   getWidth,
   isVisible,
+  isHidden,
   isRTL,
   isTouchDevice,
   remove,
@@ -539,4 +543,4 @@ export {
   setAttribute,
   uuid
 };
-//# sourceMappingURL=chunk-MFNULX52.js.map
+//# sourceMappingURL=chunk-PQ4YWBDM.js.map

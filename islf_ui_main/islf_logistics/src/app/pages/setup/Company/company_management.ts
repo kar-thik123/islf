@@ -33,10 +33,10 @@ import { HttpClient } from '@angular/common/http';
               </div>
               <div *ngIf="errorMessage" class="text-red-600 mb-2">{{ errorMessage }}</div>
               <div *ngFor="let company of companies" class="cursor-pointer border rounded-xl shadow-lg hover:shadow-xl transition-all mt-10 mb-16" (click)="openCompanyDialog(company)">
-                <div class="bg-blue-600 text-white p-6 rounded-t-xl">
+                <div class="company-header ">
                   <h2 class="text-2xl font-bold uppercase">{{ company.name }}</h2>
                   <p class="text-sm mt-1 ">{{ company.name2 }}</p>
-                
+                  <p class="text-sm mt-1 ">{{ company.address1 }}<span *ngIf="company.address2">, {{ company.address2 }}</span></p>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 text-sm">
                   <div><strong>GST:</strong> {{ company.gst }}</div>
@@ -60,14 +60,15 @@ import { HttpClient } from '@angular/common/http';
                 </div>
                 <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
                   <div *ngFor="let branch of getBranchesForCompany(company.code)" class="cursor-pointer border rounded-xl shadow hover:shadow-lg transition-all" (click)="openBranchDialog(branch)">
-                    <div class="p-4 bg-green-600 text-white rounded-t-xl">
-                      <h3 class="text-xl font-bold uppercase">{{ branch.name }}</h3>
-                      <p class="text-sm">{{ branch.address }}</p>
-                    </div>
+                 <div class="branch-header">
+                    <h3 class="text-xl font-bold uppercase">{{ branch.name }}</h3>
+                    <div class="text-right text-sm font-medium">Incharge: {{ branch.incharge_name }}</div>
+                  </div>
+
                     <div class="grid grid-cols-2 p-4 gap-2 text-sm bg-white">
                       <div><strong>Code:</strong> {{ branch.code }}</div>
                       <div><strong>GST:</strong> {{ branch.gst }}</div>
-                      <div><strong>Incharge:</strong> {{ branch.incharge_name }}</div>
+                      <div><strong>Address:</strong> {{ branch.address }}</div>
                       <div><strong>Incharge From:</strong> {{ branch.incharge_from }}</div>
                       <div><strong>Status:</strong> {{ branch.status }}</div>
                       <div><strong>Start:</strong> {{ branch.start_date }}</div>
@@ -96,14 +97,17 @@ import { HttpClient } from '@angular/common/http';
                       <button pButton icon="pi pi-plus" label="Add Department" class="p-button-sm p-button-success" (click)="openDepartmentDialog(branch)"></button>
                     </div>
                   </div>
+                   <h3 class="text-xl font-semibold mt-6 mb-6  ml-[2px]">Departments</h3>
                   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <div *ngFor="let dept of branch.departments" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openDepartmentDialog(branch, dept); $event.stopPropagation()">
-                      <div class="p-4 bg-orange-500 text-white rounded-t-xl">
-                        <div class="flex justify-between items-center">
-                          <div class="font-bold text-lg">{{ dept.name }}</div>
-                          <div class="text-sm mt-1">Incharge: {{  dept.incharge_name }}</div>
-                        </div>
-                      </div>
+<div class="branch-header">
+  <div class="col-span-full flex justify-between items-center w-full">
+    <div class="text-lg font-bold uppercase">{{ dept.name }}</div>
+    <div class="text-sm font-medium">Incharge: {{ dept.incharge_name }}</div>
+  </div>
+</div>
+
+
                       <div class="p-4">
                         <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
@@ -312,10 +316,12 @@ export class CompanyManagementComponent implements OnInit {
   loadDepartmentsForBranches() {
     this.departmentService.getAll().subscribe({
       next: (departments) => {
+        // Clear all branch departments first
+        this.branches.forEach(branch => branch.departments = []);
         departments.forEach(dept => {
           const branch = this.branches.find(b => b.code === dept.branch_code);
           if (branch) {
-            if (!branch.departments) {
+            if (!Array.isArray(branch.departments)) {
               branch.departments = [];
             }
             branch.departments.push(dept);
