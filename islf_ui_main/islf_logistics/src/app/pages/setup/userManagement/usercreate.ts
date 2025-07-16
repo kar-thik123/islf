@@ -20,6 +20,9 @@ import { ToastService } from '../../../services/toast.service';
 import { BranchService } from '../../../services/branch.service';
 import { DepartmentService } from '@/services/department.service';
 import { ActivatedRoute } from '@angular/router';
+import { ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+
 
 @Component({
   selector: 'user-create',
@@ -39,7 +42,9 @@ import { ActivatedRoute } from '@angular/router';
     FormsModule,
     CommonModule,
     HttpClientModule,
+    ConfirmDialogModule, 
   ],
+  providers: [ConfirmationService],
   template: `
   
   <div class="card p-6">
@@ -143,9 +148,17 @@ import { ActivatedRoute } from '@angular/router';
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Password <span class="text-red-500">*</span></label>
-        <p-password toggleMask="true" feedback="false" class="w-full" [(ngModel)]="user.password" name="password"></p-password>
+        <p-password 
+          toggleMask="true" 
+          feedback="false" 
+          class="w-full" 
+          [(ngModel)]="user.password" 
+          name="password" 
+          [disabled]="isEditMode"
+          [placeholder]="isEditMode ? '********' : ''">
+        </p-password>
       </div>
-      <div class="col-span-12 md:col-span-6">
+      <div class="col-span-12 md:col-span-6" *ngIf="!isEditMode">
         <label class="block font-semibold mb-1">Confirm Password <span class="text-red-500">*</span></label>
         <p-password toggleMask="true" feedback="false" class="w-full" [(ngModel)]="user.confirmPassword" name="confirmPassword"></p-password>
       </div>
@@ -237,6 +250,7 @@ import { ActivatedRoute } from '@angular/router';
     <button *ngIf="isEditMode" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded" (click)="updateUser()">Update</button>
   </div>
 </div>
+<p-confirmDialog [style]="{width: '350px'}" [baseZIndex]="10000"></p-confirmDialog>
 
 
   `
@@ -264,7 +278,7 @@ export class UserCreateComponent implements OnInit {
     role: '',
     status: '',
     joiningDate: '' as any,
-    employmentType: '',
+    employmentType: '' as string | { label: string },
     vehicleAssigned: '',
     shiftTiming: '',
     bio: '',
@@ -337,6 +351,7 @@ export class UserCreateComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = (e: any) => {
       this.avatarPreview = e.target.result;
+      this.user.avatar = e.target.result; // Set avatar as base64 string
     };
     reader.readAsDataURL(file);
   }
@@ -389,77 +404,111 @@ export class UserCreateComponent implements OnInit {
     private toast: ToastService,
     private branchService: BranchService,
     private departmentService: DepartmentService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private confirmationService: ConfirmationService
   ) {}
 
+  // Helper to map codes to option objects
+  private mapCodesToOptions(codes: string[], options: any[]): any[] {
+    return codes
+      .map(code => options.find(opt => opt.code.toString() === code.toString()))
+      .filter(opt => !!opt);
+  }
+
   ngOnInit() {
+    // Fetch branches and departments first
+    let branchesLoaded = false;
+    let departmentsLoaded = false;
+
+    const tryLoadUser = () => {
+      if (branchesLoaded && departmentsLoaded) {
+        // Now safe to load user and set selected values
+        const id = this.route.snapshot.paramMap.get('id');
+        if (id) {
+          this.isEditMode = true;
+          this.userId = id;
+          this.userService.getUserById(id).subscribe({
+            next: (res: any) => {
+              if (res.user) {
+                // Extract branch and department codes from DB value
+                const branchCodes = typeof res.user.branch === 'string'
+                  ? res.user.branch.split(',').filter((b: string) => !!b && b !== '[object Object]')
+                  : Array.isArray(res.user.branch)
+                    ? res.user.branch.map((b: any) => typeof b === 'string' ? b : b.code)
+                    : [];
+                // Set user fields except department and permissions
+                this.user = {
+                  ...this.user,
+                  fullName: res.user.full_name || '',
+                  employeeId: res.user.employee_id || '',
+                  email: res.user.email || '',
+                  phoneNumber: res.user.phone || '',
+                  gender: res.user.gender || '',
+                  dateOfBirth: res.user.date_of_birth ? new Date(res.user.date_of_birth) : '',
+                  joiningDate: res.user.joining_date ? new Date(res.user.joining_date) : '',
+                  branch: this.mapCodesToOptions(branchCodes, this.branchOptions),
+                  // department will be set below
+                  designation: res.user.designation || '',
+                  reportingManager: res.user.reporting_manager || '',
+                  username: res.user.username || '',
+                  password: '',
+                  confirmPassword: '',
+                  role: res.user.role || '',
+                  status: res.user.status || '',
+                  employmentType: this.employmentTypes.find(et => et.label === res.user.employment_type) || '',
+                  vehicleAssigned: res.user.vehicle_assigned || '',
+                  shiftTiming: res.user.shift_timing || '',
+                  bio: res.user.bio || '',
+                  avatar: res.user.avatar_url || null
+                };
+                if (res.user.avatar_url) {
+                  this.avatarPreview = res.user.avatar_url;
+                }
+                // Set role and permissions options before assigning selectedPermissions
+                this.selectedRole = this.user.role;
+                this.permissions = this.rolePermissionsMap[this.selectedRole] || [];
+                this.selectedPermissions = res.user.permission ? res.user.permission.split(',') : [];
+                // Set department options and selected departments after branch is set
+                const departmentCodes = typeof res.user.department === 'string'
+                  ? res.user.department.split(',').filter((d: string) => !!d && d !== '[object Object]')
+                  : Array.isArray(res.user.department)
+                    ? res.user.department.map((d: any) => typeof d === 'string' ? d : d.code)
+                    : [];
+                this.user.department = this.mapCodesToOptions(departmentCodes, this.departmentOptions);
+              }
+            },
+            error: (err: any) => {
+              this.toast.showError('Error', 'Failed to load user details');
+            }
+          });
+        }
+      }
+    };
+
     this.branchService.getAll().subscribe({
       next: (branches: any[]) => {
         this.branches = branches;
+        branchesLoaded = true;
+        tryLoadUser();
       },
       error: (err) => {
         this.toast.showError('Error', 'Failed to load branches');
+        branchesLoaded = true;
+        tryLoadUser();
       }
     });
     this.departmentService.getAll().subscribe({
       next: (departments: any[]) => {
         this.departments = departments;
+        departmentsLoaded = true;
+        tryLoadUser();
       },
       error: (err) => {
         this.toast.showError('Error', 'Failed to load departments');
+        departmentsLoaded = true;
+        tryLoadUser();
       }
     });
-    // Load user for editing if ID is present
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.isEditMode = true;
-      this.userId = id;
-      this.userService.getUserById(id).subscribe({
-        next: (res: any) => {
-          if (res.user) {
-            // Map backend fields to form fields
-            this.user = {
-              ...this.user,
-              fullName: res.user.full_name || '',
-              employeeId: res.user.employee_id || '',
-              email: res.user.email || '',
-              phoneNumber: res.user.phone || '',
-              gender: res.user.gender || '',
-              dateOfBirth: res.user.date_of_birth ? new Date(res.user.date_of_birth) : '',
-              joiningDate: res.user.joining_date ? new Date(res.user.joining_date) : '',
-              branch: res.user.branch
-                ? Array.isArray(res.user.branch)
-                  ? res.user.branch
-                  : (typeof res.user.branch === 'string' && res.user.branch.length > 0 ? res.user.branch.split(',') : [])
-                : [],
-              department: res.user.department
-                ? Array.isArray(res.user.department)
-                  ? res.user.department
-                  : (typeof res.user.department === 'string' && res.user.department.length > 0 ? res.user.department.split(',') : [])
-                : [],
-              designation: res.user.designation || '',
-              reportingManager: res.user.reporting_manager || '',
-              username: res.user.username || '',
-              password: '',
-              confirmPassword: '',
-              role: res.user.role || '',
-              status: res.user.status || '',
-              employmentType: res.user.employment_type || '',
-              vehicleAssigned: res.user.vehicle_assigned || '',
-              shiftTiming: res.user.shift_timing || '',
-              bio: res.user.bio || '',
-              avatar: res.user.avatar_url || null
-            };
-            if (res.user.avatar_url) {
-              this.avatarPreview = res.user.avatar_url;
-            }
-          }
-        },
-        error: (err: any) => {
-          this.toast.showError('Error', 'Failed to load user details');
-        }
-      });
-    }
   }
   goBack() {
     this.router.navigate(['/setup/user_management']);
@@ -474,14 +523,39 @@ export class UserCreateComponent implements OnInit {
     // Store branch and department as comma-separated label strings
     const userToSend = {
       ...this.user,
-      branch: Array.isArray(this.user.branch) ? this.user.branch.map(b => b.label).join(',') : '',
-      department: Array.isArray(this.user.department) ? this.user.department.map(d => d.label).join(',') : '',
-      permissions: this.selectedPermissions
+      branch: Array.isArray(this.user.branch)
+        ? this.user.branch
+            .map((b: any) => (b && typeof b === 'object' && typeof b.code === 'string' ? b.code : (typeof b === 'string' ? b : '')))
+            .filter((b: string) => !!b)
+            .join(',')
+        : '',
+      department: Array.isArray(this.user.department)
+        ? this.user.department
+            .map((d: any) => (d && typeof d === 'object' && typeof d.code === 'string' ? d.code : (typeof d === 'string' ? d : '')))
+            .filter((d: string) => !!d)
+            .join(',')
+        : '',
+      employmentType: this.user.employmentType && typeof this.user.employmentType === 'object' && (this.user.employmentType as any).label
+        ? (this.user.employmentType as any).label
+        : this.user.employmentType,
+      permission: this.selectedPermissions.join(',') // <-- send as comma-separated string
     };
     this.userService.createUser(userToSend).subscribe({
       next: (res: any) => {
         this.toast.showSuccess('Success', 'User created successfully!');
-        this.onCancel();
+        this.confirmationService.confirm({
+          message: 'Need to create another user?',
+          header: 'Create Another User',
+          icon: 'pi pi-question-circle',
+          acceptLabel: 'Yes',
+          rejectLabel: 'No',
+          accept: () => {
+            this.onCancel(); // Reset the form for a new user
+          },
+          reject: () => {
+            this.router.navigate(['/setup/user_management']);
+          }
+        });
       },
       error: (err: any) => {
         this.toast.showError('Error', 'Error creating user: ' + (err.error?.message || err.message));
@@ -494,16 +568,27 @@ export class UserCreateComponent implements OnInit {
     // Store branch and department as comma-separated label strings
     const userToSend = {
       ...this.user,
-      branch: Array.isArray(this.user.branch) ? this.user.branch.map(b => b.label).join(',') : '',
-      department: Array.isArray(this.user.department) ? this.user.department.map(d => d.label).join(',') : '',
-      permissions: this.selectedPermissions
+      branch: Array.isArray(this.user.branch)
+        ? this.user.branch
+            .map((b: any) => (b && typeof b === 'object' && typeof b.code === 'string' ? b.code : (typeof b === 'string' ? b : '')))
+            .filter((b: string) => !!b)
+            .join(',')
+        : '',
+      department: Array.isArray(this.user.department)
+        ? this.user.department
+            .map((d: any) => (d && typeof d === 'object' && typeof d.code === 'string' ? d.code : (typeof d === 'string' ? d : '')))
+            .filter((d: string) => !!d)
+            .join(',')
+        : '',
+      employmentType: this.user.employmentType && typeof this.user.employmentType === 'object' && (this.user.employmentType as any).label
+        ? (this.user.employmentType as any).label
+        : this.user.employmentType,
+      permission: this.selectedPermissions.join(',') // <-- send as comma-separated string
     };
     this.userService.updateUser(this.userId, userToSend).subscribe({
       next: (res: any) => {
         this.toast.showSuccess('Success', 'User updated successfully!');
-        // Optionally reset or navigate back
-        // this.onCancel();
-        // this.router.navigate(['/setup/user_management']);
+        this.router.navigate(['/setup/user_management']);
       },
       error: (err: any) => {
         this.toast.showError('Error', 'Error updating user: ' + (err.error?.message || err.message));
@@ -514,7 +599,8 @@ export class UserCreateComponent implements OnInit {
   get branchOptions() {
     return this.branches.map(branch => ({
       ...branch,
-      label: `${branch.code}-${branch.name}`
+      label: `${branch.code}-${branch.name}`,
+      value: branch.code
     }));
   }
 
@@ -522,13 +608,13 @@ export class UserCreateComponent implements OnInit {
     if (!this.user.branch || this.user.branch.length === 0) {
       return [];
     }
-    // user.branch is an array of selected branch objects or codes
     const selectedBranchCodes = this.user.branch.map((b: any) => b.code ? b.code : b);
     return this.departments
       .filter(dept => selectedBranchCodes.includes(dept.branch_code))
       .map(dept => ({
         ...dept,
-        label: `${dept.code}-${dept.name}`
+        label: `${dept.code}-${dept.name}`,
+        value: dept.code
       }));
   }
 

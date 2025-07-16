@@ -13,6 +13,7 @@ import { DialogModule } from 'primeng/dialog';
 import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/number-series-relation.service';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { InputSwitchModule } from 'primeng/inputswitch';
 
 @Component({
   selector: 'app-number-series-relation',
@@ -29,51 +30,92 @@ import { InputIconModule } from 'primeng/inputicon';
     ToastModule,
     DialogModule,
     IconFieldModule,
-    InputIconModule
+    InputIconModule,
+    InputSwitchModule
   ],
   providers: [MessageService],
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <p-toolbar>
-        <ng-template pTemplate="start">
-          <button pButton label="Back" icon="pi pi-arrow-left" (click)="goBack()" class="mr-2"></button>
-          <button pButton label="New" icon="pi pi-plus" (click)="addRow()"></button>
-        </ng-template>
-        <ng-template pTemplate="end">
-          <div class="flex align-items-center gap-2">
-            <p-iconfield>
-              <p-inputicon styleClass="pi pi-search" />
-              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
-            </p-iconfield>
-          </div>
-        </ng-template>
-      </p-toolbar>
+    <div class="font-semibold text-xl mb-4">Number Series Relationship </div>
+      <!-- ✅ Add Relation button and Clear button -->
       <p-table
         #dt
         [value]="relationList()"
+        dataKey="id"
         [paginator]="true"
         [rows]="10"
-        [rowsPerPageOptions]="[5, 10, 20]"
-        [globalFilterFields]="filterFields"
-        [showCurrentPageReport]="true"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} relations"
+        [rowsPerPageOptions]="[5, 10, 20, 50]"
+        [showGridlines]="true"
         [rowHover]="true"
-        [responsiveLayout]="'scroll'"
+        [globalFilterFields]="['numberSeries', 'startingDate', 'prefix', 'startingNo', 'endingNo', 'lastNoUsed', 'incrementBy']"
+        responsiveLayout="scroll"
       >
-        <ng-template pTemplate="header">
+        <!-- 🔍 Global Filter + Clear -->
+        <ng-template #caption>
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
+            <button pButton type="button" label="Add Relation" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            <p-iconfield iconPosition="left" class="ml-auto">
+              <p-inputicon>
+                <i class="pi pi-search"></i>
+              </p-inputicon>
+              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" />
+            </p-iconfield>
+          </div>
+        </ng-template>
+
+        <!-- 🧾 Table Headers with Filters -->
+        <ng-template #header>
           <tr>
-            <th pSortableColumn="numberSeries">Numberseries <p-sortIcon field="numberSeries" /></th>
-            <th pSortableColumn="startingDate">Startingdate <p-sortIcon field="startingDate" /></th>
-            <th pSortableColumn="prefix">Prefix <p-sortIcon field="prefix" /></th>
-            <th pSortableColumn="startingNo">Startingno <p-sortIcon field="startingNo" /></th>
-            <th pSortableColumn="endingNo">Endingno <p-sortIcon field="endingNo" /></th>
-            <th pSortableColumn="lastNoUsed">Lastno Used <p-sortIcon field="lastNoUsed" /></th>
-            <th pSortableColumn="incrementBy">Incrementby <p-sortIcon field="incrementBy" /></th>
-            <th>Actions</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Numberseries
+                <p-columnFilter type="text" field="numberSeries" display="menu" placeholder="Search by series"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Starting Date
+                <p-columnFilter type="date" field="startingDate" display="menu" placeholder="YYYY-MM-DD"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Prefix
+                <p-columnFilter type="text" field="prefix" display="menu" placeholder="Search by prefix"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Starting No
+                <p-columnFilter type="numeric" field="startingNo" display="menu" placeholder="Search by starting no"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Ending No
+                <p-columnFilter type="numeric" field="endingNo" display="menu" placeholder="Search by ending no"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Last No Used
+                <p-columnFilter type="numeric" field="lastNoUsed" display="menu" placeholder="Search by last no used"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Increment By
+                <p-columnFilter type="numeric" field="incrementBy" display="menu" placeholder="Search by increment"></p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-rel>
+
+        <!-- 👤 Table Body -->
+        <ng-template #body let-rel>
           <tr>
             <td>{{ rel.numberSeries }}</td>
             <td>{{ rel.startingDate | date: 'yyyy-MM-dd' }}</td>
@@ -83,11 +125,28 @@ import { InputIconModule } from 'primeng/inputicon';
             <td>{{ rel.lastNoUsed }}</td>
             <td>{{ rel.incrementBy }}</td>
             <td>
-              <button pButton icon="pi pi-pencil" (click)="editRow(rel)" class="mr-2"></button>
-              <button pButton icon="pi pi-trash" severity="danger" (click)="deleteRow(rel)"></button>
+            <div class="flex items-center space-x-[8px]">
+              <button
+                pButton
+                icon="pi pi-pencil"
+                class="p-button-sm"
+                (click)="editRow(rel)"
+                title="Edit"
+              ></button>
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-sm"
+                severity="danger"
+                (click)="deleteRow(rel)"
+                title="Delete"
+              ></button>
+              </div>
             </td>
           </tr>
         </ng-template>
+
+        <!-- 📊 Total Relations Count -->
         <ng-template pTemplate="paginatorleft" let-state>
           <div class="text-sm text-gray-600">
             Total Relations: {{ state.totalRecords }}
@@ -290,5 +349,9 @@ export class NumberSeriesRelationComponent implements OnInit {
 
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  }
+
+  clear(table: Table) {
+    table.clear();
   }
 }

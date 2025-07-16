@@ -6,6 +6,7 @@ import { AppLayout } from './layout/components/app.layout';
 
 import logsRoutes from './pages/logs/logs.routes';
 import setupRoutes from './pages/setup/setup.routes';
+import masterRoutes from './pages/masters/master.routes';
 
 export const routes: Routes = [
   // Auth routes (no layout)
@@ -21,6 +22,7 @@ export const routes: Routes = [
     children: [
       { path: 'logs', children:[...logsRoutes]},
       { path: 'setup', children:[...setupRoutes]},
+      {path:'master', children:[...masterRoutes]},
       
       // Add more layout-wrapped routes here
     ]

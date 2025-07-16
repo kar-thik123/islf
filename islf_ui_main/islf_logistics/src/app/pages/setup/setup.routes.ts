@@ -12,14 +12,14 @@ import {  UserCreateComponent } from './userManagement/usercreate';
 export default [
 
    
-    { path: 'company_management', component: CompanyManagementComponent, data: { title: 'Company_Management - ISLF' } },
-    {path:'number_series',component:NumberSeriesComponent, data:{title: 'Number_Series- ISLF'}},
-    {path:'number_relation',component:NumberSeriesRelationComponent, data:{title: 'Number_Relation- ISLF'}},
+    { path: 'company_management', component: CompanyManagementComponent, data: { breadcrumb: 'Settings >>> Company Management', title: 'Company_Management - ISLF' } },
+    {path:'number_series',component:NumberSeriesComponent, data:{ breadcrumb: 'Settings >>> Number Series',title: 'Number_Series- ISLF'}},
+    {path:'number_relation',component:NumberSeriesRelationComponent, data:{ breadcrumb: 'Settings >>> Number Series Relation',title: 'Number_Relation- ISLF'}},
     {path:'mapping',component:mappingComponent},
-    {path: 'it_setup', component: ITSetupComponent, data: { title: 'IT Setup - ISLF' } },
-    {path:'user_management',component:UserListComponent,data:{title:'User_management - ISLF'}},
-    {path:'create_user',component:UserCreateComponent,data:{title:'Create_User - ISLF'}},
-    {path:'create_user/:id',component:UserCreateComponent,data:{title:'Edit_User - ISLF'}}
+    {path: 'it_setup', component: ITSetupComponent, data: { breadcrumb: 'Settings >>> IT Setup', title: 'IT Setup - ISLF' } },
+    {path:'user_management',component:UserListComponent,data:{ breadcrumb: 'Settings >>> User management',title:'User_management - ISLF'}},
+    {path:'create_user',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Create User',title:'Create_User - ISLF'}},
+    {path:'create_user/:id',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Edit User',title:'Edit_User - ISLF'}}
 
     
 

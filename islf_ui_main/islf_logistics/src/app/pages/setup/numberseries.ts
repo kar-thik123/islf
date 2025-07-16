@@ -15,6 +15,9 @@ import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { DropdownModule } from 'primeng/dropdown';
+import { InputSwitchModule } from 'primeng/inputswitch';
+
 
 interface NumberSeries {
   id?: number;
@@ -41,50 +44,134 @@ interface NumberSeries {
     CheckboxModule,
     ToastModule,
     IconFieldModule,
-    InputIconModule
+    InputIconModule,
+    DropdownModule
+    // Remove InputSwitchModule
   ],
   providers: [MessageService],
   template: `
     <p-toast></p-toast>
+    
     <div class="card">
-      <p-toolbar>
-        <ng-template pTemplate="start">
-          <button pButton label="Back" icon="pi pi-arrow-left" (click)="goBack()" class="mr-2"></button>
-          <button pButton label="New" icon="pi pi-plus" (click)="addRow()"></button>
-        </ng-template>
-        <ng-template pTemplate="end">
-          <div class="flex align-items-center gap-2">
-            <p-iconfield>
-              <p-inputicon styleClass="pi pi-search" />
-              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
-            </p-iconfield>
-          </div>
-        </ng-template>
-      </p-toolbar>
+    <div class="font-semibold text-xl mb-4">Number Series  </div>
+      <!-- ✅ Add Series button and Clear button -->
       <p-table
         #dt
         [value]="seriesList()"
+        dataKey="id"
         [paginator]="true"
         [rows]="10"
-        [rowsPerPageOptions]="[5, 10, 20]"
-        [globalFilterFields]="filterFields"
-        [showCurrentPageReport]="true"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} series"
+        [rowsPerPageOptions]="[5, 10, 20, 50]"
+        [showGridlines]="true"
         [rowHover]="true"
-        [responsiveLayout]="'scroll'"
+        [globalFilterFields]="['code', 'description', 'basecode']"
+        responsiveLayout="scroll"
       >
-        <ng-template pTemplate="header">
+        <!-- 🔍 Global Filter + Clear -->
+        <ng-template #caption>
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
+            <button pButton type="button" label="Add Series" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            
+            <p-iconfield iconPosition="left" class="ml-auto">
+              <p-inputicon>
+                <i class="pi pi-search"></i>
+              </p-inputicon>
+              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" />
+            </p-iconfield>
+          </div>
+        </ng-template>
+
+        <!-- 🧾 Table Headers with Filters -->
+        <ng-template #header>
           <tr>
-            <th pSortableColumn="code">Code <p-sortIcon field="code" /></th>
-            <th pSortableColumn="description">Description <p-sortIcon field="description" /></th>
-            <th pSortableColumn="basecode">Basecode <p-sortIcon field="basecode" /></th>
-            <th pSortableColumn="isDefault">Default <p-sortIcon field="isDefault" /></th>
-            <th pSortableColumn="isManual">Manual <p-sortIcon field="isManual" /></th>
-            <th pSortableColumn="isPrimary">Primary <p-sortIcon field="isPrimary" /></th>
-            <th>Actions</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter type="text" field="code" display="menu" placeholder="Search by code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Description
+                <p-columnFilter type="text" field="description" display="menu" placeholder="Search by description"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Basecode
+                <p-columnFilter type="text" field="basecode" display="menu" placeholder="Search by basecode"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Default
+                <p-columnFilter field="isDefault" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="[{label: 'Yes', value: true}, {label: 'No', value: false}]"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                    >
+                      <ng-template let-option pTemplate="item">
+                        <span class="font-semibold text-sm">{{ option.label }}</span>
+                      </ng-template>
+                    </p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Manual
+                <p-columnFilter field="isManual" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="[{label: 'Yes', value: true}, {label: 'No', value: false}]"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                    >
+                      <ng-template let-option pTemplate="item">
+                        <span class="font-semibold text-sm">{{ option.label }}</span>
+                      </ng-template>
+                    </p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Primary
+                <p-columnFilter field="isPrimary" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="[{label: 'Yes', value: true}, {label: 'No', value: false}]"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                    >
+                      <ng-template let-option pTemplate="item">
+                        <span class="font-semibold text-sm">{{ option.label }}</span>
+                      </ng-template>
+                    </p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-ser>
+
+        <!-- 👤 Table Body -->
+        <ng-template #body let-ser>
           <tr>
             <td>
               <ng-container *ngIf="ser.isEditing; else codeText">
@@ -114,16 +201,37 @@ interface NumberSeries {
               <p-checkbox [(ngModel)]="ser.isPrimary" binary="true" [disabled]="!ser.isEditing"></p-checkbox>
             </td>
             <td>
-              <ng-container *ngIf="ser.isEditing">
-                <button pButton icon="pi pi-check" (click)="saveRow(ser)" class="mr-2"></button>
-              </ng-container>
-              <ng-container *ngIf="!ser.isEditing">
-                <button pButton icon="pi pi-pencil" (click)="editRow(ser)" class="mr-2"></button>
-              </ng-container>
-              <button pButton icon="pi pi-trash" severity="danger" (click)="deleteRow(ser)"></button>
+            <div class="flex items-center space-x-[8px]">
+              <button
+                pButton
+                icon="pi pi-pencil"
+                class="p-button-sm "
+                (click)="editRow(ser)"
+                title="Edit"
+                *ngIf="!ser.isEditing"
+              ></button>
+              <button
+                pButton
+                icon="pi pi-check"
+                class="p-button-sm"
+                (click)="saveRow(ser)"
+                title="Save"
+                *ngIf="ser.isEditing"
+              ></button>
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-sm"
+                severity="danger"
+                (click)="deleteRow(ser)"
+                title="Delete"
+              ></button>
+              </div>
             </td>
           </tr>
         </ng-template>
+
+        <!-- 📊 Total Series Count -->
         <ng-template pTemplate="paginatorleft" let-state>
           <div class="text-sm text-gray-600">
             Total Series: {{ state.totalRecords }}
@@ -219,7 +327,9 @@ export class NumberSeriesComponent implements OnInit {
       });
     }
   }
-
+  clear(table: Table) {
+    table.clear();
+  }
   editRow(row: NumberSeries) {
     console.log('Editing row:', row);
     const updatedList = this.seriesList().map(r => {

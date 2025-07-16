@@ -4,7 +4,7 @@ import { LogsComponent } from './logs';
 export default [
 
    
-    { path: 'auth_logs', component: LogsComponent, data: { title: 'Auth_Logs - ISLF' } },
+    { path: 'auth_logs', component: LogsComponent, data: { breadcrumb: 'Logs >>> Authentication Logs', title: 'Auth_Logs - ISLF' } },
 
 ] as Routes; 
 

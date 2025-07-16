@@ -25,9 +25,12 @@ router.post('/', async (req, res) => {
     vehicleAssigned,
     shiftTiming,
     bio,
-    avatar
+    avatar,
+    permission
   } = req.body;
 
+  // Debug: log received permission
+  console.log('Received permission (POST):', permission);
   // Convert empty string dates to null
   const safeDateOfBirth = dateOfBirth === "" ? null : dateOfBirth;
   const safeJoiningDate = joiningDate === "" ? null : joiningDate;
@@ -40,10 +43,10 @@ router.post('/', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (
-        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, created_at
+        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW()
-      ) RETURNING id, username, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, created_at`,
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
+      ) RETURNING id, username, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, created_at`,
       [
         username,
         hashedPassword,
@@ -64,7 +67,8 @@ router.post('/', async (req, res) => {
         vehicleAssigned,
         shiftTiming,
         bio,
-        avatar // avatar from frontend, mapped to avatar_url in DB
+        avatar, // avatar from frontend, mapped to avatar_url in DB
+        permission
       ]
     );
     res.status(201).json({ user: result.rows[0] });
@@ -83,7 +87,7 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, full_name, employee_id, designation, joining_date, status FROM users`
+      `SELECT id, full_name, employee_id, designation, joining_date, status, bio, permission FROM users`
     );
     const users = result.rows.map(user => ({
       id: user.id,
@@ -91,7 +95,9 @@ router.get('/', async (req, res) => {
       employee_id: user.employee_id,
       designation: user.designation,
       joining_date: user.joining_date,
-      status: user.status
+      status: user.status,
+      bio: user.bio,
+      permission: user.permission
     }));
     res.json({ users });
   } catch (err) {
@@ -105,7 +111,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT id, full_name, employee_id, designation, joining_date, status, email, phone, gender, date_of_birth, branch, department, designation, reporting_manager, username, role, employment_type, vehicle_assigned, shift_timing, avatar_url FROM users WHERE id = $1`,
+      `SELECT id, full_name, employee_id, designation, joining_date, status, email, phone, gender, date_of_birth, branch, department, designation, reporting_manager, username, role, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission FROM users WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) {
@@ -142,9 +148,12 @@ router.put('/:id', async (req, res) => {
       vehicleAssigned,
       shiftTiming,
       bio,
-      avatar
+      avatar,
+      permission
     } = req.body;
 
+    // Debug: log received permission
+    console.log('Received permission (PUT):', permission);
     // Convert empty string dates to null
     const safeDateOfBirth = dateOfBirth === "" ? null : dateOfBirth;
     const safeJoiningDate = joiningDate === "" ? null : joiningDate;
@@ -169,8 +178,9 @@ router.put('/:id', async (req, res) => {
         vehicle_assigned = $16,
         shift_timing = $17,
         bio = $18,
-        avatar_url = $19
-      WHERE id = $20
+        avatar_url = $19,
+        permission = $20
+      WHERE id = $21
       RETURNING *`,
       [
         fullName,
@@ -192,6 +202,7 @@ router.put('/:id', async (req, res) => {
         shiftTiming,
         bio,
         avatar,
+        permission,
         id
       ]
     );

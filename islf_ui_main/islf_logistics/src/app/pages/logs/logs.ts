@@ -5,11 +5,13 @@ import { TableModule } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputIconModule } from 'primeng/inputicon';
 import { IconFieldModule } from 'primeng/iconfield';
+import { ButtonModule } from 'primeng/button';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-
+import * as XLSX from 'xlsx';
 
 interface LogEntry {
   timestamp: Date;
+  formattedTimestamp?: string;
   username: string;
   action: string;
   details: string;
@@ -24,12 +26,12 @@ interface LogEntry {
     InputTextModule,
     IconFieldModule,
     InputIconModule,
-    
-    
-    HttpClientModule // Add HttpClientModule for HTTP requests
+    ButtonModule,
+    HttpClientModule,
   ],
   template: `
     <div class="card p-4">
+      <div class="font-semibold text-xl mb-4">Authentication Logs</div>
       <p-table
         #dt
         [value]="logs()"
@@ -37,53 +39,62 @@ interface LogEntry {
         [rows]="10"
         [rowsPerPageOptions]="[10, 50, 100]"
         [globalFilterFields]="filterFields"
-        [tableStyle]="{ 'min-width': '75rem' }"
-        [showCurrentPageReport]="true"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} logs"
+        [showGridlines]="true"
+        [rowHover]="true"
       >
+      
         <ng-template pTemplate="caption">
-          <div class="flex justify-between items-center mb-3">
-            <h5 class="m-0 font-semibold">System Logs</h5>
-            <p-iconfield>
-              <p-inputicon styleClass="pi pi-search" />
-              <input
-                pInputText
-                type="text"
-                (input)="onGlobalFilter(dt, $event)"
-                placeholder="Search logs..."
-              />
-            </p-iconfield>
+          
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
+          
+            <div class="flex items-center gap-2">
+              <button pButton label="Clear" class="p-button-outlined p-button" icon="pi pi-filter-slash" (click)="dt.clear()"></button>
+              <button pButton label="Export" class="p-button" icon="pi pi-file-excel" (click)="exportExcel()"></button>
+            </div>
+
+            <div class="flex items-center gap-2 ml-auto">
+              <p-iconfield iconPosition="left">
+                <p-inputicon>
+                  <i class="pi pi-search"></i>
+                </p-inputicon>
+                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" />
+              </p-iconfield>
+            </div>
           </div>
         </ng-template>
 
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="timestamp">
-              <span class="flex items-center gap-2">
-                Timestamp <p-sortIcon field="timestamp" />
-              </span>
+            <th>
+              <div class="flex justify-between items-center">
+                Timestamp
+                <p-columnFilter type="date" field="timestamp" display="menu" placeholder="Filter by date"></p-columnFilter>
+              </div>
             </th>
-            <th pSortableColumn="user">
-              <span class="flex items-center gap-2">
-                User <p-sortIcon field="user" />
-              </span>
+            <th>
+              <div class="flex justify-between items-center">
+                User
+                <p-columnFilter type="text" field="username" display="menu" placeholder="Filter by user"></p-columnFilter>
+              </div>
             </th>
-            <th pSortableColumn="action">
-              <span class="flex items-center gap-2">
-                Action <p-sortIcon field="action" />
-              </span>
+            <th>
+              <div class="flex justify-between items-center">
+                Action
+                <p-columnFilter type="text" field="action" display="menu" placeholder="Filter by action"></p-columnFilter>
+              </div>
             </th>
-            <th pSortableColumn="details">
-              <span class="flex items-center gap-2">
-                Details <p-sortIcon field="details" />
-              </span>
+            <th>
+              <div class="flex justify-between items-center">
+                Details
+                <p-columnFilter type="text" field="details" display="menu" placeholder="Filter by details"></p-columnFilter>
+              </div>
             </th>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="body" let-log>
           <tr>
-            <td>{{ log.timestamp | date: 'dd/MM/yyyy & HH:mm' }}</td>
+            <td>{{ log.timestamp | date: 'MM/dd/yyyy & HH:mm' }}</td>
             <td>{{ log.username }}</td>
             <td>{{ log.action }}</td>
             <td>{{ log.details }}</td>
@@ -97,12 +108,11 @@ interface LogEntry {
         </ng-template>
       </p-table>
     </div>
-
   `
 })
 export class LogsComponent implements OnInit {
   logs = signal<LogEntry[]>([]);
-  filterFields: string[] = ['timestamp', 'user', 'action', 'details'];
+  filterFields: string[] = ['formattedTimestamp', 'username', 'action', 'details'];
 
   @ViewChild('dt') dt!: Table;
 
@@ -110,12 +120,69 @@ export class LogsComponent implements OnInit {
 
   ngOnInit() {
     this.http.get<LogEntry[]>('/api/logs/auth').subscribe({
-      next: (data) => this.logs.set(data),
+      next: (data) => {
+        const enriched = data.map(log => ({
+          ...log,
+          formattedTimestamp: new Date(log.timestamp).toLocaleString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        }));
+        this.logs.set(enriched);
+      },
       error: (err) => console.error('Failed to load logs', err)
     });
   }
 
   onGlobalFilter(table: Table, event: Event) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+    const value = (event.target as HTMLInputElement).value;
+    table.filterGlobal(value.toLowerCase(), 'contains');
+  }
+
+
+
+  exportExcel() {
+    // Get filtered data if available, otherwise all data
+    const dataToExport = (this.dt as any).filteredValue ?? this.logs();
+
+    if (!dataToExport || dataToExport.length === 0) {
+      console.error('No data to export');
+      return;
+    }
+
+    // Prepare data for Excel
+    const exportData = dataToExport.map((log: any) => ({
+      Timestamp: log.formattedTimestamp || log.timestamp,
+      User: log.username,
+      Action: log.action,
+      Details: log.details
+    }));
+
+    // Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Logs');
+
+    // Generate filename: auth_logs-YYYYMMDD-filtervalue.xlsx
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${dd}${mm}${yyyy}`;
+
+    // Try to get the global filter value from the table
+    let filterValue = '';
+    if ((this.dt as any).filters && (this.dt as any).filters['global']) {
+      filterValue = (this.dt as any).filters['global'].value || '';
+    }
+    // Sanitize filter value for filename
+    filterValue = filterValue.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `auth_logs-${dateStr}${filterValue ? '-' + filterValue : ''}.xlsx`;
+
+    // Export to Excel file
+    XLSX.writeFile(workbook, filename);
   }
 }
