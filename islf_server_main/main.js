@@ -12,13 +12,20 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-// Import and use the auth and password    routers
+//  auth and password    routers
+
 const authRouter = require('./routes/auth');
 app.use('/api/auth', authRouter);
 const passwordRouter = require('./routes/password');
 app.use('/api/password', passwordRouter);
+
+// logs routes
+
 const logsRouter = require('./routes/logs');
 app.use('/api/logs', logsRouter);
+
+//settings routes
+
 const numberSeriesRouter = require('./routes/number_series');
 app.use('/api/number_series', numberSeriesRouter);
 const numberRelationRouter = require('./routes/number_relation');
@@ -33,6 +40,11 @@ const settingsRouter = require('./routes/settings');
 app.use('/api/settings', settingsRouter);
 const userRouter = require('./routes/user');
 app.use('/api/user', userRouter);
+
+//masters routes
+
+const masterCodeRouter = require('./routes/master_code');
+app.use('/api/master_code', masterCodeRouter);
 
 // DB connection check
 const pool = require('./db');

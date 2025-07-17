@@ -31,7 +31,7 @@ export class AppMenu {
         items: [
           {
             label: 'Settings',
-            icon: 'pi pi-cog',
+            icon: 'pi pi-spin pi-cog',
             items: [
               {
                 label: 'Company Mgmt',
@@ -59,7 +59,7 @@ export class AppMenu {
                 routerLink: ['/setup/it_setup'],
               },
               {
-                label: 'User Management',
+                label: 'User Mgmt',
                 icon: 'pi pi-user',
                 routerLink: ['/setup/user_management'],
               },
@@ -82,6 +82,27 @@ export class AppMenu {
           },
         ],
       },
+      {
+        items: [
+          {
+            label: 'Masters',
+            icon: 'pi pi-database',
+            items: [
+              {
+                label: 'Master Code',
+                icon: 'pi pi-sliders-h',
+                routerLink: ['/master/master_code'],
+              },
+              {
+                label: 'Master Type',
+                icon: 'pi pi-sliders-h',
+                routerLink: ['/master/master_type'],
+              },
+            ],
+          },
+        ],
+      },
+      
     ];
   }
 }

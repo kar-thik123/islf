@@ -303,8 +303,7 @@ export class UserCreateComponent implements OnInit {
 
   statuses = [
     { label: 'Active', value: 'Active' },
-    { label: 'Inactive', value: 'Inactive' },
-    { label: 'Suspended', value: 'Suspended' }
+    { label: 'Inactive', value: 'Inactive' }
   ];
 
   employmentTypes = [
@@ -312,6 +311,11 @@ export class UserCreateComponent implements OnInit {
     { label: 'Part-time' },
     { label: 'Contract' },
     { label: 'Intern' }
+  ];
+
+  vehicleAssignedOptions = [
+    { label: 'Yes', value: 'Yes' },
+    { label: 'No', value: 'No' }
   ];
 
   rolePermissionsMap: { [key: string]: any[] } = {

@@ -116,9 +116,11 @@ import { UserService } from '../../../services/user.service';
             <td>{{ user.designation }}</td>
             <td>{{ user.joining_date | date: 'MM/dd/yyyy' }}</td>
             <td>
-              <span [ngClass]="{
-                'text-green-600 font-semibold': user.status === 'Active',
-                'text-red-600 font-semibold': user.status === 'Inactive'
+              <span class="text-sm font-semibold px-3 py-1 rounded-full"
+              [ngClass]="{
+                
+                'text-green-600 bg-green-100': user.status === 'Active',
+                'text-red-600 bg-red-100': user.status === 'Inactive'
               }">
                 {{ user.status }}
               </span>
