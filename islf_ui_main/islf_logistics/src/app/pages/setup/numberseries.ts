@@ -192,10 +192,10 @@ interface NumberSeries {
               <ng-template #baseText>{{ ser.basecode }}</ng-template>
             </td>
             <td>
-              <p-checkbox [(ngModel)]="ser.isDefault" binary="true" [disabled]="!ser.isEditing"></p-checkbox>
+              <p-checkbox [(ngModel)]="ser.isDefault" binary="true" [disabled]="!ser.isEditing" (onChange)="onDefaultChange(ser)"></p-checkbox>
             </td>
             <td>
-              <p-checkbox [(ngModel)]="ser.isManual" binary="true" [disabled]="!ser.isEditing"></p-checkbox>
+              <p-checkbox [(ngModel)]="ser.isManual" binary="true" [disabled]="!ser.isEditing" (onChange)="onManualChange(ser)"></p-checkbox>
             </td>
             <td>
               <p-checkbox [(ngModel)]="ser.isPrimary" binary="true" [disabled]="!ser.isEditing"></p-checkbox>
@@ -278,7 +278,7 @@ export class NumberSeriesComponent implements OnInit {
     const newRow: NumberSeries = {
       code: '',
       description: '',
-      basecode: '',
+      basecode: '', // Will set to code after code input
       isDefault: false,
       isManual: false,
       isPrimary: false,
@@ -289,6 +289,10 @@ export class NumberSeriesComponent implements OnInit {
   }
 
   saveRow(row: NumberSeries) {
+    // Default basecode to code if not set
+    if (!row.basecode && row.code) {
+      row.basecode = row.code;
+    }
     if (row.isNew) {
       this.numberSeriesService.create({
         code: row.code!,
@@ -334,6 +338,10 @@ export class NumberSeriesComponent implements OnInit {
     console.log('Editing row:', row);
     const updatedList = this.seriesList().map(r => {
       if (r === row) {
+        // Default basecode to code if not set
+        if (!r.basecode && r.code) {
+          return { ...r, isEditing: true, basecode: r.code };
+        }
         return { ...r, isEditing: true };
       }
       return r;
@@ -373,5 +381,23 @@ export class NumberSeriesComponent implements OnInit {
 
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  }
+
+  onDefaultChange(row: NumberSeries) {
+    if (row.isDefault) {
+      row.isManual = false;
+    }
+  }
+
+  onManualChange(row: NumberSeries) {
+    if (row.isManual) {
+      row.isDefault = false;
+    }
+  }
+
+  getPrimaryCodeOptions(currentCode?: string) {
+    return this.seriesList()
+      .filter(item => item.isPrimary && item.code && item.code !== currentCode)
+      .map(item => ({ label: item.code, value: item.code }));
   }
 }

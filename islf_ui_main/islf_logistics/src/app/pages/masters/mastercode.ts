@@ -208,6 +208,7 @@ interface PageFieldOption {
 })
 export class MasterCodeComponent implements OnInit {
   masters: any[] = [];
+  activeCodes: any[] = [];
   referenceTreeOptions: any[] = [];
 
   statuses = [
@@ -257,7 +258,12 @@ export class MasterCodeComponent implements OnInit {
         isEditing: false,
         isNew: false
       }));
+      this.activeCodes = this.masters.filter((c: any) => c.status === 'Active');
     });
+  }
+
+  getActiveCodes() {
+    return this.activeCodes;
   }
 
   addRow() {
@@ -283,6 +289,17 @@ export class MasterCodeComponent implements OnInit {
       const [referencePage, referenceField] = referenceValue
         ? referenceValue.split('>').map((s: string) => s.trim())
         : [null, null];
+      // Check for existing active code for this reference
+      const existingActive = this.masters.find((item: any) =>
+        item.referencepage && item.referencefield &&
+        item.status && item.status.trim().toLowerCase() === 'active' &&
+        item.referencepage.trim().toLowerCase() === (referencePage || '').trim().toLowerCase() &&
+        item.referencefield.trim().toLowerCase() === (referenceField || '').trim().toLowerCase()
+      );
+      if (existingActive) {
+        this.messageService.add({ severity: 'warn', summary: 'Not Allowed', detail: 'An active code for this reference already exists. Please deactivate it before creating a new one.' });
+        return;
+      }
       this.masterService.createMaster({
         code: master.code,
         description: master.description,
@@ -302,9 +319,7 @@ export class MasterCodeComponent implements OnInit {
       });
     } else {
       // Only update status for existing rows
-      this.masterService.updateMaster(master.id, {
-        status: master.status
-      }).subscribe({
+      this.masterService.updateMasterStatus(master.id, master.status).subscribe({
         next: () => {
           master.isEditing = false;
           this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Status updated' });

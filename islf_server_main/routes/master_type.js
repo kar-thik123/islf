@@ -1,0 +1,66 @@
+const express = require('express');
+const pool = require('../db');
+const router = express.Router();
+
+// Get all master types
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM master_type ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch master types' });
+  }
+});
+
+// Get master type by id
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM master_type WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch master type' });
+  }
+});
+
+// Create master type
+router.post('/', async (req, res) => {
+  const { key, value, description, status } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO master_type (key, value, description, status) VALUES ($1, $2, $3, $4) RETURNING *',
+      [key, value, description, status]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create master type' });
+  }
+});
+
+// Update master type
+router.put('/:id', async (req, res) => {
+  const { key, value, description, status } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE master_type SET key = $1, value = $2, description = $3, status = $4 WHERE id = $5 RETURNING *',
+      [key, value, description, status, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update master type' });
+  }
+});
+
+// Delete master type
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM master_type WHERE id = $1 RETURNING *', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete master type' });
+  }
+});
+
+module.exports = router; 

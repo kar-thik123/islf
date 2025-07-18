@@ -8,6 +8,9 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { LoginService } from '../../services/login.service';
+import { UserService } from '../../services/user.service';
+
 
 @Component({
     selector: '[app-topbar]',
@@ -34,9 +37,10 @@ import { InputIconModule } from 'primeng/inputicon';
                 </li>
                 <li class="topbar-profile">
                     <button type="button" class="p-link" (click)="onProfileButtonClick()">
-                        <img src="/layout/images/avatar.png" alt="Profile" />
+                        <img [src]="userAvatar" alt="Profile" style="border: 2px solid #ccc; border-radius: 50%;" />
                     </button>
                 </li>
+
             </ul>
         </div>
     </div>`
@@ -44,7 +48,24 @@ import { InputIconModule } from 'primeng/inputicon';
 export class AppTopbar {
     @ViewChild('menubutton') menuButton!: ElementRef;
 
-    constructor(public layoutService: LayoutService) {}
+    userName: string | null = null;
+    userAvatar: string | null = null;
+
+    constructor(public layoutService: LayoutService, private loginService: LoginService, private userService: UserService) {
+        this.userName = this.loginService.getUserName();
+        if (this.userName) {
+            this.userService.getUserByUsername(this.userName).subscribe({
+                next: (res) => {
+                    this.userAvatar = res.user.avatar_url || '/layout/images/avatar.png';
+                },
+                error: () => {
+                    this.userAvatar = '/layout/images/avatar.png';
+                }
+            });
+        } else {
+            this.userAvatar = '/layout/images/avatar.png';
+        }
+    }
 
     onMenuButtonClick() {
         this.layoutService.onMenuToggle();

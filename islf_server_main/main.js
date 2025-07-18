@@ -46,6 +46,9 @@ app.use('/api/user', userRouter);
 const masterCodeRouter = require('./routes/master_code');
 app.use('/api/master_code', masterCodeRouter);
 
+const masterTypeRouter = require('./routes/master_type');
+app.use('/api/master_type', masterTypeRouter);
+
 // DB connection check
 const pool = require('./db');
 pool.connect()

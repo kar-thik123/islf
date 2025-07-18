@@ -125,6 +125,24 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get user by username (for profile sidebar)
+router.get('/by-username/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const result = await pool.query(
+      'SELECT id, full_name, avatar_url FROM users WHERE username = $1',
+      [username]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ user: result.rows[0] });
+  } catch (err) {
+    console.error('Error fetching user by username:', err);
+    res.status(500).json({ message: 'Database error', error: err });
+  }
+});
+
 // Update user by ID
 router.put('/:id', async (req, res) => {
   try {

@@ -1,14 +1,17 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, OnInit } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { DrawerModule } from 'primeng/drawer';
 import { BadgeModule } from 'primeng/badge';
 import { LayoutService } from '../../layout/service/layout.service';
 import { Router } from '@angular/router';
 import { LoginService } from '../../services/login.service';
+import { UserService } from '../../services/user.service';
+import { CommonModule } from '@angular/common';
 
 @Component({
     selector: '[app-profilesidebar]',
     imports: [
+        CommonModule,
         ButtonModule,
         DrawerModule,
         BadgeModule,
@@ -25,7 +28,7 @@ import { LoginService } from '../../services/login.service';
             <div class="flex flex-col mx-auto md:mx-0 items-center">
                 <img *ngIf="userAvatar" [src]="userAvatar" alt="Profile" class="w-20 h-20 rounded-full mb-2" />
                 <span class="mb-2 font-semibold">Welcome</span>
-                <span class="text-surface-500 dark:text-surface-400 font-medium mb-8">{{ userName || 'User' }}</span>
+                <span class="text-surface-500 dark:text-surface-400 font-medium mb-8">{{ fullName || 'User' }}</span>
             </div>
 
             <ul class="list-none m-0 p-0">
@@ -58,17 +61,33 @@ import { LoginService } from '../../services/login.service';
         </p-drawer>
     `,
 })
-export class AppProfileSidebar {
+export class AppProfileSidebar implements OnInit {
     userName: string | null = null;
     userAvatar: string | null = null; // Extend this if you store avatar in localStorage or user profile
+    fullName: string | null = null;
+    userId: string | null = null;
 
     constructor(
         public layoutService: LayoutService,
         private router: Router,
-        private loginService: LoginService
+        private loginService: LoginService,
+        private userService: UserService
     ) {
         this.userName = this.loginService.getUserName();
-        // If you store avatar, set this.userAvatar = ...
+    }
+
+    ngOnInit() {
+        if (this.userName) {
+            this.userService.getUserByUsername(this.userName).subscribe({
+                next: (res) => {
+                    this.fullName = res.user.full_name;
+                    this.userId = res.user.id;
+                },
+                error: () => {
+                    this.fullName = this.userName; // fallback
+                }
+            });
+        }
     }
 
     visible = computed(() => this.layoutService.layoutState().profileSidebarVisible);
@@ -80,7 +99,9 @@ export class AppProfileSidebar {
     // Navigate to profile page
     goToProfile() {
         this.onDrawerHide();
-        this.router.navigate(['/setup/create_user']);
+        if (this.userId) {
+            this.router.navigate(['/setup/create_user', this.userId]);
+        }
     }
 
     // Sign out logic

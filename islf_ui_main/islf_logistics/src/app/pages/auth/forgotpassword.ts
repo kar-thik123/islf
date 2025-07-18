@@ -29,7 +29,8 @@ import { MessageService } from 'primeng/api';
     ],
     providers: [ToastService],
     standalone: true,
-    template: ` <svg
+    template: `<p-toast key="processing"></p-toast>
+<p-toast></p-toast> <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1600 800"
             class="fixed left-0 top-0 min-h-screen min-w-[100vw]"
@@ -147,28 +148,35 @@ export class ForgotPassword {
     isDarkTheme = computed(() => this.LayoutService.isDarkTheme());
 
     onSubmit() {
-        // this.message = '';
-        // this.error = '';
         const mailOrPhone = this.identifier?.trim();
         if (!mailOrPhone) {
-            // this.error = 'Email or phone is required.';
             this.messageService.add({severity: 'error', summary: 'Validation Error', detail: 'Email or phone is required.', life: 5000});
             return;
         }
+
+        // Show processing toast
+        this.messageService.add({
+            key: 'processing',
+            severity: 'info',
+            summary: 'Processing',
+            detail: 'Please wait...',
+            life: 10000 // or until manually cleared
+        });
+
         this.forgotPasswordService.forgotPassword(mailOrPhone).subscribe({
             next: () => {
-                // this.message = 'If this account exists, a reset link has been sent to the email on file.';
+                // Clear processing toast
+                this.messageService.clear('processing');
                 this.messageService.add({
                     severity: 'success',
                     summary: 'Reset Email Sent',
                     detail: `A password reset link has been sent to your ${mailOrPhone}.`,
                     life: 5000
                 });
-                // Add a short delay before any navigation if needed
-                // setTimeout(() => { this.router.navigate(['/']); }, 500);
             },
             error: (err) => {
-                // this.error = err?.error?.message || 'Error sending reset email.';
+                // Clear processing toast
+                this.messageService.clear('processing');
                 this.messageService.add({severity: 'error', summary: 'Reset Failed', detail: err?.error?.message || 'Error sending reset email.', life: 5000});
             }
         });

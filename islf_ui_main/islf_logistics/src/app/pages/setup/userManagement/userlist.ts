@@ -120,7 +120,8 @@ import { UserService } from '../../../services/user.service';
               [ngClass]="{
                 
                 'text-green-600 bg-green-100': user.status === 'Active',
-                'text-red-600 bg-red-100': user.status === 'Inactive'
+                'text-red-600 bg-red-100': user.status === 'Inactive',
+                'text-blue-600 bg-blue-100': user.status !== 'Active' && user.status !== 'Inactive'
               }">
                 {{ user.status }}
               </span>

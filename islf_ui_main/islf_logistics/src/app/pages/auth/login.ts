@@ -186,7 +186,7 @@ export class Login {
                     this.loginService.setUserName(res.name);
                 }
                 this.messageService.add({severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000});
-                this.router.navigate(['/logs']);
+                this.router.navigate(['logs/auth_logs']);
             },
             error: (err) => {
                 const detail = err?.error?.message || 'Invalid identifier or password.';

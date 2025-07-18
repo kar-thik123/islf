@@ -22,6 +22,8 @@ import { DepartmentService } from '@/services/department.service';
 import { ActivatedRoute } from '@angular/router';
 import { ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MasterCodeService } from '../../../services/mastercode.service';
+import { MasterTypeService } from '../../../services/mastertype.service';
 
 
 @Component({
@@ -131,7 +133,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Designation</label>
-        <input type="text" pInputText class="w-full" [(ngModel)]="user.designation" name="designation" />
+        <p-dropdown [options]="designationOptions" optionLabel="value" optionValue="value" placeholder="Select Designation" class="w-full" [(ngModel)]="user.designation" name="designation"></p-dropdown>
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Reporting Manager</label>
@@ -170,8 +172,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Role</label>
         <p-dropdown 
-          [options]="roles" 
-          optionLabel="label" 
+          [options]="roleOptions" 
+          optionLabel="value" 
           optionValue="value"
           placeholder="Select Role" 
           class="w-full"
@@ -191,7 +193,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Status</label>
-        <p-dropdown [options]="statuses" optionLabel="label" optionValue="value" placeholder="Select Status" class="w-full" [(ngModel)]="user.status" name="status"></p-dropdown>
+        <p-dropdown [options]="statusOptions" optionLabel="value" optionValue="value" placeholder="Select Status" class="w-full" [(ngModel)]="user.status" name="status"></p-dropdown>
       </div>
     </div>
 
@@ -342,6 +344,9 @@ export class UserCreateComponent implements OnInit {
   usernameManuallyEdited = false;
   isEditMode = false;
   userId: string | null = null;
+  designationOptions: any[] = [];
+  statusOptions: any[] = [];
+  roleOptions: any[] = [];
 
   onRoleChange(event: any) {
     this.selectedRole = event.value;
@@ -409,7 +414,9 @@ export class UserCreateComponent implements OnInit {
     private branchService: BranchService,
     private departmentService: DepartmentService,
     private route: ActivatedRoute,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private masterCodeService: MasterCodeService,
+    private masterTypeService: MasterTypeService
   ) {}
 
   // Helper to map codes to option objects
@@ -512,6 +519,65 @@ export class UserCreateComponent implements OnInit {
         departmentsLoaded = true;
         tryLoadUser();
       }
+    });
+
+    this.masterCodeService.getMasters().subscribe((codes: any[]) => {
+      console.log('Master Codes:', codes);
+      // Designation
+      const designationRefString = 'create user / designation';
+      const activeDesignationCode = (codes || []).find(
+        (c: any) =>
+          c.referencepage && c.referencefield &&
+          `${c.referencepage} / ${c.referencefield}`.trim().toLowerCase() === designationRefString &&
+          c.status && c.status.trim().toLowerCase() === 'active'
+      );
+      console.log('Active Designation Code:', activeDesignationCode);
+      // Status
+      const statusRefString = 'create user / status';
+      const activeStatusCode = (codes || []).find(
+        (c: any) =>
+          c.referencepage && c.referencefield &&
+          `${c.referencepage} / ${c.referencefield}`.trim().toLowerCase() === statusRefString &&
+          c.status && c.status.trim().toLowerCase() === 'active'
+      );
+      // Role
+      const roleRefString = 'create user / role';
+      const activeRoleCode = (codes || []).find(
+        (c: any) =>
+          c.referencepage && c.referencefield &&
+          `${c.referencepage} / ${c.referencefield}`.trim().toLowerCase() === roleRefString &&
+          c.status && c.status.trim().toLowerCase() === 'active'
+      );
+      this.masterTypeService.getAll().subscribe((types: any[]) => {
+        console.log('Master Types:', types);
+        // Designation
+        if (activeDesignationCode && activeDesignationCode.code) {
+          this.designationOptions = (types || []).filter(
+            (t: any) => t.key && t.key.trim().toLowerCase() === activeDesignationCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
+          );
+        } else {
+          this.designationOptions = [];
+        }
+        // Status
+        if (activeStatusCode && activeStatusCode.code) {
+          this.statusOptions = (types || []).filter(
+            (t: any) => t.key && t.key.trim().toLowerCase() === activeStatusCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
+          );
+        } else {
+          this.statusOptions = [];
+        }
+        // Role
+        if (activeRoleCode && activeRoleCode.code) {
+          this.roleOptions = (types || []).filter(
+            (t: any) => t.key && t.key.trim().toLowerCase() === activeRoleCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
+          );
+        } else {
+          this.roleOptions = [];
+        }
+        console.log('Designation Options:', this.designationOptions);
+        console.log('Status Options:', this.statusOptions);
+        console.log('Role Options:', this.roleOptions);
+      });
     });
   }
   goBack() {

@@ -69,10 +69,10 @@ import { HttpClient } from '@angular/common/http';
                       <div><strong>Code:</strong> {{ branch.code }}</div>
                       <div><strong>GST:</strong> {{ branch.gst }}</div>
                       <div><strong>Address:</strong> {{ branch.address }}</div>
-                      <div><strong>Incharge From:</strong> {{ branch.incharge_from }}</div>
+                      <div><strong>Incharge From:</strong> {{ branch.incharge_from | date:'dd/MM/yyyy' }}</div>
                       <div><strong>Status:</strong> {{ branch.status }}</div>
-                      <div><strong>Start:</strong> {{ branch.start_date }}</div>
-                      <div><strong>Close:</strong> {{ branch.close_date || '-' }}</div>
+                      <div><strong>Start:</strong> {{ branch.start_date | date:'dd/MM/yyyy' }}</div>
+                      <div><strong>Close:</strong> {{ branch.close_date ? (branch.close_date | date:'dd/MM/yyyy') : '-' }}</div>
                       <div class="col-span-2"><strong>Remarks:</strong> {{ branch.remarks }}</div>
                       <div class="col-span-2"><strong>Description:</strong> {{ branch.description }}</div>
                     </div>
@@ -112,10 +112,10 @@ import { HttpClient } from '@angular/common/http';
                         <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                           <div><strong>Code:</strong> {{dept.code }}</div>
-                          <div><strong>Incharge From:</strong> {{ dept.incharge_from }}</div>
+                          <div><strong>Incharge From:</strong> {{ dept.incharge_from | date:'dd/MM/yyyy' }}</div>
                           <div><strong>Status:</strong> {{ dept.status }}</div>
-                          <div><strong>Start:</strong> {{ dept.start_date }}</div>
-                          <div><strong>Close:</strong> {{ dept.close_date || '-' }}</div>
+                          <div><strong>Start:</strong> {{ dept.start_date | date:'dd/MM/yyyy' }}</div>
+                          <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | date:'dd/MM/yyyy') : '-' }}</div>
                           <div class="col-span-2"><strong>Remarks:</strong> {{ dept.remarks }}</div>
                         </div>
                       </div>

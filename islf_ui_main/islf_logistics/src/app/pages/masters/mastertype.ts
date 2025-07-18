@@ -185,6 +185,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
 })
 export class MasterTypeComponent implements OnInit {
   types: any[] = [];
+  activeTypes: any[] = [];
   masterCodeOptions: any[] = [];
   statuses = [
     { label: 'Active', value: 'Active' },
@@ -212,6 +213,7 @@ export class MasterTypeComponent implements OnInit {
         isEditing: false,
         isNew: false
       }));
+      this.activeTypes = this.types.filter((t: any) => t.status === 'Active');
     });
   }
 
@@ -283,5 +285,9 @@ export class MasterTypeComponent implements OnInit {
   onGlobalFilter(table: any, event: Event) {
     const value = (event.target as HTMLInputElement).value;
     table.filterGlobal(value, 'contains');
+  }
+
+  getActiveTypes() {
+    return this.activeTypes;
   }
 }
