@@ -174,6 +174,9 @@ import { InputSwitchModule } from 'primeng/inputswitch';
               [editable]="false"
               placeholder="Select Number Series"
               [showClear]="true"
+              [filter]="true"
+              optionLabel="value"
+              filterBy="value"
             ></p-dropdown>
           </div>
           <div class="grid-item">

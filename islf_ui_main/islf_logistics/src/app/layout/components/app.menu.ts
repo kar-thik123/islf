@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterLink, RouterModule } from '@angular/router';
 import { AppMenuitem } from './app.menuitem';
 
 @Component({
@@ -48,16 +48,16 @@ export class AppMenu {
                 icon: 'pi pi-link',
                 routerLink: ['/setup/number_relation'],
               },
-              // {
-              //   label: 'No. Series Mapping',
-              //   icon: 'pi pi-map',
-              //   routerLink: ['/setup/mapping'],
-              // },
-              // {
-              //   label: 'IT Setup',
-              //   icon: 'pi pi-sliders-h',
-              //   routerLink: ['/setup/it_setup'],
-              // },
+              {
+                label: 'No. Series Mapping',
+                icon: 'pi pi-map',
+                routerLink: ['/setup/mapping'],
+              },
+              {
+                label: 'IT Setup',
+                icon: 'pi pi-sliders-h',
+                routerLink: ['/setup/it_setup'],
+              },
               {
                 label: 'User Mgmt',
                 icon: 'pi pi-user',
@@ -98,6 +98,11 @@ export class AppMenu {
                 icon: 'pi pi-sliders-h',
                 routerLink: ['/master/master_type'],
               },
+              {
+                label:'Location',
+                icon:'pi pi-map',
+                routerLink : ['/master/location']
+              }
             ],
           },
         ],

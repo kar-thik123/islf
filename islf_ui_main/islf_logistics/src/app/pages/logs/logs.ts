@@ -68,7 +68,7 @@ interface LogEntry {
             <th>
               <div class="flex justify-between items-center">
                 Timestamp
-                <p-columnFilter type="date" field="timestamp" display="menu" placeholder="Filter by date"></p-columnFilter>
+               <!-- <p-columnFilter type="date" field="timestamp" display="menu" placeholder="Filter by date"></p-columnFilter>-->
               </div>
             </th>
             <th>

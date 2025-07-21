@@ -110,7 +110,7 @@ import { MasterTypeService } from '../../../services/mastertype.service';
     </div>
     <div class="col-span-12 md:col-span-6">
       <label class="block font-semibold mb-1">Gender <span class="text-red-500">*</span></label>
-      <p-dropdown [options]="genders" optionLabel="label" optionValue="value" placeholder="Select Gender" class="w-full" [(ngModel)]="user.gender" name="gender"></p-dropdown>
+      <p-dropdown [options]="genders" optionLabel="label" optionValue="value" placeholder="Select Gender" class="w-full" [(ngModel)]="user.gender" name="gender" [filter]="true" filterBy="label"></p-dropdown>
     </div>
     <div class="col-span-12 md:col-span-6">
       <label class="block font-semibold mb-1">Date of Birth</label>
@@ -133,7 +133,7 @@ import { MasterTypeService } from '../../../services/mastertype.service';
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Designation</label>
-        <p-dropdown [options]="designationOptions" optionLabel="value" optionValue="value" placeholder="Select Designation" class="w-full" [(ngModel)]="user.designation" name="designation"></p-dropdown>
+        <p-dropdown [options]="designationOptions" optionLabel="value" optionValue="value" placeholder="Select Designation" class="w-full" [(ngModel)]="user.designation" name="designation" [filter]="true" filterBy="value"></p-dropdown>
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Reporting Manager</label>
@@ -178,7 +178,7 @@ import { MasterTypeService } from '../../../services/mastertype.service';
           placeholder="Select Role" 
           class="w-full"
           (onChange)="onRoleChange($event)"
-          [(ngModel)]="user.role" name="role">
+          [(ngModel)]="user.role" name="role" [filter]="true" filterBy="value">
         </p-dropdown>
       </div>
       <div class="col-span-12 md:col-span-6">
@@ -193,7 +193,7 @@ import { MasterTypeService } from '../../../services/mastertype.service';
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Status</label>
-        <p-dropdown [options]="statusOptions" optionLabel="value" optionValue="value" placeholder="Select Status" class="w-full" [(ngModel)]="user.status" name="status"></p-dropdown>
+        <p-dropdown [options]="statusOptions" optionLabel="value" optionValue="value" placeholder="Select Status" class="w-full" [(ngModel)]="user.status" name="status" [filter]="true" filterBy="value"></p-dropdown>
       </div>
     </div>
 
@@ -206,7 +206,7 @@ import { MasterTypeService } from '../../../services/mastertype.service';
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Employment Type</label>
-        <p-dropdown [options]="employmentTypes" optionLabel="label" placeholder="Select Type" class="w-full" [(ngModel)]="user.employmentType" name="employmentType"></p-dropdown>
+        <p-dropdown [options]="employmentTypes" optionLabel="label" placeholder="Select Type" class="w-full" [(ngModel)]="user.employmentType" name="employmentType" [filter]="true" filterBy="label"></p-dropdown>
       </div>
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Vehicle Assigned</label>
@@ -524,29 +524,14 @@ export class UserCreateComponent implements OnInit {
     this.masterCodeService.getMasters().subscribe((codes: any[]) => {
       console.log('Master Codes:', codes);
       // Designation
-      const designationRefString = 'create user / designation';
       const activeDesignationCode = (codes || []).find(
-        (c: any) =>
-          c.referencepage && c.referencefield &&
-          `${c.referencepage} / ${c.referencefield}`.trim().toLowerCase() === designationRefString &&
-          c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_designation' && c.status && c.status.trim().toLowerCase() === 'active'
       );
-      console.log('Active Designation Code:', activeDesignationCode);
-      // Status
-      const statusRefString = 'create user / status';
       const activeStatusCode = (codes || []).find(
-        (c: any) =>
-          c.referencepage && c.referencefield &&
-          `${c.referencepage} / ${c.referencefield}`.trim().toLowerCase() === statusRefString &&
-          c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_status' && c.status && c.status.trim().toLowerCase() === 'active'
       );
-      // Role
-      const roleRefString = 'create user / role';
       const activeRoleCode = (codes || []).find(
-        (c: any) =>
-          c.referencepage && c.referencefield &&
-          `${c.referencepage} / ${c.referencefield}`.trim().toLowerCase() === roleRefString &&
-          c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_role' && c.status && c.status.trim().toLowerCase() === 'active'
       );
       this.masterTypeService.getAll().subscribe((types: any[]) => {
         console.log('Master Types:', types);

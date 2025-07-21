@@ -15,13 +15,13 @@ export class MasterCodeService {
   }
 
   // ✅ Update status (Active/Inactive)
-  updateMasterStatus(id: string, status: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${id}/status`, { status });
+  updateMasterStatus(code: string, status: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/${code}/status`, { status });
   }
 
   // ✏️ Get a single master record by ID (for edit)
-  getMasterById(id: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/${id}`);
+  getMasterById(code: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${code}`);
   }
 
   // 💾 Create a new master entry
@@ -30,12 +30,12 @@ export class MasterCodeService {
   }
 
   // 🔁 Update existing master entry
-  updateMaster(id: string, data: any): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${id}`, data);
+  updateMaster(code: string, data: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/${code}`, data);
   }
 
   // ❌ Delete master entry
-  deleteMaster(id: string): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/${id}`);
+  deleteMaster(code: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${code}`);
   }
 }

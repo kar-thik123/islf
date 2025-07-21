@@ -1,10 +1,19 @@
 import {
   FilterMatchMode
-} from "./chunk-I4QX476U.js";
+} from "./chunk-6Z63YHRQ.js";
 import {
   setAttribute,
   setAttributes
 } from "./chunk-PQ4YWBDM.js";
+import {
+  config_default,
+  dt,
+  service_default
+} from "./chunk-CWYBPNCF.js";
+import {
+  minifyCSS,
+  resolve
+} from "./chunk-NJ25EVEJ.js";
 import {
   DOCUMENT
 } from "./chunk-D37ADL2V.js";
@@ -25,15 +34,6 @@ import {
 import {
   Subject
 } from "./chunk-4S3KYZTJ.js";
-import {
-  config_default,
-  dt,
-  service_default
-} from "./chunk-TZIJKBMI.js";
-import {
-  minifyCSS,
-  resolve
-} from "./chunk-YAPJLE7E.js";
 import {
   __spreadValues
 } from "./chunk-GOMI4DH3.js";
@@ -709,4 +709,4 @@ export {
   PRIME_NG_CONFIG,
   providePrimeNG
 };
-//# sourceMappingURL=chunk-DEOJWG7Y.js.map
+//# sourceMappingURL=chunk-6F4A23W7.js.map

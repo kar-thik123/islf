@@ -308,6 +308,10 @@ export class NumberSeriesComponent implements OnInit {
           row.isEditing = false;
           this.refreshList();
           this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Row saved' });
+        },
+        error: (err) => {
+          const detail = err?.error?.error || 'Failed to save row';
+          this.messageService.add({ severity: 'error', summary: 'Error', detail });
         }
       });
     } else {
@@ -327,6 +331,10 @@ export class NumberSeriesComponent implements OnInit {
           row.isEditing = false;
           this.refreshList();
           this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Row updated' });
+        },
+        error: (err) => {
+          const detail = err?.error?.error || 'Failed to update row';
+          this.messageService.add({ severity: 'error', summary: 'Error', detail });
         }
       });
     }

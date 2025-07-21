@@ -17,7 +17,7 @@ export class App {
   protected title = 'ISLF';
   public loading = false;
   private lockTimeout: any = null;
-  private readonly LOCK_DELAY_MS = 3600000; // 1 hour
+  private readonly LOCK_DELAY_MS = 360000; // 1 hour
 
   constructor(private titleService: TitleService, private router: Router) {
     this.titleService.init('ISLF');

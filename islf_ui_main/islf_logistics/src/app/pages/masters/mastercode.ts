@@ -5,7 +5,7 @@ import { TableModule } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
-import { TreeSelectModule } from 'primeng/treeselect';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
@@ -31,7 +31,7 @@ interface PageFieldOption {
     InputTextModule,
     ButtonModule,
     DropdownModule,
-    TreeSelectModule,
+    MultiSelectModule,
     InputSwitchModule,
     ToastModule,
     IconFieldModule,
@@ -40,11 +40,11 @@ interface PageFieldOption {
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Master Data</div>
+      <div class="font-semibold text-xl mb-4">Master Code</div>
       <p-table
         #dt
         [value]="masters"
-        dataKey="id"
+        dataKey="code"
         [paginator]="true"
         [rows]="10"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
@@ -121,22 +121,23 @@ interface PageFieldOption {
               <ng-template #codeText>{{ master.code }}</ng-template>
             </td>
             <td>
-              <ng-container *ngIf="master.isNew; else descText">
+              <ng-container *ngIf="master.isNew || master.isEditing; else descText">
                 <input pInputText [(ngModel)]="master.description" />
               </ng-container>
               <ng-template #descText>{{ master.description }}</ng-template>
             </td>
             <td>
-              <ng-container *ngIf="master.isNew; else refText">
-                <p-treeSelect
+              <ng-container *ngIf="master.isNew || master.isEditing; else refText">
+                <p-multiselect
                   [options]="referenceTreeOptions"
                   [(ngModel)]="master.reference"
                   placeholder="Select Reference"
-                  selectionMode="single"
+                  optionLabel="label"
+                  optionValue="value"
                   filter
                   [style]="{ width: '100%' }"
                   appendTo="body"
-                ></p-treeSelect>
+                ></p-multiselect>
               </ng-container>
               <ng-template #refText>{{ master.reference }}</ng-template>
             </td>
@@ -209,23 +210,16 @@ interface PageFieldOption {
 export class MasterCodeComponent implements OnInit {
   masters: any[] = [];
   activeCodes: any[] = [];
-  referenceTreeOptions: any[] = [];
 
   statuses = [
     { label: 'Active', value: 'Active' },
     { label: 'Inactive', value: 'Inactive' }
   ];
 
-  pageFieldOptions: PageFieldOption[] = [
-    {
-      label: 'Create User',
-      value: 'Create User',
-      fields: [
-        { label: 'Designation', value: 'Designation' },
-        { label: 'Role', value: 'Role' },
-        {label:'Status', value: ' Status'}
-      ]
-    },
+  referenceTreeOptions= [
+    {label: 'User / Status', value: 'User / Status'},
+    {label: 'User / Role', value: 'User / Role'},
+    {label: 'User / Designation', value: 'User / Designation'}
   ];
 
   constructor(
@@ -236,25 +230,13 @@ export class MasterCodeComponent implements OnInit {
 
   ngOnInit() {
     this.refreshList();
-    this.referenceTreeOptions = this.pageFieldOptions.map((p: PageFieldOption) => ({
-      label: p.label,
-      key: p.value,
-      icon: 'pi pi-folder',
-      children: p.fields.map((f: { label: string; value: string }) => ({
-        label: f.label,
-        key: `${p.value}  >  ${f.value}`,
-        icon: 'pi pi-file'
-      }))
-    }));
+  
   }
 
   refreshList() {
     this.masterService.getMasters().subscribe((res: any) => {
       this.masters = (res || []).map((item: any) => ({
         ...item,
-        reference: item.referencepage && item.referencefield
-          ? `${item.referencepage}  /  ${item.referencefield}`
-          : '',
         isEditing: false,
         isNew: false
       }));
@@ -282,19 +264,14 @@ export class MasterCodeComponent implements OnInit {
   saveRow(master: any) {
     // If adding a new row, save all fields
     if (master.isNew) {
-      let referenceValue = master.reference;
-      if (referenceValue && typeof referenceValue === 'object' && referenceValue.key) {
-        referenceValue = referenceValue.key;
-      }
-      const [referencePage, referenceField] = referenceValue
-        ? referenceValue.split('>').map((s: string) => s.trim())
-        : [null, null];
+      const referenceValue = master.reference;
+        
       // Check for existing active code for this reference
       const existingActive = this.masters.find((item: any) =>
-        item.referencepage && item.referencefield &&
+        item !== master && // Exclude the current new row from the check
+        item.reference &&
         item.status && item.status.trim().toLowerCase() === 'active' &&
-        item.referencepage.trim().toLowerCase() === (referencePage || '').trim().toLowerCase() &&
-        item.referencefield.trim().toLowerCase() === (referenceField || '').trim().toLowerCase()
+        item.reference.trim().toLowerCase() === (referenceValue || '').trim().toLowerCase()
       );
       if (existingActive) {
         this.messageService.add({ severity: 'warn', summary: 'Not Allowed', detail: 'An active code for this reference already exists. Please deactivate it before creating a new one.' });
@@ -303,8 +280,7 @@ export class MasterCodeComponent implements OnInit {
       this.masterService.createMaster({
         code: master.code,
         description: master.description,
-        referencePage,
-        referenceField,
+        reference: referenceValue,
         status: master.status
       }).subscribe({
         next: (res) => {
@@ -318,16 +294,22 @@ export class MasterCodeComponent implements OnInit {
         }
       });
     } else {
-      // Only update status for existing rows
-      this.masterService.updateMasterStatus(master.id, master.status).subscribe({
+      // Update existing record
+      const referenceValue = master.reference;
+
+      this.masterService.updateMaster(master.code, {
+        description: master.description,
+        reference: referenceValue,
+        status: master.status
+      }).subscribe({
         next: () => {
           master.isEditing = false;
-          this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Status updated' });
+          this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Master updated successfully' });
           this.refreshList();
         },
         error: (err) => {
-          console.error('Failed to update status', err);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Status update failed' });
+          console.error('Failed to update master', err);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Update failed' });
         }
       });
     }
@@ -337,16 +319,11 @@ export class MasterCodeComponent implements OnInit {
     this.masters.forEach(m => m.isEditing = false);
     master.isEditing = true;
     master.isNew = false;
-    if (master.referencepage && master.referencefield) {
-      master.reference = `${master.referencepage}  /  ${master.referencefield}`;
-    } else {
-      master.reference = '';
-    }
   }
 
   deleteRow(master: any) {
-    if (master.id && !master.isNew) {
-      this.masterService.deleteMaster(master.id).subscribe({
+    if (master.code && !master.isNew) {
+      this.masterService.deleteMaster(master.code).subscribe({
         next: () => {
           this.masters = this.masters.filter(m => m !== master);
           this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Master deleted' });

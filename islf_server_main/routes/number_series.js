@@ -48,6 +48,7 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('Update error:', err); // <-- This line is critical!
     res.status(500).json({ error: 'Failed to update number series' });
   }
 });

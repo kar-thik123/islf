@@ -181,9 +181,9 @@ export class Login {
         }
         this.loginService.login(this.identifier, this.password).subscribe({
             next: (res) => {
-                this.loginService.setToken(res.token);
+                this.loginService.setToken(res.token, this.rememberMe);
                 if (res.name) {
-                    this.loginService.setUserName(res.name);
+                    this.loginService.setUserName(res.name, this.rememberMe);
                 }
                 this.messageService.add({severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000});
                 this.router.navigate(['logs/auth_logs']);

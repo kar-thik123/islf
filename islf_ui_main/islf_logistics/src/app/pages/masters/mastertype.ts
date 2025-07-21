@@ -53,7 +53,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <th>
               <div class="flex justify-between items-center">
                 Key
-                <p-columnFilter type="text" field="key" display="menu" placeholder="Search by key"></p-columnFilter>
+                <p-columnFilter type="text" field="key" display="menu" placeholder="Search by key" ></p-columnFilter>
               </div>
             </th>
             <th>
@@ -103,18 +103,20 @@ import { MasterTypeService } from '../../services/mastertype.service';
                   optionValue="value"
                   placeholder="Select Key"
                   appendTo="body"
+                  [filter]="true"
+                  filterBy="label"
                 ></p-dropdown>
               </ng-container>
               <ng-template #keyText>{{ type.key }}</ng-template>
             </td>
             <td>
-              <ng-container *ngIf="type.isNew; else valueText">
+              <ng-container *ngIf="type.isNew || type.isEditing; else valueText">
                 <input pInputText [(ngModel)]="type.value" />
               </ng-container>
               <ng-template #valueText>{{ type.value }}</ng-template>
             </td>
             <td>
-              <ng-container *ngIf="type.isNew; else descText">
+              <ng-container *ngIf="type.isNew || type.isEditing; else descText">
                 <input pInputText [(ngModel)]="type.description" />
               </ng-container>
               <ng-template #descText>{{ type.description }}</ng-template>
@@ -128,6 +130,8 @@ import { MasterTypeService } from '../../services/mastertype.service';
                   optionValue="value"
                   placeholder="Select Status"
                   appendTo="body"
+                  [filter]="true"
+                  filterBy="label"
                 ></p-dropdown>
               </ng-container>
               <ng-template #statusText>
@@ -243,7 +247,12 @@ export class MasterTypeComponent implements OnInit {
         }
       });
     } else {
-      this.masterTypeService.update(type.id, type).subscribe({
+      // Update existing record
+      this.masterTypeService.update(type.id, {
+        value: type.value,
+        description: type.description,
+        status: type.status
+      }).subscribe({
         next: (updated) => {
           Object.assign(type, updated, { isEditing: false });
           this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Type updated' });

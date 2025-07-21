@@ -13,25 +13,39 @@ export class LoginService {
     return this.http.post<{ token: string, name?: string }>(`${this.apiUrl}/login`, { identifier, password });
   }
 
-  setToken(token: string): void {
-    localStorage.setItem('jwt_token', token);
+  setToken(token: string, rememberMe: boolean): void {
+    if (rememberMe) {
+      localStorage.setItem('jwt_token', token);
+      sessionStorage.removeItem('jwt_token');
+    } else {
+      sessionStorage.setItem('jwt_token', token);
+      localStorage.removeItem('jwt_token');
+    }
   }
 
   getToken(): string | null {
-    return localStorage.getItem('jwt_token');
+    return localStorage.getItem('jwt_token') || sessionStorage.getItem('jwt_token');
   }
 
-  setUserName(name: string): void {
-    localStorage.setItem('user_name', name);
+  setUserName(name: string, rememberMe: boolean): void {
+    if (rememberMe) {
+      localStorage.setItem('user_name', name);
+      sessionStorage.removeItem('user_name');
+    } else {
+      sessionStorage.setItem('user_name', name);
+      localStorage.removeItem('user_name');
+    }
   }
 
   getUserName(): string | null {
-    return localStorage.getItem('user_name');
+    return localStorage.getItem('user_name') || sessionStorage.getItem('user_name');
   }
 
   logout(): void {
     localStorage.removeItem('jwt_token');
     localStorage.removeItem('user_name');
+    sessionStorage.removeItem('jwt_token');
+    sessionStorage.removeItem('user_name');
   }
 
   verifyPassword(username: string, password: string) {
