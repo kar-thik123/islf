@@ -12,6 +12,7 @@ export interface NumberSeries {
   is_primary: boolean;
   isEditing?: boolean;
   isNew?: boolean;
+  has_used_relation?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })

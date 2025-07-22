@@ -67,9 +67,9 @@ export class NumberSeriesRelationService {
   }
 
   // For dropdown: get all number series codes
-  getNumberSeriesCodes(): Observable<string[]> {
+  getNumberSeriesCodes(): Observable<{ label: string, value: string }[]> {
     return this.http.get<any[]>(this.numberSeriesApiUrl).pipe(
-      map(series => series.map(s => s.code))
+      map(series => series.map(s => ({ label: s.code, value: s.code })))
     );
   }
 

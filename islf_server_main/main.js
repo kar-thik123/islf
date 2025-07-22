@@ -51,6 +51,15 @@ app.use('/api/master_type', masterTypeRouter);
 const masterLocationRouter = require('./routes/master_location');
 app.use('/api/master_location', masterLocationRouter);
 
+const masterUOMRoutes = require('./routes/master_uom');
+app.use('/api/master_uom', masterUOMRoutes);
+const masteItemRouter =require('./routes/master_item');
+app.use('/api/master_item', masteItemRouter);
+const masterVesselRouter = require('./routes/master_vessel');
+app.use('/api/master_vessel', masterVesselRouter);
+const mappingRouter = require('./routes/mapping');
+app.use('/api/mapping', mappingRouter);
+
 // DB connection check
 const pool = require('./db');
 pool.connect()

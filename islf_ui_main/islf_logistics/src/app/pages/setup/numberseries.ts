@@ -29,6 +29,7 @@ interface NumberSeries {
   isPrimary?: boolean;
   isEditing?: boolean;
   isNew?: boolean;
+  has_used_relation?: boolean; // Added for disabling edit/delete
 }
 
 @Component({
@@ -205,8 +206,9 @@ interface NumberSeries {
               <button
                 pButton
                 icon="pi pi-pencil"
-                class="p-button-sm "
+                class="p-button-sm"
                 (click)="editRow(ser)"
+                [disabled]="ser.has_used_relation"
                 title="Edit"
                 *ngIf="!ser.isEditing"
               ></button>
@@ -224,6 +226,7 @@ interface NumberSeries {
                 class="p-button-sm"
                 severity="danger"
                 (click)="deleteRow(ser)"
+                [disabled]="ser.has_used_relation"
                 title="Delete"
               ></button>
               </div>
@@ -264,9 +267,12 @@ export class NumberSeriesComponent implements OnInit {
           ...item,
           isDefault: item.is_default,
           isManual: item.is_manual,
-          isPrimary: item.is_primary
+          isPrimary: item.is_primary,
+          has_used_relation: item.has_used_relation // Assuming has_used_relation is part of the response
         }))
       );
+      // Debug log
+      console.log('Series List:', this.seriesList());
     });
   }
 

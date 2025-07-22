@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PanelModule } from 'primeng/panel';
@@ -13,6 +13,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { AppLayout } from '@/layout/components/app.layout';
 import { NumberSeriesComponent } from './numberseries';
 import { NumberSeriesService } from '@/services/number-series.service';
+import { MappingService, Mapping } from '@/services/mapping.service';
 
 interface NumberSeries {
   id?: number;
@@ -55,81 +56,89 @@ interface NumberSeries {
         <div class="p-fluid grid">
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="customerCode">Customer Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerCode" optionLabel="description" placeholder="Select Customer Code No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerCode" optionLabel="description" optionValue="code" placeholder="Select Customer Code No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="vendorCode">Vendor Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vendorCode" optionLabel="description" placeholder="Select Vendor Code No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vendorCode" optionLabel="description" optionValue="code" placeholder="Select Vendor Code No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="employeeCode">Employee Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().employeeCode" optionLabel="description" placeholder="Select Employee Code No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().employeeCode" optionLabel="description" optionValue="code" placeholder="Select Employee Code No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="customerQuote">Customer Quote No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerQuote" optionLabel="description" placeholder="Select Customer Quote No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerQuote" optionLabel="description" optionValue="code" placeholder="Select Customer Quote No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="invoiceNo">Invoice No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().invoiceNo" optionLabel="description" placeholder="Select Invoice No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().invoiceNo" optionLabel="description" optionValue="code" placeholder="Select Invoice No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="taxNo">Tax No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().taxNo" optionLabel="description" placeholder="Select Tax No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().taxNo" optionLabel="description" optionValue="code" placeholder="Select Tax No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="jobcardNo">Jobcard No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().jobcardNo" optionLabel="description" placeholder="Select Jobcard No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().jobcardNo" optionLabel="description" optionValue="code" placeholder="Select Jobcard No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="branchNo">Branch No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().branchNo" optionLabel="description" placeholder="Select Branch No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().branchNo" optionLabel="description" optionValue="code" placeholder="Select Branch No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="departmentNo">Department No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().departmentNo" optionLabel="description" placeholder="Select Department No Series" [filter]="true" filterBy="description">
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().departmentNo" optionLabel="description" optionValue="code" placeholder="Select Department No Series" [filter]="true" filterBy="description">
               <ng-template let-item pTemplate="item">
-                <div>{{item.code}} - {{item.description}}</div>
+                <div>{{item.code}} </div>
+              </ng-template>
+            </p-dropdown>
+          </div>
+           <div class="field col-12 md:col-6 lg:col-4">
+            <label for="vesselCode">Vessel Code No Series</label>
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vesselCode" optionLabel="description" optionValue="code" placeholder="Select Vessel Code No Series" [filter]="true" filterBy="description">
+              <ng-template let-item pTemplate="item">
+                <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
           </div>
@@ -159,10 +168,10 @@ interface NumberSeries {
     }
   `]
 })
-export class mappingComponent {
- 
+export class mappingComponent implements OnInit {
+  private mappingToLoad: Mapping | null = null;
 
-  selectedSeries = signal({
+  selectedSeries = signal<Mapping>({
     customerCode: null,
     vendorCode: null,
     employeeCode: null,
@@ -171,17 +180,43 @@ export class mappingComponent {
     taxNo: null,
     jobcardNo: null,
     branchNo: null,
-    departmentNo: null
+    departmentNo: null,
+    vesselCode: null
   });
 
   numberSeriesList = signal<NumberSeries[]>([]);
 
-  constructor(private messageService: MessageService, private numberSeriesService: NumberSeriesService) {
+  constructor(
+    private messageService: MessageService,
+    private numberSeriesService: NumberSeriesService,
+    private mappingService: MappingService
+  ) {
+  }
+
+  ngOnInit() {
     this.loadNumberSeries();
+    this.loadMapping();
   }
 
   loadNumberSeries() {
-    this.numberSeriesService.getAll().subscribe(data => this.numberSeriesList.set(data));
+    this.numberSeriesService.getAll().subscribe(data => {
+      this.numberSeriesList.set(data);
+    });
+  }
+
+  loadMapping() {
+    this.mappingService.getMapping().subscribe({
+      next: (mapping) => {
+        this.selectedSeries.set(mapping);
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load mapping'
+        });
+      }
+    });
   }
 
   numberSeries() {
@@ -197,13 +232,42 @@ export class mappingComponent {
     // Implement your actual refresh logic here
   }
 
+  private getCode(val: any): string | null {
+    if (!val) return null;
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object' && 'code' in val) return val.code;
+    return null;
+  }
+
   save() {
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Number series mappings saved successfully'
+    const mapping: Mapping = {
+      customerCode: this.getCode(this.selectedSeries().customerCode),
+      vendorCode: this.getCode(this.selectedSeries().vendorCode),
+      employeeCode: this.getCode(this.selectedSeries().employeeCode),
+      customerQuote: this.getCode(this.selectedSeries().customerQuote),
+      invoiceNo: this.getCode(this.selectedSeries().invoiceNo),
+      taxNo: this.getCode(this.selectedSeries().taxNo),
+      jobcardNo: this.getCode(this.selectedSeries().jobcardNo),
+      branchNo: this.getCode(this.selectedSeries().branchNo),
+      departmentNo: this.getCode(this.selectedSeries().departmentNo),
+      vesselCode: this.getCode(this.selectedSeries().vesselCode)
+    };
+    this.mappingService.saveMapping(mapping).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Number series mappings saved successfully'
+        });
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to save mapping'
+        });
+      }
     });
-    // Implement your actual save logic here
   }
 
   reset() {
@@ -216,7 +280,8 @@ export class mappingComponent {
       taxNo: null,
       jobcardNo: null,
       branchNo: null,
-      departmentNo: null
+      departmentNo: null,
+      vesselCode: null
     });
     this.messageService.add({
       severity: 'info',

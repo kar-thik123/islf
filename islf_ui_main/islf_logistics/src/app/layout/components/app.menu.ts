@@ -102,6 +102,16 @@ export class AppMenu {
                 label:'Location',
                 icon:'pi pi-map',
                 routerLink : ['/master/location']
+              },
+              {
+                label:'Unit of Measure',
+                icon:'pi pi-pencil',
+                routerLink : ['/master/uom']
+              },
+              {
+                label:'Master Item',
+                icon:'pi pi-box',
+                routerLink : ['/master/master_item']
               }
             ],
           },

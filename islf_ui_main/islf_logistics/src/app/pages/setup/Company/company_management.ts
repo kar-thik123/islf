@@ -372,7 +372,7 @@ export class CompanyManagementComponent implements OnInit {
     if (typeof this.selectedCompany.code === 'string') {
       this.selectedCompany.code = this.selectedCompany.code.trim();
       if (this.selectedCompany.code.length >= 10) {
-        this.companyFormError = 'Company Code must be 10 characters long.';
+        this.companyFormError = 'Company Code must be atleast 10 characters long.';
         return;
       }
     }

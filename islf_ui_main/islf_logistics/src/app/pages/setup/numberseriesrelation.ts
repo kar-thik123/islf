@@ -131,6 +131,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                 icon="pi pi-pencil"
                 class="p-button-sm"
                 (click)="editRow(rel)"
+                [disabled]="rel.lastNoUsed > 0"
                 title="Edit"
               ></button>
               <button
@@ -139,6 +140,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                 class="p-button-sm"
                 severity="danger"
                 (click)="deleteRow(rel)"
+                [disabled]="rel.lastNoUsed > 0"
                 title="Delete"
               ></button>
               </div>
@@ -175,7 +177,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
               placeholder="Select Number Series"
               [showClear]="true"
               [filter]="true"
-              optionLabel="value"
+              optionLabel="label"
+              optionValue="value"
               filterBy="value"
             ></p-dropdown>
           </div>
@@ -256,7 +259,7 @@ export class NumberSeriesRelationComponent implements OnInit {
   searchTerm = '';
   displayDialog = false;
   selectedRow: NumberSeriesRelation | null = null;
-  numberSeriesCodes: string[] = [];
+  numberSeriesCodes: { label: string, value: string }[] = [];
   filterFields: string[] = ['numberSeries', 'prefix'];
   @ViewChild('dt') dt!: Table;
 

@@ -37,9 +37,12 @@ router.post('/', async (req, res) => {
     incrementBy
   } = req.body;
   try {
+    // Fetch the first company code from companies table
+    const companyResult = await pool.query('SELECT code FROM companies LIMIT 1');
+    const company_code = companyResult.rows[0]?.code || null;
     const result = await pool.query(
-      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, prefix, last_no_used, increment_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [numberSeries, startingDate, startingNo, endingNo, prefix, lastNoUsed, incrementBy]
+      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, prefix, last_no_used, increment_by, company_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [numberSeries, startingDate, startingNo, endingNo, prefix, lastNoUsed, incrementBy, company_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -57,12 +60,13 @@ router.put('/:id', async (req, res) => {
     endingNo,
     prefix,
     lastNoUsed,
-    incrementBy
+    incrementBy,
+    company_code
   } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE number_relation SET number_series = $1, starting_date = $2, starting_no = $3, ending_no = $4, prefix = $5, last_no_used = $6, increment_by = $7 WHERE id = $8 RETURNING *',
-      [numberSeries, startingDate, startingNo, endingNo, prefix, lastNoUsed, incrementBy, req.params.id]
+      'UPDATE number_relation SET number_series = $1, starting_date = $2, starting_no = $3, ending_no = $4, prefix = $5, last_no_used = $6, increment_by = $7, company_code = $8 WHERE id = $9 RETURNING *',
+      [numberSeries, startingDate, startingNo, endingNo, prefix, lastNoUsed, incrementBy, company_code, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
