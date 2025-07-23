@@ -152,20 +152,60 @@ interface NumberSeries {
     </div>
   `,
   styles: [`
-    .card {
-      padding: 1rem;
-    }
-    .p-toolbar {
-      background-color: transparent;
-      border: none;
-      padding: 0;
-    }
-    .p-panel {
-      margin-top: 1rem;
-    }
-    .field {
-      margin-bottom: 1.5rem;
-    }
+  .card {
+  padding: 1rem;
+}
+
+.p-toolbar {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+}
+
+.p-panel {
+  margin-top: 1rem;
+}
+
+/* Label + input alignment */
+.field {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.field label {
+  width: 220px;
+  margin-right: 1rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+/* Limit input width */
+.field .p-dropdown,
+.field input {
+  width: 500px; /* 👈 Restricts max width */
+  max-width: 100%;
+}
+
+/* Responsive for smaller devices */
+@media screen and (max-width: 768px) {
+  .field {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .field label {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .field .p-dropdown,
+  .field input {
+    width: 100%;
+  }
+}
+
+
   `]
 })
 export class mappingComponent implements OnInit {

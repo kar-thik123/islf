@@ -15,7 +15,7 @@ export default [
     { path: 'company_management', component: CompanyManagementComponent, data: { breadcrumb: 'Settings >>> Company Management', title: 'Company_Management - ISLF' } },
     {path:'number_series',component:NumberSeriesComponent, data:{ breadcrumb: 'Settings >>> Number Series',title: 'Number_Series- ISLF'}},
     {path:'number_relation',component:NumberSeriesRelationComponent, data:{ breadcrumb: 'Settings >>> Number Series Relation',title: 'Number_Relation- ISLF'}},
-    {path:'mapping',component:mappingComponent},
+    {path:'mapping',component:mappingComponent, data:{ breadcrumb: 'Settings >>> Mapping',title: 'Mapping - ISLF'}},
     {path: 'it_setup', component: ITSetupComponent, data: { breadcrumb: 'Settings >>> IT Setup', title: 'IT Setup - ISLF' } },
     {path:'user_management',component:UserListComponent,data:{ breadcrumb: 'Settings >>> User management',title:'User_management - ISLF'}},
     {path:'create_user',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Create User',title:'Create_User - ISLF'}},

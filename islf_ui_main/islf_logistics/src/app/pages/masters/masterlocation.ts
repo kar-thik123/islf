@@ -44,24 +44,84 @@ import { MasterTypeService } from '../../services/mastertype.service';
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <button pButton type="button" label="Add Location" icon="pi pi-plus" (click)="addRow()"></button>
-            <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            <span class="ml-auto">
+              <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            </span>
           </div>
         </ng-template>
 
         <ng-template pTemplate="header">
           <tr>
-            <th>Type</th>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Country</th>
-            <th>State</th>
-            <th>City</th>
-            <th>GST State Code</th>
-            <th>Pin Code</th>
-            <th>Active</th>
-            <th>Action</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Type
+                <p-columnFilter type="text" field="type" display="menu" placeholder="Search by type"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter type="text" field="code" display="menu" placeholder="Search by code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Name
+                <p-columnFilter type="text" field="name" display="menu" placeholder="Search by name"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Country
+                <p-columnFilter type="text" field="country" display="menu" placeholder="Search by country"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                State
+                <p-columnFilter type="text" field="state" display="menu" placeholder="Search by state"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                City
+                <p-columnFilter type="text" field="city" display="menu" placeholder="Search by city"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                GST State Code
+                <p-columnFilter type="text" field="gst_state_code" display="menu" placeholder="Search by GST state code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Pin Code
+                <p-columnFilter type="text" field="pin_code" display="menu" placeholder="Search by pin code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Active
+                <p-columnFilter field="active" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="activeOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                      optionValue="value"
+                    ></p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
 
@@ -75,11 +135,18 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <td>{{ loc.city }}</td>
             <td>{{ loc.gst_state_code }}</td>
             <td>{{ loc.pin_code }}</td>
-            <td>
-              <span [class.active]="loc.active" [class.inactive]="!loc.active">
-                {{ loc.active ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
+           <td>
+            <span
+              class="text-sm font-semibold px-3 py-1 rounded-full"
+              [ngClass]="{
+                'text-green-700 bg-green-100': loc.active,
+                'text-red-700 bg-red-100': !loc.active
+              }"
+            >
+              {{ loc.active ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+
             <td>
               <button pButton type="button" icon="pi pi-pencil" (click)="editRow(loc)" class="p-button-sm"></button>
             </td>
@@ -267,5 +334,9 @@ export class MasterLocationComponent implements OnInit {
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedLocation = null;
+  }
+
+  clear(table: any) {
+    table.clear();
   }
 }

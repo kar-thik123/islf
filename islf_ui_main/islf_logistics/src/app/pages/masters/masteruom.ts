@@ -45,22 +45,72 @@ import { MasterTypeService } from '../../services/mastertype.service';
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <button pButton type="button" label="Add UOM" icon="pi pi-plus" (click)="addRow()"></button>
-            <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            <span class="ml-auto">
+              <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            </span>
           </div>
         </ng-template>
 
         <ng-template pTemplate="header">
           <tr>
-            <th>UOM Type</th>
-            <th>Code</th>
-            <th>Description</th>
-            <th>Start Day</th>
-            <th>End Day</th>
-            <th>Working Days</th>
-            <th>Active</th>
-            <th>Action</th>
+            <th>
+              <div class="flex justify-between items-center">
+                UOM Type
+                <p-columnFilter type="text" field="uom_type" display="menu" placeholder="Search by type"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter type="text" field="code" display="menu" placeholder="Search by code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Description
+                <p-columnFilter type="text" field="description" display="menu" placeholder="Search by description"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Start Day
+                <p-columnFilter type="text" field="start_day" display="menu" placeholder="Search by start day"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                End Day
+                <p-columnFilter type="text" field="end_day" display="menu" placeholder="Search by end day"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Working Days
+                <p-columnFilter type="text" field="working_days" display="menu" placeholder="Search by working days"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Active
+                <p-columnFilter field="active" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="activeOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                      optionValue="value"
+                    ></p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
 
@@ -73,10 +123,17 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <td>{{ uom.end_day }}</td>
             <td>{{ uom.working_days }}</td>
             <td>
-              <span [class.active]="uom.active" [class.inactive]="!uom.active">
-                {{ uom.active ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
+            <span
+              class="text-sm font-semibold px-3 py-1 rounded-full"
+              [ngClass]="{
+                'text-green-700 bg-green-100': uom.active,
+                'text-red-700 bg-red-100': !uom.active
+              }"
+            >
+              {{ uom.active ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+
             <td>
               <button pButton type="button" icon="pi pi-pencil" (click)="editRow(uom)" class="p-button-sm"></button>
             </td>
@@ -309,6 +366,10 @@ export class MasterUOMComponent implements OnInit {
       });
       this.selectedUOM!.working_days = '';
     }
+  }
+
+  clear(table: any) {
+    table.clear();
   }
   
 }

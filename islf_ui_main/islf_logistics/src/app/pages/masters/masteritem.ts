@@ -50,20 +50,59 @@ interface ItemTypeOption {
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <button pButton type="button" label="Add Item" icon="pi pi-plus" (click)="addRow()"></button>
-            <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            <span class="ml-auto">
+              <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            </span>
           </div>
         </ng-template>
-
         <ng-template pTemplate="header">
           <tr>
-            <th>Item Type</th>
-            <th>Code</th>
-            <th>Name</th>
-            <th>HS Code</th>
-            <th>Status</th>
-            <th>Action</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Item Type
+                <p-columnFilter type="text" field="item_type" display="menu" placeholder="Search by type"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter type="text" field="code" display="menu" placeholder="Search by code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Name
+                <p-columnFilter type="text" field="name" display="menu" placeholder="Search by name"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                HS Code
+                <p-columnFilter type="text" field="hs_code" display="menu" placeholder="Search by HS code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Status
+                <p-columnFilter field="active" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="activeOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                      optionValue="value"
+                    ></p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
 
@@ -74,10 +113,17 @@ interface ItemTypeOption {
             <td>{{ item.name }}</td>
             <td>{{ item.hs_code }}</td>
             <td>
-              <span [class.active]="item.active" [class.inactive]="!item.active">
+              <span
+                class="text-sm font-semibold px-3 py-1 rounded-full"
+                [ngClass]="{
+                  'text-green-700 bg-green-100': item.active,
+                  'text-red-700 bg-red-100': !item.active
+                }"
+              >
                 {{ item.active ? 'Active' : 'Inactive' }}
               </span>
             </td>
+
             <td>
               <button pButton icon="pi pi-pencil" (click)="editRow(item)" class="p-button-sm"></button>
             </td>
@@ -254,5 +300,9 @@ export class MasterItemComponent implements OnInit {
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedItem = null;
+  }
+
+  clear(table: any) {
+    table.clear();
   }
 }

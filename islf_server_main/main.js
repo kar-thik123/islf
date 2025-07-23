@@ -60,6 +60,10 @@ app.use('/api/master_vessel', masterVesselRouter);
 const mappingRouter = require('./routes/mapping');
 app.use('/api/mapping', mappingRouter);
 
+// Add customer route
+const customerRouter = require('./routes/customer');
+app.use('/api/customer', customerRouter);
+
 // DB connection check
 const pool = require('./db');
 pool.connect()

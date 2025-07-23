@@ -5,6 +5,7 @@ import { MasterLocationComponent } from './masterlocation';
 import { MasterUOMComponent } from './masteruom';
 import { MasterItemComponent } from './masteritem';
 import { MasterVesselComponent } from './mastervessel';
+import { CustomerComponent } from './customer';
 
 
 export default [
@@ -15,8 +16,8 @@ export default [
     {path:'location', component: MasterLocationComponent, data: {breadcrumb: 'Masters   >>>   Location',title: 'Location - ISLF' } },
     {path:'uom',component:MasterUOMComponent, data: {breadcrumb: 'Masters   >>>   Unit of Measure',title: 'UOM - ISLF' } },
     {path:'master_item',component:MasterItemComponent, data: {breadcrumb: 'Masters   >>>   Master Item',title: 'Master_Item - ISLF' } },
-    {path:'vessel',component:MasterVesselComponent, data:{breadcrumb: 'Masters   >>>   Vessel',title:'Vessel - ISLF'}}
-    
+    {path:'vessel',component:MasterVesselComponent, data:{breadcrumb: 'Masters   >>>   Vessel',title:'Vessel - ISLF'}},
+    {path:'customer',component:CustomerComponent, data:{breadcrumb: 'Masters   >>>   Customer',title:'Customer - ISLF'}}
 
 ] as Routes; 
 

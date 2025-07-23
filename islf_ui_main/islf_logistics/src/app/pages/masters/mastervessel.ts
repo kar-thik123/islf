@@ -49,19 +49,59 @@ interface FlagOption {
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <button pButton type="button" label="Add Vessel" icon="pi pi-plus" (click)="addRow()"></button>
-            <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            <span class="ml-auto">
+              <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
+            </span>
           </div>
         </ng-template>
         <ng-template pTemplate="header">
           <tr>
-            <th>Code</th>
-            <th>Vessel Name</th>
-            <th>Flag</th>
-            <th>Year Build</th>
-            <th>Status</th>
-            <th>Action</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter type="text" field="code" display="menu" placeholder="Search by code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Vessel Name
+                <p-columnFilter type="text" field="vessel_name" display="menu" placeholder="Search by name"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Flag
+                <p-columnFilter type="text" field="flag" display="menu" placeholder="Search by flag"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Year Build
+                <p-columnFilter type="text" field="year_build" display="menu" placeholder="Search by year"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Status
+                <p-columnFilter field="active" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="activeOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                      optionValue="value"
+                    ></p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-vessel>
@@ -71,10 +111,17 @@ interface FlagOption {
             <td>{{ vessel.flag }}</td>
             <td>{{ vessel.year_build }}</td>
             <td>
-              <span [class.active]="vessel.active" [class.inactive]="!vessel.active">
+              <span
+                class="text-sm font-semibold px-3 py-1 rounded-full"
+                [ngClass]="{
+                  'text-green-700 bg-green-100': vessel.active,
+                  'text-red-700 bg-red-100': !vessel.active
+                }"
+              >
                 {{ vessel.active ? 'Active' : 'Inactive' }}
               </span>
             </td>
+
             <td>
               <button pButton icon="pi pi-pencil" (click)="editRow(vessel)" class="p-button-sm"></button>
             </td>
@@ -280,5 +327,9 @@ export class MasterVesselComponent implements OnInit {
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedVessel = null;
+  }
+
+  clear(table: any) {
+    table.clear();
   }
 }

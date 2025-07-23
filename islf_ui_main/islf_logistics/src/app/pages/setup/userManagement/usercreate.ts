@@ -566,7 +566,7 @@ export class UserCreateComponent implements OnInit {
     });
   }
   goBack() {
-    this.router.navigate(['/setup/user_management']);
+    this.router.navigate(['/settings/user_management']);
   }
   
 
@@ -608,7 +608,7 @@ export class UserCreateComponent implements OnInit {
             this.onCancel(); // Reset the form for a new user
           },
           reject: () => {
-            this.router.navigate(['/setup/user_management']);
+            this.router.navigate(['/settings/user_management']);
           }
         });
       },
@@ -643,7 +643,7 @@ export class UserCreateComponent implements OnInit {
     this.userService.updateUser(this.userId, userToSend).subscribe({
       next: (res: any) => {
         this.toast.showSuccess('Success', 'User updated successfully!');
-        this.router.navigate(['/setup/user_management']);
+        this.router.navigate(['/settings/user_management']);
       },
       error: (err: any) => {
         this.toast.showError('Error', 'Error updating user: ' + (err.error?.message || err.message));

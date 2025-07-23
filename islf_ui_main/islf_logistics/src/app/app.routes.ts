@@ -21,7 +21,7 @@ export const routes: Routes = [
     component: AppLayout,
     children: [
       { path: 'logs', children:[...logsRoutes]},
-      { path: 'setup', children:[...setupRoutes]},
+      { path: 'settings', children:[...setupRoutes]},
       {path:'master', children:[...masterRoutes]},
       
       // Add more layout-wrapped routes here

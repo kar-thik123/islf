@@ -9,6 +9,7 @@ import { BranchService, Branch } from '../../../services/branch.service';
 import { DepartmentService, Department } from '../../../services/department.service';
 import { TabsModule } from 'primeng/tabs';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-company-hierarchy',
@@ -100,12 +101,12 @@ import { HttpClient } from '@angular/common/http';
                    <h3 class="text-xl font-semibold mt-6 mb-6  ml-[2px]">Departments</h3>
                   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <div *ngFor="let dept of branch.departments" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openDepartmentDialog(branch, dept); $event.stopPropagation()">
-<div class="branch-header">
-  <div class="col-span-full flex justify-between items-center w-full">
-    <div class="text-lg font-bold uppercase">{{ dept.name }}</div>
-    <div class="text-sm font-medium">Incharge: {{ dept.incharge_name }}</div>
-  </div>
-</div>
+                    <div class="branch-header">
+                      <div class="col-span-full flex justify-between items-center w-full">
+                        <div class="text-lg font-bold uppercase">{{ dept.name }}</div>
+                        <div class="text-sm font-medium">Incharge: {{ dept.incharge_name }}</div>
+                      </div>
+                    </div>
 
 
                       <div class="p-4">
@@ -140,15 +141,42 @@ import { HttpClient } from '@angular/common/http';
                 <input [type]="field.type" pInputText class="w-full" [(ngModel)]="selectedCompany[field.key]" [name]="field.key" />
               </div>
             </ng-container>
+          
+
+
             <!-- Logo upload -->
             <div class="col-span-2">
-              <label class="block mb-1 font-medium">Logo</label>
-              <input type="file" accept="image/*" (change)="onLogoSelected($event)" />
-              <div *ngIf="selectedCompany['logo']" class="mt-2">
-                <img [src]="selectedCompany['logo']" alt="Logo Preview" class="h-16 max-w-xs border rounded shadow" />
-              </div>
+             <hr class="w-full border-t border-gray-300 my-4" />
+            <label class="block mb-2 text-sm font-semibold text-gray-700">Company Logo</label>
+
+            <!-- File input -->
+            <input
+              type="file"
+              accept="image/*"
+              (change)="onLogoSelected($event)"
+              class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+            />
+
+            <!-- Preview -->
+            <div *ngIf="selectedCompany['logo']" class="mt-4">
+              <img
+                [src]="selectedCompany['logo']"
+                alt="Logo Preview"
+                class="h-16 w-auto max-w-xs border border-gray-300 rounded shadow-sm object-contain"
+              />
             </div>
+          </div>
+
           </form>
+        
+          <div class="text-right">
+            <button pButton label="Navigate to Mapping" class="p-button-primary" (click)="navigateToMapping()"></button>
+          </div>
           <ng-template pTemplate="footer">
             <div class="text-right">
               <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeCompanyDialog()"></button>
@@ -204,6 +232,7 @@ export class CompanyManagementComponent implements OnInit {
   tabIndex = 0;
   companies: Company[] = [];
   branches: Branch[] = [];
+  
 
   // Add this method to filter branches by company code
   getBranchesForCompany(companyCode: string): Branch[] {
@@ -271,7 +300,8 @@ export class CompanyManagementComponent implements OnInit {
     private companyService: CompanyService,
     private branchService: BranchService,
     private departmentService: DepartmentService,
-    private http: HttpClient
+    private http: HttpClient,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -296,6 +326,9 @@ export class CompanyManagementComponent implements OnInit {
         console.error('Error loading companies:', error);
       }
     });
+  }
+  navigateToMapping() {
+    this.router.navigate(['/settings/mapping']);
   }
 
   loadBranches() {

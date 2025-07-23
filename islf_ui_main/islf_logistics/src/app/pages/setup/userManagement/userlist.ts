@@ -175,12 +175,12 @@ export class UserListComponent implements OnInit {
   }
 
   navigateToCreateUser() {
-    this.router.navigate(['setup/create_user']);
+    this.router.navigate(['settings/create_user']);
   }
 
   editUser(user: any) {
     if (user?.id) {
-      this.router.navigate(['setup/create_user', user.id]);
+      this.router.navigate(['settings/create_user', user.id]);
     }
   }
 }

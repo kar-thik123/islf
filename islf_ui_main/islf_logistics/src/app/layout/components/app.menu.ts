@@ -31,37 +31,32 @@ export class AppMenu {
         items: [
           {
             label: 'Settings',
-            icon: 'pi pi-spin pi-cog',
+            icon: 'fa-solid fa-cog',
             items: [
               {
                 label: 'Company Mgmt',
-                icon: 'pi pi-building',
-                routerLink: ['/setup/company_management'],
+                icon: 'fa-solid fa-building',
+                routerLink: ['/settings/company_management'],
               },
               {
                 label: 'No. Series',
-                icon: 'pi pi-sort-numeric-up',
-                routerLink: ['/setup/number_series'],
+                icon: 'fa-solid fa-sort-numeric-up',
+                routerLink: ['/settings/number_series'],
               },
               {
                 label: 'No. Series Relation',
-                icon: 'pi pi-link',
-                routerLink: ['/setup/number_relation'],
-              },
-              {
-                label: 'No. Series Mapping',
-                icon: 'pi pi-map',
-                routerLink: ['/setup/mapping'],
+                icon: 'fa-solid fa-link',
+                routerLink: ['/settings/number_relation'],
               },
               {
                 label: 'IT Setup',
-                icon: 'pi pi-sliders-h',
-                routerLink: ['/setup/it_setup'],
+                icon: 'fa-solid fa-sliders-h',
+                routerLink: ['/settings/it_setup'],
               },
               {
                 label: 'User Mgmt',
-                icon: 'pi pi-user',
-                routerLink: ['/setup/user_management'],
+                icon: 'fa-solid fa-user',
+                routerLink: ['/settings/user_management'],
               },
             ],
           },
@@ -71,11 +66,11 @@ export class AppMenu {
         items: [
           {
             label: 'Logs',
-            icon: 'pi pi-book',
+            icon: 'fa-solid fa-book',
             items: [
               {
                 label: 'Auth Logs',
-                icon: 'pi pi-list',
+                icon: 'fa-solid fa-list',
                 routerLink: ['/logs/auth_logs'],
               },
             ],
@@ -86,31 +81,41 @@ export class AppMenu {
         items: [
           {
             label: 'Masters',
-            icon: 'pi pi-database',
+            icon: 'fa-solid fa-brain',
             items: [
               {
+                label:'Customer',
+                icon:'fa-solid fa-people-roof',
+                routerLink : ['/master/customer']
+              },
+              {
                 label: 'Master Code',
-                icon: 'pi pi-sliders-h',
+                icon: 'fa-solid fa-code',
                 routerLink: ['/master/master_code'],
               },
               {
                 label: 'Master Type',
-                icon: 'pi pi-sliders-h',
+                icon: 'fa-solid fa-sliders-h',
                 routerLink: ['/master/master_type'],
               },
               {
                 label:'Location',
-                icon:'pi pi-map',
+                icon:'fa-solid fa-location-dot',
                 routerLink : ['/master/location']
               },
               {
+                label:'Vessel',
+                icon:'fa-solid fa-ship',
+                routerLink : ['/master/vessel']
+              },
+              {
                 label:'Unit of Measure',
-                icon:'pi pi-pencil',
+                icon:'fa-solid fa-scale-unbalanced',
                 routerLink : ['/master/uom']
               },
               {
                 label:'Master Item',
-                icon:'pi pi-box',
+                icon:'fa-solid fa-box',
                 routerLink : ['/master/master_item']
               }
             ],

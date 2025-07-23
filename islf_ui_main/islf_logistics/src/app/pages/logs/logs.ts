@@ -41,6 +41,8 @@ interface LogEntry {
         [globalFilterFields]="filterFields"
         [showGridlines]="true"
         [rowHover]="true"
+        [scrollable]="true"
+        [scrollHeight]="'500px'"
       >
       
         <ng-template pTemplate="caption">
