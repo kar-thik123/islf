@@ -173,6 +173,7 @@ interface ItemTypeOption {
             <div class="grid-item">
               <label for="active">Status</label>
               <p-dropdown
+                appendTo="body"
                 id="active"
                 [options]="activeOptions"
                 [(ngModel)]="selectedItem.active"

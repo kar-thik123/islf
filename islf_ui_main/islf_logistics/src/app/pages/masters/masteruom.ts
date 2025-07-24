@@ -159,6 +159,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
               <label for="uom_type">UOM Type</label>
               <p-dropdown
                 id="uom_type"
+                appendTo="body"
                 [options]="uomTypeOptions"
                 [(ngModel)]="selectedUOM.uom_type"
                 optionLabel="value"
@@ -179,6 +180,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <div class="grid-item">
             <label for="start_day">Start Day</label>
             <p-calendar
+              appendTo="body"
               id="start_day"
               [(ngModel)]="selectedUOM.start_day"
               dateFormat="yy-mm-dd"
@@ -190,6 +192,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <label for="end_day">End Day</label>
             <p-calendar
               id="end_day"
+              appendTo="body"
               [(ngModel)]="selectedUOM.end_day"
               dateFormat="yy-mm-dd"
               (onSelect)="calculateWorkingDays()"
@@ -204,6 +207,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <div class="grid-item">
               <label for="active">Status</label>
               <p-dropdown
+                appendTo="body"
                 id="active"
                 [options]="activeOptions"
                 [(ngModel)]="selectedUOM.active"

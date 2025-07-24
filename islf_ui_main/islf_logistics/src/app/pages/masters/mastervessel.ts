@@ -154,6 +154,7 @@ interface FlagOption {
               <label for="flag">Flag</label>
               <p-dropdown
                 id="flag"
+                appendTo="body"
                 [options]="flagOptions"
                 [(ngModel)]="selectedVessel.flag"
                 optionLabel="label"
@@ -170,6 +171,7 @@ interface FlagOption {
             <div class="grid-item">
               <label for="active">Status</label>
               <p-dropdown
+                appendTo="body"
                 id="active"
                 [options]="activeOptions"
                 [(ngModel)]="selectedVessel.active"

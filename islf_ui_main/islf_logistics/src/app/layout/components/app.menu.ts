@@ -89,6 +89,11 @@ export class AppMenu {
                 routerLink : ['/master/customer']
               },
               {
+                label:'Vendor',
+                icon:'fa-solid fa-building',
+                routerLink : ['/master/vendor']
+              },
+              {
                 label: 'Master Code',
                 icon: 'fa-solid fa-code',
                 routerLink: ['/master/master_code'],
@@ -117,6 +122,26 @@ export class AppMenu {
                 label:'Master Item',
                 icon:'fa-solid fa-box',
                 routerLink : ['/master/master_item']
+              },
+              {
+                label:'Currency Code',
+                icon:'fa-solid fa-money-bill',
+                routerLink : ['/master/currency_code']
+              },
+              {
+                label:'Container',
+                icon:'fa-solid fa-box',
+                routerLink : ['/master/container']
+              },
+              {
+                label:'GST Setup',
+                icon:'fa-solid fa-money-check-dollar',
+                routerLink : ['/master/gst_setup']
+              },
+              {
+                label:'Tariff',
+                icon:'fa-solid fa-percent',
+                routerLink : ['/master/tariff']
               }
             ],
           },

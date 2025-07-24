@@ -171,6 +171,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           <div class="grid-item">
             <label for="numberSeries">Number Series</label>
             <p-dropdown
+              appendTo="body"
               [options]="numberSeriesCodes"
               [(ngModel)]="selectedRow.numberSeries"
               [editable]="false"
@@ -185,6 +186,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           <div class="grid-item">
             <label for="startingDate">Starting Date</label>
             <p-calendar
+              appendTo="body"
               id="startingDate"
               [(ngModel)]="selectedRow.startingDate"
               dateFormat="yy-mm-dd"
@@ -203,11 +205,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             <label for="prefix">Prefix</label>
             <input id="prefix" type="text" pInputText [(ngModel)]="selectedRow.prefix" />
           </div>
-          <div class="grid-item">
-            <label for="lastNoUsed">Last No Used</label>
-            <input id="lastNoUsed" type="number" pInputText [(ngModel)]="selectedRow.lastNoUsed" />
-          </div>
-          <div class="grid-item full-width">
+          <div class="grid-item ">
             <label for="incrementBy">Increment By</label>
             <input id="incrementBy" type="number" pInputText [(ngModel)]="selectedRow.incrementBy" />
           </div>

@@ -1,21 +1,25 @@
 import {
   CheckIcon,
   MinusIcon
-} from "./chunk-CSX2Z262.js";
+} from "./chunk-Z7W67VC7.js";
 import {
   BaseComponent
-} from "./chunk-WPUN246J.js";
+} from "./chunk-RRDRZT4A.js";
 import {
   BaseStyle
-} from "./chunk-5YZOEGHP.js";
-import {
-  PrimeTemplate,
-  SharedModule
-} from "./chunk-TJYP5LVK.js";
+} from "./chunk-D4L2J6ON.js";
 import {
   NG_VALUE_ACCESSOR,
   NgControl
 } from "./chunk-AEKTCBUQ.js";
+import {
+  PrimeTemplate,
+  SharedModule
+} from "./chunk-6Z63YHRQ.js";
+import {
+  contains,
+  equals
+} from "./chunk-NJ25EVEJ.js";
 import {
   CommonModule,
   NgClass,
@@ -71,10 +75,6 @@ import {
   ɵɵtemplate,
   ɵɵviewQuery
 } from "./chunk-6OPZE6ZR.js";
-import {
-  contains,
-  equals
-} from "./chunk-NJ25EVEJ.js";
 
 // node_modules/primeng/fesm2022/primeng-checkbox.mjs
 var _c0 = ["checkboxicon"];
@@ -861,4 +861,4 @@ export {
   Checkbox,
   CheckboxModule
 };
-//# sourceMappingURL=chunk-K7V3HNFQ.js.map
+//# sourceMappingURL=chunk-SXPV4DMF.js.map

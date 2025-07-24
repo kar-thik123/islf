@@ -53,7 +53,9 @@ interface NumberSeries {
       </p-toolbar>
 
       <p-panel header="Number Series Mapping" [toggleable]="true" [collapsed]="false">
+      <h3 class="section-header">Number Series Mapping for Master</h3>
         <div class="p-fluid grid">
+        
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="customerCode">Customer Code No Series</label>
             <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerCode" optionLabel="description" optionValue="code" placeholder="Select Customer Code No Series" [filter]="true" filterBy="description">
@@ -71,7 +73,17 @@ interface NumberSeries {
               </ng-template>
             </p-dropdown>
           </div>
-
+         <div class="field col-12 md:col-6 lg:col-4">
+            <label for="vesselCode">Vessel Code No Series</label>
+            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vesselCode" optionLabel="description" optionValue="code" placeholder="Select Vessel Code No Series" [filter]="true" filterBy="description">
+              <ng-template let-item pTemplate="item">
+                <div>{{item.code}} </div>
+              </ng-template>
+            </p-dropdown>
+          </div>
+          </div>
+           <h3 class="section-header">Number Series Mapping for Operations</h3>
+          <div class="p-fluid grid">
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="employeeCode">Employee Code No Series</label>
             <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().employeeCode" optionLabel="description" optionValue="code" placeholder="Select Employee Code No Series" [filter]="true" filterBy="description">
@@ -107,7 +119,7 @@ interface NumberSeries {
               </ng-template>
             </p-dropdown>
           </div>
-
+ 
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="jobcardNo">Jobcard No Series</label>
             <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().jobcardNo" optionLabel="description" optionValue="code" placeholder="Select Jobcard No Series" [filter]="true" filterBy="description">
@@ -116,7 +128,7 @@ interface NumberSeries {
               </ng-template>
             </p-dropdown>
           </div>
-
+<!--
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="branchNo">Branch No Series</label>
             <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().branchNo" optionLabel="description" optionValue="code" placeholder="Select Branch No Series" [filter]="true" filterBy="description">
@@ -133,15 +145,8 @@ interface NumberSeries {
                 <div>{{item.code}} </div>
               </ng-template>
             </p-dropdown>
-          </div>
-           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="vesselCode">Vessel Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vesselCode" optionLabel="description" optionValue="code" placeholder="Select Vessel Code No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
-          </div>
+          </div>  -->
+           
         </div>
 
         <div class="flex justify-content-end gap-2 mt-4">

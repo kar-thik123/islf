@@ -8,7 +8,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
-import { CustomerService, Customer, CustomerContact } from '../../services/customer.service';
+import { VendorService, Vendor, VendorContact } from '../../services/vendor.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
@@ -32,7 +32,7 @@ function toTitleCase(str: string): string {
 }
 
 @Component({
-  selector: 'customer-master',
+  selector: 'vendor-master',
   standalone: true,
   providers: [MessageService],
   imports: [
@@ -48,22 +48,22 @@ function toTitleCase(str: string): string {
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Customer Master</div>
+      <div class="font-semibold text-xl mb-4">Vendor Master</div>
       <p-table
         #dt
-        [value]="customers"
+        [value]="vendors"
         dataKey="id"
         [paginator]="true"
         [rows]="10"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['customer_no', 'name', 'city', 'country', 'state', 'type']"
+        [globalFilterFields]="['vendor_no', 'name', 'city', 'country', 'state', 'type']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Customer" icon="pi pi-plus" (click)="addRow()"></button>
+            <button pButton type="button" label="Add Vendor" icon="pi pi-plus" (click)="addRow()"></button>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -74,8 +74,8 @@ function toTitleCase(str: string): string {
           <tr>
             <th>
               <div class="flex justify-between items-center">
-                Customer No.
-                <p-columnFilter type="text" field="customer_no" display="menu" placeholder="Search by customer no"></p-columnFilter>
+                Vendor No.
+                <p-columnFilter type="text" field="vendor_no" display="menu" placeholder="Search by vendor no"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -111,23 +111,23 @@ function toTitleCase(str: string): string {
             <th style="min-width: 80px;">Action</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-customer>
+        <ng-template pTemplate="body" let-vendor>
           <tr>
-            <td>{{ customer.customer_no }}</td>
-            <td>{{ customer.name }}</td>
-            <td>{{ customer.city }}</td>
-            <td>{{ customer.country }}</td>
-            <td>{{ customer.state }}</td>
-            <td>{{ customer.type }}</td>
+            <td>{{ vendor.vendor_no }}</td>
+            <td>{{ vendor.name }}</td>
+            <td>{{ vendor.city }}</td>
+            <td>{{ vendor.country }}</td>
+            <td>{{ vendor.state }}</td>
+            <td>{{ vendor.type }}</td>
             <td>
-              <button pButton icon="pi pi-pencil" (click)="editRow(customer)" class="p-button-sm"></button>
+              <button pButton icon="pi pi-pencil" (click)="editRow(vendor)" class="p-button-sm"></button>
             </td>
           </tr>
         </ng-template>
       </p-table>
     </div>
     <p-dialog
-      header="{{ selectedCustomer?.isNew ? 'Add' : 'Edit' }} Customer"
+      header="{{ selectedVendor?.isNew ? 'Add' : 'Edit' }} Vendor"
       [(visible)]="isDialogVisible"
       [modal]="true"
       [style]="{ width: '1500px' }"
@@ -137,29 +137,29 @@ function toTitleCase(str: string): string {
       (onHide)="hideDialog()"
     >
       <ng-template pTemplate="content">
-        <div *ngIf="selectedCustomer" class="p-fluid form-grid dialog-body-padding">
+        <div *ngIf="selectedVendor" class="p-fluid form-grid dialog-body-padding">
           <!-- General -->
           <div class="section-header">General</div>
           <div class="grid-container">
             <div class="grid-item">
-              <label>Customer No.</label>
-              <input pInputText [(ngModel)]="selectedCustomer.customer_no" [disabled]="!isManualSeries || !selectedCustomer.isNew" (ngModelChange)="updateBillToCustomerNameDefault()" />
+              <label>Vendor No.</label>
+              <input pInputText [(ngModel)]="selectedVendor.vendor_no" [disabled]="!isManualSeries || !selectedVendor.isNew" (ngModelChange)="updateBillToVendorNameDefault()" />
             </div>
             <div class="grid-item">
-              <label>Customer Type</label>
-              <p-dropdown [options]="customerTypeOptions" [(ngModel)]="selectedCustomer.type" optionLabel="label" optionValue="value" placeholder="Select Customer Type"></p-dropdown>
+              <label>Vendor Type</label>
+              <p-dropdown [options]="vendorTypeOptions" [(ngModel)]="selectedVendor.type" optionLabel="label" optionValue="value" placeholder="Select Vendor Type"></p-dropdown>
             </div>
             <div class="grid-item">
               <label>Name</label>
-              <input pInputText [(ngModel)]="selectedCustomer.name" (ngModelChange)="updateBillToCustomerNameDefault()" />
+              <input pInputText [(ngModel)]="selectedVendor.name" (ngModelChange)="updateBillToVendorNameDefault()" />
             </div>
             <div class="grid-item">
               <label>Name2</label>
-              <input pInputText [(ngModel)]="selectedCustomer.name2" />
+              <input pInputText [(ngModel)]="selectedVendor.name2" />
             </div>
             <div class="grid-item">
               <label>Blocked</label>
-              <p-dropdown [options]="blockedOptions" [(ngModel)]="selectedCustomer.blocked" optionLabel="label" optionValue="value" placeholder="Select Blocked"></p-dropdown>
+              <p-dropdown [options]="blockedOptions" [(ngModel)]="selectedVendor.blocked" optionLabel="label" optionValue="value" placeholder="Select Blocked"></p-dropdown>
             </div>
           </div>
           <!-- Address -->
@@ -167,68 +167,68 @@ function toTitleCase(str: string): string {
           <div class="grid-container">
             <div class="grid-item">
               <label>Address</label>
-              <input pInputText [(ngModel)]="selectedCustomer.address" />
+              <input pInputText [(ngModel)]="selectedVendor.address" />
             </div>
             <div class="grid-item">
               <label>Address1</label>
-              <input pInputText [(ngModel)]="selectedCustomer.address1" />
+              <input pInputText [(ngModel)]="selectedVendor.address1" />
             </div>
             <div class="grid-item">
               <label>Country</label>
-              <p-dropdown [options]="countryOptions" [(ngModel)]="selectedCustomer.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange()"></p-dropdown>
+              <p-dropdown [options]="countryOptions" [(ngModel)]="selectedVendor.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange()"></p-dropdown>
             </div>
             <div class="grid-item">
               <label>State</label>
-              <p-dropdown [options]="stateOptions" [(ngModel)]="selectedCustomer.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange()"></p-dropdown>
+              <p-dropdown [options]="stateOptions" [(ngModel)]="selectedVendor.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange()"></p-dropdown>
             </div>
             <div class="grid-item">
               <label>City</label>
-              <p-dropdown [options]="cityOptions" [(ngModel)]="selectedCustomer.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true"></p-dropdown>
+              <p-dropdown [options]="cityOptions" [(ngModel)]="selectedVendor.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true"></p-dropdown>
             </div>
             <div class="grid-item">
               <label>Postal Code</label>
-              <input pInputText [(ngModel)]="selectedCustomer.postal_code" />
+              <input pInputText [(ngModel)]="selectedVendor.postal_code" />
             </div>
             <div class="grid-item">
               <label>Website</label>
-              <input pInputText [(ngModel)]="selectedCustomer.website" />
+              <input pInputText [(ngModel)]="selectedVendor.website" />
             </div>
           </div>
           <!-- Invoicing -->
           <div class="section-header">Invoicing</div>
           <div class="grid-container">
             <div class="grid-item">
-              <label>Bill-to Customer Name (Auto):</label>
+              <label>Bill-to Vendor Name (Auto):</label>
               <p-dropdown
-                [options]="billToCustomerOptions"
-                [(ngModel)]="selectedCustomer.bill_to_customer_name"
+                [options]="billToVendorOptions"
+                [(ngModel)]="selectedVendor.bill_to_vendor_name"
                 optionLabel="label"
                 optionValue="value"
-                placeholder="Select Bill-to Customer"
+                placeholder="Select Bill-to Vendor"
                 [filter]="true"
                 [editable]="true">
               </p-dropdown>
             </div>
             <div class="grid-item">
               <label>VAT/GST No.</label>
-              <input pInputText [(ngModel)]="selectedCustomer.vat_gst_no" />
+              <input pInputText [(ngModel)]="selectedVendor.vat_gst_no" />
             </div>
             <div class="grid-item">
               <label>Place of Supply</label>
-              <p-dropdown [options]="placeOfSupplyOptions" [(ngModel)]="selectedCustomer.place_of_supply" optionLabel="label" optionValue="value" placeholder="Select Place of Supply"></p-dropdown>
+              <p-dropdown [options]="placeOfSupplyOptions" [(ngModel)]="selectedVendor.place_of_supply" optionLabel="label" optionValue="value" placeholder="Select Place of Supply"></p-dropdown>
             </div>
             <div class="grid-item">
               <label>PAN No.</label>
-              <input pInputText [(ngModel)]="selectedCustomer.pan_no" />
+              <input pInputText [(ngModel)]="selectedVendor.pan_no" />
             </div>
             <div class="grid-item">
               <label>TAN No.</label>
-              <input pInputText [(ngModel)]="selectedCustomer.tan_no" />
+              <input pInputText [(ngModel)]="selectedVendor.tan_no" />
             </div>
           </div>
           <!-- Contact -->
           <div class="section-header">Contact</div>
-          <p-table [value]="selectedCustomer.contacts" [showGridlines]="true" [responsiveLayout]="'scroll'">
+          <p-table [value]="selectedVendor.contacts" [showGridlines]="true" [responsiveLayout]="'scroll'">
             <ng-template pTemplate="header">
               <tr>
                 <th>Name</th>
@@ -266,7 +266,7 @@ function toTitleCase(str: string): string {
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedCustomer?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+          <button pButton label="{{ selectedVendor?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
         </div>
       </ng-template>
     </p-dialog>
@@ -293,26 +293,26 @@ function toTitleCase(str: string): string {
     }
   `]
 })
-export class CustomerComponent implements OnInit {
-  customers: Customer[] = [];
-  customerTypeOptions: any[] = [];
+export class VendorComponent implements OnInit {
+  vendors: Vendor[] = [];
+  vendorTypeOptions: any[] = [];
   blockedOptions = [
-    { label: 'Ship', value: 'Ship' },
-    { label: 'All', value: 'All' }
+    { label: 'Recieve', value: 'Recieve' },
+    { label: 'All', value: 'All'}
   ];
   countryOptions: any[] = [];
   stateOptions: any[] = [];
   cityOptions: any[] = [];
-  billToCustomerOptions: any[] = [];
+  billToVendorOptions: any[] = [];
   placeOfSupplyOptions: any[] = [];
-  mappedCustomerSeriesCode: string | null = null;
+  mappedVendorSeriesCode: string | null = null;
   isManualSeries: boolean = false;
   isDialogVisible = false;
-  selectedCustomer: (Customer & { isNew?: boolean }) | null = null;
+  selectedVendor: (Vendor & { isNew?: boolean }) | null = null;
   allLocations: MasterLocation[] = [];
 
   constructor(
-    private customerService: CustomerService,
+    private vendorService: VendorService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private messageService: MessageService,
@@ -324,14 +324,14 @@ export class CustomerComponent implements OnInit {
     this.refreshList();
     this.loadOptions();
     this.loadLocations();
-    this.loadMappedCustomerSeriesCode();
+    this.loadMappedVendorSeriesCode();
   }
 
   loadOptions() {
-    // Load customer type options from master type where key === 'Customer' and status === 'Active'
+    // Load vendor type options from master type where key === 'Vendor' and status === 'Active'
     this.masterTypeService.getAll().subscribe((types: any[]) => {
-      this.customerTypeOptions = (types || [])
-        .filter(t => t.key === 'Customer' && t.status === 'Active')
+      this.vendorTypeOptions = (types || [])
+        .filter(t => t.key === 'Vendor' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
     });
     // TODO: Load other dropdown options as needed
@@ -342,21 +342,21 @@ export class CustomerComponent implements OnInit {
   }
 
   refreshList() {
-    this.customerService.getAll().subscribe(data => {
-      this.customers = data;
-      this.billToCustomerOptions = data.map(c => ({
-        label: `${c.customer_no} - ${c.name}`,
-        value: `${c.customer_no} - ${c.name}`
+    this.vendorService.getAll().subscribe(data => {
+      this.vendors = data;
+      this.billToVendorOptions = data.map(c => ({
+        label: `${c.vendor_no} - ${c.name}`,
+        value: `${c.vendor_no} - ${c.name}`
       }));
     });
   }
 
-  loadMappedCustomerSeriesCode() {
+  loadMappedVendorSeriesCode() {
     this.mappingService.getMapping().subscribe(mapping => {
-      this.mappedCustomerSeriesCode = mapping.customerCode;
-      if (this.mappedCustomerSeriesCode) {
+      this.mappedVendorSeriesCode = mapping.vendorCode;
+      if (this.mappedVendorSeriesCode) {
         this.numberSeriesService.getAll().subscribe(seriesList => {
-          const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
+          const found = seriesList.find((s: any) => s.code === this.mappedVendorSeriesCode);
           this.isManualSeries = !!(found && found.is_manual);
         });
       } else {
@@ -366,8 +366,8 @@ export class CustomerComponent implements OnInit {
   }
 
   addRow() {
-    this.selectedCustomer = {
-      customer_no: '',
+    this.selectedVendor = {
+      vendor_no: '',
       type: '',
       name: '',
       name2: '',
@@ -379,7 +379,7 @@ export class CustomerComponent implements OnInit {
       city: '',
       postal_code: '',
       website: '',
-      bill_to_customer_name: '',
+      bill_to_vendor_name: '',
       vat_gst_no: '',
       place_of_supply: '',
       pan_no: '',
@@ -388,53 +388,53 @@ export class CustomerComponent implements OnInit {
       isNew: true
     };
     this.isDialogVisible = true;
-    this.updateBillToCustomerNameDefault();
+    this.updateBillToVendorNameDefault();
   }
 
-  updateBillToCustomerNameDefault() {
-    if (this.selectedCustomer) {
-      let no = this.selectedCustomer.customer_no;
+  updateBillToVendorNameDefault() {
+    if (this.selectedVendor) {
+      let no = this.selectedVendor.vendor_no;
       if (!this.isManualSeries) {
         no = '(auto)';
       }
-      const liveValue = `${no || ''} - ${this.selectedCustomer.name || ''}`.trim();
+      const liveValue = `${no || ''} - ${this.selectedVendor.name || ''}`.trim();
       if (
-        !this.selectedCustomer.bill_to_customer_name ||
-        (Array.isArray(this.billToCustomerOptions) && this.billToCustomerOptions.every(opt => opt.value !== this.selectedCustomer!.bill_to_customer_name))
+        !this.selectedVendor.bill_to_vendor_name ||
+        (Array.isArray(this.billToVendorOptions) && this.billToVendorOptions.every(opt => opt.value !== this.selectedVendor!.bill_to_vendor_name))
       ) {
-        this.selectedCustomer.bill_to_customer_name = liveValue;
+        this.selectedVendor.bill_to_vendor_name = liveValue;
       }
     }
   }
 
-  editRow(customer: Customer) {
-    this.selectedCustomer = { ...customer, isNew: false };
-    // Always set Bill-to Customer Name to the real value on edit
-    if (this.selectedCustomer.customer_no && this.selectedCustomer.name) {
-      this.selectedCustomer.bill_to_customer_name = `${this.selectedCustomer.customer_no} - ${this.selectedCustomer.name}`;
+  editRow(vendor: Vendor) {
+    this.selectedVendor = { ...vendor, isNew: false };
+    // Always set Bill-to Vendor Name to the real value on edit
+    if (this.selectedVendor.vendor_no && this.selectedVendor.name) {
+      this.selectedVendor.bill_to_vendor_name = `${this.selectedVendor.vendor_no} - ${this.selectedVendor.name}`;
     }
     this.isDialogVisible = true;
   }
 
   saveRow() {
-    if (!this.selectedCustomer) return;
+    if (!this.selectedVendor) return;
     const payload: any = {
-      ...this.selectedCustomer,
-      seriesCode: this.mappedCustomerSeriesCode // Always use mapped code
+      ...this.selectedVendor,
+      seriesCode: this.mappedVendorSeriesCode // Always use mapped code
     };
     if (!this.isManualSeries) {
-      payload.customer_no = undefined; // Let backend generate
+      payload.vendor_no = undefined; // Let backend generate
     }
-    const req = this.selectedCustomer.isNew
-      ? this.customerService.create(payload)
-      : this.customerService.update(this.selectedCustomer.id!, this.selectedCustomer);
+    const req = this.selectedVendor.isNew
+      ? this.vendorService.create(payload)
+      : this.vendorService.update(this.selectedVendor.id!, this.selectedVendor);
     req.subscribe({
-      next: (createdCustomer) => {
-        // Update Bill-to Customer Name with the real number after save
-        if (createdCustomer && createdCustomer.customer_no && createdCustomer.name) {
-          this.selectedCustomer!.bill_to_customer_name = `${createdCustomer.customer_no} - ${createdCustomer.name}`;
+      next: (createdVendor) => {
+        // Update Bill-to Vendor Name with the real number after save
+        if (createdVendor && createdVendor.vendor_no && createdVendor.name) {
+          this.selectedVendor!.bill_to_vendor_name = `${createdVendor.vendor_no} - ${createdVendor.name}`;
         }
-        const msg = this.selectedCustomer?.isNew ? 'Customer created' : 'Customer updated';
+        const msg = this.selectedVendor?.isNew ? 'Vendor created' : 'Vendor updated';
         this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
         this.refreshList();
         this.hideDialog();
@@ -447,18 +447,18 @@ export class CustomerComponent implements OnInit {
 
   hideDialog() {
     this.isDialogVisible = false;
-    this.selectedCustomer = null;
+    this.selectedVendor = null;
   }
 
   addContact() {
-    if (this.selectedCustomer) {
-      this.selectedCustomer.contacts.push({ name: '', department: '', mobile: '', landline: '', email: '', remarks: '' });
+    if (this.selectedVendor) {
+      this.selectedVendor.contacts.push({ name: '', department: '', mobile: '', landline: '', email: '', remarks: '' });
     }
   }
 
   removeContact(index: number) {
-    if (this.selectedCustomer) {
-      this.selectedCustomer.contacts.splice(index, 1);
+    if (this.selectedVendor) {
+      this.selectedVendor.contacts.splice(index, 1);
     }
   }
 
@@ -483,38 +483,38 @@ export class CustomerComponent implements OnInit {
   }
 
   onCountryChange() {
-    if (!this.selectedCustomer || !this.selectedCustomer.country) {
+    if (!this.selectedVendor || !this.selectedVendor.country) {
       this.stateOptions = [];
       this.cityOptions = [];
-      if (this.selectedCustomer) {
-        this.selectedCustomer.state = '';
-        this.selectedCustomer.city = '';
+      if (this.selectedVendor) {
+        this.selectedVendor.state = '';
+        this.selectedVendor.city = '';
       }
       return;
     }
     const states = this.allLocations
-      .filter(l => l.country === this.selectedCustomer!.country)
+      .filter(l => l.country === this.selectedVendor!.country)
       .map(l => l.state)
       .filter(Boolean);
     this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
     this.cityOptions = [];
-    this.selectedCustomer.state = '';
-    this.selectedCustomer.city = '';
+    this.selectedVendor.state = '';
+    this.selectedVendor.city = '';
   }
 
   onStateChange() {
-    if (!this.selectedCustomer || !this.selectedCustomer.state) {
+    if (!this.selectedVendor || !this.selectedVendor.state) {
       this.cityOptions = [];
-      if (this.selectedCustomer) {
-        this.selectedCustomer.city = '';
+      if (this.selectedVendor) {
+        this.selectedVendor.city = '';
       }
       return;
     }
     const cities = this.allLocations
-      .filter(l => l.country === this.selectedCustomer!.country && l.state === this.selectedCustomer!.state)
+      .filter(l => l.country === this.selectedVendor!.country && l.state === this.selectedVendor!.state)
       .map(l => l.city)
       .filter(Boolean);
     this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
-    this.selectedCustomer.city = '';
+    this.selectedVendor.city = '';
   }
 } 

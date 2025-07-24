@@ -48,21 +48,41 @@ app.use('/api/master_code', masterCodeRouter);
 
 const masterTypeRouter = require('./routes/master_type');
 app.use('/api/master_type', masterTypeRouter);
+
 const masterLocationRouter = require('./routes/master_location');
 app.use('/api/master_location', masterLocationRouter);
 
 const masterUOMRoutes = require('./routes/master_uom');
 app.use('/api/master_uom', masterUOMRoutes);
+
 const masteItemRouter =require('./routes/master_item');
 app.use('/api/master_item', masteItemRouter);
+
 const masterVesselRouter = require('./routes/master_vessel');
 app.use('/api/master_vessel', masterVesselRouter);
+
 const mappingRouter = require('./routes/mapping');
 app.use('/api/mapping', mappingRouter);
 
 // Add customer route
 const customerRouter = require('./routes/customer');
 app.use('/api/customer', customerRouter);
+
+const vendorRouter = require('./routes/vendor');
+app.use('/api/vendor', vendorRouter);
+
+const currencyCodeRouter = require('./routes/currency_code');
+app.use('/api/currency_code', currencyCodeRouter);
+
+const containerCodeRouter = require('./routes/container_code');
+app.use('/api/container_code', containerCodeRouter);
+
+const gstSetupRouter = require('./routes/gst_setup');
+app.use('/api/gst_setup', gstSetupRouter);
+
+const tariffRouter = require('./routes/tariff');
+app.use('/api/tariff', tariffRouter);
+
 
 // DB connection check
 const pool = require('./db');

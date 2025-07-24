@@ -6,7 +6,11 @@ import { MasterUOMComponent } from './masteruom';
 import { MasterItemComponent } from './masteritem';
 import { MasterVesselComponent } from './mastervessel';
 import { CustomerComponent } from './customer';
-
+import { VendorComponent } from './vendor';
+import { CurrencyCodeComponent } from './currencycode';
+import { ContainerCodeComponent } from './containercode';   
+import { GstSetupComponent } from './gstsetup';
+import { TariffComponent } from './tariff';
 
 export default [
 
@@ -17,8 +21,12 @@ export default [
     {path:'uom',component:MasterUOMComponent, data: {breadcrumb: 'Masters   >>>   Unit of Measure',title: 'UOM - ISLF' } },
     {path:'master_item',component:MasterItemComponent, data: {breadcrumb: 'Masters   >>>   Master Item',title: 'Master_Item - ISLF' } },
     {path:'vessel',component:MasterVesselComponent, data:{breadcrumb: 'Masters   >>>   Vessel',title:'Vessel - ISLF'}},
-    {path:'customer',component:CustomerComponent, data:{breadcrumb: 'Masters   >>>   Customer',title:'Customer - ISLF'}}
-
+    {path:'customer',component:CustomerComponent, data:{breadcrumb: 'Masters   >>>   Customer',title:'Customer - ISLF'}},
+    {path:'vendor',component:VendorComponent, data:{breadcrumb: 'Masters   >>>   Vendor',title:'Vendor - ISLF'}},
+    {path:'currency_code',component:CurrencyCodeComponent, data:{breadcrumb: 'Masters   >>>   Currency Code',title:'Currency Code - ISLF'}},
+    {path:'container',component:ContainerCodeComponent, data:{breadcrumb: 'Masters   >>>   Container ',title:'Container - ISLF'}},
+    {path:'gst_setup',component:GstSetupComponent, data:{breadcrumb: 'Masters   >>>   GST Setup',title:'GST Setup - ISLF'}},
+    {path:'tariff',component:TariffComponent, data:{breadcrumb: 'Masters   >>>   Tariff',title:'Tariff - ISLF'}}
 ] as Routes; 
 
 
