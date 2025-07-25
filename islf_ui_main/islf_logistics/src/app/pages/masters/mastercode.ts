@@ -129,7 +129,7 @@ interface PageFieldOption {
             <td>
               <ng-container *ngIf="master.isNew || master.isEditing; else refText">
                 <p-multiselect
-                  [options]="referenceTreeOptions"
+                  [options]="referenceOptions"
                   [(ngModel)]="master.reference"
                   placeholder="Select Reference"
                   optionLabel="label"
@@ -216,10 +216,17 @@ export class MasterCodeComponent implements OnInit {
     { label: 'Inactive', value: 'Inactive' }
   ];
 
-  referenceTreeOptions= [
+  referenceOptions= [
     {label: 'User / Status', value: 'User / Status'},
     {label: 'User / Role', value: 'User / Role'},
-    {label: 'User / Designation', value: 'User / Designation'}
+    {label: 'User / Designation', value: 'User / Designation'},
+    {label:'master/vendor', value: 'master/vendor'},
+    {label:'master/customer', value: 'master/customer'},
+    {label:'master/carrier', value: 'master/carrier'},
+    {label:'master/container', value: 'master/container'},
+    {label:'master/currency', value: 'master/currency'}, 
+    {label:'master/basis', value: 'master/basis'},
+    {label:'master/itemName', value: 'master/itemName'},
   ];
 
   constructor(
@@ -238,7 +245,8 @@ export class MasterCodeComponent implements OnInit {
       this.masters = (res || []).map((item: any) => ({
         ...item,
         isEditing: false,
-        isNew: false
+        isNew: false,
+        reference: item.reference ? item.reference.split(',') : []
       }));
       this.activeCodes = this.masters.filter((c: any) => c.status === 'Active');
     });
@@ -262,21 +270,19 @@ export class MasterCodeComponent implements OnInit {
   }
 
   saveRow(master: any) {
-    // If adding a new row, save all fields
     if (master.isNew) {
-      const referenceValue = master.reference;
-        
-      // Check for existing active code for this reference
-      const existingActive = this.masters.find((item: any) =>
-        item !== master && // Exclude the current new row from the check
-        item.reference &&
-        item.status && item.status.trim().toLowerCase() === 'active' &&
-        item.reference.trim().toLowerCase() === (referenceValue || '').trim().toLowerCase()
+      const codeValue = (master.code || '').trim().toLowerCase();
+      const existingCode = this.masters.find((item: any) =>
+        item !== master &&
+        (item.code || '').trim().toLowerCase() === codeValue
       );
-      if (existingActive) {
-        this.messageService.add({ severity: 'warn', summary: 'Not Allowed', detail: 'An active code for this reference already exists. Please deactivate it before creating a new one.' });
+      if (existingCode) {
+        this.messageService.add({ severity: 'warn', summary: 'Not Allowed', detail: 'A code with this value already exists. Please use a unique code.' });
         return;
       }
+      const referenceValue = Array.isArray(master.reference)
+        ? master.reference.join(',')
+        : master.reference;
       this.masterService.createMaster({
         code: master.code,
         description: master.description,
@@ -294,9 +300,9 @@ export class MasterCodeComponent implements OnInit {
         }
       });
     } else {
-      // Update existing record
-      const referenceValue = master.reference;
-
+      const referenceValue = Array.isArray(master.reference)
+        ? master.reference.join(',')
+        : master.reference;
       this.masterService.updateMaster(master.code, {
         description: master.description,
         reference: referenceValue,

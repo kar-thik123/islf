@@ -39,15 +39,16 @@ router.post('/', async (req, res) => {
 
 // Update master type
 router.put('/:id', async (req, res) => {
-  const { key, value, description, status } = req.body;
+  const { value, description, status } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE master_type SET key = $1, value = $2, description = $3, status = $4 WHERE id = $5 RETURNING *',
-      [key, value, description, status, req.params.id]
+      'UPDATE master_type SET value = $1, description = $2, status = $3 WHERE id = $4 RETURNING *',
+      [value, description, status, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to update master type' });
   }
 });

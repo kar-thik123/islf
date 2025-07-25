@@ -17,6 +17,15 @@ import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
+import { forkJoin } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { CustomerService } from '@/services/customer.service';
+import { VendorService } from '@/services/vendor.service';
+import { CurrencyCodeComponent } from './currencycode';
+import { ContainerCodeComponent } from './containercode';
+import { CustomerComponent } from './customer';
+import { VendorComponent } from './vendor';
+import { MasterUOMComponent } from './masteruom';
 // Import all required services (to be implemented or stubbed)
 // ... existing code ...
 @Component({
@@ -32,7 +41,12 @@ import { CurrencyCodeService } from '@/services/currencycode.service';
     DropdownModule,
     ToastModule,
     DialogModule,
-    CalendarModule
+    CalendarModule,
+    CurrencyCodeComponent,
+    ContainerCodeComponent,
+    CustomerComponent,
+    VendorComponent,
+    MasterUOMComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -48,7 +62,7 @@ import { CurrencyCodeService } from '@/services/currencycode.service';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code','partyType', 'mode', 'shippingType', 'cargoType', 'tariffType', 'itemName']"
+        [globalFilterFields]="['code','partyType', 'mode', 'shippingType', 'cargoType','unitOfMeasure', 'tariffType', 'itemName']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -151,7 +165,7 @@ import { CurrencyCodeService } from '@/services/currencycode.service';
               <label>Item Name</label>
               <div class="flex">
                 <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" placeholder="Select Item Name" class="flex-1"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('itemName')"></button>
+            
               </div>
             </div>
             <div class="grid-item">
@@ -175,11 +189,45 @@ import { CurrencyCodeService } from '@/services/currencycode.service';
             </div>
             <div class="grid-item" *ngIf="selectedTariff.partyType === 'Customer'">
               <label>Customer Name</label>
-              <p-dropdown [options]="customerOptions" [(ngModel)]="selectedTariff.partyName" optionLabel="label" optionValue="value" placeholder="Select Customer" [filter]="true"></p-dropdown>
+              <div class="flex">
+                <p-dropdown
+                  [options]="customerOptions"
+                  [(ngModel)]="selectedTariff.partyName"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Customer"
+                  class="flex-1"
+                  appendTo="body"
+                  [filter]="true"
+                ></p-dropdown>
+                <button
+                  pButton
+                  icon="pi pi-ellipsis-h"
+                  class="p-button-sm ml-2"
+                  (click)="openMaster('customer')"
+                ></button>
+              </div>
             </div>
             <div class="grid-item" *ngIf="selectedTariff.partyType === 'Vendor'">
               <label>Carrier</label>
-              <p-dropdown [options]="vendorOptions" [(ngModel)]="selectedTariff.partyName" optionLabel="label" optionValue="value" placeholder="Select Carrier" [filter]="true"></p-dropdown>
+              <div class="flex">
+                <p-dropdown
+                  [options]="vendorOptions"
+                  [(ngModel)]="selectedTariff.partyName"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Carrier"
+                  class="flex-1"
+                  appendTo="body"
+                  [filter]="true"
+                ></p-dropdown>
+                <button
+                  pButton
+                  icon="pi pi-ellipsis-h"
+                  class="p-button-sm ml-2"
+                  (click)="openMaster('carrier')"
+                ></button>
+              </div>
             </div>
               <div class="grid-item">
                 <label>Effective Date</label>
@@ -213,6 +261,77 @@ import { CurrencyCodeService } from '@/services/currencycode.service';
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
           <button pButton label="{{ selectedTariff?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
         </div>
+      </ng-template>
+    </p-dialog>
+    <!-- Currency Code Dialog -->
+    <p-dialog
+      header="Currency Codes"
+      [(visible)]="showCurrencyDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+    >
+      <ng-template pTemplate="content">
+        <currency-code></currency-code>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Container Code Dialog -->
+    <p-dialog
+      header="Container Codes"
+      [(visible)]="showContainerDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"   
+    >
+      <ng-template pTemplate="content">
+        <container-code></container-code>
+      </ng-template>
+    </p-dialog>
+    <!-- Customer Master Dialog -->
+    <p-dialog
+      header="Customer Master"
+      [(visible)]="showCustomerDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+    >
+      <ng-template pTemplate="content">
+        <customer-master></customer-master>
+      </ng-template>
+    </p-dialog>
+    <!-- Vendor Master Dialog -->
+    <p-dialog
+      header="Vendor Master"
+      [(visible)]="showVendorDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+    >
+      <ng-template pTemplate="content">
+        <vendor-master></vendor-master>
+      </ng-template>
+    </p-dialog>
+    <!-- UOM (Basis) Dialog -->
+    <p-dialog
+      header="Unit of Measure (Basis Only)"
+      [(visible)]="showUOMDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+    >
+      <ng-template pTemplate="content">
+        <master-uom></master-uom>
       </ng-template>
     </p-dialog>
   `,
@@ -270,6 +389,11 @@ export class TariffComponent implements OnInit {
   ];
   isDialogVisible = false;
   selectedTariff: any = null;
+  showCurrencyDialog = false;
+  showContainerDialog = false;
+  showCustomerDialog = false;
+  showVendorDialog = false;
+  showUOMDialog = false;
 
   constructor(
     private messageService: MessageService,
@@ -280,87 +404,179 @@ export class TariffComponent implements OnInit {
     private masterUOMService: MasterUOMService,
     private containerCodeService: ContainerCodeService,
     private masterItemService: MasterItemService,
-    private currencyCodeService: CurrencyCodeService
+    private currencyCodeService: CurrencyCodeService,
+    private customerService: CustomerService,
+    private vendorService: VendorService
   ) {}
 
   ngOnInit() {
-    this.loadShippingTypeOptions();
-    this.loadCargoTypeOptions();
-    this.loadTariffTypeOptions();
-    this.loadLocationOptions();
+    forkJoin([
+      this.loadShippingTypeOptions(),
+      this.loadCargoTypeOptions(),
+      this.loadTariffTypeOptions(),
+      this.loadLocationOptions(),
+      this.loadbasisOptions(),
+      this.loadContainersOptions(),
+      this.loadCurrencyOptions(),
+      this.loadItemOptions(),
+      this.loadCustomerOptions(),
+      this.loadVendorOptions()
+    ]).subscribe(() => {
     this.refreshList();
-    this.loadbasisOptions();
-    this.loadContainersOptions();
-    this.loadCurrencyOptions();
-    this.loadItemOptions();
+    });
   }
 
+  // Update all loadXOptions to return observables for forkJoin
   loadShippingTypeOptions() {
-    // Load shipping type options from master type where key === 'ShipType' and status === 'Active'
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
+    return this.masterTypeService.getAll().pipe(
+      // @ts-ignore
+      tap((types: any[]) => {
       this.shippingTypeOptions = (types || [])
         .filter(t => t.key === 'ShipType' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
-    });
+      })
+    );
   }
   loadCargoTypeOptions() {
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
+    return this.masterTypeService.getAll().pipe(
+      // @ts-ignore
+      tap((types: any[]) => {
       this.cargoTypeOptions = (types || [])
         .filter(t => t.key === 'CargoType' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
-    });
+      })
+    );
   }
   loadTariffTypeOptions() {
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
+    return this.masterTypeService.getAll().pipe(
+      // @ts-ignore
+      tap((types: any[]) => {
       this.tariffTypeOptions = (types || [])
         .filter(t => t.key === 'TariffType' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
-    });
+      })
+    );
   }
   loadLocationOptions() {
-    this.masterLocationService.getAll().subscribe((locations: any[]) => {
+    return this.masterLocationService.getAll().pipe(
+      // @ts-ignore
+      tap((locations: any[]) => {
       const uniqueCities = Array.from(new Set((locations || [])
         .filter(l => l.active && l.city)
         .map(l => l.city.trim())
         .filter(Boolean)));
       this.locationOptions = uniqueCities.map(city => ({ label: city, value: city }));
-    });
+      })
+    );
   }
   loadbasisOptions() {
-    this.masterUOMService.getAll().subscribe((uoms: any[]) => {
+    return this.masterUOMService.getAll().pipe(
+      // @ts-ignore
+      tap((uoms: any[]) => {
       this.basisOptions = (uoms || [])
-        .filter(u => u.uom_type === 'Basics' && u.active)
+          .filter(u => u.uom_type === 'Basis' && u.active)
         .map(u => ({ label: u.code, value: u.code }));
-    });
+      })
+    );
   }
   loadContainersOptions() {
-    this.containerCodeService.getContainers().subscribe((containerCodes: any[]) => {
+    return this.containerCodeService.getContainers().pipe(
+      // @ts-ignore
+      tap((containerCodes: any[]) => {
       this.containerTypeOptions = (containerCodes || [])
         .filter(c =>c.status==='Active')
         .map(c => ({ label: c.code, value: c.code }));
-    });
+      })
+    );
   }
   loadCurrencyOptions() {
-    this.currencyCodeService.getCurrencies().subscribe((currencyCodes: any[]) => {
+    return this.currencyCodeService.getCurrencies().pipe(
+      // @ts-ignore
+      tap((currencyCodes: any[]) => {
       this.currencyOptions = (currencyCodes || [])
         .filter(c => c.status === 'Active')
         .map(c => ({ label: c.code, value: c.code }));
-    });
+      })
+    );
   }
   loadItemOptions() {
-    this.masterItemService.getAll().subscribe((items: any[]) => {
+    return this.masterItemService.getAll().pipe(
+      // @ts-ignore
+      tap((items: any[]) => {
         this.itemNameOptions = (items || [])
           .filter(i => i.item_type === 'Charge' && i.active)
           .map(i => ({ label: `${i.code} - ${i.name}`, value: i.code }));
-      });
-}
+      })
+    );
+  }
+  loadCustomerOptions() {
+    return this.customerService.getAll().pipe(
+      tap((customers: any[]) => {
+        this.customerOptions = (customers || [])
+          .map(c => ({ label: `${c.customer_no} - ${c.name}`, value: c.customer_no }));
+      })
+    );
+  }
+  loadVendorOptions() {
+    return this.vendorService.getAll().pipe(
+      tap((vendors: any[]) => {
+       
+        this.vendorOptions = (vendors || [])
+          .map(v => ({
+            label: `${v.vendor_no} - ${v.name}`,
+            value: v.vendor_no
+          }));
+       
+      })
+    );
+  }
+
+  // Helper to map code to label for table display
+  getLabel(options: any[], value: string): string {
+    const found = options.find(opt => opt.value === value);
+    return found ? found.label : value;
+  }
+
   refreshList() {   
     this.tariffService.getAll().subscribe(data => {
-      this.tariffs = data;
+      this.tariffs = data.map((tariff: any) => ({
+        ...tariff,
+        shippingType: tariff.shipping_type,
+        cargoType: tariff.cargo_type,
+        containerType: tariff.container_type,
+        itemName: tariff.item_name,
+        from: tariff.from_location,
+        to: tariff.to_location,
+        partyType: tariff.party_type,
+        partyName: tariff.party_name,
+        tariffType: tariff.tariff_type,
+        basis: tariff.basis,
+        currency: tariff.currency,
+        charges: tariff.charges,
+        mode: tariff.mode,
+        effectiveDate: tariff.effective_date,
+        periodStartDate: tariff.period_start_date,
+        periodEndDate: tariff.period_end_date,
+        freightChargeType: tariff.freight_charge_type,
+        // ...add any other mappings as needed
+      }));
     });
   }
 
   addRow() {
+    // Wait for all options to be loaded before opening dialog
+    forkJoin([
+      this.loadShippingTypeOptions(),
+      this.loadCargoTypeOptions(),
+      this.loadTariffTypeOptions(),
+      this.loadLocationOptions(),
+      this.loadbasisOptions(),
+      this.loadContainersOptions(),
+      this.loadCurrencyOptions(),
+      this.loadItemOptions(),
+      this.loadCustomerOptions(),
+      this.loadVendorOptions()
+    ]).subscribe(() => {
     this.selectedTariff = {
       code: '',
       mode: '',
@@ -383,16 +599,83 @@ export class TariffComponent implements OnInit {
       isNew: true
     };
     this.isDialogVisible = true;
+    });
   }
 
   editRow(tariff: any) {
+    // Wait for all options to be loaded before opening dialog
+    forkJoin([
+      this.loadShippingTypeOptions(),
+      this.loadCargoTypeOptions(),
+      this.loadTariffTypeOptions(),
+      this.loadLocationOptions(),
+      this.loadbasisOptions(),
+      this.loadContainersOptions(),
+      this.loadCurrencyOptions(),
+      this.loadItemOptions(),
+      this.loadCustomerOptions(),
+      this.loadVendorOptions()
+    ]).subscribe(() => {
+      console.log('TARIFF:', tariff);
+      console.log('cargoTypeOptions:', this.cargoTypeOptions);
     this.selectedTariff = { ...tariff, isNew: false };
     this.isDialogVisible = true;
+    });
   }
 
   saveRow() {
     if (!this.selectedTariff) return;
-    const payload: Tariff = { ...this.selectedTariff };
+    const payload: any = { ...this.selectedTariff };
+
+    // List of required fields and their user-friendly names
+    const requiredFields = [
+      { key: 'code', label: 'Code' },
+      { key: 'mode', label: 'Mode' },
+      { key: 'shippingType', label: 'Shipping Type' },
+      { key: 'cargoType', label: 'Cargo Type' },
+      { key: 'tariffType', label: 'Tariff Type' },
+      { key: 'basis', label: 'Basis' },
+      { key: 'containerType', label: 'Container Type' },
+      { key: 'itemName', label: 'Item Name' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'from', label: 'From' },
+      { key: 'to', label: 'To' },
+      { key: 'partyType', label: 'Party Type' },
+      { key: 'charges', label: 'Charges' }
+    ];
+    if (payload.partyType === 'Customer') {
+      requiredFields.push({ key: 'partyName', label: 'Customer Name' });
+    } else if (payload.partyType === 'Vendor') {
+      requiredFields.push({ key: 'partyName', label: 'Carrier' });
+    }
+    const missing = requiredFields
+      .filter(field => !payload[field.key] || payload[field.key].toString().trim() === '')
+      .map(field => field.label);
+    if (missing.length > 0) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Missing Required Fields',
+        detail: `Please fill: ${missing.join(', ')}`
+      });
+      return;
+    }
+
+    // Unique code check (for new tariffs)
+    if (this.selectedTariff.isNew) {
+      const codeValue = (payload.code || '').trim().toLowerCase();
+      const duplicate = this.tariffs.some(
+        t => (t.code || '').trim().toLowerCase() === codeValue
+      );
+      if (duplicate) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Duplicate Code',
+          detail: 'Code already exists. Please use a unique code.'
+        });
+        return;
+      }
+    }
+
     if (this.selectedTariff.isNew) {
       this.tariffService.create(payload).subscribe({
         next: (created) => {
@@ -413,6 +696,9 @@ export class TariffComponent implements OnInit {
         },
         error: (err) => {
           this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update tariff' });
+        },
+        complete: () => {
+          console.log('Tariff updated successfully');
         }
       });
     }
@@ -440,8 +726,26 @@ export class TariffComponent implements OnInit {
   }
 
   openMaster(type: string) {
-    // TODO: Open respective master page/modal
+    if (type === 'currency') {
+      this.showCurrencyDialog = true;
+    } else if (type === 'containerType') {
+      this.showContainerDialog = true;
+    } else if (type === 'partyType') {
+      if (this.selectedTariff?.partyType === 'Customer') {
+        this.showCustomerDialog = true;
+      } else if (this.selectedTariff?.partyType === 'Vendor') {
+        this.showVendorDialog = true;
+      }
+    } else if (type === 'carrier') {
+      this.showVendorDialog = true;
+    } else if (type === 'customer') {
+      this.showCustomerDialog = true;
+    } else if (type === 'basis') {
+      this.showUOMDialog = true;
+    } else {
     this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
+    }
+    
   }
 }
 // ... existing code ... 
