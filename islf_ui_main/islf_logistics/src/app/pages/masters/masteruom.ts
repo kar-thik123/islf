@@ -74,7 +74,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
                 <p-columnFilter type="text" field="description" display="menu" placeholder="Search by description"></p-columnFilter>
               </div>
             </th>
-            <th>
+          <!-- <th>
               <div class="flex justify-between items-center">
                 Start Day
                 <p-columnFilter type="text" field="start_day" display="menu" placeholder="Search by start day"></p-columnFilter>
@@ -91,7 +91,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
                 Working Days
                 <p-columnFilter type="text" field="working_days" display="menu" placeholder="Search by working days"></p-columnFilter>
               </div>
-            </th>
+            </th>-->
             <th>
               <div class="flex justify-between items-center">
                 Active

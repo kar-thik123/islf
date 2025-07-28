@@ -146,7 +146,7 @@ interface ItemTypeOption {
         <div *ngIf="selectedItem" class="p-fluid form-grid dialog-body-padding">
           <div class="grid-container">
             <div class="grid-item">
-              <label for="item_type">Item Type</label>
+              <label for="item_type "> Item Type <span class="text-red-500">*</span></label>
               <p-dropdown
                 id="item_type"
                 [options]="itemTypeOptions"
@@ -156,19 +156,23 @@ interface ItemTypeOption {
                 placeholder="Select Item Type"
                 [filter]="true"
                 [disabled]="!selectedItem.isNew"
+                (onChange)="onFieldChange('item_type', $event.value)"
               ></p-dropdown>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('item_type')">{{ getFieldError('item_type') }}</small>
             </div>
             <div class="grid-item">
-              <label for="code">Code</label>
-              <input id="code" pInputText [(ngModel)]="selectedItem.code" [disabled]="!selectedItem.isNew" />
+              <label for="code"> Code<span class="text-red-500">*</span></label>
+              <input #codeInput id="code" pInputText [(ngModel)]="selectedItem.code" [disabled]="!selectedItem.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('code')">{{ getFieldError('code') }}</small>
             </div>
             <div class="grid-item">
-              <label for="name">Name</label>
-              <input id="name" pInputText [(ngModel)]="selectedItem.name" />
+              <label for="name"> Name <span class="text-red-500">*</span></label>
+              <input #nameInput id="name" pInputText [(ngModel)]="selectedItem.name" required (input)="onFieldChange('name', nameInput.value)"/>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('name')">{{ getFieldError('name') }}</small>
             </div>
             <div class="grid-item">
-              <label for="hs_code">HS Code</label>
-              <input id="hs_code" pInputText [(ngModel)]="selectedItem.hs_code" />
+              <label for="hs_code"> HS Code </label>
+              <input #hsCodeInput id="hs_code" pInputText [(ngModel)]="selectedItem.hs_code" (input)="onFieldChange('hs_code', hsCodeInput.value)"/>
             </div>
             <div class="grid-item">
               <label for="active">Status</label>
@@ -187,7 +191,7 @@ interface ItemTypeOption {
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedItem?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+          <button pButton label="{{ selectedItem?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid()"></button>
         </div>
       </ng-template>
     </p-dialog>
@@ -218,6 +222,7 @@ export class MasterItemComponent implements OnInit {
 
   isDialogVisible = false;
   selectedItem: (MasterItem & { isNew?: boolean }) | null = null;
+  fieldErrors: { [key: string]: string } = {};
 
   constructor(
     private masterItemService: MasterItemService,
@@ -251,40 +256,58 @@ export class MasterItemComponent implements OnInit {
       active: true,
       isNew: true
     };
+    this.fieldErrors = {};
     this.isDialogVisible = true;
   }
 
   editRow(item: MasterItem) {
     this.selectedItem = { ...item, isNew: false };
+    this.fieldErrors = {};
     this.isDialogVisible = true;
+  }
+
+  validateField(field: string, value: any): string {
+    if (!value || value.toString().trim() === '') {
+      return `*${field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} is required`;
+    }
+    if (field === 'code' && this.selectedItem?.isNew && this.items.some(i => i.code === value)) {
+      return '*Code already exists';
+    }
+    return '';
+  }
+
+  onFieldChange(field: string, value: any) {
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[field] = error;
+    } else {
+      delete this.fieldErrors[field];
+    }
+  }
+
+  getFieldError(field: string): string {
+    return this.fieldErrors[field] || '';
+  }
+
+  isFormValid(): boolean {
+    if (!this.selectedItem) return false;
+    const required = ['item_type', 'code', 'name'];
+    for (const f of required) {
+      if (this.validateField(f, (this.selectedItem as any)[f])) return false;
+    }
+    return true;
   }
 
   saveRow() {
     if (!this.selectedItem) return;
-
-    // Validation
-    if (!this.selectedItem.item_type || !this.selectedItem.code || !this.selectedItem.name) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Validation Error',
-        detail: 'Item Type, Code, and Name are required.'
-      });
-      return;
-    }
-
-    if (this.selectedItem.isNew && this.items.some(i => i.code === this.selectedItem?.code)) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Duplicate Code',
-        detail: 'Item with the same code already exists.'
-      });
-      return;
-    }
-
+    // Validate all required fields on save
+    ['item_type', 'code', 'name'].forEach(f => {
+      this.onFieldChange(f, (this.selectedItem as any)[f]);
+    });
+    if (!this.isFormValid()) return;
     const req = this.selectedItem.isNew
       ? this.masterItemService.create(this.selectedItem)
       : this.masterItemService.update(this.selectedItem.id!, this.selectedItem);
-
     req.subscribe({
       next: () => {
         const msg = this.selectedItem?.isNew ? 'Item created' : 'Item updated';
@@ -301,6 +324,7 @@ export class MasterItemComponent implements OnInit {
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedItem = null;
+    this.fieldErrors = {};
   }
 
   clear(table: any) {

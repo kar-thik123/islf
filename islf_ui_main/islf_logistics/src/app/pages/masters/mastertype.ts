@@ -96,22 +96,37 @@ import { MasterTypeService } from '../../services/mastertype.service';
           <tr>
             <td>
               <ng-container *ngIf="type.isNew; else keyText">
-                <p-dropdown
-                  [options]="masterCodeOptions"
-                  [(ngModel)]="type.key"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select Key"
-                  appendTo="body"
-                  [filter]="true"
-                  filterBy="label"
-                ></p-dropdown>
+                <div class="flex flex-col">
+                  <p-dropdown
+                    [options]="masterCodeOptions"
+                    [(ngModel)]="type.key"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select Key"
+                    appendTo="body"
+                    [filter]="true"
+                    filterBy="label"
+                    (onChange)="onFieldChange(type, 'key', $event.value)"
+                    [ngClass]="getFieldErrorClass(type, 'key')"
+                    [ngStyle]="getFieldErrorStyle(type, 'key')"
+                    styleClass="w-full"
+              
+                  ></p-dropdown>
+                  <small *ngIf="getFieldError(type, 'key')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(type, 'key') }}</small>
+                </div>
               </ng-container>
               <ng-template #keyText>{{ type.key }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="type.isNew || type.isEditing; else valueText">
-                <input pInputText [(ngModel)]="type.value" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="type.value" (ngModelChange)="onFieldChange(type, 'value', type.value)"
+                    [ngClass]="getFieldErrorClass(type, 'value')"
+                    [ngStyle]="getFieldErrorStyle(type, 'value')"
+                    class="w-full"
+                  />
+                  <small *ngIf="getFieldError(type, 'value')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(type, 'value') }}</small>
+                </div>
               </ng-container>
               <ng-template #valueText>{{ type.value }}</ng-template>
             </td>
@@ -163,6 +178,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
                   (click)="saveRow(type)"
                   title="Save"
                   *ngIf="type.isEditing || type.isNew"
+                  [disabled]="!isTypeValid(type)"
                 ></button>
                 <button
                 *ngIf="type.isNew"
@@ -196,11 +212,87 @@ export class MasterTypeComponent implements OnInit {
     { label: 'Inactive', value: 'Inactive' }
   ];
 
+  // Field validation states
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+
   constructor(
     private masterCodeService: MasterCodeService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService
   ) {}
+
+  // Validation methods
+  validateField(type: any, fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'key':
+        if (!value || value.toString().trim() === '') {
+          return ' *Key is required';
+        }
+        if (type.isNew && this.isKeyValueDuplicate(type, value, type.value)) {
+          return ' *Key-Value combination already exists';
+        }
+        break;
+      case 'value':
+        if (!value || value.toString().trim() === '') {
+          return ' *Value is required';
+        }
+        if (type.isNew && this.isKeyValueDuplicate(type, type.key, value)) {
+          return ' *Key-Value combination already exists';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(type: any, fieldName: string, value: any) {
+    const error = this.validateField(type, fieldName, value);
+    if (!this.fieldErrors[type.id || 'new']) {
+      this.fieldErrors[type.id || 'new'] = {};
+    }
+    if (error) {
+      this.fieldErrors[type.id || 'new'][fieldName] = error;
+    } else {
+      delete this.fieldErrors[type.id || 'new'][fieldName];
+    }
+  }
+
+  isKeyValueDuplicate(type: any, key: string, value: string): boolean {
+    if (!type.isNew) return false;
+    const keyValue = key.trim().toLowerCase();
+    const valueValue = value.trim().toLowerCase();
+    return this.types.some(t => 
+      t !== type && 
+      (t.key || '').trim().toLowerCase() === keyValue &&
+      (t.value || '').trim().toLowerCase() === valueValue
+    );
+  }
+
+  getFieldErrorClass(type: any, fieldName: string): string {
+    const errors = this.fieldErrors[type.id || 'new'];
+    return errors && errors[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(type: any, fieldName: string): { [key: string]: string } {
+    const errors = this.fieldErrors[type.id || 'new'];
+    return errors && errors[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
+
+  getFieldError(type: any, fieldName: string): string {
+    const errors = this.fieldErrors[type.id || 'new'];
+    return errors ? errors[fieldName] || '' : '';
+  }
+
+  isTypeValid(type: any): boolean {
+    const errors = this.fieldErrors[type.id || 'new'];
+    if (!errors) return false;
+    
+    const hasKeyError = errors['key'];
+    const hasValueError = errors['value'];
+    
+    return !hasKeyError && !hasValueError && 
+           type.key && type.key.toString().trim() !== '' &&
+           type.value && type.value.toString().trim() !== '';
+  }
 
   ngOnInit() {
     // Load master code options for the key dropdown
@@ -224,7 +316,7 @@ export class MasterTypeComponent implements OnInit {
   addRow() {
     const newRow = {
       id: null,
-      key: '',
+      key: null,
       value: '',
       description: '',
       status: 'Active',
@@ -232,9 +324,13 @@ export class MasterTypeComponent implements OnInit {
       isNew: true
     };
     this.types = [newRow, ...this.types];
+    // Clear field errors for new row
+    this.fieldErrors['new'] = {};
   }
 
   saveRow(type: any) {
+    if (!this.isTypeValid(type)) return;
+    
     if (type.isNew) {
       this.masterTypeService.create(type).subscribe({
         next: (created) => {
@@ -269,6 +365,10 @@ export class MasterTypeComponent implements OnInit {
     this.types.forEach(t => t.isEditing = false);
     type.isEditing = true;
     type.isNew = false;
+    // Clear field errors for editing row
+    if (this.fieldErrors[type.id]) {
+      delete this.fieldErrors[type.id];
+    }
   }
 
   deleteRow(type: any) {

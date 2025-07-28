@@ -29,7 +29,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Master Location</div>
+      <div class="font-semibold text-xl mb-4">Location</div>
 
       <p-table
         #dt

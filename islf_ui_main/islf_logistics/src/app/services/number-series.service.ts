@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface NumberSeries {
   id?: number;
@@ -17,7 +18,7 @@ export interface NumberSeries {
 
 @Injectable({ providedIn: 'root' })
 export class NumberSeriesService {
-  private apiUrl = '/api/number_series';
+  private apiUrl = `${environment.apiUrl}/api/number_series`;
 
   constructor(private http: HttpClient) {}
 

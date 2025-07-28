@@ -2,14 +2,14 @@ import {
   BaseStyle,
   PrimeNG,
   base
-} from "./chunk-D4L2J6ON.js";
+} from "./chunk-6F4A23W7.js";
+import {
+  uuid
+} from "./chunk-PQ4YWBDM.js";
 import {
   config_default,
   service_default
 } from "./chunk-CWYBPNCF.js";
-import {
-  uuid
-} from "./chunk-PQ4YWBDM.js";
 import {
   getKeyValue
 } from "./chunk-NJ25EVEJ.js";
@@ -262,4 +262,4 @@ var BaseComponent = class _BaseComponent {
 export {
   BaseComponent
 };
-//# sourceMappingURL=chunk-RRDRZT4A.js.map
+//# sourceMappingURL=chunk-JMK2FJ5F.js.map

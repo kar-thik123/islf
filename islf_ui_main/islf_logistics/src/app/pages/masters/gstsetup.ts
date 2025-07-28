@@ -72,30 +72,41 @@ interface GstRule {
           <tr>
             <td>
               <ng-container *ngIf="rule.isEditing; else fromText">
-                <p-dropdown
-                  [options]="locationOptions"
-                  [(ngModel)]="rule.from"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select From"
-                   appendTo="body"
-                  [filter]="true">
-                  
-                </p-dropdown>
+                <div class="flex flex-col">
+                  <p-dropdown
+                    [options]="locationOptions"
+                    [(ngModel)]="rule.from"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select From"
+                    appendTo="body"
+                    [filter]="true"
+                    (onChange)="onFieldChange(rule, 'from', rule.from)"
+                    [ngClass]="getFieldErrorClass(rule, 'from')"
+                    [ngStyle]="getFieldErrorStyle(rule, 'from')"
+                  ></p-dropdown>
+                  <small *ngIf="getFieldError(rule, 'from')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(rule, 'from') }}</small>
+                </div>
               </ng-container>
               <ng-template #fromText>{{ rule.from }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="rule.isEditing; else toText">
-                <p-dropdown
-                  [options]="locationOptions"
-                  [(ngModel)]="rule.to"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select To"
-                   appendTo="body"
-                  [filter]="true">
-                </p-dropdown>
+                <div class="flex flex-col">
+                  <p-dropdown
+                    [options]="locationOptions"
+                    [(ngModel)]="rule.to"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select To"
+                    appendTo="body"
+                    [filter]="true"
+                    (onChange)="onFieldChange(rule, 'to', rule.to)"
+                    [ngClass]="getFieldErrorClass(rule, 'to')"
+                    [ngStyle]="getFieldErrorStyle(rule, 'to')"
+                  ></p-dropdown>
+                  <small *ngIf="getFieldError(rule, 'to')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(rule, 'to') }}</small>
+                </div>
               </ng-container>
               <ng-template #toText>{{ rule.to }}</ng-template>
             </td>
@@ -111,7 +122,7 @@ interface GstRule {
             <td>
               <div class="flex items-center space-x-[8px]">
                 <button pButton icon="pi pi-pencil" class="p-button-sm" (click)="editRow(rule)" *ngIf="!rule.isEditing"></button>
-                <button pButton icon="pi pi-check" class="p-button-sm" (click)="saveRow(rule)" *ngIf="rule.isEditing"></button>
+                <button pButton icon="pi pi-check" class="p-button-sm" (click)="saveRow(rule)" [disabled]="!isValid(rule)" *ngIf="rule.isEditing"></button>
                 <button pButton icon="pi pi-trash" class="p-button-sm" severity="danger" (click)="deleteRow(rule)"></button>
               </div>
             </td>
@@ -129,6 +140,7 @@ interface GstRule {
 export class GstSetupComponent implements OnInit {
   gstRules = signal<GstRule[]>([]);
   locationOptions: { label: string, value: string }[] = [];
+  fieldErrors: { [key: string]: { [field: string]: string } } = {};
   @ViewChild('dt') dt!: Table;
 
   constructor(
@@ -144,7 +156,6 @@ export class GstSetupComponent implements OnInit {
         value: `${l.gst_state_code} - ${l.name}`
       }));
     });
-    // Optionally: Load GST rules from backend here
   }
 
   addRow() {
@@ -157,22 +168,29 @@ export class GstSetupComponent implements OnInit {
       isEditing: true,
       isNew: true
     };
-    this.gstRules.set([...this.gstRules(), newRow]);
+    this.gstRules.set([newRow, ...this.gstRules()]);
   }
 
-  saveRow(row: GstRule) {
-    row.isEditing = false;
-    row.isNew = false;
-    // TODO: Save to backend if needed
+  editRow(rule: GstRule) {
+    this.gstRules.set(this.gstRules().map(r => r === rule ? { ...r, isEditing: true } : { ...r, isEditing: false }));
+  }
+
+  saveRow(rule: GstRule) {
+    // Validate required fields on save
+    if (!rule.from || !rule.from.trim()) {
+      this.onFieldChange(rule, 'from', rule.from);
+    }
+    if (!rule.to || !rule.to.trim()) {
+      this.onFieldChange(rule, 'to', rule.to);
+    }
+    if (!this.isValid(rule)) return;
+    rule.isEditing = false;
+    rule.isNew = false;
     this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'GST Rule saved' });
   }
 
-  editRow(row: GstRule) {
-    this.gstRules.set(this.gstRules().map(r => r === row ? { ...r, isEditing: true } : r));
-  }
-
-  deleteRow(row: GstRule) {
-    this.gstRules.set(this.gstRules().filter(r => r !== row));
+  deleteRow(rule: GstRule) {
+    this.gstRules.set(this.gstRules().filter(r => r !== rule));
     this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'GST Rule deleted' });
   }
 
@@ -183,4 +201,43 @@ export class GstSetupComponent implements OnInit {
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
-} 
+
+  // Validation
+  onFieldChange(rule: GstRule, field: string, value: any) {
+    const key = rule.id || rule.from || rule.to || 'new';
+    if (!this.fieldErrors[key]) this.fieldErrors[key] = {};
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[key][field] = error;
+    } else {
+      delete this.fieldErrors[key][field];
+    }
+  }
+
+  validateField(field: string, value: any): string {
+    if (!value || value.trim() === '') {
+      return `*${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+    }
+    return '';
+  }
+
+  getFieldError(rule: GstRule, field: string): string {
+    const key = rule.id || rule.from || rule.to || 'new';
+    return this.fieldErrors[key]?.[field] || '';
+  }
+
+  getFieldErrorClass(rule: GstRule, field: string): string {
+    return this.getFieldError(rule, field) ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(rule: GstRule, field: string): { [key: string]: string } {
+    return this.getFieldError(rule, field) ? { 'border-color': '#f44336' } : {};
+  }
+
+  isValid(rule: GstRule): boolean {
+    return !!rule.from?.trim() && !!rule.to?.trim() &&
+       !this.getFieldError(rule, 'from') &&
+       !this.getFieldError(rule, 'to');
+
+  }
+}

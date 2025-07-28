@@ -48,7 +48,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['numberSeries', 'startingDate', 'prefix', 'startingNo', 'endingNo', 'lastNoUsed', 'incrementBy']"
+        [globalFilterFields]="['numberSeries', 'startingDate', 'prefix', 'startingNo', 'endingNo', 'endingDate', 'status', 'lastNoUsed', 'incrementBy']"
         responsiveLayout="scroll"
       >
         <!-- 🔍 Global Filter + Clear -->
@@ -100,6 +100,18 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             </th>
             <th>
               <div class="flex justify-between items-center">
+                Ending Date
+                <p-columnFilter type="date" field="endingDate" display="menu" placeholder="YYYY-MM-DD"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Status
+                <p-columnFilter type="text" field="status" display="menu" placeholder="Search by status"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
                 Last No Used
                 <p-columnFilter type="numeric" field="lastNoUsed" display="menu" placeholder="Search by last no used"></p-columnFilter>
               </div>
@@ -122,6 +134,16 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             <td>{{ rel.prefix }}</td>
             <td>{{ rel.startingNo }}</td>
             <td>{{ rel.endingNo }}</td>
+            <td>{{ rel.endingDate | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>
+              <span *ngIf="rel.endingDate" 
+                    [class]="isExpired(rel) ? 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800' : 'px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800'">
+                {{ getExpirationStatus(rel) }}
+              </span>
+              <span *ngIf="!rel.endingDate" class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                No End Date
+              </span>
+            </td>
             <td>{{ rel.lastNoUsed }}</td>
             <td>{{ rel.incrementBy }}</td>
             <td>
@@ -131,7 +153,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                 icon="pi pi-pencil"
                 class="p-button-sm"
                 (click)="editRow(rel)"
-                [disabled]="rel.lastNoUsed > 0"
+                [disabled]="rel.lastNoUsed > 0 || (rel.endingDate && isExpired(rel))"
                 title="Edit"
               ></button>
               <button
@@ -140,7 +162,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                 class="p-button-sm"
                 severity="danger"
                 (click)="deleteRow(rel)"
-                [disabled]="rel.lastNoUsed > 0"
+                [disabled]="rel.lastNoUsed > 0 || (rel.endingDate && isExpired(rel))"
                 title="Delete"
               ></button>
               </div>
@@ -167,6 +189,15 @@ import { InputSwitchModule } from 'primeng/inputswitch';
       [resizable]="false"
     >
       <div *ngIf="selectedRow" class="p-fluid form-grid dialog-body-padding">
+        <!-- Helpful note about mutual exclusivity -->
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p class="text-sm text-blue-800">
+            <i class="pi pi-info-circle mr-2"></i>
+            <strong>Note:</strong> Only one of "Ending Number" or "Ending Date" should be filled. 
+            If you set an ending date, the ending number will be cleared automatically.
+          </p>
+        </div>
+        
         <div class="grid-container">
           <div class="grid-item">
             <label for="numberSeries">Number Series</label>
@@ -199,13 +230,33 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           </div>
           <div class="grid-item">
             <label for="endingNo">Ending No</label>
-            <input id="endingNo" type="number" pInputText [(ngModel)]="selectedRow.endingNo" />
+            <input id="endingNo" type="number" pInputText [(ngModel)]="selectedRow.endingNo" (input)="onEndingNoChange()" />
           </div>
           <div class="grid-item">
             <label for="prefix">Prefix</label>
             <input id="prefix" type="text" pInputText [(ngModel)]="selectedRow.prefix" />
           </div>
-          <div class="grid-item ">
+          <div class="grid-item">
+            <label for="endingDate">Ending Date</label>
+            <p-calendar
+              appendTo="body"
+              id="endingDate"
+              [(ngModel)]="selectedRow.endingDate"
+              dateFormat="yy-mm-dd"
+              showIcon="true"
+              [showTime]="true"
+              hourFormat="24"
+              [keepInvalid]="false"
+              (onSelect)="onEndingDateChange()"
+              (onInput)="onEndingDateInput($event)"
+            ></p-calendar>
+            <!-- Warning for past/current ending date -->
+            <div *ngIf="selectedRow.endingDate && isEndingDateInvalid()" class="mt-1 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+              <i class="pi pi-exclamation-triangle mr-1"></i>
+              Warning: This ending date is in the past or present. Please set a future date and time.
+            </div>
+          </div>
+          <div class="grid-item">
             <label for="incrementBy">Increment By</label>
             <input id="incrementBy" type="number" pInputText [(ngModel)]="selectedRow.incrementBy" />
           </div>
@@ -233,15 +284,15 @@ import { InputSwitchModule } from 'primeng/inputswitch';
   styles: [`
     .grid-container {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
     }
     .grid-item {
       display: flex;
       flex-direction: column;
     }
     .full-width {
-      grid-column: span 2;
+      grid-column: span 3;
     }
     label {
       margin-bottom: 0.25rem;
@@ -260,6 +311,20 @@ export class NumberSeriesRelationComponent implements OnInit {
   numberSeriesCodes: { label: string, value: string }[] = [];
   filterFields: string[] = ['numberSeries', 'prefix'];
   @ViewChild('dt') dt!: Table;
+
+  // Computed property to check if a relation is expired
+  isExpired = (relation: NumberSeriesRelation): boolean => {
+    if (!relation.endingDate) return false;
+    const now = new Date();
+    const endingDate = new Date(relation.endingDate);
+    return now > endingDate;
+  };
+
+  // Get expiration status text
+  getExpirationStatus = (relation: NumberSeriesRelation): string => {
+    if (!relation.endingDate) return '';
+    return this.isExpired(relation) ? 'Expired' : 'Active';
+  };
 
   constructor(
     private messageService: MessageService,
@@ -290,6 +355,7 @@ export class NumberSeriesRelationComponent implements OnInit {
       prefix: '',
       startingNo: 0,
       endingNo: 0,
+      endingDate: undefined,
       lastNoUsed: 0,
       incrementBy: 1
     };
@@ -298,12 +364,80 @@ export class NumberSeriesRelationComponent implements OnInit {
 
   editRow(row: NumberSeriesRelation) {
     console.log('Editing row:', row);
+    
+    // Check if relation is expired
+    if (row.endingDate && this.isExpired(row)) {
+      this.messageService.add({ 
+        severity: 'warn', 
+        summary: 'Expired Relation', 
+        detail: 'This relation has expired and cannot be modified. The ending date has passed.' 
+      });
+      return;
+    }
+    
     this.selectedRow = { ...row };
     this.displayDialog = true;
   }
 
+  // Validation methods for mutual exclusivity
+  onEndingNoChange() {
+    if (this.selectedRow && this.selectedRow.endingNo && this.selectedRow.endingDate) {
+      this.selectedRow.endingDate = undefined;
+      this.messageService.add({ 
+        severity: 'warn', 
+        summary: 'Validation', 
+        detail: 'Ending Date cleared because Ending Number is set. Only one can be specified.' 
+      });
+    }
+  }
+
+  onEndingDateChange() {
+    if (this.selectedRow && this.selectedRow.endingDate && this.selectedRow.endingNo) {
+      this.selectedRow.endingNo = 0; // Set to 0 instead of null to satisfy database constraint
+      this.messageService.add({ 
+        severity: 'warn', 
+        summary: 'Validation', 
+        detail: 'Ending Number cleared because Ending Date is set. Only one can be specified.' 
+      });
+    }
+  }
+
+  onEndingDateInput(event: any) {
+    // Ensure proper timezone handling
+    if (this.selectedRow && this.selectedRow.endingDate) {
+      // Convert to local timezone and then to UTC for storage
+      const localDate = new Date(this.selectedRow.endingDate);
+      const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+      this.selectedRow.endingDate = utcDate;
+      
+      // Debug logging
+      console.log('Original selected time:', localDate.toLocaleString());
+      console.log('UTC time for storage:', utcDate.toISOString());
+      console.log('Timezone offset (minutes):', localDate.getTimezoneOffset());
+    }
+  }
+
+  // Debug method to check timezone handling
+  debugTimezone(date: Date): void {
+    console.log('Original date:', date);
+    console.log('Local time:', date.toLocaleString());
+    console.log('UTC time:', date.toUTCString());
+    console.log('ISO string:', date.toISOString());
+    console.log('Timezone offset:', date.getTimezoneOffset(), 'minutes');
+  }
+
   deleteRow(row: NumberSeriesRelation) {
     if (row.id) {
+      // Check if relation is expired
+      if (row.endingDate && this.isExpired(row)) {
+        this.messageService.add({ 
+          severity: 'warn', 
+          summary: 'Expired Relation', 
+          detail: 'This relation has expired and cannot be deleted. The ending date has passed.' 
+        });
+        return;
+      }
+      
       this.numberSeriesRelationService.delete(row.id).subscribe({
         next: () => {
           this.refreshList();
@@ -316,6 +450,30 @@ export class NumberSeriesRelationComponent implements OnInit {
   saveDialog() {
     if (!this.selectedRow) return;
     console.log('Saving row:', this.selectedRow);
+
+    // Validate mutual exclusivity
+    if (this.selectedRow.endingNo && this.selectedRow.endingDate) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Only one of Ending Number or Ending Date can be set, not both.' 
+      });
+      return;
+    }
+
+    // Check if ending date is in the past
+    if (this.selectedRow.endingDate) {
+      const now = new Date();
+      const endingDate = new Date(this.selectedRow.endingDate);
+      if (endingDate <= now) {
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Validation Error', 
+          detail: 'Ending Date cannot be in the past or present. Please set a future date and time.' 
+        });
+        return;
+      }
+    }
 
     if (!this.selectedRow.id || this.selectedRow.id === 0) {
       const { id, ...payload } = this.selectedRow;
@@ -357,5 +515,14 @@ export class NumberSeriesRelationComponent implements OnInit {
 
   clear(table: Table) {
     table.clear();
+  }
+
+  isEndingDateInvalid(): boolean {
+    if (!this.selectedRow || !this.selectedRow.endingDate) {
+      return false;
+    }
+    const now = new Date();
+    const endingDate = new Date(this.selectedRow.endingDate);
+    return endingDate <= now;
   }
 }

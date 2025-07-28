@@ -1,15 +1,15 @@
 import {
-  config_default,
-  dt,
-  service_default
-} from "./chunk-CWYBPNCF.js";
-import {
   FilterMatchMode
 } from "./chunk-6Z63YHRQ.js";
 import {
   setAttribute,
   setAttributes
 } from "./chunk-PQ4YWBDM.js";
+import {
+  config_default,
+  dt,
+  service_default
+} from "./chunk-CWYBPNCF.js";
 import {
   minifyCSS,
   resolve
@@ -709,4 +709,4 @@ export {
   PRIME_NG_CONFIG,
   providePrimeNG
 };
-//# sourceMappingURL=chunk-D4L2J6ON.js.map
+//# sourceMappingURL=chunk-6F4A23W7.js.map

@@ -188,7 +188,7 @@ interface NumberSeries {
 /* Limit input width */
 .field .p-dropdown,
 .field input {
-  width: 500px; /* 👈 Restricts max width */
+  width: 400px; /* 👈 Restricts max width */
   max-width: 100%;
 }
 

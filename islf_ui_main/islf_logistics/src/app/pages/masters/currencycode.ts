@@ -87,13 +87,19 @@ import { CurrencyCodeService } from '../../services/currencycode.service';
           <tr>
             <td>
               <ng-container *ngIf="currency.isNew; else codeText">
-                <input pInputText [(ngModel)]="currency.code" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="currency.code" (ngModelChange)="onFieldChange(currency, 'code', currency.code)" [ngClass]="getFieldErrorClass(currency, 'code')" [ngStyle]="getFieldErrorStyle(currency, 'code')" />
+                  <small *ngIf="getFieldError(currency, 'code')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(currency, 'code') }}</small>
+                </div>
               </ng-container>
               <ng-template #codeText>{{ currency.code }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="currency.isNew || currency.isEditing; else descText">
-                <input pInputText [(ngModel)]="currency.description" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="currency.description" (ngModelChange)="onFieldChange(currency, 'description', currency.description)" [ngClass]="getFieldErrorClass(currency, 'description')" [ngStyle]="getFieldErrorStyle(currency, 'description')" />
+                  <small *ngIf="getFieldError(currency, 'description')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(currency, 'description') }}</small>
+                </div>
               </ng-container>
               <ng-template #descText>{{ currency.description }}</ng-template>
             </td>
@@ -136,6 +142,7 @@ import { CurrencyCodeService } from '../../services/currencycode.service';
                   class="p-button-sm"
                   (click)="saveRow(currency)"
                   title="Save"
+                  [disabled]="!isCurrencyValid(currency)"
                   *ngIf="currency.isEditing || currency.isNew"
                 ></button>
                 <button
@@ -168,10 +175,81 @@ export class CurrencyCodeComponent implements OnInit {
     { label: 'Inactive', value: 'Inactive' }
   ];
 
+  // Field validation states
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+
   constructor(
     private currencyService: CurrencyCodeService,
     private messageService: MessageService
   ) {}
+
+  // Validation methods
+  validateField(currency: any, fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'code':
+        if (!value || value.toString().trim() === '') {
+          return ' *Code is required';
+        }
+        if (currency.isNew && this.isCodeDuplicate(currency, value)) {
+          return ' *Code already exists';
+        }
+        break;
+      case 'description':
+        if (!value || value.toString().trim() === '') {
+          return ' *Description is required';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(currency: any, fieldName: string, value: any) {
+    const error = this.validateField(currency, fieldName, value);
+    if (!this.fieldErrors[currency.code || 'new']) {
+      this.fieldErrors[currency.code || 'new'] = {};
+    }
+    if (error) {
+      this.fieldErrors[currency.code || 'new'][fieldName] = error;
+    } else {
+      delete this.fieldErrors[currency.code || 'new'][fieldName];
+    }
+  }
+
+  isCodeDuplicate(currency: any, code: string): boolean {
+    if (!currency.isNew) return false;
+    const codeValue = code.trim().toLowerCase();
+    return this.currencies.some(c => 
+      c !== currency && 
+      (c.code || '').trim().toLowerCase() === codeValue
+    );
+  }
+
+  getFieldErrorClass(currency: any, fieldName: string): string {
+    const errors = this.fieldErrors[currency.code || 'new'];
+    return errors && errors[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(currency: any, fieldName: string): { [key: string]: string } {
+    const errors = this.fieldErrors[currency.code || 'new'];
+    return errors && errors[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
+
+  getFieldError(currency: any, fieldName: string): string {
+    const errors = this.fieldErrors[currency.code || 'new'];
+    return errors ? errors[fieldName] || '' : '';
+  }
+
+  isCurrencyValid(currency: any): boolean {
+    const errors = this.fieldErrors[currency.code || 'new'];
+    if (!errors) return false;
+    
+    const hasCodeError = errors['code'];
+    const hasDescriptionError = errors['description'];
+    
+    return !hasCodeError && !hasDescriptionError && 
+           currency.code && currency.code.toString().trim() !== '' &&
+           currency.description && currency.description.toString().trim() !== '';
+  }
 
   ngOnInit() {
     this.refreshList();
@@ -197,9 +275,13 @@ export class CurrencyCodeComponent implements OnInit {
       isNew: true
     };
     this.currencies = [newRow, ...this.currencies];
+    // Clear field errors for new row
+    this.fieldErrors['new'] = {};
   }
 
   saveRow(currency: any) {
+    if (!this.isCurrencyValid(currency)) return;
+    
     if (currency.isNew) {
       this.currencyService.createCurrency({
         code: currency.code,
@@ -236,6 +318,10 @@ export class CurrencyCodeComponent implements OnInit {
     this.currencies.forEach(c => c.isEditing = false);
     currency.isEditing = true;
     currency.isNew = false;
+    // Clear field errors for editing row
+    if (this.fieldErrors[currency.code]) {
+      delete this.fieldErrors[currency.code];
+    }
   }
 
   deleteRow(currency: any) {

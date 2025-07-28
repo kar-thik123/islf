@@ -8,18 +8,10 @@ import {
 } from "./chunk-Z7QHAORV.js";
 import {
   BaseComponent
-} from "./chunk-RRDRZT4A.js";
+} from "./chunk-JMK2FJ5F.js";
 import {
   BaseStyle
-} from "./chunk-D4L2J6ON.js";
-import {
-  animate,
-  animation,
-  style,
-  transition,
-  trigger,
-  useAnimation
-} from "./chunk-SZJPLAKF.js";
+} from "./chunk-6F4A23W7.js";
 import {
   OverlayService,
   PrimeTemplate,
@@ -32,6 +24,14 @@ import {
   isTouchDevice,
   removeClass
 } from "./chunk-PQ4YWBDM.js";
+import {
+  animate,
+  animation,
+  style,
+  transition,
+  trigger,
+  useAnimation
+} from "./chunk-SZJPLAKF.js";
 import {
   CommonModule,
   NgClass,
@@ -1058,4 +1058,4 @@ export {
   Overlay,
   OverlayModule
 };
-//# sourceMappingURL=chunk-6A7MQLOZ.js.map
+//# sourceMappingURL=chunk-TITQHIAT.js.map

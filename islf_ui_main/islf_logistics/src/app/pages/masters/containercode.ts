@@ -87,13 +87,19 @@ import { ContainerCodeService } from '../../services/containercode.service';
           <tr>
             <td>
               <ng-container *ngIf="container.isNew; else codeText">
-                <input pInputText [(ngModel)]="container.code" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="container.code" (ngModelChange)="onFieldChange(container, 'code', container.code)" [ngClass]="getFieldErrorClass(container, 'code')" [ngStyle]="getFieldErrorStyle(container, 'code')" />
+                  <small *ngIf="getFieldError(container, 'code')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(container, 'code') }}</small>
+                </div>
               </ng-container>
               <ng-template #codeText>{{ container.code }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="container.isNew || container.isEditing; else descText">
-                <input pInputText [(ngModel)]="container.description" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="container.description" (ngModelChange)="onFieldChange(container, 'description', container.description)" [ngClass]="getFieldErrorClass(container, 'description')" [ngStyle]="getFieldErrorStyle(container, 'description')" />
+                  <small *ngIf="getFieldError(container, 'description')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(container, 'description') }}</small>
+                </div>
               </ng-container>
               <ng-template #descText>{{ container.description }}</ng-template>
             </td>
@@ -136,6 +142,7 @@ import { ContainerCodeService } from '../../services/containercode.service';
                   class="p-button-sm"
                   (click)="saveRow(container)"
                   title="Save"
+                  [disabled]="!isContainerValid(container)"
                   *ngIf="container.isEditing || container.isNew"
                 ></button>
                 <button
@@ -168,10 +175,81 @@ export class ContainerCodeComponent implements OnInit {
     { label: 'Inactive', value: 'Inactive' }
   ];
 
+  // Field validation states
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+
   constructor(
     private containerService: ContainerCodeService,
     private messageService: MessageService
   ) {}
+
+  // Validation methods
+  validateField(container: any, fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'code':
+        if (!value || value.toString().trim() === '') {
+          return ' *Code is required';
+        }
+        if (container.isNew && this.isCodeDuplicate(container, value)) {
+          return ' *Code already exists';
+        }
+        break;
+      case 'description':
+        if (!value || value.toString().trim() === '') {
+          return ' *Description is required';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(container: any, fieldName: string, value: any) {
+    const error = this.validateField(container, fieldName, value);
+    if (!this.fieldErrors[container.code || 'new']) {
+      this.fieldErrors[container.code || 'new'] = {};
+    }
+    if (error) {
+      this.fieldErrors[container.code || 'new'][fieldName] = error;
+    } else {
+      delete this.fieldErrors[container.code || 'new'][fieldName];
+    }
+  }
+
+  isCodeDuplicate(container: any, code: string): boolean {
+    if (!container.isNew) return false;
+    const codeValue = code.trim().toLowerCase();
+    return this.containers.some(c => 
+      c !== container && 
+      (c.code || '').trim().toLowerCase() === codeValue
+    );
+  }
+
+  getFieldErrorClass(container: any, fieldName: string): string {
+    const errors = this.fieldErrors[container.code || 'new'];
+    return errors && errors[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(container: any, fieldName: string): { [key: string]: string } {
+    const errors = this.fieldErrors[container.code || 'new'];
+    return errors && errors[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
+
+  getFieldError(container: any, fieldName: string): string {
+    const errors = this.fieldErrors[container.code || 'new'];
+    return errors ? errors[fieldName] || '' : '';
+  }
+
+  isContainerValid(container: any): boolean {
+    const errors = this.fieldErrors[container.code || 'new'];
+    if (!errors) return false;
+    
+    const hasCodeError = errors['code'];
+    const hasDescriptionError = errors['description'];
+    
+    return !hasCodeError && !hasDescriptionError && 
+           container.code && container.code.toString().trim() !== '' &&
+           container.description && container.description.toString().trim() !== '';
+  }
 
   ngOnInit() {
     this.refreshList();
@@ -200,6 +278,8 @@ export class ContainerCodeComponent implements OnInit {
   }
 
   saveRow(container: any) {
+    if (!this.isContainerValid(container)) return;
+    
     if (container.isNew) {
       this.containerService.createContainer({
         code: container.code,

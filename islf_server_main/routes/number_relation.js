@@ -32,17 +32,45 @@ router.post('/', async (req, res) => {
     startingDate,
     startingNo,
     endingNo,
+    endingDate,
     prefix,
     lastNoUsed,
     incrementBy
   } = req.body;
+
+  // Validate mutual exclusivity
+  if (endingNo && endingDate) {
+    return res.status(400).json({ error: 'Only one of endingNo or endingDate can be set, not both' });
+  }
+
   try {
     // Fetch the first company code from companies table
     const companyResult = await pool.query('SELECT code FROM companies LIMIT 1');
     const company_code = companyResult.rows[0]?.code || null;
+    
+    // Handle date conversion for proper timezone storage
+    let processedStartingDate = startingDate;
+    let processedEndingDate = endingDate;
+    
+    if (startingDate) {
+      processedStartingDate = new Date(startingDate).toISOString();
+    }
+    
+    if (endingDate) {
+      // Ensure the date is stored in UTC
+      const date = new Date(endingDate);
+      processedEndingDate = date.toISOString();
+    }
+
+    // Handle ending_no constraint - if ending date is set, set ending_no to 0 instead of null
+    let finalEndingNo = endingNo;
+    if (endingDate && !endingNo) {
+      finalEndingNo = 0; // Use 0 instead of null to satisfy NOT NULL constraint
+    }
+    
     const result = await pool.query(
-      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, prefix, last_no_used, increment_by, company_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [numberSeries, startingDate, startingNo, endingNo, prefix, lastNoUsed, incrementBy, company_code]
+      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, ending_date, prefix, last_no_used, increment_by, company_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, company_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -58,21 +86,71 @@ router.put('/:id', async (req, res) => {
     startingDate,
     startingNo,
     endingNo,
+    endingDate,
     prefix,
     lastNoUsed,
     incrementBy,
     company_code
   } = req.body;
+
+  console.log('Update request body:', req.body); // Debug logging
+
+  // Validate mutual exclusivity
+  if (endingNo && endingDate) {
+    return res.status(400).json({ error: 'Only one of endingNo or endingDate can be set, not both' });
+  }
+
   try {
+    // Handle date conversion for proper timezone storage
+    let processedStartingDate = startingDate;
+    let processedEndingDate = endingDate;
+    
+    if (startingDate) {
+      processedStartingDate = new Date(startingDate).toISOString();
+    }
+    
+    if (endingDate) {
+      // Ensure the date is stored in UTC
+      const date = new Date(endingDate);
+      processedEndingDate = date.toISOString();
+    }
+
+    // Get company code if not provided
+    let finalCompanyCode = company_code;
+    if (!finalCompanyCode) {
+      const companyResult = await pool.query('SELECT code FROM companies LIMIT 1');
+      finalCompanyCode = companyResult.rows[0]?.code || null;
+    }
+
+    // Handle ending_no constraint - if ending date is set, set ending_no to 0 instead of null
+    let finalEndingNo = endingNo;
+    if (endingDate && !endingNo) {
+      finalEndingNo = 0; // Use 0 instead of null to satisfy NOT NULL constraint
+    }
+    
+    console.log('Processed data:', {
+      numberSeries,
+      processedStartingDate,
+      startingNo,
+      finalEndingNo,
+      processedEndingDate,
+      prefix,
+      lastNoUsed,
+      incrementBy,
+      finalCompanyCode,
+      id: req.params.id
+    });
+
     const result = await pool.query(
-      'UPDATE number_relation SET number_series = $1, starting_date = $2, starting_no = $3, ending_no = $4, prefix = $5, last_no_used = $6, increment_by = $7, company_code = $8 WHERE id = $9 RETURNING *',
-      [numberSeries, startingDate, startingNo, endingNo, prefix, lastNoUsed, incrementBy, company_code, req.params.id]
+      'UPDATE number_relation SET number_series = $1, starting_date = $2, starting_no = $3, ending_no = $4, ending_date = $5, prefix = $6, last_no_used = $7, increment_by = $8, company_code = $9 WHERE id = $10 RETURNING *',
+      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating number series relation:', err);
-    res.status(500).json({ error: 'Failed to update number series relation' });
+    console.error('Error details:', err.message);
+    res.status(500).json({ error: 'Failed to update number series relation', details: err.message });
   }
 });
 
@@ -96,6 +174,39 @@ router.get('/series/list', async (req, res) => {
   } catch (err) {
     console.error('Error fetching number series list:', err);
     res.status(500).json({ error: 'Failed to fetch number series list' });
+  }
+});
+
+// Debug route to check database schema
+router.get('/debug/schema', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'number_relation' 
+      ORDER BY ordinal_position
+    `);
+    res.json({
+      table: 'number_relation',
+      columns: result.rows
+    });
+  } catch (err) {
+    console.error('Error checking schema:', err);
+    res.status(500).json({ error: 'Failed to check schema', details: err.message });
+  }
+});
+
+// Debug route to check a specific record
+router.get('/debug/record/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM number_relation WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching record:', err);
+    res.status(500).json({ error: 'Failed to fetch record', details: err.message });
   }
 });
 

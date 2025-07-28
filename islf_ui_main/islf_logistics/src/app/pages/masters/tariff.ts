@@ -120,72 +120,80 @@ import { MasterUOMComponent } from './masteruom';
           <div class="grid-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
             <div class="grid-item">
               <label>Code</label>
-              <input pInputText [(ngModel)]="selectedTariff.code" />
+              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')"/>
+              <small *ngIf="fieldErrors['code']" class="p-error">{{ fieldErrors['code'] }}</small>
             </div>
-            <div class="grid-item">
-              <label>Mode</label>
-              <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" placeholder="Select Mode"></p-dropdown>
-            </div>
-            <div class="grid-item">
-              <label>Shipping Type</label>
-              <div class="flex">
-                <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" placeholder="Select ShippingType" class="flex-1"></p-dropdown>
-            
+                          <div class="grid-item">
+                <label>Mode</label>
+                <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode"></p-dropdown>
+                <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
               </div>
-            </div>
-            <div class="grid-item">
-              <label>Cargo Type</label>
-              <div class="flex">
-                <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" placeholder="Select CargoType" class="flex-1"></p-dropdown>
-                
+                          <div class="grid-item">
+                <label>Shipping Type</label>
+                <div class="flex">
+                  <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select ShippingType" class="flex-1"></p-dropdown>
+                </div>
+                <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
               </div>
-            </div>
-            <div class="grid-item">
-              <label>Tariff Type</label>
-              <div class="flex">
-                <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" placeholder="Select TariffType" class="flex-1"></p-dropdown>
-
+                          <div class="grid-item">
+                <label>Cargo Type</label>
+                <div class="flex">
+                  <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select CargoType" class="flex-1"></p-dropdown>
+                </div>
+                <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
               </div>
-            </div>
-            <div class="grid-item">
-              <label>Basis</label>
-              <div class="flex">
-                <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" placeholder="Select Basis" class="flex-1"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('basis')"></button>
+                          <div class="grid-item">
+                <label>Tariff Type</label>
+                <div class="flex">
+                  <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select TariffType" class="flex-1"></p-dropdown>
+                </div>
+                <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
               </div>
-            </div>
-            <div class="grid-item">
-              <label>Container Type</label>
-              <div class="flex">
-                <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" placeholder="Select ContainerType" class="flex-1"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('containerType')"></button>
+                          <div class="grid-item">
+                <label>Basis</label>
+                <div class="flex">
+                  <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" (ngModelChange)="onFieldChange('basis', selectedTariff.basis)" [ngClass]="getFieldErrorClass('basis')" [ngStyle]="getFieldErrorStyle('basis')" placeholder="Select Basis" class="flex-1"></p-dropdown>
+                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('basis')"></button>
+                </div>
+                <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
               </div>
-            </div>
-            <div class="grid-item">
-              <label>Item Name</label>
-              <div class="flex">
-                <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" placeholder="Select Item Name" class="flex-1"></p-dropdown>
-            
+                          <div class="grid-item">
+                <label>Container Type</label>
+                <div class="flex">
+                  <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select ContainerType" class="flex-1"></p-dropdown>
+                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('containerType')"></button>
+                </div>
+                <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
               </div>
-            </div>
-            <div class="grid-item">
-              <label>Currency</label>
-              <div class="flex">
-                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" placeholder="Select Currency" class="flex-1"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('currency')"></button>
+                          <div class="grid-item">
+                <label>Item Name</label>
+                <div class="flex">
+                  <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" class="flex-1"></p-dropdown>
+                </div>
+                <small *ngIf="fieldErrors['itemName']" class="p-error">{{ fieldErrors['itemName'] }}</small>
               </div>
-            </div>
+                          <div class="grid-item">
+                <label>Currency</label>
+                <div class="flex">
+                  <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1"></p-dropdown>
+                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('currency')"></button>
+                </div>
+                <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
+              </div>
             <div class="grid-item">
               <label>From</label>
-              <p-dropdown  appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.from" placeholder="From..." [filter]="true"></p-dropdown>
+              <p-dropdown  appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')"></p-dropdown>
+              <small *ngIf="fieldErrors['from']" class="p-error">{{ fieldErrors['from'] }}</small>
             </div>
             <div class="grid-item">
               <label>To</label>
-              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.to" placeholder="To..." [filter]="true"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')"></p-dropdown>
+              <small *ngIf="fieldErrors['to']" class="p-error">{{ fieldErrors['to'] }}</small>
             </div>
             <div class="grid-item">
               <label>Party Type</label>
-              <p-dropdown [options]="partyTypeOptions" [(ngModel)]="selectedTariff.partyType" placeholder="Select PartyType" (onChange)="onPartyTypeChange()"></p-dropdown>
+              <p-dropdown [options]="partyTypeOptions" [(ngModel)]="selectedTariff.partyType" (ngModelChange)="onFieldChange('partyType', selectedTariff.partyType)" [ngClass]="getFieldErrorClass('partyType')" [ngStyle]="getFieldErrorStyle('partyType')"></p-dropdown>
+              <small *ngIf="fieldErrors['partyType']" class="p-error">{{ fieldErrors['partyType'] }}</small>
             </div>
             <div class="grid-item" *ngIf="selectedTariff.partyType === 'Customer'">
               <label>Customer Name</label>
@@ -195,6 +203,9 @@ import { MasterUOMComponent } from './masteruom';
                   [(ngModel)]="selectedTariff.partyName"
                   optionLabel="label"
                   optionValue="value"
+                  (ngModelChange)="onFieldChange('partyName', selectedTariff.partyName)"
+                  [ngClass]="getFieldErrorClass('partyName')"
+                  [ngStyle]="getFieldErrorStyle('partyName')"
                   placeholder="Select Customer"
                   class="flex-1"
                   appendTo="body"
@@ -207,6 +218,7 @@ import { MasterUOMComponent } from './masteruom';
                   (click)="openMaster('customer')"
                 ></button>
               </div>
+              <small *ngIf="fieldErrors['partyName']" class="p-error">{{ fieldErrors['partyName'] }}</small>
             </div>
             <div class="grid-item" *ngIf="selectedTariff.partyType === 'Vendor'">
               <label>Carrier</label>
@@ -216,6 +228,9 @@ import { MasterUOMComponent } from './masteruom';
                   [(ngModel)]="selectedTariff.partyName"
                   optionLabel="label"
                   optionValue="value"
+                  (ngModelChange)="onFieldChange('partyName', selectedTariff.partyName)"
+                  [ngClass]="getFieldErrorClass('partyName')"
+                  [ngStyle]="getFieldErrorStyle('partyName')"
                   placeholder="Select Carrier"
                   class="flex-1"
                   appendTo="body"
@@ -228,6 +243,7 @@ import { MasterUOMComponent } from './masteruom';
                   (click)="openMaster('carrier')"
                 ></button>
               </div>
+              <small *ngIf="fieldErrors['partyName']" class="p-error">{{ fieldErrors['partyName'] }}</small>
             </div>
               <div class="grid-item">
                 <label>Effective Date</label>
@@ -246,7 +262,8 @@ import { MasterUOMComponent } from './masteruom';
 
             <div class="grid-item">
               <label>Charges</label>
-              <input pInputText type="number" [(ngModel)]="selectedTariff.charges" />
+              <input pInputText type="number" [(ngModel)]="selectedTariff.charges" (ngModelChange)="onFieldChange('charges', selectedTariff.charges)" [ngClass]="getFieldErrorClass('charges')" [ngStyle]="getFieldErrorStyle('charges')"/>
+              <small *ngIf="fieldErrors['charges']" class="p-error">{{ fieldErrors['charges'] }}</small>
             </div>
             <div class="grid-item">
               <label>Freight Charge Type</label>
@@ -259,7 +276,7 @@ import { MasterUOMComponent } from './masteruom';
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedTariff?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+          <button pButton label="{{ selectedTariff?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid"></button>
         </div>
       </ng-template>
     </p-dialog>
@@ -395,6 +412,10 @@ export class TariffComponent implements OnInit {
   showVendorDialog = false;
   showUOMDialog = false;
 
+  // Field validation states
+  fieldErrors: { [key: string]: string } = {};
+  isFormValid = false;
+
   constructor(
     private messageService: MessageService,
     private masterCodeService: MasterCodeService,
@@ -408,6 +429,135 @@ export class TariffComponent implements OnInit {
     private customerService: CustomerService,
     private vendorService: VendorService
   ) {}
+
+  // Validation methods
+  validateField(fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'code':
+        if (!value || value.toString().trim() === '') {
+          return 'Code is required';
+        }
+        if (this.selectedTariff?.isNew && this.isCodeDuplicate(value)) {
+          return 'Code already exists';
+        }
+        break;
+      case 'mode':
+        if (!value) {
+          return 'Mode is required';
+        }
+        break;
+      case 'shippingType':
+        if (!value) {
+          return 'Shipping Type is required';
+        }
+        break;
+      case 'cargoType':
+        if (!value) {
+          return 'Cargo Type is required';
+        }
+        break;
+      case 'tariffType':
+        if (!value) {
+          return 'Tariff Type is required';
+        }
+        break;
+      case 'basis':
+        if (!value) {
+          return 'Basis is required';
+        }
+        break;
+      case 'containerType':
+        if (!value) {
+          return 'Container Type is required';
+        }
+        break;
+      case 'itemName':
+        if (!value) {
+          return 'Item Name is required';
+        }
+        break;
+      case 'currency':
+        if (!value) {
+          return 'Currency is required';
+        }
+        break;
+      case 'from':
+        if (!value) {
+          return 'From location is required';
+        }
+        break;
+      case 'to':
+        if (!value) {
+          return 'To location is required';
+        }
+        break;
+      case 'partyType':
+        if (!value) {
+          return 'Party Type is required';
+        }
+        break;
+      case 'partyName':
+        if (this.selectedTariff?.partyType === 'Customer' && !value) {
+          return 'Customer Name is required';
+        }
+        if (this.selectedTariff?.partyType === 'Vendor' && !value) {
+          return 'Carrier is required';
+        }
+        break;
+      case 'charges':
+        if (!value || value <= 0) {
+          return 'Charges must be greater than 0';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(fieldName: string, value: any) {
+    const error = this.validateField(fieldName, value);
+    if (error) {
+      this.fieldErrors[fieldName] = error;
+    } else {
+      delete this.fieldErrors[fieldName];
+    }
+    this.updateFormValidity();
+  }
+
+  updateFormValidity() {
+    const requiredFields = [
+      'code', 'mode', 'shippingType', 'cargoType', 'tariffType', 
+      'basis', 'containerType', 'itemName', 'currency', 'from', 
+      'to', 'partyType', 'charges'
+    ];
+    
+    if (this.selectedTariff?.partyType === 'Customer') {
+      requiredFields.push('partyName');
+    } else if (this.selectedTariff?.partyType === 'Vendor') {
+      requiredFields.push('partyName');
+    }
+
+    this.isFormValid = requiredFields.every(field => 
+      !this.fieldErrors[field] && 
+      this.selectedTariff?.[field] && 
+      this.selectedTariff[field].toString().trim() !== ''
+    );
+  }
+
+  isCodeDuplicate(code: string): boolean {
+    if (!this.selectedTariff?.isNew) return false;
+    const codeValue = code.trim().toLowerCase();
+    return this.tariffs.some(t => 
+      (t.code || '').trim().toLowerCase() === codeValue
+    );
+  }
+
+  getFieldErrorClass(fieldName: string): string {
+    return this.fieldErrors[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(fieldName: string): { [key: string]: string } {
+    return this.fieldErrors[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
 
   ngOnInit() {
     forkJoin([
@@ -598,6 +748,8 @@ export class TariffComponent implements OnInit {
       periodEndDate: null,
       isNew: true
     };
+    this.fieldErrors = {};
+    this.isFormValid = false;
     this.isDialogVisible = true;
     });
   }
@@ -619,62 +771,15 @@ export class TariffComponent implements OnInit {
       console.log('TARIFF:', tariff);
       console.log('cargoTypeOptions:', this.cargoTypeOptions);
     this.selectedTariff = { ...tariff, isNew: false };
+    this.fieldErrors = {};
+    this.updateFormValidity();
     this.isDialogVisible = true;
     });
   }
 
   saveRow() {
-    if (!this.selectedTariff) return;
+    if (!this.selectedTariff || !this.isFormValid) return;
     const payload: any = { ...this.selectedTariff };
-
-    // List of required fields and their user-friendly names
-    const requiredFields = [
-      { key: 'code', label: 'Code' },
-      { key: 'mode', label: 'Mode' },
-      { key: 'shippingType', label: 'Shipping Type' },
-      { key: 'cargoType', label: 'Cargo Type' },
-      { key: 'tariffType', label: 'Tariff Type' },
-      { key: 'basis', label: 'Basis' },
-      { key: 'containerType', label: 'Container Type' },
-      { key: 'itemName', label: 'Item Name' },
-      { key: 'currency', label: 'Currency' },
-      { key: 'from', label: 'From' },
-      { key: 'to', label: 'To' },
-      { key: 'partyType', label: 'Party Type' },
-      { key: 'charges', label: 'Charges' }
-    ];
-    if (payload.partyType === 'Customer') {
-      requiredFields.push({ key: 'partyName', label: 'Customer Name' });
-    } else if (payload.partyType === 'Vendor') {
-      requiredFields.push({ key: 'partyName', label: 'Carrier' });
-    }
-    const missing = requiredFields
-      .filter(field => !payload[field.key] || payload[field.key].toString().trim() === '')
-      .map(field => field.label);
-    if (missing.length > 0) {
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Missing Required Fields',
-        detail: `Please fill: ${missing.join(', ')}`
-      });
-      return;
-    }
-
-    // Unique code check (for new tariffs)
-    if (this.selectedTariff.isNew) {
-      const codeValue = (payload.code || '').trim().toLowerCase();
-      const duplicate = this.tariffs.some(
-        t => (t.code || '').trim().toLowerCase() === codeValue
-      );
-      if (duplicate) {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Duplicate Code',
-          detail: 'Code already exists. Please use a unique code.'
-        });
-        return;
-      }
-    }
 
     if (this.selectedTariff.isNew) {
       this.tariffService.create(payload).subscribe({
@@ -723,6 +828,9 @@ export class TariffComponent implements OnInit {
     } else if (this.selectedTariff.partyType === 'Vendor') {
       this.selectedTariff.partyName = '';
     }
+    // Clear party name error and update validation
+    delete this.fieldErrors['partyName'];
+    this.updateFormValidity();
   }
 
   openMaster(type: string) {

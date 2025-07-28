@@ -142,16 +142,19 @@ function toTitleCase(str: string): string {
           <div class="section-header">General</div>
           <div class="grid-container">
             <div class="grid-item">
-              <label>Customer No.</label>
-              <input pInputText [(ngModel)]="selectedCustomer.customer_no" [disabled]="!isManualSeries || !selectedCustomer.isNew" (ngModelChange)="updateBillToCustomerNameDefault()" />
+              <label for="customer_no">Customer No. <span class="text-red-500">*</span></label>
+              <input #customerNoInput id="customer_no" pInputText [(ngModel)]="selectedCustomer.customer_no" [disabled]="!isManualSeries || !selectedCustomer.isNew" (ngModelChange)="updateBillToCustomerNameDefault(); onFieldChange('customer_no', customerNoInput.value)" (blur)="onFieldBlur('customer_no')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('customer_no')">{{ getFieldError('customer_no') }}</small>
             </div>
             <div class="grid-item">
-              <label>Customer Type</label>
-              <p-dropdown [options]="customerTypeOptions" [(ngModel)]="selectedCustomer.type" optionLabel="label" optionValue="value" placeholder="Select Customer Type"></p-dropdown>
+              <label for="type">Customer Type <span class="text-red-500">*</span></label>
+              <p-dropdown id="type" [options]="customerTypeOptions" [(ngModel)]="selectedCustomer.type" optionLabel="label" optionValue="value" placeholder="Select Customer Type" (onChange)="onFieldChange('type', $event.value)" (onBlur)="onFieldBlur('type')" required></p-dropdown>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('type')">{{ getFieldError('type') }}</small>
             </div>
             <div class="grid-item">
-              <label>Name</label>
-              <input pInputText [(ngModel)]="selectedCustomer.name" (ngModelChange)="updateBillToCustomerNameDefault()" />
+              <label for="name">Name <span class="text-red-500">*</span></label>
+              <input #nameInput id="name" pInputText [(ngModel)]="selectedCustomer.name" (ngModelChange)="updateBillToCustomerNameDefault(); onFieldChange('name', nameInput.value)" (blur)="onFieldBlur('name')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('name')">{{ getFieldError('name') }}</small>
             </div>
             <div class="grid-item">
               <label>Name2</label>
@@ -174,16 +177,19 @@ function toTitleCase(str: string): string {
               <input pInputText [(ngModel)]="selectedCustomer.address1" />
             </div>
             <div class="grid-item">
-              <label>Country</label>
-              <p-dropdown [options]="countryOptions" [(ngModel)]="selectedCustomer.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange()"></p-dropdown>
+              <label for="country">Country <span class="text-red-500">*</span></label>
+              <p-dropdown id="country" [options]="countryOptions" [(ngModel)]="selectedCustomer.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange(); onFieldChange('country', $event.value)" (onBlur)="onFieldBlur('country')" required></p-dropdown>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('country')">{{ getFieldError('country') }}</small>
             </div>
             <div class="grid-item">
-              <label>State</label>
-              <p-dropdown [options]="stateOptions" [(ngModel)]="selectedCustomer.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange()"></p-dropdown>
+              <label for="state">State <span class="text-red-500">*</span></label>
+              <p-dropdown id="state" [options]="stateOptions" [(ngModel)]="selectedCustomer.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange(); onFieldChange('state', $event.value)" (onBlur)="onFieldBlur('state')" required></p-dropdown>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('state')">{{ getFieldError('state') }}</small>
             </div>
             <div class="grid-item">
-              <label>City</label>
-              <p-dropdown [options]="cityOptions" [(ngModel)]="selectedCustomer.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true"></p-dropdown>
+              <label for="city">City <span class="text-red-500">*</span></label>
+              <p-dropdown id="city" [options]="cityOptions" [(ngModel)]="selectedCustomer.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true" (onChange)="onFieldChange('city', $event.value)" (onBlur)="onFieldBlur('city')" required></p-dropdown>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('city')">{{ getFieldError('city') }}</small>
             </div>
             <div class="grid-item">
               <label>Postal Code</label>
@@ -210,8 +216,9 @@ function toTitleCase(str: string): string {
               </p-dropdown>
             </div>
             <div class="grid-item">
-              <label>VAT/GST No.</label>
-              <input pInputText [(ngModel)]="selectedCustomer.vat_gst_no" />
+              <label for="vat_gst_no">VAT/GST No. <span class="text-red-500">*</span></label>
+              <input #vatGstInput id="vat_gst_no" pInputText [(ngModel)]="selectedCustomer.vat_gst_no" (ngModelChange)="onFieldChange('vat_gst_no', vatGstInput.value)" (blur)="onFieldBlur('vat_gst_no')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('vat_gst_no')">{{ getFieldError('vat_gst_no') }}</small>
             </div>
             <div class="grid-item">
               <label>Place of Supply</label>
@@ -266,7 +273,7 @@ function toTitleCase(str: string): string {
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedCustomer?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+          <button pButton label="{{ selectedCustomer?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid()"></button>
         </div>
       </ng-template>
     </p-dialog>
@@ -291,6 +298,7 @@ function toTitleCase(str: string): string {
       margin-bottom: 0.5rem;
       font-weight: 500;
     }
+
   `]
 })
 export class CustomerComponent implements OnInit {
@@ -310,6 +318,10 @@ export class CustomerComponent implements OnInit {
   isDialogVisible = false;
   selectedCustomer: (Customer & { isNew?: boolean }) | null = null;
   allLocations: MasterLocation[] = [];
+  fieldErrors: { [key: string]: string } = {};
+  touchedFields: { [key: string]: boolean } = {};
+  
+
 
   constructor(
     private customerService: CustomerService,
@@ -321,20 +333,30 @@ export class CustomerComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.refreshList();
     this.loadOptions();
-    this.loadLocations();
     this.loadMappedCustomerSeriesCode();
   }
 
   loadOptions() {
     // Load customer type options from master type where key === 'Customer' and status === 'Active'
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
-      this.customerTypeOptions = (types || [])
-        .filter(t => t.key === 'Customer' && t.status === 'Active')
-        .map(t => ({ label: t.value, value: t.value }));
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
+        this.customerTypeOptions = (types || [])
+          .filter(t => t.key === 'Customer' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        console.log('Customer type options loaded:', this.customerTypeOptions);
+      },
+      error: (error) => {
+        console.error('Error loading customer types:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customer types' });
+      }
     });
-    // TODO: Load other dropdown options as needed
+    
+    // Load existing customers for bill-to customer dropdown
+    this.refreshList();
+    
+    // Load locations for country, state, city dropdowns
+    this.loadLocations();
   }
 
   onGlobalFilter(event: Event, table: any) {
@@ -342,25 +364,45 @@ export class CustomerComponent implements OnInit {
   }
 
   refreshList() {
-    this.customerService.getAll().subscribe(data => {
-      this.customers = data;
-      this.billToCustomerOptions = data.map(c => ({
-        label: `${c.customer_no} - ${c.name}`,
-        value: `${c.customer_no} - ${c.name}`
-      }));
+    this.customerService.getAll().subscribe({
+      next: (data) => {
+        this.customers = data;
+        this.billToCustomerOptions = data.map(c => ({
+          label: `${c.customer_no} - ${c.name}`,
+          value: `${c.customer_no} - ${c.name}`
+        }));
+        console.log('Customers loaded:', this.customers.length);
+      },
+      error: (error) => {
+        console.error('Error loading customers:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customers' });
+      }
     });
   }
 
   loadMappedCustomerSeriesCode() {
-    this.mappingService.getMapping().subscribe(mapping => {
-      this.mappedCustomerSeriesCode = mapping.customerCode;
-      if (this.mappedCustomerSeriesCode) {
-        this.numberSeriesService.getAll().subscribe(seriesList => {
-          const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
-          this.isManualSeries = !!(found && found.is_manual);
-        });
-      } else {
-        this.isManualSeries = false;
+    this.mappingService.getMapping().subscribe({
+      next: (mapping) => {
+        this.mappedCustomerSeriesCode = mapping.customerCode;
+        if (this.mappedCustomerSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('Customer series code mapped:', this.mappedCustomerSeriesCode, 'Manual:', this.isManualSeries);
+            },
+            error: (error) => {
+              console.error('Error loading number series:', error);
+            }
+          });
+        } else {
+          this.isManualSeries = false;
+          console.log('No customer series code mapped');
+        }
+      },
+      error: (error) => {
+        console.error('Error loading mapping:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load mapping configuration' });
       }
     });
   }
@@ -418,6 +460,16 @@ export class CustomerComponent implements OnInit {
 
   saveRow() {
     if (!this.selectedCustomer) return;
+    
+    if (!this.validateForm()) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please fix the validation errors before saving' 
+      });
+      return;
+    }
+    
     const payload: any = {
       ...this.selectedCustomer,
       seriesCode: this.mappedCustomerSeriesCode // Always use mapped code
@@ -448,6 +500,8 @@ export class CustomerComponent implements OnInit {
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedCustomer = null;
+    this.fieldErrors = {};
+    this.touchedFields = {};
   }
 
   addContact() {
@@ -467,18 +521,27 @@ export class CustomerComponent implements OnInit {
   }
 
   loadLocations() {
-    this.masterLocationService.getAll().subscribe(locations => {
-      this.allLocations = locations.filter(l => l.active);
-      // Unique countries
-      this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
-        .map(c => ({ label: toTitleCase(c), value: c }));
-      // Reset state and city options
-      this.stateOptions = [];
-      this.cityOptions = [];
-      // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
-      const gstLocations = this.allLocations.filter(l => l.type === 'GST_LOCATION');
-      this.placeOfSupplyOptions = uniqueCaseInsensitive(gstLocations.map(l => `${l.gst_state_code}-${l.name}`))
-        .map(val => ({ label: val, value: val }));
+    this.masterLocationService.getAll().subscribe({
+      next: (locations) => {
+        this.allLocations = locations.filter(l => l.active);
+        // Unique countries - show ALL active locations regardless of type
+        this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
+          .map(c => ({ label: toTitleCase(c), value: c }));
+        // Reset state and city options
+        this.stateOptions = [];
+        this.cityOptions = [];
+        // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
+        const gstLocations = this.allLocations.filter(l => l.type === 'GST_LOCATION');
+        this.placeOfSupplyOptions = uniqueCaseInsensitive(gstLocations.map(l => `${l.gst_state_code}-${l.name}`))
+          .map(val => ({ label: val, value: val }));
+        console.log('Locations loaded:', this.allLocations.length);
+        console.log('Countries loaded:', this.countryOptions.length);
+        console.log('Place of supply options loaded:', this.placeOfSupplyOptions.length);
+      },
+      error: (error) => {
+        console.error('Error loading locations:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load locations' });
+      }
     });
   }
 
@@ -492,11 +555,24 @@ export class CustomerComponent implements OnInit {
       }
       return;
     }
-    const states = this.allLocations
-      .filter(l => l.country === this.selectedCustomer!.country)
+    
+    console.log('Selected country:', this.selectedCustomer.country);
+    console.log('All locations for debugging:', this.allLocations);
+    
+    // Show ALL states for the selected country regardless of location type (case-insensitive)
+    const matchingLocations = this.allLocations.filter(l => 
+      l.country && l.country.toLowerCase() === this.selectedCustomer!.country.toLowerCase()
+    );
+    console.log('Matching locations for country:', matchingLocations);
+    
+    const states = matchingLocations
       .map(l => l.state)
       .filter(Boolean);
+    console.log('All states found:', states);
+    
     this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
+    console.log('Final state options:', this.stateOptions);
+    
     this.cityOptions = [];
     this.selectedCustomer.state = '';
     this.selectedCustomer.city = '';
@@ -510,11 +586,97 @@ export class CustomerComponent implements OnInit {
       }
       return;
     }
+    // Show ALL cities for the selected country and state regardless of location type (case-insensitive)
     const cities = this.allLocations
-      .filter(l => l.country === this.selectedCustomer!.country && l.state === this.selectedCustomer!.state)
+      .filter(l => 
+        l.country && l.country.toLowerCase() === this.selectedCustomer!.country.toLowerCase() &&
+        l.state && l.state.toLowerCase() === this.selectedCustomer!.state.toLowerCase()
+      )
       .map(l => l.city)
       .filter(Boolean);
     this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
     this.selectedCustomer.city = '';
   }
+
+  // Validation methods
+  validateField(field: string, value: any): string {
+    switch (field) {
+      case 'customer_no':
+        if (!value || value.trim() === '') return 'Customer No. is required';
+        break;
+      case 'type':
+        if (!value || value.trim() === '') return 'Customer Type is required';
+        break;
+      case 'name':
+        if (!value || value.trim() === '') return 'Customer Name is required';
+        break;
+      case 'country':
+        if (!value || value.trim() === '') return 'Country is required';
+        break;
+      case 'state':
+        if (!value || value.trim() === '') return 'State is required';
+        break;
+      case 'city':
+        if (!value || value.trim() === '') return 'City is required';
+        break;
+      case 'vat_gst_no':
+        if (!value || value.trim() === '') return 'VAT/GST No. is required';
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(field: string, value: any) {
+    // Mark field as touched when user starts typing
+    this.touchedFields[field] = true;
+    
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[field] = error;
+    } else {
+      delete this.fieldErrors[field];
+    }
+  }
+
+  onFieldBlur(field: string) {
+    // Mark field as touched when user leaves it (blur event)
+    this.touchedFields[field] = true;
+    
+    if (!this.selectedCustomer) return;
+    
+    const value = this.selectedCustomer[field as keyof Customer];
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[field] = error;
+    } else {
+      delete this.fieldErrors[field];
+    }
+  }
+
+  getFieldError(field: string): string {
+    // Only show error if field has been touched by user
+    return this.touchedFields[field] ? (this.fieldErrors[field] || '') : '';
+  }
+
+  isFormValid(): boolean {
+    // Only check if there are any existing errors, don't run validation
+    return Object.keys(this.fieldErrors).length === 0;
+  }
+
+  validateForm(): boolean {
+    if (!this.selectedCustomer) return false;
+    
+    const requiredFields = ['customer_no', 'type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
+    for (const field of requiredFields) {
+      const error = this.validateField(field, this.selectedCustomer[field as keyof Customer]);
+      if (error) {
+        this.fieldErrors[field] = error;
+        // Mark all fields as touched when form validation runs
+        this.touchedFields[field] = true;
+      }
+    }
+    
+    return Object.keys(this.fieldErrors).length === 0;
+  }
+
 } 

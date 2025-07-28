@@ -116,13 +116,19 @@ interface PageFieldOption {
           <tr>
             <td>
               <ng-container *ngIf="master.isNew; else codeText">
-                <input pInputText [(ngModel)]="master.code" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="master.code" (ngModelChange)="onFieldChange(master, 'code', master.code)" [ngClass]="getFieldErrorClass(master, 'code')" [ngStyle]="getFieldErrorStyle(master, 'code')" required/>
+                  <small *ngIf="getFieldError(master, 'code')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(master, 'code') }}</small>
+                </div>
               </ng-container>
               <ng-template #codeText>{{ master.code }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="master.isNew || master.isEditing; else descText">
-                <input pInputText [(ngModel)]="master.description" />
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="master.description" (ngModelChange)="onFieldChange(master, 'description', master.description)" [ngClass]="getFieldErrorClass(master, 'description')" [ngStyle]="getFieldErrorStyle(master, 'description')" required/>
+                  <small *ngIf="getFieldError(master, 'description')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(master, 'description') }}</small>
+                </div>
               </ng-container>
               <ng-template #descText>{{ master.description }}</ng-template>
             </td>
@@ -181,6 +187,7 @@ interface PageFieldOption {
                   class="p-button-sm"
                   (click)="saveRow(master)"
                   title="Save"
+                  [disabled]="!isMasterValid(master)"
                   *ngIf="master.isEditing || master.isNew"
                 ></button>
                 <button
@@ -229,11 +236,82 @@ export class MasterCodeComponent implements OnInit {
     {label:'master/itemName', value: 'master/itemName'},
   ];
 
+  // Field validation states
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+
   constructor(
     private router: Router,
     private masterService: MasterCodeService,
     private messageService: MessageService
   ) {}
+
+  // Validation methods
+  validateField(master: any, fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'code':
+        if (!value || value.toString().trim() === '') {
+          return ' *Code is required';
+        }
+        if (master.isNew && this.isCodeDuplicate(master, value)) {
+          return ' *Code already exists';
+        }
+        break;
+      case 'description':
+        if (!value || value.toString().trim() === '') {
+          return ' *Description is required';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(master: any, fieldName: string, value: any) {
+    const error = this.validateField(master, fieldName, value);
+    if (!this.fieldErrors[master.code || 'new']) {
+      this.fieldErrors[master.code || 'new'] = {};
+    }
+    if (error) {
+      this.fieldErrors[master.code || 'new'][fieldName] = error;
+    } else {
+      delete this.fieldErrors[master.code || 'new'][fieldName];
+    }
+  }
+
+  isCodeDuplicate(master: any, code: string): boolean {
+    if (!master.isNew) return false;
+    const codeValue = code.trim().toLowerCase();
+    return this.masters.some(m => 
+      m !== master && 
+      (m.code || '').trim().toLowerCase() === codeValue
+    );
+  }
+
+  getFieldErrorClass(master: any, fieldName: string): string {
+    const errors = this.fieldErrors[master.code || 'new'];
+    return errors && errors[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(master: any, fieldName: string): { [key: string]: string } {
+    const errors = this.fieldErrors[master.code || 'new'];
+    return errors && errors[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
+
+  getFieldError(master: any, fieldName: string): string {
+    const errors = this.fieldErrors[master.code || 'new'];
+    return errors ? errors[fieldName] || '' : '';
+  }
+
+  isMasterValid(master: any): boolean {
+    const errors = this.fieldErrors[master.code || 'new'];
+    if (!errors) return false;
+    
+    const hasCodeError = errors['code'];
+    const hasDescriptionError = errors['description'];
+    
+    return !hasCodeError && !hasDescriptionError && 
+           master.code && master.code.toString().trim() !== '' &&
+           master.description && master.description.toString().trim() !== '';
+  }
 
   ngOnInit() {
     this.refreshList();
@@ -267,19 +345,14 @@ export class MasterCodeComponent implements OnInit {
       isNew: true
     };
     this.masters = [newRow, ...this.masters];
+    // Clear field errors for new row
+    this.fieldErrors['new'] = {};
   }
 
   saveRow(master: any) {
+    if (!this.isMasterValid(master)) return;
+    
     if (master.isNew) {
-      const codeValue = (master.code || '').trim().toLowerCase();
-      const existingCode = this.masters.find((item: any) =>
-        item !== master &&
-        (item.code || '').trim().toLowerCase() === codeValue
-      );
-      if (existingCode) {
-        this.messageService.add({ severity: 'warn', summary: 'Not Allowed', detail: 'A code with this value already exists. Please use a unique code.' });
-        return;
-      }
       const referenceValue = Array.isArray(master.reference)
         ? master.reference.join(',')
         : master.reference;
@@ -325,6 +398,10 @@ export class MasterCodeComponent implements OnInit {
     this.masters.forEach(m => m.isEditing = false);
     master.isEditing = true;
     master.isNew = false;
+    // Clear field errors for editing row
+    if (this.fieldErrors[master.code]) {
+      delete this.fieldErrors[master.code];
+    }
   }
 
   deleteRow(master: any) {
