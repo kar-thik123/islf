@@ -27,32 +27,19 @@ router.get('/:code', async (req, res) => {
 
 // Create branch
 router.post('/', async (req, res) => {
-  const { code: userCode, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks } = req.body;
+  const { code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks } = req.body;
   try {
-    // Fetch number series for 'Branch'
-    const seriesResult = await pool.query("SELECT * FROM number_series WHERE code = 'Branch' LIMIT 1");
-    const series = seriesResult.rows[0];
-    if (!series) {
-      return res.status(400).json({ error: 'Number series for Branch not found' });
+    // Validate required fields
+    if (!code) {
+      return res.status(400).json({ error: 'Branch code is required' });
     }
-    let code = userCode;
-    if (series.is_default) {
-      // Auto-generate code using number_relation
-      const relResult = await pool.query("SELECT * FROM number_relation WHERE number_series = 'Branch' ORDER BY id DESC LIMIT 1");
-      const relation = relResult.rows[0];
-      if (!relation) {
-        return res.status(400).json({ error: 'Number relation for Branch not found' });
-      }
-      const nextNo = (relation.last_no_used || relation.starting_no || 0) + (relation.increment_by || 1);
-      code = relation.prefix + String(nextNo).padStart(2, '0');
-      // Update last_no_used
-      await pool.query("UPDATE number_relation SET last_no_used = $1 WHERE id = $2", [nextNo, relation.id]);
-    } else if (series.is_manual) {
-      // Use user-supplied code (already assigned)
-      if (!code) {
-        return res.status(400).json({ error: 'Branch code is required in manual mode' });
-      }
+    
+    // Check if branch code already exists
+    const existingBranch = await pool.query('SELECT code FROM branches WHERE code = $1', [code]);
+    if (existingBranch.rows.length > 0) {
+      return res.status(400).json({ error: 'Branch code already exists' });
     }
+    
     const result = await pool.query(
       'INSERT INTO branches (code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
       [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks]

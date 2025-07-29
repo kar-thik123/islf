@@ -68,4 +68,50 @@ router.post('/default_logo', async (req, res) => {
   }
 });
 
+// Generic function to get document upload path for entity type
+const getDocumentUploadPath = async (entityType) => {
+  const result = await pool.query("SELECT value FROM settings WHERE key = $1", [`document_upload_path_${entityType}`]);
+  if (result.rows.length === 0) {
+    return `/uploads/documents/${entityType}`; // default path
+  }
+  return result.rows[0].value;
+};
+
+// Generic function to update document upload path for entity type
+const updateDocumentUploadPath = async (entityType, value) => {
+  await pool.query(
+    `INSERT INTO settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = $2`,
+    [`document_upload_path_${entityType}`, value]
+  );
+};
+
+// Get document upload path for specific entity type
+router.get('/document_upload_path_:entityType', async (req, res) => {
+  const { entityType } = req.params;
+  try {
+    const value = await getDocumentUploadPath(entityType);
+    res.json({ value });
+  } catch (err) {
+    console.error(`Error fetching document_upload_path_${entityType}:`, err);
+    res.status(500).json({ error: `Failed to fetch document_upload_path_${entityType}` });
+  }
+});
+
+// Update document upload path for specific entity type
+router.post('/document_upload_path_:entityType', async (req, res) => {
+  const { entityType } = req.params;
+  const { value } = req.body;
+  if (!value) {
+    return res.status(400).json({ error: 'Invalid value' });
+  }
+  try {
+    await updateDocumentUploadPath(entityType, value);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`Error updating document_upload_path_${entityType}:`, err);
+    res.status(500).json({ error: `Failed to update document_upload_path_${entityType}` });
+  }
+});
+
 module.exports = router; 

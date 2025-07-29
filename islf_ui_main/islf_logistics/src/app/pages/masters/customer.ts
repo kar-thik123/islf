@@ -13,6 +13,8 @@ import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { EntityDocumentService, EntityDocument } from '../../services/entity-document.service';
+import { DepartmentService } from '../../services/department.service';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -142,7 +144,7 @@ function toTitleCase(str: string): string {
           <div class="section-header">General</div>
           <div class="grid-container">
             <div class="grid-item">
-              <label for="customer_no">Customer No. <span class="text-red-500">*</span></label>
+              <label for="customer_no">Customer No. </label>
               <input #customerNoInput id="customer_no" pInputText [(ngModel)]="selectedCustomer.customer_no" [disabled]="!isManualSeries || !selectedCustomer.isNew" (ngModelChange)="updateBillToCustomerNameDefault(); onFieldChange('customer_no', customerNoInput.value)" (blur)="onFieldBlur('customer_no')" required />
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('customer_no')">{{ getFieldError('customer_no') }}</small>
             </div>
@@ -250,7 +252,9 @@ function toTitleCase(str: string): string {
             <ng-template pTemplate="body" let-contact let-rowIndex="rowIndex">
               <tr>
                 <td><input pInputText [(ngModel)]="contact.name" /></td>
-                <td><input pInputText [(ngModel)]="contact.department" /></td>
+                <td>
+                  <p-dropdown [options]="departmentOptions" [(ngModel)]="contact.department" optionLabel="label" optionValue="value" placeholder="Select Department" [filter]="true"></p-dropdown>
+                </td>
                 <td><input pInputText [(ngModel)]="contact.mobile" /></td>
                 <td><input pInputText [(ngModel)]="contact.landline" /></td>
                 <td><input pInputText [(ngModel)]="contact.email" /></td>
@@ -268,12 +272,141 @@ function toTitleCase(str: string): string {
               </tr>
             </ng-template>
           </p-table>
+          
+          <!-- Document Upload -->
+          <div class="section-header">Document Upload</div>
+          <div class="document-upload-section">
+          
+            <p-table [value]="customerDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>DOC. TYPE</th>
+                  <th>DOCUMENT NUMBER</th>
+                  <th>VALID FROM</th>
+                  <th>VALID TILL</th>
+                  <th>FILE</th>
+                  <th>Action</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+                <tr>
+                  <td>
+                    <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                  </td>
+                  <td>
+                    <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+                  </td>
+                  <td>
+                    <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                  </td>
+                  <td>
+                    <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                  </td>
+                  <td>
+                    <input type="file" (change)="onFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"/>
+                    <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+                  </td>
+                  <td>
+                    <div class="flex gap-1">
+                      <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                      <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                      <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDocument(rowIndex)" pTooltip="Delete Document"></button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="footer">
+                <tr>
+                  <td colspan="6">
+                    <button pButton label="Add Document" icon="pi pi-plus" (click)="addDocument()"></button>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
         </div>
       </ng-template>
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
           <button pButton label="{{ selectedCustomer?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid()"></button>
+        </div>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Document Viewer Dialog -->
+    <p-dialog 
+      [(visible)]="isDocumentViewerVisible" 
+      [modal]="true" 
+      [style]="{width: '90vw', height: '90vh'}" 
+      [maximizable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="hideDocumentViewer()">
+      
+      <ng-template pTemplate="header">
+        <div class="flex align-items-center justify-content-between w-full">
+          <h5 class="m-0">
+            <i class="pi pi-file mr-2"></i>
+            {{ selectedDocument?.file_name }}
+          </h5>
+          <div class="flex gap-2">
+            <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
+                    (click)="downloadDocument(selectedDocument!)" 
+                    pTooltip="Download Document"></button>
+            <button pButton icon="pi pi-times" class="p-button-sm p-button-outlined" 
+                    (click)="hideDocumentViewer()" 
+                    pTooltip="Close"></button>
+          </div>
+        </div>
+      </ng-template>
+
+      <ng-template pTemplate="content">
+        <div class="document-viewer-container" style="height: calc(90vh - 120px); overflow: auto;">
+          <!-- Image files -->
+          <img *ngIf="selectedDocument?.mime_type?.startsWith('image/') && documentViewerUrl" 
+               [src]="documentViewerUrl" 
+               [alt]="selectedDocument?.file_name"
+               style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          
+          <!-- PDF files -->
+          <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && documentViewerUrl" 
+                  [src]="documentViewerUrl" 
+                  style="width: 100%; height: 100%; border: none;">
+          </iframe>
+          
+          <!-- Text files -->
+          <div *ngIf="selectedDocument?.mime_type === 'text/plain' && documentViewerUrl" 
+               style="padding: 1rem; background: white; height: 100%; overflow: auto;">
+            <pre style="margin: 0; white-space: pre-wrap; font-family: monospace;">{{ documentViewerUrl }}</pre>
+          </div>
+          
+          <!-- Other file types - show download prompt -->
+          <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && selectedDocument?.mime_type !== 'application/pdf' && selectedDocument?.mime_type !== 'text/plain'" 
+               class="flex align-items-center justify-content-center" 
+               style="height: 100%; flex-direction: column; gap: 1rem;">
+            <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
+            <h4>File Preview Not Available</h4>
+            <p class="text-muted">This file type cannot be previewed in the browser.</p>
+            <button pButton label="Download File" icon="pi pi-download" 
+                    (click)="downloadDocument(selectedDocument!)" 
+                    class="p-button-primary"></button>
+          </div>
+          
+          <!-- Loading state -->
+          <div *ngIf="!documentViewerUrl" 
+               class="flex align-items-center justify-content-center" 
+               style="height: 100%;">
+            <div class="text-center">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+              <p class="mt-2 text-muted">Loading document...</p>
+            </div>
+          </div>
         </div>
       </ng-template>
     </p-dialog>
@@ -298,7 +431,35 @@ function toTitleCase(str: string): string {
       margin-bottom: 0.5rem;
       font-weight: 500;
     }
-
+    .document-upload-section {
+      margin-top: 1rem;
+    }
+    .document-header {
+      background-color: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+    }
+    .document-header h4 {
+      margin: 0;
+      font-weight: bold;
+      color: #374151;
+    }
+    .flex {
+      display: flex;
+    }
+    .gap-1 {
+      gap: 0.25rem;
+    }
+    .text-gray-600 {
+      color: #6b7280;
+    }
+    .text-xs {
+      font-size: 0.75rem;
+    }
+    .ml-2 {
+      margin-left: 0.5rem;
+    }
   `]
 })
 export class CustomerComponent implements OnInit {
@@ -320,6 +481,15 @@ export class CustomerComponent implements OnInit {
   allLocations: MasterLocation[] = [];
   fieldErrors: { [key: string]: string } = {};
   touchedFields: { [key: string]: boolean } = {};
+  customerDocuments: (EntityDocument & { file?: File })[] = [];
+  documentUploadPath: string = '/uploads/documents/customer';
+  documentTypeOptions: any[] = [];
+  departmentOptions: any[] = [];
+  
+  // Document viewer dialog
+  isDocumentViewerVisible = false;
+  selectedDocument: EntityDocument | null = null;
+  documentViewerUrl: string = '';
   
 
 
@@ -329,12 +499,17 @@ export class CustomerComponent implements OnInit {
     private numberSeriesService: NumberSeriesService,
     private messageService: MessageService,
     private masterLocationService: MasterLocationService,
-    private masterTypeService: MasterTypeService
+    private masterTypeService: MasterTypeService,
+    private entityDocumentService: EntityDocumentService,
+    private departmentService: DepartmentService
   ) {}
 
   ngOnInit() {
     this.loadOptions();
     this.loadMappedCustomerSeriesCode();
+    this.loadDocumentUploadPath();
+    this.loadDocumentTypeOptions();
+    this.loadDepartmentOptions();
   }
 
   loadOptions() {
@@ -456,11 +631,15 @@ export class CustomerComponent implements OnInit {
       this.selectedCustomer.bill_to_customer_name = `${this.selectedCustomer.customer_no} - ${this.selectedCustomer.name}`;
     }
     this.isDialogVisible = true;
+    // Load customer documents
+    if (customer.id) {
+      this.loadCustomerDocuments(customer.customer_no);
+    }
   }
 
-  saveRow() {
+  async saveRow() {
     if (!this.selectedCustomer) return;
-    
+
     if (!this.validateForm()) {
       this.messageService.add({ 
         severity: 'error', 
@@ -469,7 +648,7 @@ export class CustomerComponent implements OnInit {
       });
       return;
     }
-    
+
     const payload: any = {
       ...this.selectedCustomer,
       seriesCode: this.mappedCustomerSeriesCode // Always use mapped code
@@ -477,24 +656,32 @@ export class CustomerComponent implements OnInit {
     if (!this.isManualSeries) {
       payload.customer_no = undefined; // Let backend generate
     }
-    const req = this.selectedCustomer.isNew
-      ? this.customerService.create(payload)
-      : this.customerService.update(this.selectedCustomer.id!, this.selectedCustomer);
-    req.subscribe({
-      next: (createdCustomer) => {
-        // Update Bill-to Customer Name with the real number after save
-        if (createdCustomer && createdCustomer.customer_no && createdCustomer.name) {
-          this.selectedCustomer!.bill_to_customer_name = `${createdCustomer.customer_no} - ${createdCustomer.name}`;
-        }
-        const msg = this.selectedCustomer?.isNew ? 'Customer created' : 'Customer updated';
-        this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
-        this.refreshList();
-        this.hideDialog();
-      },
-      error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });
+
+    try {
+      let savedCustomer;
+      if (this.selectedCustomer.isNew) {
+        savedCustomer = await this.customerService.create(payload).toPromise();
+      } else {
+        savedCustomer = await this.customerService.update(this.selectedCustomer.id!, this.selectedCustomer).toPromise();
       }
-    });
+
+      // Update Bill-to Customer Name with the real number after save
+      if (savedCustomer && savedCustomer.customer_no && savedCustomer.name) {
+        this.selectedCustomer!.bill_to_customer_name = `${savedCustomer.customer_no} - ${savedCustomer.name}`;
+      }
+      const msg = this.selectedCustomer?.isNew ? 'Customer created' : 'Customer updated';
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
+
+      // Save documents if customer was created/updated successfully
+      if (savedCustomer && savedCustomer.customer_no) {
+        await this.saveDocuments(savedCustomer);
+      }
+
+      this.refreshList();
+      this.hideDialog();
+    } catch (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });
+    }
   }
 
   hideDialog() {
@@ -502,6 +689,7 @@ export class CustomerComponent implements OnInit {
     this.selectedCustomer = null;
     this.fieldErrors = {};
     this.touchedFields = {};
+    this.customerDocuments = [];
   }
 
   addContact() {
@@ -666,7 +854,7 @@ export class CustomerComponent implements OnInit {
   validateForm(): boolean {
     if (!this.selectedCustomer) return false;
     
-    const requiredFields = ['customer_no', 'type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
+    const requiredFields = [ 'type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
     for (const field of requiredFields) {
       const error = this.validateField(field, this.selectedCustomer[field as keyof Customer]);
       if (error) {
@@ -677,6 +865,242 @@ export class CustomerComponent implements OnInit {
     }
     
     return Object.keys(this.fieldErrors).length === 0;
+  }
+
+  // Document handling methods
+  loadDocumentUploadPath() {
+    console.log('Loading document upload path for customer...');
+    this.entityDocumentService.getUploadPath('customer').subscribe({
+      next: (response: any) => {
+        console.log('Document upload path loaded:', response.value);
+        this.documentUploadPath = response.value;
+      },
+      error: (error: any) => {
+        console.error('Error loading document upload path:', error);
+        this.documentUploadPath = '/uploads/documents/customer';
+      }
+    });
+  }
+
+  loadDocumentTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
+        this.documentTypeOptions = (types || [])
+          .filter(t => t.key === 'Cus_document' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        console.log('Document type options loaded:', this.documentTypeOptions);
+      },
+      error: (error) => {
+        console.error('Error loading document types:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load document types' });
+      }
+    });
+  }
+
+  loadDepartmentOptions() {
+    this.departmentService.getAll().subscribe({
+      next: (departments: any[]) => {
+        this.departmentOptions = (departments || [])
+          .filter(d => d.status === 'Active')
+          .map(d => ({ label: d.name, value: d.name }));
+        console.log('Department options loaded:', this.departmentOptions);
+      },
+      error: (error) => {
+        console.error('Error loading departments:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load departments' });
+      }
+    });
+  }
+
+  addDocument() {
+    this.customerDocuments.push({
+      entity_type: 'customer',
+      entity_code: this.selectedCustomer!.customer_no,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeDocument(index: number) {
+    const document = this.customerDocuments[index];
+    if (document.id) {
+      // Delete from server if it exists
+      this.entityDocumentService.delete(document.id).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+          this.customerDocuments.splice(index, 1);
+        },
+        error: (error: any) => {
+          console.error('Error deleting document:', error);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+        }
+      });
+    } else {
+      // Just remove from local array if not saved yet
+      this.customerDocuments.splice(index, 1);
+    }
+  }
+
+  onFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.customerDocuments[index].file = file;
+      this.customerDocuments[index].file_name = file.name;
+      this.customerDocuments[index].file_size = file.size;
+      this.customerDocuments[index].mime_type = file.type;
+    }
+  }
+
+  downloadDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    console.log('=== FRONTEND DOWNLOAD REQUEST ===');
+    console.log('Document ID:', doc.id);
+    console.log('Document:', doc);
+    
+    this.entityDocumentService.download(doc.id).subscribe({
+      next: (blob: any) => {
+        console.log('Download successful, blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.file_name;
+        link.click();
+        window.URL.revokeObjectURL(url);
+        
+        console.log('Download link clicked');
+      },
+      error: (error: any) => {
+        console.error('Error downloading document:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to download document' });
+      }
+    });
+  }
+
+  viewDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    console.log('=== FRONTEND VIEW REQUEST ===');
+    console.log('Document ID:', doc.id);
+    console.log('Document:', doc);
+    
+    this.selectedDocument = doc;
+    this.isDocumentViewerVisible = true;
+    
+    this.entityDocumentService.view(doc.id).subscribe({
+      next: (blob: any) => {
+        console.log('View successful, blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+        
+        this.documentViewerUrl = window.URL.createObjectURL(blob);
+        console.log('Document viewer URL created:', this.documentViewerUrl);
+      },
+      error: (error: any) => {
+        console.error('Error viewing document:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to view document' });
+        this.hideDocumentViewer();
+      }
+    });
+  }
+
+  hideDocumentViewer() {
+    this.isDocumentViewerVisible = false;
+    this.selectedDocument = null;
+    if (this.documentViewerUrl) {
+      window.URL.revokeObjectURL(this.documentViewerUrl);
+      this.documentViewerUrl = '';
+    }
+  }
+
+  loadCustomerDocuments(customerNo: string) {
+    this.entityDocumentService.getByEntityCode('customer', customerNo).subscribe({
+      next: (documents: any) => {
+        this.customerDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading customer documents:', error);
+        this.customerDocuments = [];
+      }
+    });
+  }
+
+  async saveDocuments(customerData?: any) {
+    const customer = customerData || this.selectedCustomer;
+    if (!customer?.customer_no) return;
+
+    // Filter out documents without doc_type selected
+    const documentsToUpload = this.customerDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.customerDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please select document type for all documents before saving' 
+      });
+      return;
+    }
+
+    const uploadPromises = documentsToUpload
+      .map(doc => {
+        console.log('Preparing to upload document:', {
+          entity_type: 'customer',
+          entity_code: customer.customer_no,
+          doc_type: doc.doc_type,
+          document_number: doc.document_number || '',
+          valid_from: doc.valid_from || '',
+          valid_till: doc.valid_till || '',
+          file_name: doc.file?.name,
+          uploadPath: this.documentUploadPath
+        });
+
+        const formData = new FormData();
+        formData.append('entity_type', 'customer');
+        formData.append('entity_code', customer.customer_no);
+        formData.append('doc_type', doc.doc_type);
+        formData.append('document_number', doc.document_number || '');
+        formData.append('valid_from', doc.valid_from || '');
+        formData.append('valid_till', doc.valid_till || '');
+        formData.append('document', doc.file!);
+        formData.append('uploadPath', this.documentUploadPath);
+
+        return this.entityDocumentService.uploadDocument(formData).toPromise();
+      });
+
+    const updatePromises = this.customerDocuments
+      .filter(doc => doc.id && !doc.file) // Only update existing documents without new files
+      .map(doc => {
+        return this.entityDocumentService.update(doc.id!, {
+          doc_type: doc.doc_type,
+          document_number: doc.document_number,
+          valid_from: doc.valid_from,
+          valid_till: doc.valid_till
+        }).toPromise();
+      });
+
+    await Promise.all([...uploadPromises, ...updatePromises]);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
+    this.loadCustomerDocuments(customer.customer_no);
   }
 
 } 

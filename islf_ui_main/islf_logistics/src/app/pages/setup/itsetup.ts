@@ -20,6 +20,24 @@ import { HttpClient } from '@angular/common/http';
         <button pButton type="submit" label="Save" class="p-button-primary" [disabled]="loading()"></button>
       </form>
       <div class="mt-8">
+        <label class="block mb-1 font-medium">Document Upload Paths</label>
+        <div class="space-y-4">
+          <div>
+            <label class="block mb-1 text-sm font-medium">Customer Documents</label>
+            <input type="text" class="p-inputtext w-full" [(ngModel)]="documentUploadPaths['customer']" placeholder="e.g., /uploads/documents/customer" />
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-medium">Vendor Documents</label>
+            <input type="text" class="p-inputtext w-full" [(ngModel)]="documentUploadPaths['vendor']" placeholder="e.g., /uploads/documents/vendor" />
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-medium">Company Documents</label>
+            <input type="text" class="p-inputtext w-full" [(ngModel)]="documentUploadPaths['company']" placeholder="e.g., /uploads/documents/company" />
+          </div>
+        </div>
+        <button pButton type="button" label="Save All Paths" class="p-button-primary mt-2" (click)="saveDocumentPaths()" [disabled]="loading()"></button>
+      </div>
+      <div class="mt-8">
         <label class="block mb-1 font-medium">Default Logo</label>
         <input type="file" accept="image/*" (change)="onLogoSelected($event)" />
         <div *ngIf="defaultLogo()" class="mt-2">
@@ -34,6 +52,11 @@ import { HttpClient } from '@angular/common/http';
 })
 export class ITSetupComponent implements OnInit {
   maxCompaniesValue = 1;
+  documentUploadPaths: { [key: string]: string } = {
+    customer: '/uploads/documents/customer',
+    vendor: '/uploads/documents/vendor',
+    company: '/uploads/documents/company'
+  };
   message = signal('');
   error = signal('');
   loading = signal(false);
@@ -45,6 +68,7 @@ export class ITSetupComponent implements OnInit {
   ngOnInit() {
     this.fetch();
     this.fetchLogo();
+    this.fetchDocumentPaths();
   }
 
   fetch() {
@@ -70,6 +94,21 @@ export class ITSetupComponent implements OnInit {
       error: () => {
         this.defaultLogo.set(null);
       }
+    });
+  }
+
+  fetchDocumentPaths() {
+    // Fetch all document upload paths
+    const entityTypes = ['customer', 'vendor', 'company'];
+    entityTypes.forEach(entityType => {
+      this.http.get<{ value: string }>(`/api/settings/document_upload_path_${entityType}`).subscribe({
+        next: (res) => {
+          this.documentUploadPaths[entityType] = res.value || `/uploads/documents/${entityType}`;
+        },
+        error: () => {
+          this.documentUploadPaths[entityType] = `/uploads/documents/${entityType}`;
+        }
+      });
     });
   }
 
@@ -117,5 +156,23 @@ export class ITSetupComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  saveDocumentPaths() {
+    this.loading.set(true);
+    const promises = Object.entries(this.documentUploadPaths).map(([entityType, path]) => {
+      return this.http.post(`/api/settings/document_upload_path_${entityType}`, { value: path }).toPromise();
+    });
+
+    Promise.all(promises)
+      .then(() => {
+        this.message.set('All document upload paths saved!');
+        this.error.set('');
+        this.loading.set(false);
+      })
+      .catch(() => {
+        this.error.set('Failed to save document upload paths');
+        this.loading.set(false);
+      });
   }
 } 
