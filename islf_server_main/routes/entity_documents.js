@@ -173,7 +173,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
         entityExists = (await pool.query('SELECT customer_no FROM customer WHERE customer_no = $1', [entity_code])).rows.length > 0;
         break;
       case 'vendor':
-        entityExists = (await pool.query('SELECT vendor_code FROM vendor WHERE vendor_code = $1', [entity_code])).rows.length > 0;
+        entityExists = (await pool.query('SELECT vendor_no FROM vendor WHERE vendor_no = $1', [entity_code])).rows.length > 0;
         break;
       case 'company':
         entityExists = (await pool.query('SELECT code FROM company WHERE code = $1', [entity_code])).rows.length > 0;

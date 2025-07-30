@@ -119,10 +119,10 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <td>{{ uom.uom_type }}</td>
             <td>{{ uom.code }}</td>
             <td>{{ uom.description }}</td>
-            <td>{{ uom.start_day }}</td>
+            <!--<td>{{ uom.start_day }}</td>
             <td>{{ uom.end_day }}</td>
-            <td>{{ uom.working_days }}</td>
-            <td>
+            <td>{{ uom.working_days }}</td>-->
+            <td> 
             <span
               class="text-sm font-semibold px-3 py-1 rounded-full"
               [ngClass]="{
@@ -177,7 +177,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
               <label for="description">Description</label>
               <input id="description" pInputText [(ngModel)]="selectedUOM.description" />
             </div>
-            <div class="grid-item">
+         <!--   <div class="grid-item">
             <label for="start_day">Start Day</label>
             <p-calendar
               appendTo="body"
@@ -204,6 +204,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
             <label for="working_days">Working Days</label>
             <input id="working_days" pInputText [(ngModel)]="selectedUOM.working_days" disabled />
           </div>
+          -->
             <div class="grid-item">
               <label for="active">Status</label>
               <p-dropdown
@@ -251,7 +252,7 @@ export class MasterUOMComponent implements OnInit {
   activeOptions = [
     { label: 'Active', value: true },
     { label: 'Inactive', value: false }
-  ];
+  ];                                                                                                                                      
 
   isDialogVisible = false;
   selectedUOM: (MasterUOM & { isNew?: boolean }) | null = null;
@@ -284,9 +285,9 @@ export class MasterUOMComponent implements OnInit {
       uom_type: '',
       code: '',
       description: '',
-      start_day: '',
-      end_day: '',
-      working_days: '',
+        // start_day: '',
+        // end_day: '',
+        // working_days: '',
       active: true,
       isNew: true,
     };
@@ -304,8 +305,8 @@ export class MasterUOMComponent implements OnInit {
     // Format dates before sending
     const formattedUOM = {
       ...this.selectedUOM,
-      start_day: this.formatDate(this.selectedUOM.start_day),
-      end_day: this.formatDate(this.selectedUOM.end_day)
+      // start_day: this.formatDate(this.selectedUOM.start_day),
+      // end_day: this.formatDate(this.selectedUOM.end_day)
     };
   
     if (this.selectedUOM.isNew) {
@@ -349,28 +350,28 @@ export class MasterUOMComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
   
-  calculateWorkingDays() {
-    if (!this.selectedUOM?.start_day || !this.selectedUOM?.end_day) {
-      this.selectedUOM!.working_days = '';
-      return;
-    }
+  // calculateWorkingDays() {
+  //   if (!this.selectedUOM?.start_day || !this.selectedUOM?.end_day) {
+  //     this.selectedUOM!.working_days = '';
+  //     return;
+  //   }
   
-    const start = new Date(this.selectedUOM.start_day);
-    const end = new Date(this.selectedUOM.end_day);
+  //   const start = new Date(this.selectedUOM.start_day);
+  //   const end = new Date(this.selectedUOM.end_day);
   
-    if (end >= start) {
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Include both days
-      this.selectedUOM!.working_days = diffDays.toString();
-    } else {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Invalid Dates',
-        detail: 'End date must be after start date'
-      });
-      this.selectedUOM!.working_days = '';
-    }
-  }
+  //   if (end >= start) {
+  //     const diffTime = Math.abs(end.getTime() - start.getTime());
+  //     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Include both days
+  //     this.selectedUOM!.working_days = diffDays.toString();
+  //   } else {
+  //     this.messageService.add({
+  //       severity: 'warn',
+  //       summary: 'Invalid Dates',
+  //       detail: 'End date must be after start date'
+  //     });
+  //     this.selectedUOM!.working_days = '';
+  //   }
+  // }
 
   clear(table: any) {
     table.clear();

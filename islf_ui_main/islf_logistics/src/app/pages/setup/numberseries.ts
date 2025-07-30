@@ -6,8 +6,9 @@ import { ButtonModule } from 'primeng/button';
 import { ToolbarModule } from 'primeng/toolbar';
 import { InputTextModule } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { NumberSeriesService, NumberSeries as NumberSeriesModel } from '@/services/number-series.service';
 import { AppLayout } from '@/layout/components/app.layout';
 import { Table } from 'primeng/table';
@@ -46,12 +47,14 @@ interface NumberSeries {
     ToastModule,
     IconFieldModule,
     InputIconModule,
-    DropdownModule
+    DropdownModule,
+    ConfirmDialogModule
     // Remove InputSwitchModule
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     
     <div class="card">
     <div class="font-semibold text-xl mb-4">Number Series  </div>
@@ -252,6 +255,7 @@ export class NumberSeriesComponent implements OnInit {
 
   constructor(
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private location: Location,
     private numberSeriesService: NumberSeriesService
   ) {}
@@ -366,16 +370,24 @@ export class NumberSeriesComponent implements OnInit {
 
   deleteRow(row: NumberSeries) {
     console.log('Deleting row:', row);
-    if (row.id && !row.isNew && !isNaN(Number(row.id))) {
-      this.numberSeriesService.delete(Number(row.id)).subscribe({
-        next: () => {
-          this.refreshList();
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this number series?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (row.id && !row.isNew && !isNaN(Number(row.id))) {
+          this.numberSeriesService.delete(Number(row.id)).subscribe({
+            next: () => {
+              this.refreshList();
+              this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Row deleted' });
+            }
+          });
+        } else {
+          this.seriesList.set(this.seriesList().filter(r => r !== row));
           this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Row deleted' });
         }
-      });
-    } else {
-      this.seriesList.set(this.seriesList().filter(r => r !== row));
-    }
+      }
+    });
   }
 
   generateId(): string {

@@ -7,12 +7,16 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
-import { MessageService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { VendorService, Vendor, VendorContact } from '../../services/vendor.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { EntityDocumentService, EntityDocument } from '../../services/entity-document.service';
+import { DepartmentService } from '../../services/department.service';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -34,7 +38,7 @@ function toTitleCase(str: string): string {
 @Component({
   selector: 'vendor-master',
   standalone: true,
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   imports: [
     CommonModule,
     FormsModule,
@@ -43,10 +47,12 @@ function toTitleCase(str: string): string {
     ButtonModule,
     DropdownModule,
     ToastModule,
-    DialogModule
+    DialogModule,
+    ConfirmDialogModule
   ],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Vendor Master</div>
       <p-table
@@ -250,7 +256,9 @@ function toTitleCase(str: string): string {
             <ng-template pTemplate="body" let-contact let-rowIndex="rowIndex">
               <tr>
                 <td><input pInputText [(ngModel)]="contact.name" /></td>
-                <td><input pInputText [(ngModel)]="contact.department" /></td>
+                <td>
+                  <p-dropdown [options]="departmentOptions" [(ngModel)]="contact.department" optionLabel="label" optionValue="value" placeholder="Select Department" [filter]="true"></p-dropdown>
+                </td>
                 <td><input pInputText [(ngModel)]="contact.mobile" /></td>
                 <td><input pInputText [(ngModel)]="contact.landline" /></td>
                 <td><input pInputText [(ngModel)]="contact.email" /></td>
@@ -268,12 +276,184 @@ function toTitleCase(str: string): string {
               </tr>
             </ng-template>
           </p-table>
+          
+          <!-- Document Upload -->
+          <div class="section-header">Document Upload</div>
+          <div class="document-upload-section">
+          
+            <p-table [value]="vendorDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>DOC. TYPE</th>
+                  <th>DOCUMENT NUMBER</th>
+                  <th>VALID FROM</th>
+                  <th>VALID TILL</th>
+                  <th>FILE</th>
+                  <th>Action</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+                <tr>
+                  <td>
+                    <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                  </td>
+                  <td>
+                    <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+                  </td>
+                  <td>
+                    <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                  </td>
+                  <td>
+                    <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                  </td>
+                  <td>
+                    <input type="file" (change)="onFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"/>
+                    <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+                  </td>
+                  <td>
+                    <div class="flex gap-1">
+                      <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                      <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                      <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDocument(rowIndex)" pTooltip="Delete Document"></button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="footer">
+                <tr>
+                  <td colspan="6">
+                    <button pButton label="Add Document" icon="pi pi-plus" (click)="addDocument()"></button>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
         </div>
       </ng-template>
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
           <button pButton label="{{ selectedVendor?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid()"></button>
+        </div>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Document Viewer Dialog -->
+    <p-dialog 
+      [(visible)]="isDocumentViewerVisible" 
+      [modal]="true" 
+      [style]="{width: '90vw', height: '90vh'}" 
+      [maximizable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="hideDocumentViewer()">
+      
+      <ng-template pTemplate="header">
+        <div class="flex align-items-center justify-content-between w-full">
+          <h5 class="m-0">
+            <i class="pi pi-file mr-2"></i>
+            {{ selectedDocument?.file_name }}
+          </h5>
+          <div class="flex gap-2">
+            <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
+                    (click)="downloadDocument(selectedDocument!)" 
+                    pTooltip="Download Document"></button>
+            <button pButton icon="pi pi-times" class="p-button-sm p-button-outlined" 
+                    (click)="hideDocumentViewer()" 
+                    pTooltip="Close"></button>
+          </div>
+        </div>
+      </ng-template>
+
+      <ng-template pTemplate="content">
+        <div class="document-viewer-container" style="height: calc(90vh - 120px); overflow: auto;">
+          <!-- Image files -->
+          <img *ngIf="selectedDocument?.mime_type?.startsWith('image/') && documentViewerUrl" 
+               [src]="documentViewerUrl" 
+               [alt]="selectedDocument?.file_name"
+               style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          
+          <!-- PDF files -->
+          <div *ngIf="selectedDocument?.mime_type === 'application/pdf'" style="height: 100%; display: flex; flex-direction: column;">
+            <!-- PDF Loading State -->
+            <div *ngIf="!pdfLoaded" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+              <p class="text-muted">Loading PDF...</p>
+              <button pButton label="Open PDF in New Tab" icon="pi pi-external-link" 
+                      (click)="openDocumentInNewTab()" 
+                      class="p-button-outlined"></button>
+            </div>
+            
+            <!-- PDF Viewer -->
+            <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && safeDocumentViewerUrl && pdfLoaded" 
+                    [src]="safeDocumentViewerUrl" 
+                    style="width: 100%; height: 100%; border: none;"
+                    (load)="onPdfLoad()"
+                    (error)="onPdfError()">
+            </iframe>
+            
+            <!-- PDF Error State -->
+            <div *ngIf="pdfError" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+              <i class="pi pi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+              <h4>PDF Loading Failed</h4>
+              <p class="text-muted">Unable to display PDF in browser.</p>
+              <div class="flex gap-2">
+                <button pButton label="Download PDF" icon="pi pi-download" 
+                        (click)="downloadDocument(selectedDocument!)" 
+                        class="p-button-primary"></button>
+                <button pButton label="Open in New Tab" icon="pi pi-external-link" 
+                        (click)="openDocumentInNewTab()" 
+                        class="p-button-outlined"></button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Text files -->
+          <div *ngIf="selectedDocument?.mime_type === 'text/plain' && documentViewerUrl" 
+               style="padding: 1rem; background: white; height: 100%; overflow: auto;">
+            <pre style="margin: 0; white-space: pre-wrap; font-family: monospace;">{{ documentViewerUrl }}</pre>
+          </div>
+          
+          <!-- Office Documents and other files - Enhanced viewer -->
+          <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && 
+                      selectedDocument?.mime_type !== 'application/pdf' && 
+                      selectedDocument?.mime_type !== 'text/plain' && 
+                      documentViewerUrl" 
+               style="height: 100%; display: flex; flex-direction: column;">
+            
+            <!-- Try Microsoft Office Online Viewer first -->
+            <iframe *ngIf="getSafeOfficeViewerUrl()" 
+                    [src]="getSafeOfficeViewerUrl()"
+                    style="width: 100%; height: 100%; border: none;">
+            </iframe>
+            
+            <!-- Fallback for unsupported files -->
+            <div *ngIf="!getSafeOfficeViewerUrl()" 
+                 class="flex align-items-center justify-content-center" 
+                 style="height: 100%; flex-direction: column; gap: 1rem;">
+              <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
+              <h4>Document Preview</h4>
+              <p class="text-muted">This file type requires download for viewing.</p>
+              <button pButton label="Download File" icon="pi pi-download" 
+                      (click)="downloadDocument(selectedDocument!)" 
+                      class="p-button-primary"></button>
+            </div>
+          </div>
+          
+          <!-- Loading state -->
+          <div *ngIf="!documentViewerUrl" 
+               class="flex align-items-center justify-content-center" 
+               style="height: 100%;">
+            <div class="text-center">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+              <p class="mt-2 text-muted">Loading document...</p>
+            </div>
+          </div>
         </div>
       </ng-template>
     </p-dialog>
@@ -298,7 +478,35 @@ function toTitleCase(str: string): string {
       margin-bottom: 0.5rem;
       font-weight: 500;
     }
-
+    .document-upload-section {
+      margin-top: 1rem;
+    }
+    .document-header {
+      background-color: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+    }
+    .document-header h4 {
+      margin: 0;
+      font-weight: bold;
+      color: #374151;
+    }
+    .flex {
+      display: flex;
+    }
+    .gap-1 {
+      gap: 0.25rem;
+    }
+    .text-gray-600 {
+      color: #6b7280;
+    }
+    .text-xs {
+      font-size: 0.75rem;
+    }
+    .ml-2 {
+      margin-left: 0.5rem;
+    }
   `]
 })
 export class VendorComponent implements OnInit {
@@ -320,6 +528,18 @@ export class VendorComponent implements OnInit {
   allLocations: MasterLocation[] = [];
   fieldErrors: { [key: string]: string } = {};
   touchedFields: { [key: string]: boolean } = {};
+  vendorDocuments: (EntityDocument & { file?: File })[] = [];
+  documentUploadPath: string = '/uploads/documents/vendor';
+  documentTypeOptions: any[] = [];
+  departmentOptions: any[] = [];
+  
+  // Document viewer dialog
+  isDocumentViewerVisible = false;
+  selectedDocument: EntityDocument | null = null;
+  documentViewerUrl: string = '';
+  safeDocumentViewerUrl: SafeResourceUrl | null = null;
+  pdfLoaded: boolean = false;
+  pdfError: boolean = false;
   
 
 
@@ -328,13 +548,20 @@ export class VendorComponent implements OnInit {
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private masterLocationService: MasterLocationService,
-    private masterTypeService: MasterTypeService
+    private masterTypeService: MasterTypeService,
+    private entityDocumentService: EntityDocumentService,
+    private departmentService: DepartmentService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit() {
     this.loadOptions();
     this.loadMappedVendorSeriesCode();
+    this.loadDocumentUploadPath();
+    this.loadDocumentTypeOptions();
+    this.loadDepartmentOptions();
   }
 
   loadOptions() {
@@ -456,11 +683,15 @@ export class VendorComponent implements OnInit {
       this.selectedVendor.bill_to_vendor_name = `${this.selectedVendor.vendor_no} - ${this.selectedVendor.name}`;
     }
     this.isDialogVisible = true;
+    // Load vendor documents
+    if (vendor.id) {
+      this.loadVendorDocuments(vendor.vendor_no);
+    }
   }
 
-  saveRow() {
+  async saveRow() {
     if (!this.selectedVendor) return;
-    
+
     if (!this.validateForm()) {
       this.messageService.add({ 
         severity: 'error', 
@@ -469,7 +700,7 @@ export class VendorComponent implements OnInit {
       });
       return;
     }
-    
+
     const payload: any = {
       ...this.selectedVendor,
       seriesCode: this.mappedVendorSeriesCode // Always use mapped code
@@ -477,24 +708,32 @@ export class VendorComponent implements OnInit {
     if (!this.isManualSeries) {
       payload.vendor_no = undefined; // Let backend generate
     }
-    const req = this.selectedVendor.isNew
-      ? this.vendorService.create(payload)
-      : this.vendorService.update(this.selectedVendor.id!, this.selectedVendor);
-    req.subscribe({
-      next: (createdVendor) => {
-        // Update Bill-to Vendor Name with the real number after save
-        if (createdVendor && createdVendor.vendor_no && createdVendor.name) {
-          this.selectedVendor!.bill_to_vendor_name = `${createdVendor.vendor_no} - ${createdVendor.name}`;
-        }
-        const msg = this.selectedVendor?.isNew ? 'Vendor created' : 'Vendor updated';
-        this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
-        this.refreshList();
-        this.hideDialog();
-      },
-      error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });
+
+    try {
+      let savedVendor;
+      if (this.selectedVendor.isNew) {
+        savedVendor = await this.vendorService.create(payload).toPromise();
+      } else {
+        savedVendor = await this.vendorService.update(this.selectedVendor.id!, this.selectedVendor).toPromise();
       }
-    });
+
+      // Update Bill-to Vendor Name with the real number after save
+      if (savedVendor && savedVendor.vendor_no && savedVendor.name) {
+        this.selectedVendor!.bill_to_vendor_name = `${savedVendor.vendor_no} - ${savedVendor.name}`;
+      }
+      const msg = this.selectedVendor?.isNew ? 'Vendor created' : 'Vendor updated';
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
+
+      // Save documents if vendor was created/updated successfully
+      if (savedVendor && savedVendor.vendor_no) {
+        await this.saveDocuments(savedVendor);
+      }
+
+      this.refreshList();
+      this.hideDialog();
+    } catch (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });
+    }
   }
 
   hideDialog() {
@@ -502,6 +741,7 @@ export class VendorComponent implements OnInit {
     this.selectedVendor = null;
     this.fieldErrors = {};
     this.touchedFields = {};
+    this.vendorDocuments = [];
   }
 
   addContact() {
@@ -511,9 +751,17 @@ export class VendorComponent implements OnInit {
   }
 
   removeContact(index: number) {
-    if (this.selectedVendor) {
-      this.selectedVendor.contacts.splice(index, 1);
-    }
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to remove this contact?',
+      header: 'Confirm Removal',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (this.selectedVendor) {
+          this.selectedVendor.contacts.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Contact removed successfully' });
+        }
+      }
+    });
   }
 
   clear(table: any) {
@@ -677,6 +925,310 @@ export class VendorComponent implements OnInit {
     }
     
     return Object.keys(this.fieldErrors).length === 0;
+  }
+
+  // Document handling methods
+  loadDocumentUploadPath() {
+    console.log('Loading document upload path for vendor...');
+    this.entityDocumentService.getUploadPath('vendor').subscribe({
+      next: (response: any) => {
+        console.log('Document upload path loaded:', response.value);
+        this.documentUploadPath = response.value;
+      },
+      error: (error: any) => {
+        console.error('Error loading document upload path:', error);
+        this.documentUploadPath = '/uploads/documents/vendor';
+      }
+    });
+  }
+
+  loadDocumentTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
+        this.documentTypeOptions = (types || [])
+          .filter(t => t.key === 'Ven_document' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        console.log('Document type options loaded:', this.documentTypeOptions);
+      },
+      error: (error) => {
+        console.error('Error loading document types:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load document types' });
+      }
+    });
+  }
+
+  loadDepartmentOptions() {
+    this.departmentService.getAll().subscribe({
+      next: (departments: any[]) => {
+        this.departmentOptions = (departments || [])
+          .filter(d => d.status === 'Active')
+          .map(d => ({ label: d.name, value: d.name }));
+        console.log('Department options loaded:', this.departmentOptions);
+      },
+      error: (error) => {
+        console.error('Error loading departments:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load departments' });
+      }
+    });
+  }
+
+  addDocument() {
+    this.vendorDocuments.push({
+      entity_type: 'vendor',
+      entity_code: this.selectedVendor!.vendor_no,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeDocument(index: number) {
+    const document = this.vendorDocuments[index];
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          // Delete from server if it exists
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+              this.vendorDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+            }
+          });
+        } else {
+          // Just remove from local array if not saved yet
+          this.vendorDocuments.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document removed' });
+        }
+      }
+    });
+  }
+
+  onFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.vendorDocuments[index].file = file;
+      this.vendorDocuments[index].file_name = file.name;
+      this.vendorDocuments[index].file_size = file.size;
+      this.vendorDocuments[index].mime_type = file.type;
+    }
+  }
+
+  downloadDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    console.log('=== FRONTEND DOWNLOAD REQUEST ===');
+    console.log('Document ID:', doc.id);
+    console.log('Document:', doc);
+    
+    this.entityDocumentService.download(doc.id).subscribe({
+      next: (blob: any) => {
+        console.log('Download successful, blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.file_name;
+        link.click();
+        window.URL.revokeObjectURL(url);
+        
+        console.log('Download link clicked');
+      },
+      error: (error: any) => {
+        console.error('Error downloading document:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to download document' });
+      }
+    });
+  }
+
+  viewDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    console.log('=== FRONTEND VIEW REQUEST ===');
+    console.log('Document ID:', doc.id);
+    console.log('Document:', doc);
+    
+    this.selectedDocument = doc;
+    this.isDocumentViewerVisible = true;
+    this.pdfLoaded = false;
+    this.pdfError = false;
+    
+    // Always load fresh from server - no caching for blob URLs
+    this.entityDocumentService.view(doc.id).subscribe({
+      next: (blob: any) => {
+        console.log('View successful, blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+        
+        this.documentViewerUrl = window.URL.createObjectURL(blob);
+        this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
+        
+        console.log('Document viewer URL created:', this.documentViewerUrl);
+        
+        // Immediate load for PDFs
+        if (doc.mime_type === 'application/pdf') {
+          this.pdfLoaded = true;
+        } else {
+          // Short delay for other file types
+          setTimeout(() => {
+            this.pdfLoaded = true;
+          }, 300);
+        }
+      },
+      error: (error: any) => {
+        console.error('Error viewing document:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to view document' });
+        this.hideDocumentViewer();
+      }
+    });
+  }
+
+  hideDocumentViewer() {
+    this.isDocumentViewerVisible = false;
+    this.selectedDocument = null;
+    if (this.documentViewerUrl) {
+      window.URL.revokeObjectURL(this.documentViewerUrl);
+      this.documentViewerUrl = '';
+    }
+    this.safeDocumentViewerUrl = null;
+    this.pdfLoaded = false;
+    this.pdfError = false;
+  }
+
+  getOfficeViewerUrl(): string {
+    if (!this.documentViewerUrl || !this.selectedDocument) return '';
+    
+    // Check if it's a blob URL
+    if (this.documentViewerUrl.startsWith('blob:')) {
+      // For blob URLs, we can't use online viewers directly
+      // We'll return empty to show the fallback
+      return '';
+    }
+    
+    // For regular URLs, try Microsoft Office Online Viewer
+    const encodedUrl = encodeURIComponent(this.documentViewerUrl);
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+  }
+
+  getSafeOfficeViewerUrl(): SafeResourceUrl | null {
+    const url = this.getOfficeViewerUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  }
+
+  openDocumentInNewTab() {
+    if (this.selectedDocument?.id) {
+      // Use the server URL instead of blob URL for better compatibility
+      const serverUrl = `${window.location.origin}/api/entity-documents/${this.selectedDocument.id}/view`;
+      window.open(serverUrl, '_blank');
+    }
+  }
+
+  onPdfLoad() {
+    console.log('PDF loaded successfully');
+    this.pdfLoaded = true;
+    this.pdfError = false;
+  }
+
+  onPdfError() {
+    console.log('PDF failed to load');
+    this.pdfError = true;
+    this.pdfLoaded = false;
+  }
+
+
+
+  loadVendorDocuments(vendorNo: string) {
+    this.entityDocumentService.getByEntityCode('vendor', vendorNo).subscribe({
+      next: (documents: any) => {
+        this.vendorDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading vendor documents:', error);
+        this.vendorDocuments = [];
+      }
+    });
+  }
+
+  async saveDocuments(vendorData?: any) {
+    const vendor = vendorData || this.selectedVendor;
+    if (!vendor?.vendor_no) return;
+
+    // Filter out documents without doc_type selected
+    const documentsToUpload = this.vendorDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.vendorDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please select document type for all documents before saving' 
+      });
+      return;
+    }
+
+    const uploadPromises = documentsToUpload
+      .map(doc => {
+        console.log('Preparing to upload document:', {
+          entity_type: 'vendor',
+          entity_code: vendor.vendor_no,
+          doc_type: doc.doc_type,
+          document_number: doc.document_number || '',
+          valid_from: doc.valid_from || '',
+          valid_till: doc.valid_till || '',
+          file_name: doc.file?.name,
+          uploadPath: this.documentUploadPath
+        });
+
+        const formData = new FormData();
+        formData.append('entity_type', 'vendor');
+        formData.append('entity_code', vendor.vendor_no);
+        formData.append('doc_type', doc.doc_type);
+        formData.append('document_number', doc.document_number || '');
+        formData.append('valid_from', doc.valid_from || '');
+        formData.append('valid_till', doc.valid_till || '');
+        formData.append('document', doc.file!);
+        formData.append('uploadPath', this.documentUploadPath);
+
+        return this.entityDocumentService.uploadDocument(formData).toPromise();
+      });
+
+    const updatePromises = this.vendorDocuments
+      .filter(doc => doc.id && !doc.file) // Only update existing documents without new files
+      .map(doc => {
+        return this.entityDocumentService.update(doc.id!, {
+          doc_type: doc.doc_type,
+          document_number: doc.document_number,
+          valid_from: doc.valid_from,
+          valid_till: doc.valid_till
+        }).toPromise();
+      });
+
+    await Promise.all([...uploadPromises, ...updatePromises]);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
+    this.loadVendorDocuments(vendor.vendor_no);
   }
 
 } 

@@ -24,7 +24,23 @@ router.post('/', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating master location:', err);
-    res.status(500).json({ error: 'Failed to create master location' });
+    
+    // Handle specific database constraint errors
+    if (err.code === '23505' && err.constraint === 'master_location_code_key') {
+      res.status(400).json({ 
+        error: 'Duplicate code', 
+        detail: `Location code "${code}" already exists. Please use a different code.`,
+        code: code 
+      });
+    } else if (err.code === '23505') {
+      res.status(400).json({ 
+        error: 'Duplicate entry', 
+        detail: `A location with this information already exists.`,
+        code: code 
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to create master location' });
+    }
   }
 });
 
@@ -36,11 +52,27 @@ router.put('/:code', async (req, res) => {
       'UPDATE master_location SET type = $1, name = $2, country = $3, state = $4, city = $5, gst_state_code = $6, pin_code = $7, active = $8 WHERE code = $9 RETURNING *',
       [type, name, country, state, city, gst_state_code, pin_code, active, req.params.code]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Location not found' });
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating master location:', err);
-    res.status(500).json({ error: 'Failed to update master location' });
+    
+    // Handle specific database constraint errors
+    if (err.code === '23505' && err.constraint === 'master_location_code_key') {
+      res.status(400).json({ 
+        error: 'Duplicate code', 
+        detail: `Location code "${req.params.code}" already exists. Please use a different code.`,
+        code: req.params.code 
+      });
+    } else if (err.code === '23505') {
+      res.status(400).json({ 
+        error: 'Duplicate entry', 
+        detail: `A location with this information already exists.`,
+        code: req.params.code 
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update master location' });
+    }
   }
 });
 

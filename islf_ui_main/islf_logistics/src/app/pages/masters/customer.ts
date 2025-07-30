@@ -7,7 +7,9 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
-import { MessageService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CustomerService, Customer, CustomerContact } from '../../services/customer.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
@@ -36,7 +38,7 @@ function toTitleCase(str: string): string {
 @Component({
   selector: 'customer-master',
   standalone: true,
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   imports: [
     CommonModule,
     FormsModule,
@@ -45,10 +47,12 @@ function toTitleCase(str: string): string {
     ButtonModule,
     DropdownModule,
     ToastModule,
-    DialogModule
+    DialogModule,
+    ConfirmDialogModule
   ],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Customer Master</div>
       <p-table
@@ -375,10 +379,39 @@ function toTitleCase(str: string): string {
                style="max-width: 100%; max-height: 100%; object-fit: contain;">
           
           <!-- PDF files -->
-          <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && documentViewerUrl" 
-                  [src]="documentViewerUrl" 
-                  style="width: 100%; height: 100%; border: none;">
-          </iframe>
+          <div *ngIf="selectedDocument?.mime_type === 'application/pdf'" style="height: 100%; display: flex; flex-direction: column;">
+            <!-- PDF Loading State -->
+            <div *ngIf="!pdfLoaded" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+              <p class="text-muted">Loading PDF...</p>
+              <button pButton label="Open PDF in New Tab" icon="pi pi-external-link" 
+                      (click)="openDocumentInNewTab()" 
+                      class="p-button-outlined"></button>
+            </div>
+            
+            <!-- PDF Viewer -->
+            <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && safeDocumentViewerUrl && pdfLoaded" 
+                    [src]="safeDocumentViewerUrl" 
+                    style="width: 100%; height: 100%; border: none;"
+                    (load)="onPdfLoad()"
+                    (error)="onPdfError()">
+            </iframe>
+            
+            <!-- PDF Error State -->
+            <div *ngIf="pdfError" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+              <i class="pi pi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+              <h4>PDF Loading Failed</h4>
+              <p class="text-muted">Unable to display PDF in browser.</p>
+              <div class="flex gap-2">
+                <button pButton label="Download PDF" icon="pi pi-download" 
+                        (click)="downloadDocument(selectedDocument!)" 
+                        class="p-button-primary"></button>
+                <button pButton label="Open in New Tab" icon="pi pi-external-link" 
+                        (click)="openDocumentInNewTab()" 
+                        class="p-button-outlined"></button>
+              </div>
+            </div>
+          </div>
           
           <!-- Text files -->
           <div *ngIf="selectedDocument?.mime_type === 'text/plain' && documentViewerUrl" 
@@ -386,16 +419,30 @@ function toTitleCase(str: string): string {
             <pre style="margin: 0; white-space: pre-wrap; font-family: monospace;">{{ documentViewerUrl }}</pre>
           </div>
           
-          <!-- Other file types - show download prompt -->
-          <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && selectedDocument?.mime_type !== 'application/pdf' && selectedDocument?.mime_type !== 'text/plain'" 
-               class="flex align-items-center justify-content-center" 
-               style="height: 100%; flex-direction: column; gap: 1rem;">
-            <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
-            <h4>File Preview Not Available</h4>
-            <p class="text-muted">This file type cannot be previewed in the browser.</p>
-            <button pButton label="Download File" icon="pi pi-download" 
-                    (click)="downloadDocument(selectedDocument!)" 
-                    class="p-button-primary"></button>
+          <!-- Office Documents and other files - Enhanced viewer -->
+          <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && 
+                      selectedDocument?.mime_type !== 'application/pdf' && 
+                      selectedDocument?.mime_type !== 'text/plain' && 
+                      documentViewerUrl" 
+               style="height: 100%; display: flex; flex-direction: column;">
+            
+            <!-- Try Microsoft Office Online Viewer first -->
+            <iframe *ngIf="getSafeOfficeViewerUrl()" 
+                    [src]="getSafeOfficeViewerUrl()"
+                    style="width: 100%; height: 100%; border: none;">
+            </iframe>
+            
+            <!-- Fallback for unsupported files -->
+            <div *ngIf="!getSafeOfficeViewerUrl()" 
+                 class="flex align-items-center justify-content-center" 
+                 style="height: 100%; flex-direction: column; gap: 1rem;">
+              <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
+              <h4>Document Preview</h4>
+              <p class="text-muted">This file type requires download for viewing.</p>
+              <button pButton label="Download File" icon="pi pi-download" 
+                      (click)="downloadDocument(selectedDocument!)" 
+                      class="p-button-primary"></button>
+            </div>
           </div>
           
           <!-- Loading state -->
@@ -490,6 +537,9 @@ export class CustomerComponent implements OnInit {
   isDocumentViewerVisible = false;
   selectedDocument: EntityDocument | null = null;
   documentViewerUrl: string = '';
+  safeDocumentViewerUrl: SafeResourceUrl | null = null;
+  pdfLoaded: boolean = false;
+  pdfError: boolean = false;
   
 
 
@@ -498,10 +548,12 @@ export class CustomerComponent implements OnInit {
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private masterLocationService: MasterLocationService,
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
-    private departmentService: DepartmentService
+    private departmentService: DepartmentService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit() {
@@ -699,9 +751,17 @@ export class CustomerComponent implements OnInit {
   }
 
   removeContact(index: number) {
-    if (this.selectedCustomer) {
-      this.selectedCustomer.contacts.splice(index, 1);
-    }
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to remove this contact?',
+      header: 'Confirm Removal',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (this.selectedCustomer) {
+          this.selectedCustomer.contacts.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Contact removed successfully' });
+        }
+      }
+    });
   }
 
   clear(table: any) {
@@ -929,22 +989,30 @@ export class CustomerComponent implements OnInit {
 
   removeDocument(index: number) {
     const document = this.customerDocuments[index];
-    if (document.id) {
-      // Delete from server if it exists
-      this.entityDocumentService.delete(document.id).subscribe({
-        next: () => {
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          // Delete from server if it exists
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+              this.customerDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+            }
+          });
+        } else {
+          // Just remove from local array if not saved yet
           this.customerDocuments.splice(index, 1);
-        },
-        error: (error: any) => {
-          console.error('Error deleting document:', error);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document removed' });
         }
-      });
-    } else {
-      // Just remove from local array if not saved yet
-      this.customerDocuments.splice(index, 1);
-    }
+      }
+    });
   }
 
   onFileSelected(event: any, index: number) {
@@ -1000,14 +1068,29 @@ export class CustomerComponent implements OnInit {
     
     this.selectedDocument = doc;
     this.isDocumentViewerVisible = true;
+    this.pdfLoaded = false;
+    this.pdfError = false;
     
+    // Always load fresh from server - no caching for blob URLs
     this.entityDocumentService.view(doc.id).subscribe({
       next: (blob: any) => {
         console.log('View successful, blob size:', blob.size);
         console.log('Blob type:', blob.type);
         
         this.documentViewerUrl = window.URL.createObjectURL(blob);
+        this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
+        
         console.log('Document viewer URL created:', this.documentViewerUrl);
+        
+        // Immediate load for PDFs
+        if (doc.mime_type === 'application/pdf') {
+          this.pdfLoaded = true;
+        } else {
+          // Short delay for other file types
+          setTimeout(() => {
+            this.pdfLoaded = true;
+          }, 300);
+        }
       },
       error: (error: any) => {
         console.error('Error viewing document:', error);
@@ -1030,7 +1113,52 @@ export class CustomerComponent implements OnInit {
       window.URL.revokeObjectURL(this.documentViewerUrl);
       this.documentViewerUrl = '';
     }
+    this.safeDocumentViewerUrl = null;
+    this.pdfLoaded = false;
+    this.pdfError = false;
   }
+
+  getOfficeViewerUrl(): string {
+    if (!this.documentViewerUrl || !this.selectedDocument) return '';
+    
+    // Check if it's a blob URL
+    if (this.documentViewerUrl.startsWith('blob:')) {
+      // For blob URLs, we can't use online viewers directly
+      // We'll return empty to show the fallback
+      return '';
+    }
+    
+    // For regular URLs, try Microsoft Office Online Viewer
+    const encodedUrl = encodeURIComponent(this.documentViewerUrl);
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+  }
+
+  getSafeOfficeViewerUrl(): SafeResourceUrl | null {
+    const url = this.getOfficeViewerUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  }
+
+  openDocumentInNewTab() {
+    if (this.selectedDocument?.id) {
+      // Use the server URL instead of blob URL for better compatibility
+      const serverUrl = `${window.location.origin}/api/entity-documents/${this.selectedDocument.id}/view`;
+      window.open(serverUrl, '_blank');
+    }
+  }
+
+  onPdfLoad() {
+    console.log('PDF loaded successfully');
+    this.pdfLoaded = true;
+    this.pdfError = false;
+  }
+
+  onPdfError() {
+    console.log('PDF failed to load');
+    this.pdfError = true;
+    this.pdfLoaded = false;
+  }
+
+
 
   loadCustomerDocuments(customerNo: string) {
     this.entityDocumentService.getByEntityCode('customer', customerNo).subscribe({

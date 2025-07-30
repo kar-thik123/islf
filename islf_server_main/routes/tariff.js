@@ -19,6 +19,25 @@ router.post('/', async (req, res) => {
     code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
     from, to, partyType, partyName, charges, freightChargeType, effectiveDate, periodStartDate, periodEndDate
   } = req.body;
+  
+  // Convert empty strings to null for optional fields
+  const cleanShippingType = shippingType === '' ? null : shippingType;
+  const cleanCargoType = cargoType === '' ? null : cargoType;
+  const cleanTariffType = tariffType === '' ? null : tariffType;
+  const cleanBasis = basis === '' ? null : basis;
+  const cleanContainerType = containerType === '' ? null : containerType;
+  const cleanItemName = itemName === '' ? null : itemName;
+  const cleanCurrency = currency === '' ? null : currency;
+  const cleanFrom = from === '' ? null : from;
+  const cleanTo = to === '' ? null : to;
+  const cleanPartyType = partyType === '' ? null : partyType;
+  const cleanPartyName = partyName === '' ? null : partyName;
+  const cleanCharges = charges === '' || charges === null ? null : parseFloat(charges);
+  const cleanFreightChargeType = freightChargeType === '' ? null : freightChargeType;
+  const cleanEffectiveDate = effectiveDate === '' ? null : effectiveDate;
+  const cleanPeriodStartDate = periodStartDate === '' ? null : periodStartDate;
+  const cleanPeriodEndDate = periodEndDate === '' ? null : periodEndDate;
+  
   try {
     const result = await pool.query(
       `INSERT INTO tariff (
@@ -28,8 +47,8 @@ router.post('/', async (req, res) => {
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
       ) RETURNING *`,
       [
-        code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
-        from, to, partyType, partyName, charges, freightChargeType, effectiveDate, periodStartDate, periodEndDate
+        code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
+        cleanFrom, cleanTo, cleanPartyType, cleanPartyName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate
       ]
     );
     res.status(201).json(result.rows[0]);
@@ -49,6 +68,25 @@ router.put('/:id', async (req, res) => {
     code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
     from, to, partyType, partyName, charges, freightChargeType, effectiveDate, periodStartDate, periodEndDate
   } = req.body;
+  
+  // Convert empty strings to null for optional fields
+  const cleanShippingType = shippingType === '' ? null : shippingType;
+  const cleanCargoType = cargoType === '' ? null : cargoType;
+  const cleanTariffType = tariffType === '' ? null : tariffType;
+  const cleanBasis = basis === '' ? null : basis;
+  const cleanContainerType = containerType === '' ? null : containerType;
+  const cleanItemName = itemName === '' ? null : itemName;
+  const cleanCurrency = currency === '' ? null : currency;
+  const cleanFrom = from === '' ? null : from;
+  const cleanTo = to === '' ? null : to;
+  const cleanPartyType = partyType === '' ? null : partyType;
+  const cleanPartyName = partyName === '' ? null : partyName;
+  const cleanCharges = charges === '' || charges === null ? null : parseFloat(charges);
+  const cleanFreightChargeType = freightChargeType === '' ? null : freightChargeType;
+  const cleanEffectiveDate = effectiveDate === '' ? null : effectiveDate;
+  const cleanPeriodStartDate = periodStartDate === '' ? null : periodStartDate;
+  const cleanPeriodEndDate = periodEndDate === '' ? null : periodEndDate;
+  
   try {
     const result = await pool.query(
       `UPDATE tariff SET
@@ -56,8 +94,8 @@ router.put('/:id', async (req, res) => {
         from_location = $10, to_location = $11, party_type = $12, party_name = $13, charges = $14, freight_charge_type = $15, effective_date = $16, period_start_date = $17, period_end_date = $18
       WHERE id = $19 RETURNING *`,
       [
-        code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
-        from, to, partyType, partyName, charges, freightChargeType, effectiveDate, periodStartDate, periodEndDate, id
+        code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
+        cleanFrom, cleanTo, cleanPartyType, cleanPartyName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, id
       ]
     );
     if (result.rows.length === 0) {

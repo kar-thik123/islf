@@ -119,12 +119,12 @@ import { MasterUOMComponent } from './masteruom';
           
           <div class="grid-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
             <div class="grid-item">
-              <label>Code</label>
+              <label>Code <span class="text-red-500">*</span></label>
               <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')"/>
               <small *ngIf="fieldErrors['code']" class="p-error">{{ fieldErrors['code'] }}</small>
             </div>
                           <div class="grid-item">
-                <label>Mode</label>
+                <label>Mode <span class="text-red-500">*</span></label>
                 <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode"></p-dropdown>
                 <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
               </div>
@@ -446,68 +446,20 @@ export class TariffComponent implements OnInit {
           return 'Mode is required';
         }
         break;
+      // All other fields are now optional - no validation required
       case 'shippingType':
-        if (!value) {
-          return 'Shipping Type is required';
-        }
-        break;
       case 'cargoType':
-        if (!value) {
-          return 'Cargo Type is required';
-        }
-        break;
       case 'tariffType':
-        if (!value) {
-          return 'Tariff Type is required';
-        }
-        break;
       case 'basis':
-        if (!value) {
-          return 'Basis is required';
-        }
-        break;
       case 'containerType':
-        if (!value) {
-          return 'Container Type is required';
-        }
-        break;
       case 'itemName':
-        if (!value) {
-          return 'Item Name is required';
-        }
-        break;
       case 'currency':
-        if (!value) {
-          return 'Currency is required';
-        }
-        break;
       case 'from':
-        if (!value) {
-          return 'From location is required';
-        }
-        break;
       case 'to':
-        if (!value) {
-          return 'To location is required';
-        }
-        break;
       case 'partyType':
-        if (!value) {
-          return 'Party Type is required';
-        }
-        break;
       case 'partyName':
-        if (this.selectedTariff?.partyType === 'Customer' && !value) {
-          return 'Customer Name is required';
-        }
-        if (this.selectedTariff?.partyType === 'Vendor' && !value) {
-          return 'Carrier is required';
-        }
-        break;
       case 'charges':
-        if (!value || value <= 0) {
-          return 'Charges must be greater than 0';
-        }
+        // These fields are optional - no validation needed
         break;
     }
     return '';
@@ -524,17 +476,8 @@ export class TariffComponent implements OnInit {
   }
 
   updateFormValidity() {
-    const requiredFields = [
-      'code', 'mode', 'shippingType', 'cargoType', 'tariffType', 
-      'basis', 'containerType', 'itemName', 'currency', 'from', 
-      'to', 'partyType', 'charges'
-    ];
-    
-    if (this.selectedTariff?.partyType === 'Customer') {
-      requiredFields.push('partyName');
-    } else if (this.selectedTariff?.partyType === 'Vendor') {
-      requiredFields.push('partyName');
-    }
+    // Only code and mode are required fields
+    const requiredFields = ['code', 'mode'];
 
     this.isFormValid = requiredFields.every(field => 
       !this.fieldErrors[field] && 

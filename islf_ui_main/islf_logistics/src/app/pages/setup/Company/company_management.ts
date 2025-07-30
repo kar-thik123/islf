@@ -138,7 +138,16 @@ import { Router } from '@angular/router';
                   {{ field.label }}
                   <span *ngIf="field.required" class="text-red-600">*</span>
                 </label>
-                <input [type]="field.type" pInputText class="w-full" [(ngModel)]="selectedCompany[field.key]" [name]="field.key" />
+                <input 
+                  [type]="field.type" 
+                  pInputText 
+                  class="w-full" 
+                  [class.border-red-500]="getFieldError(field.key)"
+                  [(ngModel)]="selectedCompany[field.key]" 
+                  [name]="field.key"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (blur)="onFieldBlur(field.key)" />
+                <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
           
@@ -193,7 +202,16 @@ import { Router } from '@angular/router';
                   {{ field.label }}
                   <span *ngIf="field.required" class="text-red-600">*</span>
                 </label>
-                <input [type]="field.type" pInputText class="w-full" [(ngModel)]="selectedBranch[field.key]" [name]="field.key" />
+                <input 
+                  [type]="field.type" 
+                  pInputText 
+                  class="w-full" 
+                  [class.border-red-500]="getFieldError(field.key)"
+                  [(ngModel)]="selectedBranch[field.key]" 
+                  [name]="field.key"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (blur)="onFieldBlur(field.key)" />
+                <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
           </form>
@@ -213,7 +231,16 @@ import { Router } from '@angular/router';
                   {{ field.label }}
                   <span *ngIf="field.required" class="text-red-600">*</span>
                 </label>
-                <input [type]="field.type" pInputText class="w-full" [(ngModel)]="selectedDepartment[field.key]" [name]="field.key" />
+                <input 
+                  [type]="field.type" 
+                  pInputText 
+                  class="w-full" 
+                  [class.border-red-500]="getFieldError(field.key)"
+                  [(ngModel)]="selectedDepartment[field.key]" 
+                  [name]="field.key"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (blur)="onFieldBlur(field.key)" />
+                <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
           </form>
@@ -295,6 +322,10 @@ export class CompanyManagementComponent implements OnInit {
   companyFormError = '';
   branchFormError = '';
   departmentFormError = '';
+  
+  // Field-level error tracking
+  fieldErrors: { [key: string]: string } = {};
+  touchedFields: { [key: string]: boolean } = {};
 
   constructor(
     private companyService: CompanyService,
@@ -370,6 +401,7 @@ export class CompanyManagementComponent implements OnInit {
   openCompanyDialog(data: Company | null = null) {
     this.errorMessage = '';
     this.companyFormError = '';
+    this.clearFieldErrors();
     if (data) {
       // Save selected company to localStorage for sidebar logo
       localStorage.setItem('selectedCompany', JSON.stringify(data));
@@ -391,6 +423,7 @@ export class CompanyManagementComponent implements OnInit {
     this.displayCompanyDialog = false;
     this.selectedCompany = {} as Company;
     this.companyFormError = '';
+    this.clearFieldErrors();
   }
 
   saveCompany() {
@@ -444,12 +477,14 @@ export class CompanyManagementComponent implements OnInit {
     this.selectedBranch = branch ? { ...branch } : { company_code: this.companies[0]?.code || '' } as Branch;
     this.displayBranchDialog = true;
     this.branchFormError = '';
+    this.clearFieldErrors();
   }
 
   closeBranchDialog() {
     this.displayBranchDialog = false;
     this.selectedBranch = {} as Branch;
     this.branchFormError = '';
+    this.clearFieldErrors();
   }
 
   saveBranch() {
@@ -502,12 +537,14 @@ export class CompanyManagementComponent implements OnInit {
       : { company_code: branch.company_code, branch_code: branch.code } as Department;
     this.displayDepartmentDialog = true;
     this.departmentFormError = '';
+    this.clearFieldErrors();
   }
 
   closeDepartmentDialog() {
     this.displayDepartmentDialog = false;
     this.selectedDepartment = {} as Department;
     this.departmentFormError = '';
+    this.clearFieldErrors();
   }
 
   saveDepartment() {
@@ -557,6 +594,7 @@ export class CompanyManagementComponent implements OnInit {
   openBranchDialogForCompany(company: Company) {
     this.selectedBranch = { company_code: company.code } as Branch;
     this.displayBranchDialog = true;
+    this.clearFieldErrors();
   }
 
   onLogoSelected(event: any) {
@@ -584,5 +622,76 @@ export class CompanyManagementComponent implements OnInit {
         console.error('Error deleting company:', err);
       }
     });
+  }
+
+  // Field-level validation methods
+  validateField(field: string, value: any): string {
+    switch (field) {
+      case 'code':
+        if (!value || value.trim() === '') return 'Code is required';
+        break;
+      case 'name':
+        if (!value || value.trim() === '') return 'Name is required';
+        break;
+      case 'gst':
+        if (!value || value.trim() === '') return 'GST No. is required';
+        break;
+      case 'email':
+        if (value && value.trim() !== '') {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) return 'Please enter a valid email address';
+        }
+        break;
+      case 'website':
+        if (value && value.trim() !== '') {
+          const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+          if (!urlRegex.test(value)) return 'Please enter a valid website URL';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(field: string, value: any) {
+    // Mark field as touched when user starts typing
+    this.touchedFields[field] = true;
+    
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[field] = error;
+    } else {
+      delete this.fieldErrors[field];
+    }
+  }
+
+  onFieldBlur(field: string) {
+    // Mark field as touched when user leaves it (blur event)
+    this.touchedFields[field] = true;
+    
+    let value: any;
+    if (this.displayCompanyDialog && this.selectedCompany) {
+      value = this.selectedCompany[field as keyof Company];
+    } else if (this.displayBranchDialog && this.selectedBranch) {
+      value = this.selectedBranch[field as keyof Branch];
+    } else if (this.displayDepartmentDialog && this.selectedDepartment) {
+      value = this.selectedDepartment[field as keyof Department];
+    }
+    
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[field] = error;
+    } else {
+      delete this.fieldErrors[field];
+    }
+  }
+
+  getFieldError(field: string): string {
+    // Only show error if field has been touched by user
+    return this.touchedFields[field] ? (this.fieldErrors[field] || '') : '';
+  }
+
+  clearFieldErrors() {
+    this.fieldErrors = {};
+    this.touchedFields = {};
   }
 }

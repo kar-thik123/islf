@@ -5,12 +5,14 @@ import { TableModule } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
+import { TabsModule } from 'primeng/tabs';
 import { MessageService } from 'primeng/api';
-
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { Country, State, City } from 'country-state-city/lib';
 
 @Component({
   selector: 'master-location',
@@ -23,26 +25,36 @@ import { MasterTypeService } from '../../services/mastertype.service';
     InputTextModule,
     ButtonModule,
     DropdownModule,
+    SelectModule,
     ToastModule,
-    DialogModule
+    DialogModule,
+    TabsModule
   ],
   template: `
     <p-toast></p-toast>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Location</div>
 
-      <p-table
-        #dt
-        [value]="locations"
-        dataKey="code"
-        [paginator]="true"
-        [rows]="10"
-        [rowsPerPageOptions]="[5, 10, 20, 50]"
-        [showGridlines]="true"
-        [rowHover]="true"
-        [globalFilterFields]="['type', 'code', 'name', 'country', 'state', 'city', 'gst_state_code', 'pin_code']"
-        responsiveLayout="scroll"
-      >
+                      <p-tabs [(value)]="activeTabIndex" (onChange)="onTabChange($event)">
+          <p-tablist>
+            <p-tab *ngFor="let locationType of locationTypes; let i = index" [value]="i">
+              {{ locationType.label }}
+            </p-tab>
+          </p-tablist>
+          <p-tabpanels>
+            <p-tabpanel *ngFor="let locationType of locationTypes; let i = index" [value]="i">
+            <p-table
+              #dt
+              [value]="getLocationsByType(locationType.value)"
+              dataKey="code"
+              [paginator]="true"
+              [rows]="10"
+              [rowsPerPageOptions]="[5, 10, 20, 50]"
+              [showGridlines]="true"
+              [rowHover]="true"
+              [globalFilterFields]="['code', 'name', 'country', 'state', 'city', 'gst_state_code', 'pin_code']"
+              responsiveLayout="scroll"
+            >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <button pButton type="button" label="Add Location" icon="pi pi-plus" (click)="addRow()"></button>
@@ -55,12 +67,6 @@ import { MasterTypeService } from '../../services/mastertype.service';
 
         <ng-template pTemplate="header">
           <tr>
-            <th>
-              <div class="flex justify-between items-center">
-                Type
-                <p-columnFilter type="text" field="type" display="menu" placeholder="Search by type"></p-columnFilter>
-              </div>
-            </th>
             <th>
               <div class="flex justify-between items-center">
                 Code
@@ -127,7 +133,6 @@ import { MasterTypeService } from '../../services/mastertype.service';
 
         <ng-template pTemplate="body" let-loc>
           <tr>
-            <td>{{ loc.type }}</td>
             <td>{{ loc.code }}</td>
             <td>{{ loc.name }}</td>
             <td>{{ loc.country }}</td>
@@ -153,6 +158,9 @@ import { MasterTypeService } from '../../services/mastertype.service';
           </tr>
         </ng-template>
       </p-table>
+            </p-tabpanel>
+          </p-tabpanels>
+        </p-tabs>
     </div>
 
     <p-dialog
@@ -170,16 +178,17 @@ import { MasterTypeService } from '../../services/mastertype.service';
           <div class="grid-container">
             <div class="grid-item">
               <label for="type">Type</label>
-              <p-dropdown
-                id="type"
-                [options]="locationTypeOptions"
-                [(ngModel)]="selectedLocation.type"
-                optionLabel="value"
-                optionValue="value"
-                placeholder="Select Type"
-                [filter]="true"
-                [disabled]="!selectedLocation.isNew"
-              ></p-dropdown>
+              <input 
+                id="type" 
+                pInputText 
+                [(ngModel)]="selectedLocation.type" 
+                [readonly]="selectedLocation.isNew"
+                [style]="{'background-color': selectedLocation.isNew ? '#f3f4f6' : 'white', 'cursor': selectedLocation.isNew ? 'not-allowed' : 'text'}"
+                placeholder="Type will be set automatically"
+              />
+              <small *ngIf="selectedLocation.isNew" class="text-gray-500 text-xs mt-1">
+                Type is automatically set based on the selected tab
+              </small>
             </div>
             <div class="grid-item">
               <label for="code">Code</label>
@@ -191,15 +200,50 @@ import { MasterTypeService } from '../../services/mastertype.service';
             </div>
             <div class="grid-item">
               <label for="country">Country</label>
-              <input id="country" pInputText [(ngModel)]="selectedLocation.country" />
+              <p-select
+                id="country"
+                [options]="countryOptions"
+                [(ngModel)]="selectedLocation.country"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select or type Country"
+                [filter]="true"
+                [editable]="true"
+                [showClear]="true"
+                (onChange)="onCountryChange()"
+                (onInput)="onCountryInput($event)"
+              ></p-select>
             </div>
             <div class="grid-item">
               <label for="state">State</label>
-              <input id="state" pInputText [(ngModel)]="selectedLocation.state" />
+              <p-select
+                id="state"
+                [options]="stateOptions"
+                [(ngModel)]="selectedLocation.state"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select or type State"
+                [filter]="true"
+                [editable]="true"
+                [showClear]="true"
+                (onChange)="onStateChange()"
+                (onInput)="onStateInput($event)"
+              ></p-select>
             </div>
             <div class="grid-item">
               <label for="city">City</label>
-              <input id="city" pInputText [(ngModel)]="selectedLocation.city" />
+              <p-select
+                id="city"
+                [options]="cityOptions"
+                [(ngModel)]="selectedLocation.city"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select or type City"
+                [filter]="true"
+                [editable]="true"
+                [showClear]="true"
+                (onInput)="onCityInput($event)"
+              ></p-select>
             </div>
             <div class="grid-item">
               <label for="gst_state_code">GST State Code</label>
@@ -207,13 +251,13 @@ import { MasterTypeService } from '../../services/mastertype.service';
             </div>
              <div class="grid-item">
               <label for="active">Status</label>
-              <p-dropdown
+              <p-select
                 id="active"
                 [options]="activeOptions"
                 [(ngModel)]="selectedLocation.active"
                 optionLabel="label"
                 optionValue="value"
-              ></p-dropdown>
+              ></p-select>
             </div>
             <div class="grid-item">
               <label for="pin_code">Pin Code</label>
@@ -253,10 +297,18 @@ import { MasterTypeService } from '../../services/mastertype.service';
 export class MasterLocationComponent implements OnInit {
   locations: MasterLocation[] = [];
   locationTypeOptions: any[] = [];
+  locationTypes: { label: string; value: string }[] = [];
+  activeTabIndex = 0;
+  activeTabValue = '';
   activeOptions = [
     { label: 'Active', value: true },
     { label: 'Inactive', value: false }
   ];
+
+  // Country, State, City options
+  countryOptions: { label: string; value: string }[] = [];
+  stateOptions: { label: string; value: string }[] = [];
+  cityOptions: { label: string; value: string }[] = [];
 
   isDialogVisible = false;
   selectedLocation: (MasterLocation & { isNew?: boolean }) | null = null;
@@ -269,8 +321,11 @@ export class MasterLocationComponent implements OnInit {
 
   ngOnInit() {
     this.refreshList();
+    this.loadCountryData();
     this.masterTypeService.getAll().subscribe((types: any[]) => {
       this.locationTypeOptions = types.filter(t => t.key === 'Location' && t.status === 'Active');
+      console.log('Location type options from master type:', this.locationTypeOptions);
+      this.updateLocationTypes();
     });
   }
 
@@ -281,12 +336,22 @@ export class MasterLocationComponent implements OnInit {
   refreshList() {
     this.masterLocationService.getAll().subscribe(data => {
       this.locations = data;
+      this.updateLocationTypes();
     });
   }
 
   addRow() {
+    // Set default type based on active tab index
+    const defaultType = this.locationTypes.length > 0 ? this.locationTypes[this.activeTabIndex]?.value : '';
+    
+    console.log('Adding new location:');
+    console.log('Active tab index:', this.activeTabIndex);
+    console.log('Active tab value:', this.activeTabValue);
+    console.log('Location types:', this.locationTypes);
+    console.log('Default type:', defaultType);
+    
     this.selectedLocation = {
-      type: '',
+      type: defaultType,
       code: '',
       name: '',
       country: '',
@@ -298,11 +363,22 @@ export class MasterLocationComponent implements OnInit {
       isNew: true,
     };
     this.isDialogVisible = true;
+    
+    // Load country data for the new location
+    this.loadCountryData();
   }
 
   editRow(loc: MasterLocation) {
     this.selectedLocation = { ...loc, isNew: false };
     this.isDialogVisible = true;
+    
+    // Load state and city options for existing location
+    if (loc.country) {
+      this.onCountryChange();
+      if (loc.state) {
+        this.onStateChange();
+      }
+    }
   }
 
   saveRow() {
@@ -310,23 +386,74 @@ export class MasterLocationComponent implements OnInit {
       return;
     }
 
+    // Add custom options if they don't exist in the dropdowns
+    if (this.selectedLocation.country) {
+      this.addCustomOption('country', this.selectedLocation.country);
+    }
+    if (this.selectedLocation.state) {
+      this.addCustomOption('state', this.selectedLocation.state);
+    }
+    if (this.selectedLocation.city) {
+      this.addCustomOption('city', this.selectedLocation.city);
+    }
+
     if (this.selectedLocation.isNew) {
       this.masterLocationService.create(this.selectedLocation).subscribe({
         next: () => {
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location created' });
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location created successfully' });
           this.refreshList();
           this.hideDialog();
         },
-        error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to create location' })
+        error: (error) => {
+          console.error('Error creating location:', error);
+          let errorMessage = 'Failed to create location';
+          
+          if (error?.error?.detail) {
+            // Use the specific error detail from backend
+            errorMessage = error.error.detail;
+          } else if (error?.error?.error) {
+            // Handle different error types
+            if (error.error.error === 'Duplicate code') {
+              errorMessage = error.error.detail || `Location code "${this.selectedLocation?.code || 'unknown'}" already exists. Please use a different code.`;
+            } else {
+              errorMessage = error.error.error;
+            }
+          } else if (error?.message) {
+            errorMessage = error.message;
+          }
+          
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: errorMessage 
+          });
+        }
       });
     } else {
       this.masterLocationService.update(this.selectedLocation.code, this.selectedLocation).subscribe({
         next: () => {
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location updated' });
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location updated successfully' });
           this.refreshList();
           this.hideDialog();
         },
-        error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update location' })
+        error: (error) => {
+          console.error('Error updating location:', error);
+          let errorMessage = 'Failed to update location';
+          
+          if (error?.error?.detail) {
+            errorMessage = error.error.detail;
+          } else if (error?.error?.error) {
+            errorMessage = error.error.error;
+          } else if (error?.message) {
+            errorMessage = error.message;
+          }
+          
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: errorMessage 
+          });
+        }
       });
     }
   }
@@ -338,5 +465,166 @@ export class MasterLocationComponent implements OnInit {
 
   clear(table: any) {
     table.clear();
+  }
+
+  updateLocationTypes() {
+    // Create location types array for tabs from master type options
+    this.locationTypes = this.locationTypeOptions.map(type => ({
+      label: type.value.toUpperCase(),
+      value: type.value
+    }));
+
+    console.log('Location types for tabs:', this.locationTypes);
+    console.log('Active tab index before update:', this.activeTabIndex);
+    console.log('Active tab value before update:', this.activeTabValue);
+
+    // Set default active tab to first type if available
+    if (this.locationTypes.length > 0) {
+      this.activeTabValue = this.locationTypes[this.activeTabIndex].value;
+      console.log('Set activeTabValue to:', this.activeTabValue);
+    }
+  }
+
+  getLocationsByType(type: string): MasterLocation[] {
+    return this.locations.filter(loc => loc.type === type);
+  }
+
+  onTabChange(event: any) {
+    console.log('Tab changed to index:', event.value);
+    this.activeTabIndex = event.value;
+    if (this.locationTypes.length > event.value) {
+      this.activeTabValue = this.locationTypes[event.value].value;
+      console.log('Updated activeTabValue from index:', this.activeTabValue);
+    }
+  }
+
+  // Country, State, City methods
+  loadCountryData() {
+    this.countryOptions = Country.getAllCountries().map(country => ({
+      label: country.name,
+      value: country.name
+    }));
+  }
+
+
+
+  // Method to add custom options if missing
+  addCustomOption(type: 'country' | 'state' | 'city', value: string) {
+    if (!value || value.trim() === '') return;
+    
+    const customOption = { label: value.trim(), value: value.trim() };
+    
+    switch (type) {
+      case 'country':
+        if (!this.countryOptions.find(opt => opt.value.toLowerCase() === value.toLowerCase())) {
+          this.countryOptions.push(customOption);
+          // Sort options alphabetically
+          this.countryOptions.sort((a, b) => a.label.localeCompare(b.label));
+        }
+        break;
+      case 'state':
+        if (!this.stateOptions.find(opt => opt.value.toLowerCase() === value.toLowerCase())) {
+          this.stateOptions.push(customOption);
+          // Sort options alphabetically
+          this.stateOptions.sort((a, b) => a.label.localeCompare(b.label));
+        }
+        break;
+      case 'city':
+        if (!this.cityOptions.find(opt => opt.value.toLowerCase() === value.toLowerCase())) {
+          this.cityOptions.push(customOption);
+          // Sort options alphabetically
+          this.cityOptions.sort((a, b) => a.label.localeCompare(b.label));
+        }
+        break;
+    }
+  }
+
+  // Input handling methods for manual entries
+  onCountryInput(event: any) {
+    const value = event.target.value;
+    if (value && value.trim() !== '') {
+      // Add custom option if it doesn't exist
+      this.addCustomOption('country', value);
+    }
+  }
+
+  onStateInput(event: any) {
+    const value = event.target.value;
+    if (value && value.trim() !== '') {
+      // Add custom option if it doesn't exist
+      this.addCustomOption('state', value);
+    }
+  }
+
+  onCityInput(event: any) {
+    const value = event.target.value;
+    if (value && value.trim() !== '') {
+      // Add custom option if it doesn't exist
+      this.addCustomOption('city', value);
+    }
+  }
+
+  // Enhanced country change to handle manual entries
+  onCountryChange() {
+    if (!this.selectedLocation?.country) {
+      this.stateOptions = [];
+      this.cityOptions = [];
+      if (this.selectedLocation) {
+        this.selectedLocation.state = '';
+        this.selectedLocation.city = '';
+      }
+      return;
+    }
+
+    // Check if it's a manual entry or from dropdown
+    const country = Country.getAllCountries().find(c => c.name === this.selectedLocation!.country);
+    if (country) {
+      // It's a valid country from the database
+      this.stateOptions = State.getStatesOfCountry(country.isoCode).map(state => ({
+        label: state.name,
+        value: state.name
+      }));
+    } else {
+      // It's a manual entry, keep existing state options or clear them
+      // Don't clear state options for manual country entries
+    }
+    
+    // Clear city options when country changes
+    this.cityOptions = [];
+    this.selectedLocation!.city = '';
+  }
+
+  // Enhanced state change to handle manual entries
+  onStateChange() {
+    if (!this.selectedLocation?.country || !this.selectedLocation?.state) {
+      this.cityOptions = [];
+      if (this.selectedLocation) {
+        this.selectedLocation.city = '';
+      }
+      return;
+    }
+
+    // Check if both country and state are from the database
+    const country = Country.getAllCountries().find(c => c.name === this.selectedLocation!.country);
+    if (country) {
+      const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === this.selectedLocation!.state);
+      
+      if (state) {
+        // Both country and state are valid, load cities
+        this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(city => ({
+          label: city.name,
+          value: city.name
+        }));
+      } else {
+        // State is manual entry, keep existing city options or clear them
+        // Don't clear city options for manual state entries
+      }
+    } else {
+      // Country is manual entry, keep existing city options or clear them
+      // Don't clear city options for manual country entries
+    }
+    
+    // Clear city selection when state changes
+    this.selectedLocation!.city = '';
   }
 }

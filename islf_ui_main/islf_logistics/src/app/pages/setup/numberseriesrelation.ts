@@ -7,8 +7,9 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
 import { CalendarModule } from 'primeng/calendar';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/number-series-relation.service';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -31,11 +32,13 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     DialogModule,
     IconFieldModule,
     InputIconModule,
-    InputSwitchModule
+    InputSwitchModule,
+    ConfirmDialogModule
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
     <div class="font-semibold text-xl mb-4">Number Series Relationship </div>
       <!-- ✅ Add Relation button and Clear button -->
@@ -328,6 +331,7 @@ export class NumberSeriesRelationComponent implements OnInit {
 
   constructor(
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private location: Location,
     private numberSeriesRelationService: NumberSeriesRelationService
   ) {}
@@ -438,10 +442,17 @@ export class NumberSeriesRelationComponent implements OnInit {
         return;
       }
       
-      this.numberSeriesRelationService.delete(row.id).subscribe({
-        next: () => {
-          this.refreshList();
-          this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Row deleted' });
+      this.confirmationService.confirm({
+        message: 'Are you sure you want to delete this number series relation?',
+        header: 'Confirm Deletion',
+        icon: 'pi pi-exclamation-triangle',
+        accept: () => {
+          this.numberSeriesRelationService.delete(row.id).subscribe({
+            next: () => {
+              this.refreshList();
+              this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Row deleted' });
+            }
+          });
         }
       });
     }

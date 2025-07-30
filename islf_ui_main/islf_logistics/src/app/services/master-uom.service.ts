@@ -8,9 +8,9 @@ export interface MasterUOM {
   uom_type: string;
   code: string;
   description: string;
-  start_day: string;
-  end_day: string;
-  working_days: string;
+  // start_day: string;
+  // end_day: string;
+  // working_days: string;
   active: boolean;
 }
 
