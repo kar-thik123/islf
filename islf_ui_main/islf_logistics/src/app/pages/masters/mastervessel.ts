@@ -7,11 +7,13 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
+import { CalendarModule } from 'primeng/calendar';
 import { MessageService } from 'primeng/api';
 
 import { MasterVesselService, MasterVessel } from '../../services/master-vessel.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
+import { MasterLocationService } from '@/services/master-location.service';
 
 interface FlagOption {
   label: string;
@@ -30,7 +32,8 @@ interface FlagOption {
     ButtonModule,
     DropdownModule,
     ToastModule,
-    DialogModule
+    DialogModule,
+    CalendarModule
   ],
   template: `
     <p-toast></p-toast>
@@ -45,7 +48,7 @@ interface FlagOption {
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code', 'vessel_name', 'flag', 'year_build']"
+        [globalFilterFields]="['code', 'vessel_name', 'imo_number', 'flag', 'year_build']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -69,6 +72,12 @@ interface FlagOption {
               <div class="flex justify-between items-center">
                 Vessel Name
                 <p-columnFilter type="text" field="vessel_name" display="menu" placeholder="Search by name"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                IMO Number
+                <p-columnFilter type="text" field="imo_number" display="menu" placeholder="Search by IMO"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -108,6 +117,7 @@ interface FlagOption {
           <tr>
             <td>{{ vessel.code }}</td>
             <td>{{ vessel.vessel_name }}</td>
+            <td>{{ vessel.imo_number }}</td>
             <td>{{ vessel.flag }}</td>
             <td>{{ vessel.year_build }}</td>
             <td>
@@ -151,6 +161,10 @@ interface FlagOption {
               <input id="vessel_name" pInputText [(ngModel)]="selectedVessel.vessel_name" />
             </div>
             <div class="grid-item">
+              <label for="imo_number">IMO Number</label>
+              <input id="imo_number" pInputText [(ngModel)]="selectedVessel.imo_number" placeholder="Enter IMO number" />
+            </div>
+            <div class="grid-item">
               <label for="flag">Flag</label>
               <p-dropdown
                 id="flag"
@@ -166,7 +180,17 @@ interface FlagOption {
            
             <div class="grid-item">
               <label for="year_build">Year Build</label>
-              <input id="year_build" pInputText [(ngModel)]="selectedVessel.year_build" />
+              <p-calendar
+                id="year_build"
+                appendTo = "body"
+                [(ngModel)]="selectedVessel.year_build"
+                view="year"
+                dateFormat="yy"
+                [showIcon]="true"
+                placeholder="Select Year"
+                [yearNavigator]="true"
+                yearRange="1900:2030"
+              ></p-calendar>
             </div>
             <div class="grid-item">
               <label for="active">Status</label>
@@ -209,17 +233,7 @@ interface FlagOption {
 })
 export class MasterVesselComponent implements OnInit {
   vessels: MasterVessel[] = [];
-  flagOptions: FlagOption[] = [
-    { label: 'Panama', value: 'Panama' },
-    { label: 'Liberia', value: 'Liberia' },
-    { label: 'Marshall Islands', value: 'Marshall Islands' },
-    { label: 'Singapore', value: 'Singapore' },
-    { label: 'Malta', value: 'Malta' },
-    { label: 'Bahamas', value: 'Bahamas' },
-    { label: 'Greece', value: 'Greece' },
-    { label: 'Hong Kong', value: 'Hong Kong' },
-    { label: 'India', value: 'India' }
-  ];
+  flagOptions: FlagOption[] = [];
   activeOptions = [
     { label: 'Active', value: true },
     { label: 'Inactive', value: false }
@@ -233,12 +247,27 @@ export class MasterVesselComponent implements OnInit {
     private masterVesselService: MasterVesselService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
+    private masterLocationService: MasterLocationService,
     private messageService: MessageService
   ) {}
 
   ngOnInit() {
     this.refreshList();
     this.loadMappedVesselSeriesCode();
+    this.loadFlagOptions();
+  }
+
+  loadFlagOptions() {
+    this.masterLocationService.getAll().subscribe(locations => {
+      // Extract unique countries from locations
+      const countries = [...new Set(locations.map(loc => loc.country).filter(country => country))];
+      
+      // Convert to flag options format
+      this.flagOptions = countries.map(country => ({
+        label: country,
+        value: country
+      })).sort((a, b) => a.label.localeCompare(b.label));
+    });
   }
 
   loadMappedVesselSeriesCode() {
@@ -269,6 +298,7 @@ export class MasterVesselComponent implements OnInit {
     this.selectedVessel = {
       code: '', // Will be filled after creation or entered if manual
       vessel_name: '',
+      imo_number: '',
       flag: '',
       year_build: '',
       active: true,
@@ -302,6 +332,7 @@ export class MasterVesselComponent implements OnInit {
     }
     const payload: any = {
       vessel_name: this.selectedVessel.vessel_name,
+      imo_number: this.selectedVessel.imo_number,
       flag: this.selectedVessel.flag,
       year_build: this.selectedVessel.year_build,
       active: this.selectedVessel.active,

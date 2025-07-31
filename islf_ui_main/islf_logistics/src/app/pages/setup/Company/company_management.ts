@@ -7,14 +7,19 @@ import { ButtonModule } from 'primeng/button';
 import { CompanyService, Company } from '../../../services/company.service';
 import { BranchService, Branch } from '../../../services/branch.service';
 import { DepartmentService, Department } from '../../../services/department.service';
+import { ConfigService } from '../../../services/config.service';
+import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
 import { TabsModule } from 'primeng/tabs';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-company-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TabsModule],
+  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TabsModule, ConfirmDialogModule, ConfigDatePipe],
+  providers: [ConfirmationService],
   template: `
     <div class="md:w-full">
       <div class="card">
@@ -70,10 +75,10 @@ import { Router } from '@angular/router';
                       <div><strong>Code:</strong> {{ branch.code }}</div>
                       <div><strong>GST:</strong> {{ branch.gst }}</div>
                       <div><strong>Address:</strong> {{ branch.address }}</div>
-                      <div><strong>Incharge From:</strong> {{ branch.incharge_from | date:'dd/MM/yyyy' }}</div>
+                      <div><strong>Incharge From:</strong> {{ branch.incharge_from | configDate }}</div>
                       <div><strong>Status:</strong> {{ branch.status }}</div>
-                      <div><strong>Start:</strong> {{ branch.start_date | date:'dd/MM/yyyy' }}</div>
-                      <div><strong>Close:</strong> {{ branch.close_date ? (branch.close_date | date:'dd/MM/yyyy') : '-' }}</div>
+                      <div><strong>Start:</strong> {{ branch.start_date | configDate }}</div>
+                      <div><strong>Close:</strong> {{ branch.close_date ? (branch.close_date | configDate) : '-' }}</div>
                       <div class="col-span-2"><strong>Remarks:</strong> {{ branch.remarks }}</div>
                       <div class="col-span-2"><strong>Description:</strong> {{ branch.description }}</div>
                     </div>
@@ -113,10 +118,10 @@ import { Router } from '@angular/router';
                         <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                           <div><strong>Code:</strong> {{dept.code }}</div>
-                          <div><strong>Incharge From:</strong> {{ dept.incharge_from | date:'dd/MM/yyyy' }}</div>
+                          <div><strong>Incharge From:</strong> {{ dept.incharge_from | configDate }}</div>
                           <div><strong>Status:</strong> {{ dept.status }}</div>
-                          <div><strong>Start:</strong> {{ dept.start_date | date:'dd/MM/yyyy' }}</div>
-                          <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | date:'dd/MM/yyyy') : '-' }}</div>
+                          <div><strong>Start:</strong> {{ dept.start_date | configDate }}</div>
+                          <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | configDate) : '-' }}</div>
                           <div class="col-span-2"><strong>Remarks:</strong> {{ dept.remarks }}</div>
                         </div>
                       </div>
@@ -252,6 +257,9 @@ import { Router } from '@angular/router';
           </ng-template>
         </p-dialog>
       </div>
+      
+      <!-- Confirmation Dialog -->
+      <p-confirmDialog></p-confirmDialog>
     </div>
   `
 })
@@ -274,6 +282,10 @@ export class CompanyManagementComponent implements OnInit {
   displayCompanyDialog = false;
   displayBranchDialog = false;
   displayDepartmentDialog = false;
+
+  // Track original company data for change detection
+  originalCompanyData: Company | null = null;
+  hasUnsavedChanges = false;
 
   companyFields = [
     { key: 'code', label: 'Company Code', type: 'text', required: true },
@@ -332,7 +344,9 @@ export class CompanyManagementComponent implements OnInit {
     private branchService: BranchService,
     private departmentService: DepartmentService,
     private http: HttpClient,
-    private router: Router
+    private router: Router,
+    private confirmationService: ConfirmationService,
+    private configService: ConfigService
   ) {}
 
   ngOnInit() {
@@ -358,8 +372,95 @@ export class CompanyManagementComponent implements OnInit {
       }
     });
   }
+
+  // Check if form has unsaved changes
+  checkForUnsavedChanges(): boolean {
+    if (!this.originalCompanyData || !this.selectedCompany) {
+      return false;
+    }
+
+    // Compare current form data with original data
+    for (const field of this.companyFields) {
+      const key = field.key as keyof Company;
+      if (this.selectedCompany[key] !== this.originalCompanyData[key]) {
+        return true;
+      }
+    }
+
+    // Check logo changes
+    if (this.selectedCompany['logo'] !== this.originalCompanyData['logo']) {
+      return true;
+    }
+
+    return false;
+  }
+
   navigateToMapping() {
-    this.router.navigate(['/settings/mapping']);
+    this.hasUnsavedChanges = this.checkForUnsavedChanges();
+    
+    if (this.hasUnsavedChanges) {
+      this.confirmationService.confirm({
+        message: 'Unsaved changes detected. Save the form before navigating to Number Series Mapping?',
+        header: 'Unsaved Changes',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Save Changes',
+        accept: () => {
+          // Save the form first, then navigate
+          this.saveCompanyAndNavigate();
+        },
+        rejectVisible: false ,
+      });
+    } else {
+      // No changes, navigate directly
+      this.router.navigate(['/settings/mapping']);
+    }
+  }
+
+  saveCompanyAndNavigate() {
+    if (!this.selectedCompany) {
+      this.router.navigate(['/settings/mapping']);
+      return;
+    }
+
+    this.companyFormError = '';
+    // Validate required fields
+    const missing = this.companyFields.filter(f => f.required && !this.selectedCompany[f.key]);
+    if (missing.length > 0) {
+      this.companyFormError = `Please fill all required fields: ${missing.map(f => f.label).join(', ')}`;
+      return;
+    }
+    if (typeof this.selectedCompany.code === 'string') {
+      this.selectedCompany.code = this.selectedCompany.code.trim();
+      if (this.selectedCompany.code.length >= 10) {
+        this.companyFormError = 'Company Code must be atleast 10 characters long.';
+        return;
+      }
+    }
+
+    // Check if the code exists in the loaded companies
+    const codeExists = this.companies.some(c => c.code === this.selectedCompany.code);
+
+    if (!codeExists) {
+      this.companyService.create(this.selectedCompany).subscribe({
+        next: (created) => {
+          this.loadCompanies();
+          this.router.navigate(['/settings/mapping']);
+        },
+        error: (err) => {
+          console.error('Error creating company:', err);
+        }
+      });
+    } else {
+      this.companyService.update(this.selectedCompany.code, this.selectedCompany).subscribe({
+        next: () => {
+          this.loadCompanies();
+          this.router.navigate(['/settings/mapping']);
+        },
+        error: (err) => {
+          console.error('Error updating company:', err);
+        }
+      });
+    }
   }
 
   loadBranches() {
@@ -416,12 +517,17 @@ export class CompanyManagementComponent implements OnInit {
     }
     
     this.selectedCompany = data ? { ...data } : {} as Company;
+    // Store original data for change detection
+    this.originalCompanyData = data ? { ...data } : null;
+    this.hasUnsavedChanges = false;
     this.displayCompanyDialog = true;
   }
 
   closeCompanyDialog() {
     this.displayCompanyDialog = false;
     this.selectedCompany = {} as Company;
+    this.originalCompanyData = null;
+    this.hasUnsavedChanges = false;
     this.companyFormError = '';
     this.clearFieldErrors();
   }

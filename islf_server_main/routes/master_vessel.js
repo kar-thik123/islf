@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
 
 // CREATE new vessel (with number series logic and manual/default check)
 router.post('/', async (req, res) => {
-  let { seriesCode, code, vessel_name, flag, year_build, active } = req.body;
+  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active } = req.body;
   try {
     if (seriesCode) {
       // 1. Get the number series for the selected code
@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
         if (!code || code.trim() === '') {
           return res.status(400).json({ error: 'Manual code entry required for this series' });
         }
-        // Optionally, check for duplicate code
+        // Check for duplicate code
         const exists = await pool.query('SELECT 1 FROM master_vessel WHERE code = $1', [code]);
         if (exists.rows.length > 0) {
           return res.status(400).json({ error: 'Vessel code already exists' });
@@ -58,12 +58,21 @@ router.post('/', async (req, res) => {
       // Fallback: generate code as VESSEL-<timestamp>
       code = 'VESSEL-' + Date.now();
     }
+    
+    // Check for duplicate IMO number if provided
+    if (imo_number && imo_number.trim() !== '') {
+      const imoExists = await pool.query('SELECT 1 FROM master_vessel WHERE imo_number = $1', [imo_number]);
+      if (imoExists.rows.length > 0) {
+        return res.status(400).json({ error: 'IMO number already exists' });
+      }
+    }
+    
     // 4. Insert the new vessel
     const result = await pool.query(
-      `INSERT INTO master_vessel (code, vessel_name, flag, year_build, active)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [code, vessel_name, flag, year_build, active]
+      [code, vessel_name, imo_number, flag, year_build, active]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -78,14 +87,28 @@ router.put('/:id', async (req, res) => {
   if (isNaN(id)) {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
-  const { code, vessel_name, flag, year_build, active } = req.body;
+  const { code, vessel_name, imo_number, flag, year_build, active } = req.body;
   try {
+    // Check for duplicate code excluding current record
+    const codeExists = await pool.query('SELECT 1 FROM master_vessel WHERE code = $1 AND id != $2', [code, id]);
+    if (codeExists.rows.length > 0) {
+      return res.status(400).json({ error: 'Vessel code already exists' });
+    }
+    
+    // Check for duplicate IMO number excluding current record
+    if (imo_number && imo_number.trim() !== '') {
+      const imoExists = await pool.query('SELECT 1 FROM master_vessel WHERE imo_number = $1 AND id != $2', [imo_number, id]);
+      if (imoExists.rows.length > 0) {
+        return res.status(400).json({ error: 'IMO number already exists' });
+      }
+    }
+    
     const result = await pool.query(
       `UPDATE master_vessel
-       SET code = $1, vessel_name = $2, flag = $3, year_build = $4, active = $5
-       WHERE id = $6
+       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6
+       WHERE id = $7
        RETURNING *`,
-      [code, vessel_name, flag, year_build, active, id]
+      [code, vessel_name, imo_number, flag, year_build, active, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vessel not found' });

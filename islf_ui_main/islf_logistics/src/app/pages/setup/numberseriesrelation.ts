@@ -12,6 +12,8 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/number-series-relation.service';
+import { ConfigService } from '@/services/config.service';
+import { ConfigDatePipe } from '@/pipes/config-date.pipe';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputSwitchModule } from 'primeng/inputswitch';
@@ -33,7 +35,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     IconFieldModule,
     InputIconModule,
     InputSwitchModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    ConfigDatePipe
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -133,11 +136,11 @@ import { InputSwitchModule } from 'primeng/inputswitch';
         <ng-template #body let-rel>
           <tr>
             <td>{{ rel.numberSeries }}</td>
-            <td>{{ rel.startingDate | date: 'yyyy-MM-dd' }}</td>
+            <td>{{ rel.startingDate | configDate }}</td>
             <td>{{ rel.prefix }}</td>
             <td>{{ rel.startingNo }}</td>
             <td>{{ rel.endingNo }}</td>
-            <td>{{ rel.endingDate | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>{{ rel.endingDate | configDate }}</td>
             <td>
               <span *ngIf="rel.endingDate" 
                     [class]="isExpired(rel) ? 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800' : 'px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800'">
@@ -198,6 +201,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             <i class="pi pi-info-circle mr-2"></i>
             <strong>Note:</strong> Only one of "Ending Number" or "Ending Date" should be filled. 
             If you set an ending date, the ending number will be cleared automatically.
+            <br><strong>Validation:</strong> Ending Number must be greater than Starting Number.
           </p>
         </div>
         
@@ -234,6 +238,11 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           <div class="grid-item">
             <label for="endingNo">Ending No</label>
             <input id="endingNo" type="number" pInputText [(ngModel)]="selectedRow.endingNo" (input)="onEndingNoChange()" />
+            <!-- Warning for invalid ending number -->
+            <div *ngIf="selectedRow.endingNo && isEndingNoInvalid()" class="mt-1 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+              <i class="pi pi-exclamation-triangle mr-1"></i>
+              Warning: Ending Number must be greater than Starting Number.
+            </div>
           </div>
           <div class="grid-item">
             <label for="prefix">Prefix</label>
@@ -333,7 +342,8 @@ export class NumberSeriesRelationComponent implements OnInit {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private location: Location,
-    private numberSeriesRelationService: NumberSeriesRelationService
+    private numberSeriesRelationService: NumberSeriesRelationService,
+    private configService: ConfigService
   ) {}
 
   ngOnInit() {
@@ -472,6 +482,16 @@ export class NumberSeriesRelationComponent implements OnInit {
       return;
     }
 
+    // Validate ending number is greater than starting number
+    if (this.selectedRow.endingNo && this.selectedRow.endingNo <= this.selectedRow.startingNo) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Ending Number must be greater than Starting Number.' 
+      });
+      return;
+    }
+
     // Check if ending date is in the past
     if (this.selectedRow.endingDate) {
       const now = new Date();
@@ -535,5 +555,12 @@ export class NumberSeriesRelationComponent implements OnInit {
     const now = new Date();
     const endingDate = new Date(this.selectedRow.endingDate);
     return endingDate <= now;
+  }
+
+  isEndingNoInvalid(): boolean {
+    if (!this.selectedRow || !this.selectedRow.endingNo) {
+      return false;
+    }
+    return this.selectedRow.endingNo <= this.selectedRow.startingNo;
   }
 }

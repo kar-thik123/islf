@@ -215,7 +215,7 @@ import { Country, State, City } from 'country-state-city/lib';
               ></p-select>
             </div>
             <div class="grid-item">
-              <label for="state">State</label>
+              <label for="state">State / Province </label>
               <p-select
                 id="state"
                 [options]="stateOptions"
@@ -231,7 +231,7 @@ import { Country, State, City } from 'country-state-city/lib';
               ></p-select>
             </div>
             <div class="grid-item">
-              <label for="city">City</label>
+              <label for="city">City / Town</label>
               <p-select
                 id="city"
                 [options]="cityOptions"
@@ -260,7 +260,7 @@ import { Country, State, City } from 'country-state-city/lib';
               ></p-select>
             </div>
             <div class="grid-item">
-              <label for="pin_code">Pin Code</label>
+              <label for="pin_code">Postal Code / Zip Code</label>
               <input id="pin_code" pInputText [(ngModel)]="selectedLocation.pin_code" />
             </div>
            

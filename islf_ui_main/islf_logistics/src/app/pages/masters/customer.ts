@@ -188,17 +188,17 @@ function toTitleCase(str: string): string {
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('country')">{{ getFieldError('country') }}</small>
             </div>
             <div class="grid-item">
-              <label for="state">State <span class="text-red-500">*</span></label>
+              <label for="state">State / Province <span class="text-red-500">*</span></label>
               <p-dropdown id="state" [options]="stateOptions" [(ngModel)]="selectedCustomer.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange(); onFieldChange('state', $event.value)" (onBlur)="onFieldBlur('state')" required></p-dropdown>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('state')">{{ getFieldError('state') }}</small>
             </div>
             <div class="grid-item">
-              <label for="city">City <span class="text-red-500">*</span></label>
+              <label for="city">City / Town <span class="text-red-500">*</span></label>
               <p-dropdown id="city" [options]="cityOptions" [(ngModel)]="selectedCustomer.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true" (onChange)="onFieldChange('city', $event.value)" (onBlur)="onFieldBlur('city')" required></p-dropdown>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('city')">{{ getFieldError('city') }}</small>
             </div>
             <div class="grid-item">
-              <label>Postal Code</label>
+              <label>Postal Code / Zip Code</label>
               <input pInputText [(ngModel)]="selectedCustomer.postal_code" />
             </div>
             <div class="grid-item">
@@ -257,7 +257,16 @@ function toTitleCase(str: string): string {
               <tr>
                 <td><input pInputText [(ngModel)]="contact.name" /></td>
                 <td>
-                  <p-dropdown [options]="departmentOptions" [(ngModel)]="contact.department" optionLabel="label" optionValue="value" placeholder="Select Department" [filter]="true"></p-dropdown>
+               <p-dropdown
+                  [options]="departmentOptions"
+                  [(ngModel)]="contact.department"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Department"
+                  [filter]="true"
+                  appendTo="body"
+                ></p-dropdown>
+
                 </td>
                 <td><input pInputText [(ngModel)]="contact.mobile" /></td>
                 <td><input pInputText [(ngModel)]="contact.landline" /></td>
@@ -958,18 +967,30 @@ export class CustomerComponent implements OnInit {
   }
 
   loadDepartmentOptions() {
-    this.departmentService.getAll().subscribe({
-      next: (departments: any[]) => {
-        this.departmentOptions = (departments || [])
-          .filter(d => d.status === 'Active')
-          .map(d => ({ label: d.name, value: d.name }));
-        console.log('Department options loaded:', this.departmentOptions);
+    // Hardcoded department options
+    this.departmentOptions = [
+      {
+        label: 'Sales',
+        value: 'Sales',
       },
-      error: (error) => {
-        console.error('Error loading departments:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load departments' });
+      {
+        label: 'Documentation',
+        value: 'Documentation',
+      },
+      {
+        label: 'Customer Service',
+        value: 'Customer Service',
+      },
+      {
+        label: 'Operation',
+        value: 'Operation',
+      },
+      {
+        label: 'Accounts',
+        value: 'Accounts',
       }
-    });
+    ];
+    console.log('Department options loaded:', this.departmentOptions);
   }
 
   addDocument() {
