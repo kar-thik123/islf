@@ -323,7 +323,7 @@ export class MasterLocationComponent implements OnInit {
     this.refreshList();
     this.loadCountryData();
     this.masterTypeService.getAll().subscribe((types: any[]) => {
-      this.locationTypeOptions = types.filter(t => t.key === 'Location' && t.status === 'Active');
+      this.locationTypeOptions = types.filter(t => t.key === 'LOCATION' && t.status === 'Active');
       console.log('Location type options from master type:', this.locationTypeOptions);
       this.updateLocationTypes();
     });

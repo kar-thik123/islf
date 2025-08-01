@@ -578,7 +578,7 @@ export class CustomerComponent implements OnInit {
     this.masterTypeService.getAll().subscribe({
       next: (types: any[]) => {
         this.customerTypeOptions = (types || [])
-          .filter(t => t.key === 'Customer' && t.status === 'Active')
+          .filter(t => t.key === 'CUSTOMER' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
         console.log('Customer type options loaded:', this.customerTypeOptions);
       },
@@ -955,7 +955,7 @@ export class CustomerComponent implements OnInit {
     this.masterTypeService.getAll().subscribe({
       next: (types: any[]) => {
         this.documentTypeOptions = (types || [])
-          .filter(t => t.key === 'Cus_document' && t.status === 'Active')
+          .filter(t => t.key === 'CUS_DOC_TYPE' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
         console.log('Document type options loaded:', this.documentTypeOptions);
       },

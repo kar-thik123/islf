@@ -233,7 +233,7 @@ export class MasterItemComponent implements OnInit {
   ngOnInit() {
     this.refreshList();
     this.masterTypeService.getAll().subscribe((types: ItemTypeOption[]) => {
-      this.itemTypeOptions = types.filter(t => t.key === 'Item' && t.status === 'Active');
+      this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
     });
   }
 

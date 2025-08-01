@@ -569,7 +569,7 @@ export class VendorComponent implements OnInit {
     this.masterTypeService.getAll().subscribe({
       next: (types: any[]) => {
         this.vendorTypeOptions = (types || [])
-          .filter(t => t.key === 'Vendor' && t.status === 'Active')
+          .filter(t => t.key === 'VENDOR' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
         console.log('Vendor type options loaded:', this.vendorTypeOptions);
       },
@@ -946,7 +946,7 @@ export class VendorComponent implements OnInit {
     this.masterTypeService.getAll().subscribe({
       next: (types: any[]) => {
         this.documentTypeOptions = (types || [])
-          .filter(t => t.key === 'Ven_document' && t.status === 'Active')
+          .filter(t => t.key === 'VEN_DOCUMENT' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
         console.log('Document type options loaded:', this.documentTypeOptions);
       },

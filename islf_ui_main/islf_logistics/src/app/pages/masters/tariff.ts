@@ -525,7 +525,7 @@ export class TariffComponent implements OnInit {
       // @ts-ignore
       tap((types: any[]) => {
       this.shippingTypeOptions = (types || [])
-        .filter(t => t.key === 'ShipType' && t.status === 'Active')
+        .filter(t => t.key === 'SHIP_TYPE' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
       })
     );
@@ -535,7 +535,7 @@ export class TariffComponent implements OnInit {
       // @ts-ignore
       tap((types: any[]) => {
       this.cargoTypeOptions = (types || [])
-        .filter(t => t.key === 'CargoType' && t.status === 'Active')
+        .filter(t => t.key === 'CARGO_TYPE' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
       })
     );
@@ -545,7 +545,7 @@ export class TariffComponent implements OnInit {
       // @ts-ignore
       tap((types: any[]) => {
       this.tariffTypeOptions = (types || [])
-        .filter(t => t.key === 'TariffType' && t.status === 'Active')
+        .filter(t => t.key === 'TARIFF_TYPE' && t.status === 'Active')
         .map(t => ({ label: t.value, value: t.value }));
       })
     );
@@ -567,7 +567,7 @@ export class TariffComponent implements OnInit {
       // @ts-ignore
       tap((uoms: any[]) => {
       this.basisOptions = (uoms || [])
-          .filter(u => u.uom_type === 'Basis' && u.active)
+          .filter(u => u.uom_type === 'BASIS' && u.active)
         .map(u => ({ label: u.code, value: u.code }));
       })
     );
@@ -597,7 +597,7 @@ export class TariffComponent implements OnInit {
       // @ts-ignore
       tap((items: any[]) => {
         this.itemNameOptions = (items || [])
-          .filter(i => i.item_type === 'Charge' && i.active)
+          .filter(i => i.item_type === 'CHARGE' && i.active)
           .map(i => ({ label: `${i.code} - ${i.name}`, value: i.code }));
       })
     );

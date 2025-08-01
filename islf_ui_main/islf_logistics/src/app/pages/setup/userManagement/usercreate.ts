@@ -525,13 +525,13 @@ export class UserCreateComponent implements OnInit {
       console.log('Master Codes:', codes);
       // Designation
       const activeDesignationCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_designation' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'USER_DESIGNATION' && c.status && c.status.trim().toLowerCase() === 'active'
       );
       const activeStatusCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_status' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'USER_STATUS' && c.status && c.status.trim().toLowerCase() === 'active'
       );
       const activeRoleCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_role' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'USER_ROLE' && c.status && c.status.trim().toLowerCase() === 'active'
       );
       this.masterTypeService.getAll().subscribe((types: any[]) => {
         console.log('Master Types:', types);
