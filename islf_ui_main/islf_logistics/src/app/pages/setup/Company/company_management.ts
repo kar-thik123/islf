@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { DropdownModule } from 'primeng/dropdown';
+import { ToastModule } from 'primeng/toast';
 import { CompanyService, Company } from '../../../services/company.service';
 import { BranchService, Branch } from '../../../services/branch.service';
 import { DepartmentService, Department } from '../../../services/department.service';
@@ -11,15 +14,18 @@ import { ConfigService } from '../../../services/config.service';
 import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
 import { TabsModule } from 'primeng/tabs';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { EntityDocumentService, EntityDocument } from '../../../services/entity-document.service';
+import { MasterTypeService } from '../../../services/mastertype.service';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-company-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TabsModule, ConfirmDialogModule, ConfigDatePipe],
-  providers: [ConfirmationService],
+  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TableModule, DropdownModule, ToastModule, TabsModule, ConfirmDialogModule, ConfigDatePipe],
+  providers: [ConfirmationService, MessageService],
   template: `
     <div class="md:w-full">
       <div class="card">
@@ -150,6 +156,7 @@ import { Router } from '@angular/router';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedCompany[field.key]" 
                   [name]="field.key"
+                  [disabled]="field.key === 'code' && !!selectedCompany?.code"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)" />
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
@@ -186,6 +193,15 @@ import { Router } from '@angular/router';
             </div>
           </div>
 
+          <!-- Document Upload Button -->
+          <div class="col-span-2">
+            <hr class="w-full border-t border-gray-300 my-4" />
+            <div class="flex justify-between items-center">
+              <label class="block text-sm font-semibold text-gray-700">Company Documents</label>
+              <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openCompanyDocumentDialog()"></button>
+            </div>
+          </div>
+
           </form>
         
           <div class="text-right">
@@ -214,11 +230,22 @@ import { Router } from '@angular/router';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedBranch[field.key]" 
                   [name]="field.key"
+                  [disabled]="field.key === 'code' && !!selectedBranch?.code"
+                  [disabled]="field.key === 'company_code' && !!selectedBranch?.company_code"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)" />
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
+
+            <!-- Document Upload Button -->
+            <div class="col-span-2">
+              <hr class="w-full border-t border-gray-300 my-4" />
+              <div class="flex justify-between items-center">
+                <label class="block text-sm font-semibold text-gray-700">Branch Documents</label>
+                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openBranchDocumentDialog()"></button>
+              </div>
+            </div>
           </form>
           <ng-template pTemplate="footer">
             <div class="text-right">
@@ -243,11 +270,23 @@ import { Router } from '@angular/router';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedDepartment[field.key]" 
                   [name]="field.key"
+                  [disabled]="field.key === 'code' && !!selectedDepartment?.code"
+                  [disabled]="field.key === 'branch_code' && !!selectedDepartment?.branch_code" 
+                  [disabled]="field.key === 'company_code' && !!selectedDepartment?.company_code"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)" />
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
+
+            <!-- Document Upload Button -->
+            <div class="col-span-2">
+              <hr class="w-full border-t border-gray-300 my-4" />
+              <div class="flex justify-between items-center">
+                <label class="block text-sm font-semibold text-gray-700">Department Documents</label>
+                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openDepartmentDocumentDialog()"></button>
+              </div>
+            </div>
           </form>
           <ng-template pTemplate="footer">
             <div class="text-right">
@@ -258,8 +297,330 @@ import { Router } from '@angular/router';
         </p-dialog>
       </div>
       
+      <!-- Company Document Dialog -->
+      <p-dialog 
+        header="Company Documents" 
+        [(visible)]="displayCompanyDocumentDialog" 
+        [modal]="true" 
+        [style]="{ width: '1000px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <p-table [value]="companyDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>DOC. TYPE</th>
+                <th>DOCUMENT NUMBER</th>
+                <th>VALID FROM</th>
+                <th>VALID TILL</th>
+                <th>FILE</th>
+                <th>Action</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+              <tr>
+                <td>
+                  <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                </td>
+                <td>
+                  <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                </td>
+                <td>
+                  <input type="file" (change)="onCompanyFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"/>
+                  <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+                </td>
+                <td>
+                  <div class="flex gap-1">
+                    <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCompanyDocument(rowIndex)" pTooltip="Delete Document"></button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              <tr>
+                <td colspan="6">
+                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addCompanyDocument()"></button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeCompanyDocumentDialog()"></button>
+            <button pButton label="Save Documents" class="p-button-primary" (click)="saveCompanyDocuments()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Branch Document Dialog -->
+      <p-dialog 
+        header="Branch Documents" 
+        [(visible)]="displayBranchDocumentDialog" 
+        [modal]="true" 
+        [style]="{ width: '1000px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <p-table [value]="branchDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>DOC. TYPE</th>
+                <th>DOCUMENT NUMBER</th>
+                <th>VALID FROM</th>
+                <th>VALID TILL</th>
+                <th>FILE</th>
+                <th>Action</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+              <tr>
+                <td>
+                  <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                </td>
+                <td>
+                  <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                </td>
+                <td>
+                  <input type="file" (change)="onBranchFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"/>
+                  <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+                </td>
+                <td>
+                  <div class="flex gap-1">
+                    <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBranchDocument(rowIndex)" pTooltip="Delete Document"></button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              <tr>
+                <td colspan="6">
+                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addBranchDocument()"></button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeBranchDocumentDialog()"></button>
+            <button pButton label="Save Documents" class="p-button-primary" (click)="saveBranchDocuments()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Department Document Dialog -->
+      <p-dialog 
+        header="Department Documents" 
+        [(visible)]="displayDepartmentDocumentDialog" 
+        [modal]="true" 
+        [style]="{ width: '1000px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <p-table [value]="departmentDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>DOC. TYPE</th>
+                <th>DOCUMENT NUMBER</th>
+                <th>VALID FROM</th>
+                <th>VALID TILL</th>
+                <th>FILE</th>
+                <th>Action</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+              <tr>
+                <td>
+                  <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                </td>
+                <td>
+                  <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                </td>
+                <td>
+                  <input type="file" (change)="onDepartmentFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"/>
+                  <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+                </td>
+                <td>
+                  <div class="flex gap-1">
+                    <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDepartmentDocument(rowIndex)" pTooltip="Delete Document"></button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              <tr>
+                <td colspan="6">
+                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addDepartmentDocument()"></button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeDepartmentDocumentDialog()"></button>
+            <button pButton label="Save Documents" class="p-button-primary" (click)="saveDepartmentDocuments()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+      
       <!-- Confirmation Dialog -->
       <p-confirmDialog></p-confirmDialog>
+      
+      <!-- Toast for messages -->
+      <p-toast></p-toast>
+      
+      <!-- Document Viewer Dialog -->
+      <p-dialog 
+        [(visible)]="isDocumentViewerVisible" 
+        [modal]="true" 
+        [style]="{width: '90vw', height: '90vh'}" 
+        [maximizable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="hideDocumentViewer()">
+        
+        <ng-template pTemplate="header">
+          <div class="flex align-items-center justify-content-between w-full">
+            <h5 class="m-0">
+              <i class="pi pi-file mr-2"></i>
+              {{ selectedDocument?.file_name }}
+            </h5>
+            <div class="flex gap-2">
+              <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
+                      (click)="downloadDocument(selectedDocument!)" 
+                      pTooltip="Download Document"></button>
+              <button pButton icon="pi pi-times" class="p-button-sm p-button-outlined" 
+                      (click)="hideDocumentViewer()" 
+                      pTooltip="Close"></button>
+            </div>
+          </div>
+        </ng-template>
+
+        <ng-template pTemplate="content">
+          <div class="document-viewer-container" style="height: calc(90vh - 120px); overflow: auto;">
+            <!-- Image files -->
+            <img *ngIf="selectedDocument?.mime_type?.startsWith('image/') && documentViewerUrl" 
+                 [src]="documentViewerUrl" 
+                 [alt]="selectedDocument?.file_name"
+                 style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            
+            <!-- PDF files -->
+            <div *ngIf="selectedDocument?.mime_type === 'application/pdf'" style="height: 100%; display: flex; flex-direction: column;">
+              <!-- PDF Loading State -->
+              <div *ngIf="!pdfLoaded" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+                <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+                <p class="text-muted">Loading PDF...</p>
+                <button pButton label="Open PDF in New Tab" icon="pi pi-external-link" 
+                        (click)="openDocumentInNewTab()" 
+                        class="p-button-outlined"></button>
+              </div>
+              
+              <!-- PDF Viewer -->
+              <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && safeDocumentViewerUrl && pdfLoaded" 
+                      [src]="safeDocumentViewerUrl" 
+                      style="width: 100%; height: 100%; border: none;"
+                      (load)="onPdfLoad()"
+                      (error)="onPdfError()">
+              </iframe>
+              
+              <!-- PDF Error State -->
+              <div *ngIf="pdfError" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+                <i class="pi pi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+                <h4>PDF Loading Failed</h4>
+                <p class="text-muted">Unable to display PDF in browser.</p>
+                <div class="flex gap-2">
+                  <button pButton label="Download PDF" icon="pi pi-download" 
+                          (click)="downloadDocument(selectedDocument!)" 
+                          class="p-button-primary"></button>
+                  <button pButton label="Open in New Tab" icon="pi pi-external-link" 
+                          (click)="openDocumentInNewTab()" 
+                          class="p-button-outlined"></button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Text files -->
+            <div *ngIf="selectedDocument?.mime_type === 'text/plain' && documentViewerUrl" 
+                 style="padding: 1rem; background: white; height: 100%; overflow: auto;">
+              <pre style="margin: 0; white-space: pre-wrap; font-family: monospace;">{{ documentViewerUrl }}</pre>
+            </div>
+            
+            <!-- Office Documents and other files - Enhanced viewer -->
+            <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && 
+                        selectedDocument?.mime_type !== 'application/pdf' && 
+                        selectedDocument?.mime_type !== 'text/plain' && 
+                        documentViewerUrl" 
+                 style="height: 100%; display: flex; flex-direction: column;">
+              
+              <!-- Try Microsoft Office Online Viewer first -->
+              <iframe *ngIf="getSafeOfficeViewerUrl()" 
+                      [src]="getSafeOfficeViewerUrl()"
+                      style="width: 100%; height: 100%; border: none;">
+              </iframe>
+              
+              <!-- Fallback for unsupported files -->
+              <div *ngIf="!getSafeOfficeViewerUrl()" 
+                   class="flex align-items-center justify-content-center" 
+                   style="height: 100%; flex-direction: column; gap: 1rem;">
+                <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
+                <h4>Document Preview</h4>
+                <p class="text-muted">This file type requires download for viewing.</p>
+                <button pButton label="Download File" icon="pi pi-download" 
+                        (click)="downloadDocument(selectedDocument!)" 
+                        class="p-button-primary"></button>
+              </div>
+            </div>
+            
+            <!-- Loading state -->
+            <div *ngIf="!documentViewerUrl" 
+                 class="flex align-items-center justify-content-center" 
+                 style="height: 100%;">
+              <div class="text-center">
+                <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+                <p class="mt-2 text-muted">Loading document...</p>
+              </div>
+            </div>
+          </div>
+        </ng-template>
+      </p-dialog>
     </div>
   `
 })
@@ -282,6 +643,11 @@ export class CompanyManagementComponent implements OnInit {
   displayCompanyDialog = false;
   displayBranchDialog = false;
   displayDepartmentDialog = false;
+  
+  // Document dialog visibility
+  displayCompanyDocumentDialog = false;
+  displayBranchDocumentDialog = false;
+  displayDepartmentDocumentDialog = false;
 
   // Track original company data for change detection
   originalCompanyData: Company | null = null;
@@ -339,6 +705,20 @@ export class CompanyManagementComponent implements OnInit {
   fieldErrors: { [key: string]: string } = {};
   touchedFields: { [key: string]: boolean } = {};
 
+  // Document management properties
+  companyDocuments: (EntityDocument & { file?: File })[] = [];
+  branchDocuments: (EntityDocument & { file?: File })[] = [];
+  departmentDocuments: (EntityDocument & { file?: File })[] = [];
+  documentTypeOptions: any[] = [];
+  
+  // Document viewer properties
+  isDocumentViewerVisible = false;
+  selectedDocument: EntityDocument | null = null;
+  documentViewerUrl: string = '';
+  safeDocumentViewerUrl: SafeResourceUrl | null = null;
+  pdfLoaded: boolean = false;
+  pdfError: boolean = false;
+
   constructor(
     private companyService: CompanyService,
     private branchService: BranchService,
@@ -346,13 +726,18 @@ export class CompanyManagementComponent implements OnInit {
     private http: HttpClient,
     private router: Router,
     private confirmationService: ConfirmationService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private entityDocumentService: EntityDocumentService,
+    private masterTypeService: MasterTypeService,
+    private messageService: MessageService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit() {
     this.fetchMaxCompanies();
     this.loadCompanies();
     this.loadBranches();
+    this.loadDocumentTypeOptions();
   }
 
   fetchMaxCompanies() {
@@ -521,6 +906,13 @@ export class CompanyManagementComponent implements OnInit {
     this.originalCompanyData = data ? { ...data } : null;
     this.hasUnsavedChanges = false;
     this.displayCompanyDialog = true;
+    
+    // Load existing documents if editing
+    if (data?.code) {
+      this.loadCompanyDocuments(data.code);
+    } else {
+      this.companyDocuments = [];
+    }
   }
 
   closeCompanyDialog() {
@@ -555,7 +947,9 @@ export class CompanyManagementComponent implements OnInit {
 
     if (!codeExists) {
       this.companyService.create(this.selectedCompany).subscribe({
-        next: (created) => {
+        next: async (created) => {
+          // Save documents after company is created
+          await this.saveCompanyDocuments();
           this.loadCompanies();
           this.closeCompanyDialog();
           this.companyFormError = '';
@@ -567,7 +961,9 @@ export class CompanyManagementComponent implements OnInit {
     } else {
       console.log('Updating company with code:', this.selectedCompany.code, 'Payload:', this.selectedCompany);
       this.companyService.update(this.selectedCompany.code, this.selectedCompany).subscribe({
-        next: () => {
+        next: async () => {
+          // Save documents after company is updated
+          await this.saveCompanyDocuments();
           this.loadCompanies();
           this.closeCompanyDialog();
           this.companyFormError = '';
@@ -584,6 +980,13 @@ export class CompanyManagementComponent implements OnInit {
     this.displayBranchDialog = true;
     this.branchFormError = '';
     this.clearFieldErrors();
+    
+    // Load existing documents if editing
+    if (branch?.code) {
+      this.loadBranchDocuments(branch.code);
+    } else {
+      this.branchDocuments = [];
+    }
   }
 
   closeBranchDialog() {
@@ -612,7 +1015,9 @@ export class CompanyManagementComponent implements OnInit {
 
     if (!codeExists) {
       this.branchService.create(this.selectedBranch).subscribe({
-        next: (created) => {
+        next: async (created) => {
+          // Save documents after branch is created
+          await this.saveBranchDocuments();
           this.loadBranches();
           this.closeBranchDialog();
           this.branchFormError = '';
@@ -624,7 +1029,9 @@ export class CompanyManagementComponent implements OnInit {
     } else {
       console.log('Updating branch with code:', this.selectedBranch.code, 'Payload:', this.selectedBranch);
       this.branchService.update(this.selectedBranch.code, this.selectedBranch).subscribe({
-        next: () => {
+        next: async () => {
+          // Save documents after branch is updated
+          await this.saveBranchDocuments();
           this.loadBranches();
           this.closeBranchDialog();
           this.branchFormError = '';
@@ -644,6 +1051,13 @@ export class CompanyManagementComponent implements OnInit {
     this.displayDepartmentDialog = true;
     this.departmentFormError = '';
     this.clearFieldErrors();
+    
+    // Load existing documents if editing
+    if (department?.code) {
+      this.loadDepartmentDocuments(department.code);
+    } else {
+      this.departmentDocuments = [];
+    }
   }
 
   closeDepartmentDialog() {
@@ -673,7 +1087,9 @@ export class CompanyManagementComponent implements OnInit {
 
     if (!codeExists) {
       this.departmentService.create(this.selectedDepartment).subscribe({
-        next: (created) => {
+        next: async (created) => {
+          // Save documents after department is created
+          await this.saveDepartmentDocuments();
           this.loadDepartmentsForBranches();
           this.closeDepartmentDialog();
           this.departmentFormError = '';
@@ -685,7 +1101,9 @@ export class CompanyManagementComponent implements OnInit {
     } else {
       console.log('Updating department with code:', this.selectedDepartment.code, 'Payload:', this.selectedDepartment);
       this.departmentService.update(this.selectedDepartment.code, this.selectedDepartment).subscribe({
-        next: () => {
+        next: async () => {
+          // Save documents after department is updated
+          await this.saveDepartmentDocuments();
           this.loadDepartmentsForBranches();
           this.closeDepartmentDialog();
           this.departmentFormError = '';
@@ -701,6 +1119,46 @@ export class CompanyManagementComponent implements OnInit {
     this.selectedBranch = { company_code: company.code } as Branch;
     this.displayBranchDialog = true;
     this.clearFieldErrors();
+  }
+
+  // Document dialog methods
+  openCompanyDocumentDialog() {
+    if (this.selectedCompany?.code) {
+      this.loadCompanyDocuments(this.selectedCompany.code);
+      this.displayCompanyDocumentDialog = true;
+    } else {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please save the company first before uploading documents' });
+    }
+  }
+
+  closeCompanyDocumentDialog() {
+    this.displayCompanyDocumentDialog = false;
+  }
+
+  openBranchDocumentDialog() {
+    if (this.selectedBranch?.code) {
+      this.loadBranchDocuments(this.selectedBranch.code);
+      this.displayBranchDocumentDialog = true;
+    } else {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please save the branch first before uploading documents' });
+    }
+  }
+
+  closeBranchDocumentDialog() {
+    this.displayBranchDocumentDialog = false;
+  }
+
+  openDepartmentDocumentDialog() {
+    if (this.selectedDepartment?.code) {
+      this.loadDepartmentDocuments(this.selectedDepartment.code);
+      this.displayDepartmentDocumentDialog = true;
+    } else {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please save the department first before uploading documents' });
+    }
+  }
+
+  closeDepartmentDocumentDialog() {
+    this.displayDepartmentDocumentDialog = false;
   }
 
   onLogoSelected(event: any) {
@@ -799,5 +1257,407 @@ export class CompanyManagementComponent implements OnInit {
   clearFieldErrors() {
     this.fieldErrors = {};
     this.touchedFields = {};
+  }
+
+  // Document management methods
+  loadDocumentTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
+        this.documentTypeOptions = (types || [])
+          .filter(t => t.key === 'DOC_TYPE' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        console.log('Document type options loaded:', this.documentTypeOptions);
+      },
+      error: (error) => {
+        console.error('Error loading document types:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load document types' });
+      }
+    });
+  }
+
+  // Company document methods
+  loadCompanyDocuments(companyCode: string) {
+    this.entityDocumentService.getByEntityCode('company', companyCode).subscribe({
+      next: (documents: any) => {
+        this.companyDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading company documents:', error);
+        this.companyDocuments = [];
+      }
+    });
+  }
+
+  addCompanyDocument() {
+    this.companyDocuments.push({
+      entity_type: 'company',
+      entity_code: this.selectedCompany.code,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeCompanyDocument(index: number) {
+    const document = this.companyDocuments[index];
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+              this.companyDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+            }
+          });
+        } else {
+          this.companyDocuments.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document removed' });
+        }
+      }
+    });
+  }
+
+  onCompanyFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.companyDocuments[index].file = file;
+      this.companyDocuments[index].file_name = file.name;
+      this.companyDocuments[index].file_size = file.size;
+      this.companyDocuments[index].mime_type = file.type;
+    }
+  }
+
+  // Branch document methods
+  loadBranchDocuments(branchCode: string) {
+    this.entityDocumentService.getByEntityCode('branch', branchCode).subscribe({
+      next: (documents: any) => {
+        this.branchDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading branch documents:', error);
+        this.branchDocuments = [];
+      }
+    });
+  }
+
+  addBranchDocument() {
+    this.branchDocuments.push({
+      entity_type: 'branch',
+      entity_code: this.selectedBranch.code,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeBranchDocument(index: number) {
+    const document = this.branchDocuments[index];
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+              this.branchDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+            }
+          });
+        } else {
+          this.branchDocuments.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document removed' });
+        }
+      }
+    });
+  }
+
+  onBranchFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.branchDocuments[index].file = file;
+      this.branchDocuments[index].file_name = file.name;
+      this.branchDocuments[index].file_size = file.size;
+      this.branchDocuments[index].mime_type = file.type;
+    }
+  }
+
+  // Department document methods
+  loadDepartmentDocuments(departmentCode: string) {
+    this.entityDocumentService.getByEntityCode('department', departmentCode).subscribe({
+      next: (documents: any) => {
+        this.departmentDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading department documents:', error);
+        this.departmentDocuments = [];
+      }
+    });
+  }
+
+  addDepartmentDocument() {
+    this.departmentDocuments.push({
+      entity_type: 'department',
+      entity_code: this.selectedDepartment.code,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeDepartmentDocument(index: number) {
+    const document = this.departmentDocuments[index];
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+              this.departmentDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+            }
+          });
+        } else {
+          this.departmentDocuments.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document removed' });
+        }
+      }
+    });
+  }
+
+  onDepartmentFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.departmentDocuments[index].file = file;
+      this.departmentDocuments[index].file_name = file.name;
+      this.departmentDocuments[index].file_size = file.size;
+      this.departmentDocuments[index].mime_type = file.type;
+    }
+  }
+
+  // Document viewer methods
+  viewDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    this.selectedDocument = doc;
+    this.isDocumentViewerVisible = true;
+    this.pdfLoaded = false;
+    this.pdfError = false;
+    
+    this.entityDocumentService.view(doc.id).subscribe({
+      next: (blob: any) => {
+        this.documentViewerUrl = window.URL.createObjectURL(blob);
+        this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
+        
+        if (doc.mime_type === 'application/pdf') {
+          this.pdfLoaded = true;
+        } else {
+          setTimeout(() => {
+            this.pdfLoaded = true;
+          }, 300);
+        }
+      },
+      error: (error: any) => {
+        console.error('Error viewing document:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to view document' });
+        this.hideDocumentViewer();
+      }
+    });
+  }
+
+  downloadDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    this.entityDocumentService.download(doc.id).subscribe({
+      next: (blob: any) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.file_name;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('Error downloading document:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to download document' });
+      }
+    });
+  }
+
+  hideDocumentViewer() {
+    this.isDocumentViewerVisible = false;
+    this.selectedDocument = null;
+    if (this.documentViewerUrl) {
+      window.URL.revokeObjectURL(this.documentViewerUrl);
+      this.documentViewerUrl = '';
+    }
+    this.safeDocumentViewerUrl = null;
+    this.pdfLoaded = false;
+    this.pdfError = false;
+  }
+
+  getOfficeViewerUrl(): string {
+    if (!this.documentViewerUrl || !this.selectedDocument) return '';
+    
+    if (this.documentViewerUrl.startsWith('blob:')) {
+      return '';
+    }
+    
+    const encodedUrl = encodeURIComponent(this.documentViewerUrl);
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+  }
+
+  getSafeOfficeViewerUrl(): SafeResourceUrl | null {
+    const url = this.getOfficeViewerUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  }
+
+  openDocumentInNewTab() {
+    if (this.selectedDocument?.id) {
+      const serverUrl = `${window.location.origin}/api/entity-documents/${this.selectedDocument.id}/view`;
+      window.open(serverUrl, '_blank');
+    }
+  }
+
+  onPdfLoad() {
+    this.pdfLoaded = true;
+    this.pdfError = false;
+  }
+
+  onPdfError() {
+    this.pdfError = true;
+    this.pdfLoaded = false;
+  }
+
+  // Document saving methods
+  async saveCompanyDocuments() {
+    if (!this.selectedCompany?.code) return;
+
+    const documentsToUpload = this.companyDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.companyDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please select document type for all documents before saving' 
+      });
+      return;
+    }
+
+    const uploadPromises = documentsToUpload.map(doc => {
+      const formData = new FormData();
+      formData.append('entity_type', 'company');
+      formData.append('entity_code', this.selectedCompany.code);
+      formData.append('entity_name', `${this.selectedCompany.code} - ${this.selectedCompany.name}`);
+      formData.append('doc_type', doc.doc_type);
+      formData.append('document_number', doc.document_number || '');
+      formData.append('valid_from', doc.valid_from || '');
+      formData.append('valid_till', doc.valid_till || '');
+      formData.append('document', doc.file!);
+
+      return this.entityDocumentService.uploadDocument(formData).toPromise();
+    });
+
+    await Promise.all(uploadPromises);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
+  }
+
+  async saveBranchDocuments() {
+    if (!this.selectedBranch?.code) return;
+
+    const documentsToUpload = this.branchDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.branchDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please select document type for all documents before saving' 
+      });
+      return;
+    }
+
+    const uploadPromises = documentsToUpload.map(doc => {
+      const formData = new FormData();
+      formData.append('entity_type', 'branch');
+      formData.append('entity_code', this.selectedBranch.code);
+      formData.append('entity_name', `${this.selectedBranch.code} - ${this.selectedBranch.name}`);
+      formData.append('doc_type', doc.doc_type);
+      formData.append('document_number', doc.document_number || '');
+      formData.append('valid_from', doc.valid_from || '');
+      formData.append('valid_till', doc.valid_till || '');
+      formData.append('document', doc.file!);
+
+      return this.entityDocumentService.uploadDocument(formData).toPromise();
+    });
+
+    await Promise.all(uploadPromises);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
+  }
+
+  async saveDepartmentDocuments() {
+    if (!this.selectedDepartment?.code) return;
+
+    const documentsToUpload = this.departmentDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.departmentDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please select document type for all documents before saving' 
+      });
+      return;
+    }
+
+    const uploadPromises = documentsToUpload.map(doc => {
+      const formData = new FormData();
+      formData.append('entity_type', 'department');
+      formData.append('entity_code', this.selectedDepartment.code);
+      formData.append('entity_name', `${this.selectedDepartment.code} - ${this.selectedDepartment.name}`);
+      formData.append('doc_type', doc.doc_type);
+      formData.append('document_number', doc.document_number || '');
+      formData.append('valid_from', doc.valid_from || '');
+      formData.append('valid_till', doc.valid_till || '');
+      formData.append('document', doc.file!);
+
+      return this.entityDocumentService.uploadDocument(formData).toPromise();
+    });
+
+    await Promise.all(uploadPromises);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
   }
 }

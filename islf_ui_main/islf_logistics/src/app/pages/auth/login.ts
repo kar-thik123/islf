@@ -9,6 +9,7 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { ButtonModule } from 'primeng/button';
 import { LoginService } from '../../services/login.service';
+import { AuthService } from '../../services/auth.service';
 import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ToastService } from '@/services/toast.service';
@@ -38,8 +39,9 @@ import { RouterModule } from '@angular/router';
         
         
     ],
-    providers:[ToastService],
+    providers:[ToastService, MessageService],
     template: `
+        <p-toast></p-toast>
         <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1600 800"
@@ -167,6 +169,7 @@ export class Login {
 
     LayoutService = inject(LayoutService);
     loginService = inject(LoginService);
+    authService = inject(AuthService);
     router = inject(Router);
     messageService = inject(MessageService);
 
@@ -181,12 +184,9 @@ export class Login {
         }
         this.loginService.login(this.identifier, this.password).subscribe({
             next: (res) => {
-                this.loginService.setToken(res.token, this.rememberMe);
-                if (res.name) {
-                    this.loginService.setUserName(res.name, this.rememberMe);
-                }
+                this.authService.login(res.token, res.name || '', this.rememberMe);
                 this.messageService.add({severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000});
-                this.router.navigate(['logs/auth_logs']);
+                this.router.navigate(['/']);
             },
             error: (err) => {
                 const detail = err?.error?.message || 'Invalid identifier or password.';

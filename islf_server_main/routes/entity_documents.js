@@ -160,45 +160,99 @@ router.get('/:entityType/:entityCode', async (req, res) => {
 // UPLOAD new document (use entity_code)
 router.post('/upload', upload.single('document'), async (req, res) => {
   try {
-    const { entity_type, entity_code, doc_type, document_number, valid_from, valid_till, uploadPath } = req.body;
+    const { entity_type, entity_code, entity_name, doc_type, document_number, valid_from, valid_till, uploadPath } = req.body;
     const file = req.file;
     if (!entity_type || !entity_code || !doc_type || !file) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Check if entity exists based on entity_type
+    // Check if entity exists based on entity_type and get entity name
     let entityExists = false;
+    let entityName = '';
+    
+    // Use entity_name from request body if provided, otherwise fetch from database
+    if (entity_name && entity_name.trim() !== '') {
+      entityName = entity_name.trim();
+    }
+    
     switch (entity_type) {
       case 'customer':
-        entityExists = (await pool.query('SELECT customer_no FROM customer WHERE customer_no = $1', [entity_code])).rows.length > 0;
+        const customerResult = await pool.query('SELECT customer_no, name FROM customer WHERE customer_no = $1', [entity_code]);
+        entityExists = customerResult.rows.length > 0;
+        if (entityExists && !entityName) {
+          entityName = customerResult.rows[0].name || entity_code;
+        }
         break;
       case 'vendor':
-        entityExists = (await pool.query('SELECT vendor_no FROM vendor WHERE vendor_no = $1', [entity_code])).rows.length > 0;
+        const vendorResult = await pool.query('SELECT vendor_no, name FROM vendor WHERE vendor_no = $1', [entity_code]);
+        entityExists = vendorResult.rows.length > 0;
+        if (entityExists && !entityName) {
+          entityName = vendorResult.rows[0].name || entity_code;
+        }
+        break;
+      case 'user':
+        console.log('=== USER UPLOAD DEBUG ===');
+        console.log('Entity code received:', entity_code);
+        console.log('Entity name received:', entity_name);
+        
+        const userResult = await pool.query('SELECT employee_id, full_name FROM users WHERE employee_id = $1', [entity_code]);
+        console.log('User query result:', userResult.rows);
+        
+        entityExists = userResult.rows.length > 0;
+        if (entityExists && !entityName) {
+          entityName = userResult.rows[0].full_name || entity_code;
+        }
+        console.log('Entity exists:', entityExists);
+        console.log('Entity name after processing:', entityName);
         break;
       case 'company':
-        entityExists = (await pool.query('SELECT code FROM company WHERE code = $1', [entity_code])).rows.length > 0;
+        const companyResult = await pool.query('SELECT code, name FROM companies WHERE code = $1', [entity_code]);
+        entityExists = companyResult.rows.length > 0;
+        if (entityExists && !entityName) {
+          entityName = companyResult.rows[0].name || entity_code;
+        }
         break;
       default:
         return res.status(400).json({ error: 'Invalid entity type' });
     }
+    
     if (!entityExists) {
       return res.status(404).json({ error: `${entity_type} not found` });
     }
 
-    // Determine final destination
-    let finalDir = uploadPath && uploadPath.trim() !== '' ? uploadPath : path.join('uploads', 'documents', entity_type);
-    if (!path.isAbsolute(finalDir)) {
-      finalDir = path.join(process.cwd(), finalDir);
+    // Determine base upload directory from settings
+    console.log('=== UPLOAD PATH DEBUG ===');
+    console.log('UploadPath received:', uploadPath);
+    console.log('Entity type:', entity_type);
+    console.log('Default path:', path.join('uploads', 'documents', entity_type));
+    
+    let baseUploadDir = uploadPath && uploadPath.trim() !== '' ? uploadPath : path.join('uploads', 'documents', entity_type);
+    console.log('Base upload dir before absolute check:', baseUploadDir);
+    
+    if (!path.isAbsolute(baseUploadDir)) {
+      baseUploadDir = path.join(process.cwd(), baseUploadDir);
     }
-    if (!fs.existsSync(finalDir)) {
-      fs.mkdirSync(finalDir, { recursive: true });
+    console.log('Final base upload dir:', baseUploadDir);
+    
+    // Create base directory if it doesn't exist
+    if (!fs.existsSync(baseUploadDir)) {
+      fs.mkdirSync(baseUploadDir, { recursive: true });
+    }
+
+    // Create entity-specific folder using entity name (sanitized for filesystem)
+    const sanitizedEntityName = entityName.replace(/[^a-zA-Z0-9\s\-_]/g, '').replace(/\s+/g, '_');
+    const entityFolder = path.join(baseUploadDir, sanitizedEntityName);
+    
+    // Create entity folder if it doesn't exist
+    if (!fs.existsSync(entityFolder)) {
+      fs.mkdirSync(entityFolder, { recursive: true });
     }
 
     // Use original filename, but ensure uniqueness
     const baseName = path.basename(file.originalname, path.extname(file.originalname));
     const ext = path.extname(file.originalname);
     const uniqueName = `${baseName}-${Date.now()}${ext}`;
-    const finalPath = path.join(finalDir, uniqueName);
+    const finalPath = path.join(entityFolder, uniqueName);
 
     // Move file from temp to final destination
     fs.renameSync(file.path, finalPath);
@@ -222,6 +276,8 @@ router.post('/upload', upload.single('document'), async (req, res) => {
         file.mimetype
       ]
     );
+    
+    console.log(`Document uploaded successfully for ${entity_type} ${entity_code} (${entityName}) to: ${finalPath}`);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error uploading document:', err);

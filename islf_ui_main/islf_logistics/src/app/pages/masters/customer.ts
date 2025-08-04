@@ -1215,6 +1215,7 @@ export class CustomerComponent implements OnInit {
         console.log('Preparing to upload document:', {
           entity_type: 'customer',
           entity_code: customer.customer_no,
+          entity_name: customer.name, // Include customer name for folder creation
           doc_type: doc.doc_type,
           document_number: doc.document_number || '',
           valid_from: doc.valid_from || '',
@@ -1226,6 +1227,7 @@ export class CustomerComponent implements OnInit {
         const formData = new FormData();
         formData.append('entity_type', 'customer');
         formData.append('entity_code', customer.customer_no);
+        formData.append('entity_name', customer.name); // Include customer name for folder creation
         formData.append('doc_type', doc.doc_type);
         formData.append('document_number', doc.document_number || '');
         formData.append('valid_from', doc.valid_from || '');

@@ -1206,6 +1206,7 @@ export class VendorComponent implements OnInit {
         console.log('Preparing to upload document:', {
           entity_type: 'vendor',
           entity_code: vendor.vendor_no,
+          entity_name: vendor.name, // Include vendor name for folder creation
           doc_type: doc.doc_type,
           document_number: doc.document_number || '',
           valid_from: doc.valid_from || '',
@@ -1217,6 +1218,7 @@ export class VendorComponent implements OnInit {
         const formData = new FormData();
         formData.append('entity_type', 'vendor');
         formData.append('entity_code', vendor.vendor_no);
+        formData.append('entity_name', vendor.name); // Include vendor name for folder creation
         formData.append('doc_type', doc.doc_type);
         formData.append('document_number', doc.document_number || '');
         formData.append('valid_from', doc.valid_from || '');

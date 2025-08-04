@@ -5,6 +5,7 @@ import { BadgeModule } from 'primeng/badge';
 import { LayoutService } from '../../layout/service/layout.service';
 import { Router } from '@angular/router';
 import { LoginService } from '../../services/login.service';
+import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
 import { CommonModule } from '@angular/common';
 
@@ -71,9 +72,10 @@ export class AppProfileSidebar implements OnInit {
         public layoutService: LayoutService,
         private router: Router,
         private loginService: LoginService,
+        private authService: AuthService,
         private userService: UserService
     ) {
-        this.userName = this.loginService.getUserName();
+        this.userName = this.authService.getUserName();
     }
 
     ngOnInit() {
@@ -106,7 +108,7 @@ export class AppProfileSidebar implements OnInit {
 
     // Sign out logic
     signOut() {
-        this.loginService.logout();
+        this.authService.logout();
         this.onDrawerHide();
         this.router.navigate(['/auth/login']);
     }

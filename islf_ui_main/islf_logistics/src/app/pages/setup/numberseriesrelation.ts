@@ -142,12 +142,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             <td>{{ rel.endingNo }}</td>
             <td>{{ rel.endingDate | configDate }}</td>
             <td>
-              <span *ngIf="rel.endingDate" 
-                    [class]="isExpired(rel) ? 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800' : 'px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800'">
+              <span [class]="getStatusClass(rel)">
                 {{ getExpirationStatus(rel) }}
-              </span>
-              <span *ngIf="!rel.endingDate" class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                No End Date
               </span>
             </td>
             <td>{{ rel.lastNoUsed }}</td>
@@ -159,7 +155,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                 icon="pi pi-pencil"
                 class="p-button-sm"
                 (click)="editRow(rel)"
-                [disabled]="rel.lastNoUsed > 0 || (rel.endingDate && isExpired(rel))"
+                [disabled]="rel.lastNoUsed > 0 || isRelationStopped(rel)"
                 title="Edit"
               ></button>
               <button
@@ -168,7 +164,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                 class="p-button-sm"
                 severity="danger"
                 (click)="deleteRow(rel)"
-                [disabled]="rel.lastNoUsed > 0 || (rel.endingDate && isExpired(rel))"
+                [disabled]="rel.lastNoUsed > 0 || isRelationStopped(rel)"
                 title="Delete"
               ></button>
               </div>
@@ -195,13 +191,13 @@ import { InputSwitchModule } from 'primeng/inputswitch';
       [resizable]="false"
     >
       <div *ngIf="selectedRow" class="p-fluid form-grid dialog-body-padding">
-        <!-- Helpful note about mutual exclusivity -->
+        <!-- Helpful note about validation -->
         <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p class="text-sm text-blue-800">
             <i class="pi pi-info-circle mr-2"></i>
-            <strong>Note:</strong> Only one of "Ending Number" or "Ending Date" should be filled. 
-            If you set an ending date, the ending number will be cleared automatically.
-            <br><strong>Validation:</strong> Ending Number must be greater than Starting Number.
+            <strong>Note:</strong> Both "Ending Number" and "Ending Date" can be set. 
+            The number series relation will be stopped when either the ending number is reached or the ending date is completed.
+            <br><strong>Validation:</strong> Ending Number must be greater than Starting Number. Ending Date must be in the future.
           </p>
         </div>
         
@@ -237,7 +233,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           </div>
           <div class="grid-item">
             <label for="endingNo">Ending No</label>
-            <input id="endingNo" type="number" pInputText [(ngModel)]="selectedRow.endingNo" (input)="onEndingNoChange()" />
+            <input id="endingNo" type="number" pInputText [(ngModel)]="selectedRow.endingNo" />
             <!-- Warning for invalid ending number -->
             <div *ngIf="selectedRow.endingNo && isEndingNoInvalid()" class="mt-1 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
               <i class="pi pi-exclamation-triangle mr-1"></i>
@@ -259,7 +255,6 @@ import { InputSwitchModule } from 'primeng/inputswitch';
               [showTime]="true"
               hourFormat="24"
               [keepInvalid]="false"
-              (onSelect)="onEndingDateChange()"
               (onInput)="onEndingDateInput($event)"
             ></p-calendar>
             <!-- Warning for past/current ending date -->
@@ -324,7 +319,7 @@ export class NumberSeriesRelationComponent implements OnInit {
   filterFields: string[] = ['numberSeries', 'prefix'];
   @ViewChild('dt') dt!: Table;
 
-  // Computed property to check if a relation is expired
+  // Computed property to check if a relation is stopped due to end date
   isExpired = (relation: NumberSeriesRelation): boolean => {
     if (!relation.endingDate) return false;
     const now = new Date();
@@ -332,10 +327,44 @@ export class NumberSeriesRelationComponent implements OnInit {
     return now > endingDate;
   };
 
-  // Get expiration status text
+  // Get status text - shows if relation is stopped due to end date or end number
   getExpirationStatus = (relation: NumberSeriesRelation): string => {
-    if (!relation.endingDate) return '';
-    return this.isExpired(relation) ? 'Expired' : 'Active';
+    if (!relation.endingDate) {
+      // Check if relation is stopped due to end number
+      if (relation.endingNo && relation.lastNoUsed >= relation.endingNo) {
+        return 'Completed';
+      }
+      return 'Active';
+    }
+    return this.isExpired(relation) ? 'Stopped' : 'Active';
+  };
+
+  // Get CSS class for status styling
+  getStatusClass = (relation: NumberSeriesRelation): string => {
+    const status = this.getExpirationStatus(relation);
+    switch (status) {
+      case 'Active':
+        return 'px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
+      case 'Completed':
+        return 'px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800';
+      case 'Stopped':
+        return 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
+      default:
+        return 'px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Check if relation is stopped (either by end date or end number completion)
+  isRelationStopped = (relation: NumberSeriesRelation): boolean => {
+    // Check if stopped by end date
+    if (relation.endingDate && this.isExpired(relation)) {
+      return true;
+    }
+    // Check if stopped by end number completion
+    if (relation.endingNo && relation.lastNoUsed >= relation.endingNo) {
+      return true;
+    }
+    return false;
   };
 
   constructor(
@@ -379,12 +408,13 @@ export class NumberSeriesRelationComponent implements OnInit {
   editRow(row: NumberSeriesRelation) {
     console.log('Editing row:', row);
     
-    // Check if relation is expired
-    if (row.endingDate && this.isExpired(row)) {
+    // Check if relation is stopped
+    if (this.isRelationStopped(row)) {
+      const status = this.getExpirationStatus(row);
       this.messageService.add({ 
         severity: 'warn', 
-        summary: 'Expired Relation', 
-        detail: 'This relation has expired and cannot be modified. The ending date has passed.' 
+        summary: 'Relation Stopped', 
+        detail: `This relation has been ${status.toLowerCase()} and cannot be modified.` 
       });
       return;
     }
@@ -393,28 +423,7 @@ export class NumberSeriesRelationComponent implements OnInit {
     this.displayDialog = true;
   }
 
-  // Validation methods for mutual exclusivity
-  onEndingNoChange() {
-    if (this.selectedRow && this.selectedRow.endingNo && this.selectedRow.endingDate) {
-      this.selectedRow.endingDate = undefined;
-      this.messageService.add({ 
-        severity: 'warn', 
-        summary: 'Validation', 
-        detail: 'Ending Date cleared because Ending Number is set. Only one can be specified.' 
-      });
-    }
-  }
 
-  onEndingDateChange() {
-    if (this.selectedRow && this.selectedRow.endingDate && this.selectedRow.endingNo) {
-      this.selectedRow.endingNo = 0; // Set to 0 instead of null to satisfy database constraint
-      this.messageService.add({ 
-        severity: 'warn', 
-        summary: 'Validation', 
-        detail: 'Ending Number cleared because Ending Date is set. Only one can be specified.' 
-      });
-    }
-  }
 
   onEndingDateInput(event: any) {
     // Ensure proper timezone handling
@@ -442,12 +451,13 @@ export class NumberSeriesRelationComponent implements OnInit {
 
   deleteRow(row: NumberSeriesRelation) {
     if (row.id) {
-      // Check if relation is expired
-      if (row.endingDate && this.isExpired(row)) {
+      // Check if relation is stopped
+      if (this.isRelationStopped(row)) {
+        const status = this.getExpirationStatus(row);
         this.messageService.add({ 
           severity: 'warn', 
-          summary: 'Expired Relation', 
-          detail: 'This relation has expired and cannot be deleted. The ending date has passed.' 
+          summary: 'Relation Stopped', 
+          detail: `This relation has been ${status.toLowerCase()} and cannot be deleted.` 
         });
         return;
       }
@@ -472,15 +482,7 @@ export class NumberSeriesRelationComponent implements OnInit {
     if (!this.selectedRow) return;
     console.log('Saving row:', this.selectedRow);
 
-    // Validate mutual exclusivity
-    if (this.selectedRow.endingNo && this.selectedRow.endingDate) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Only one of Ending Number or Ending Date can be set, not both.' 
-      });
-      return;
-    }
+
 
     // Validate ending number is greater than starting number
     if (this.selectedRow.endingNo && this.selectedRow.endingNo <= this.selectedRow.startingNo) {

@@ -21,6 +21,9 @@ interface DocumentPaths {
   customer: string;
   vendor: string;
   company: string;
+  branch: string;
+  department: string;
+  user: string;
   [key: string]: string; // Allow string indexing
 }
 
@@ -197,6 +200,33 @@ interface DocumentPaths {
                     [(ngModel)]="documentUploadPaths.company" 
                     class="w-full"
                     placeholder="/uploads/documents/company" />
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">Branch Documents Path</label>
+                  <input 
+                    type="text" 
+                    pInputText 
+                    [(ngModel)]="documentUploadPaths.branch" 
+                    class="w-full"
+                    placeholder="/uploads/documents/branch" />
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">Department Documents Path</label>
+                  <input 
+                    type="text" 
+                    pInputText 
+                    [(ngModel)]="documentUploadPaths.department" 
+                    class="w-full"
+                    placeholder="/uploads/documents/department" />
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">User Documents Path</label>
+                  <input 
+                    type="text" 
+                    pInputText 
+                    [(ngModel)]="documentUploadPaths.user" 
+                    class="w-full"
+                    placeholder="/uploads/documents/user" />
                 </div>
                 <div>
                   <label class="block mb-2 font-medium">Max File Size (MB)</label>
@@ -501,168 +531,6 @@ interface DocumentPaths {
             </p-card>
           </div>
         </p-tabPanel>
-
-        <!-- Logistics Settings Tab -->
-        <p-tabPanel header="Logistics Settings">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <p-card header="Shipping Configuration">
-              <div class="space-y-4">
-                <div>
-                  <label class="block mb-2 font-medium">Default Shipping Method</label>
-                  <p-dropdown 
-                    [(ngModel)]="logisticsSettings.defaultShippingMethod"
-                    [options]="shippingMethodOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select default shipping method"
-                    class="w-full">
-                  </p-dropdown>
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Default Container Type</label>
-                  <p-dropdown 
-                    [(ngModel)]="logisticsSettings.defaultContainerType"
-                    [options]="containerTypeOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select default container type"
-                    class="w-full">
-                  </p-dropdown>
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Default Vessel Type</label>
-                  <p-dropdown 
-                    [(ngModel)]="logisticsSettings.defaultVesselType"
-                    [options]="vesselTypeOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select default vessel type"
-                    class="w-full">
-                  </p-dropdown>
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Default UOM</label>
-                  <p-dropdown 
-                    [(ngModel)]="logisticsSettings.defaultUOM"
-                    [options]="uomOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select default UOM"
-                    class="w-full">
-                  </p-dropdown>
-                </div>
-              </div>
-            </p-card>
-
-            <p-card header="Document Settings">
-              <div class="space-y-4">
-                <div>
-                  <label class="block mb-2 font-medium">Invoice Number Prefix</label>
-                  <input 
-                    type="text" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.invoicePrefix" 
-                    class="w-full"
-                    placeholder="INV-" />
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Bill of Lading Prefix</label>
-                  <input 
-                    type="text" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.billOfLadingPrefix" 
-                    class="w-full"
-                    placeholder="BL-" />
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Container Number Prefix</label>
-                  <input 
-                    type="text" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.containerPrefix" 
-                    class="w-full"
-                    placeholder="CONT-" />
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Vessel Number Prefix</label>
-                  <input 
-                    type="text" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.vesselPrefix" 
-                    class="w-full"
-                    placeholder="VSL-" />
-                </div>
-              </div>
-            </p-card>
-
-            <p-card header="Notification Settings">
-              <div class="space-y-4">
-                <div class="flex items-center space-x-2">
-                  <p-inputSwitch [(ngModel)]="logisticsSettings.enableShipmentNotifications"></p-inputSwitch>
-                  <label class="font-medium">Enable Shipment Status Notifications</label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <p-inputSwitch [(ngModel)]="logisticsSettings.enableContainerAlerts"></p-inputSwitch>
-                  <label class="font-medium">Enable Container Tracking Alerts</label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <p-inputSwitch [(ngModel)]="logisticsSettings.enableVesselAlerts"></p-inputSwitch>
-                  <label class="font-medium">Enable Vessel Schedule Alerts</label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <p-inputSwitch [(ngModel)]="logisticsSettings.enableCustomsAlerts"></p-inputSwitch>
-                  <label class="font-medium">Enable Customs Clearance Alerts</label>
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Alert Email Recipients</label>
-                  <textarea 
-                    pInputTextarea 
-                    [(ngModel)]="logisticsSettings.alertEmailRecipients" 
-                    rows="3"
-                    class="w-full"
-                    placeholder="Enter email addresses separated by commas"></textarea>
-                </div>
-              </div>
-            </p-card>
-
-            <p-card header="Integration Settings">
-              <div class="space-y-4">
-                <div class="flex items-center space-x-2">
-                  <p-inputSwitch [(ngModel)]="logisticsSettings.enableAPIIntegration"></p-inputSwitch>
-                  <label class="font-medium">Enable API Integration</label>
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">API Base URL</label>
-                  <input 
-                    type="url" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.apiBaseUrl" 
-                    class="w-full"
-                    placeholder="https://api.example.com" />
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">API Key</label>
-                  <input 
-                    type="password" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.apiKey" 
-                    class="w-full"
-                    placeholder="Enter API key" />
-          </div>
-          <div>
-                  <label class="block mb-2 font-medium">API Secret</label>
-                  <input 
-                    type="password" 
-                    pInputText 
-                    [(ngModel)]="logisticsSettings.apiSecret" 
-                    class="w-full"
-                    placeholder="Enter API secret" />
-                </div>
-              </div>
-            </p-card>
-          </div>
-        </p-tabPanel>
-
         <!-- Branding Tab -->
         <p-tabPanel header="Branding">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -817,7 +685,10 @@ export class ITSetupComponent implements OnInit {
   documentUploadPaths: DocumentPaths = {
     customer: '/uploads/documents/customer',
     vendor: '/uploads/documents/vendor',
-    company: '/uploads/documents/company'
+    company: '/uploads/documents/company',
+    branch: '/uploads/documents/branch',
+    department: '/uploads/documents/department',
+    user: '/uploads/documents/user'
   };
 
   // Email Settings
@@ -1046,7 +917,11 @@ export class ITSetupComponent implements OnInit {
         this.maintenanceSettings = config.maintenance;
         this.brandingSettings = config.branding;
         this.logisticsSettings = config.logistics;
-        this.documentUploadPaths = { ...config.documentPaths };
+        this.documentUploadPaths = { 
+          ...config.documentPaths,
+          branch: (config.documentPaths as any)?.branch || '/uploads/documents/branch',
+          department: (config.documentPaths as any)?.department || '/uploads/documents/department'
+        };
       }
     });
   }
@@ -1067,7 +942,11 @@ export class ITSetupComponent implements OnInit {
         this.maintenanceSettings = { ...config.maintenance };
         this.brandingSettings = { ...config.branding };
         this.logisticsSettings = { ...config.logistics };
-        this.documentUploadPaths = { ...config.documentPaths };
+        this.documentUploadPaths = { 
+          ...config.documentPaths,
+          branch: (config.documentPaths as any)?.branch || '/uploads/documents/branch',
+          department: (config.documentPaths as any)?.department || '/uploads/documents/department'
+        };
         
         this.loading.set(false);
         this.message.set('Settings loaded successfully!');
@@ -1162,7 +1041,11 @@ export class ITSetupComponent implements OnInit {
           this.maintenanceSettings = { ...defaultConfig.maintenance };
           this.brandingSettings = { ...defaultConfig.branding };
           this.logisticsSettings = { ...defaultConfig.logistics };
-          this.documentUploadPaths = { ...defaultConfig.documentPaths };
+          this.documentUploadPaths = { 
+            ...defaultConfig.documentPaths,
+            branch: (defaultConfig.documentPaths as any)?.branch || '/uploads/documents/branch',
+            department: (defaultConfig.documentPaths as any)?.department || '/uploads/documents/department'
+          };
         }
 
         this.defaultLogo.set(null);

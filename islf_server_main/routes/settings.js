@@ -214,7 +214,8 @@ router.get('/config', async (req, res) => {
       documentPaths: {
         customer: config.document_upload_path_customer || '/uploads/documents/customer',
         vendor: config.document_upload_path_vendor || '/uploads/documents/vendor',
-        company: config.document_upload_path_company || '/uploads/documents/company'
+        company: config.document_upload_path_company || '/uploads/documents/company',
+        user: config.document_upload_path_user || '/uploads/documents/user'
       }
     };
     
@@ -336,7 +337,8 @@ router.post('/config', async (req, res) => {
       // Document paths
       { key: 'document_upload_path_customer', value: config.documentPaths.customer },
       { key: 'document_upload_path_vendor', value: config.documentPaths.vendor },
-      { key: 'document_upload_path_company', value: config.documentPaths.company }
+      { key: 'document_upload_path_company', value: config.documentPaths.company },
+      { key: 'document_upload_path_user', value: config.documentPaths.user }
     ];
     
     // Save all settings

@@ -99,6 +99,8 @@ const tariffRouter = require('./routes/tariff');
 app.use('/api/tariff', tariffRouter);
 
 
+
+
 // DB connection check
 const pool = require('./db');
 pool.connect()

@@ -22,8 +22,12 @@ import { DepartmentService } from '@/services/department.service';
 import { ActivatedRoute } from '@angular/router';
 import { ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TableModule } from 'primeng/table';
+import { DialogModule } from 'primeng/dialog';
 import { MasterCodeService } from '../../../services/mastercode.service';
 import { MasterTypeService } from '../../../services/mastertype.service';
+import { EntityDocumentService, EntityDocument } from '../../../services/entity-document.service';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 
 @Component({
@@ -44,7 +48,9 @@ import { MasterTypeService } from '../../../services/mastertype.service';
     FormsModule,
     CommonModule,
     HttpClientModule,
-    ConfirmDialogModule, 
+    ConfirmDialogModule,
+    TableModule,
+    DialogModule,
   ],
   providers: [ConfirmationService],
   template: `
@@ -226,7 +232,62 @@ import { MasterTypeService } from '../../../services/mastertype.service';
         <label class="block font-semibold mb-1">Bio</label>
         <textarea pInputTextarea rows="3" class="w-full" [(ngModel)]="user.bio" name="bio"></textarea>
       </div>
-     
+    </div>
+
+    <!-- 7. Document Upload -->
+    <h3 class="section-header">7. Document Upload</h3>
+    <div class="document-upload-section">
+      <p-table [value]="userDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>DOC. TYPE</th>
+            <th>DOCUMENT NUMBER</th>
+            <th>VALID FROM</th>
+            <th>VALID TILL</th>
+            <th>FILE</th>
+            <th>Action</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+          <tr>
+            <td>
+              <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+            </td>
+            <td>
+              <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+            </td>
+            <td>
+              <input pInputText type="date" [(ngModel)]="document.valid_from" />
+            </td>
+            <td>
+              <input pInputText type="date" [(ngModel)]="document.valid_till" />
+            </td>
+            <td>
+              <input type="file" (change)="onFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded file:border-0
+              file:text-sm file:font-semibold
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100"/>
+              <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+            </td>
+            <td>
+              <div class="flex gap-1">
+                <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDocument(rowIndex)" pTooltip="Delete Document"></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="footer">
+          <tr>
+            <td colspan="6">
+              <button pButton label="Add Document" icon="pi pi-plus" (click)="addDocument()"></button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
     </div>
 
     <!-- Submit -->
@@ -251,9 +312,123 @@ import { MasterTypeService } from '../../../services/mastertype.service';
     <button *ngIf="!isEditMode" class="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded" (click)="createUser()">Create User</button>
     <button *ngIf="isEditMode" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded" (click)="updateUser()">Update</button>
   </div>
-</div>
+  </div>
 <p-confirmDialog [style]="{width: '350px'}" [baseZIndex]="10000"></p-confirmDialog>
 
+<!-- Document Viewer Dialog -->
+<p-dialog 
+  [(visible)]="isDocumentViewerVisible" 
+  [modal]="true" 
+  [style]="{width: '90vw', height: '90vh'}" 
+  [maximizable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  (onHide)="hideDocumentViewer()">
+  
+  <ng-template pTemplate="header">
+    <div class="flex align-items-center justify-content-between w-full">
+      <h5 class="m-0">
+        <i class="pi pi-file mr-2"></i>
+        {{ selectedDocument?.file_name }}
+      </h5>
+      <div class="flex gap-2">
+        <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
+                (click)="downloadDocument(selectedDocument!)" 
+                pTooltip="Download Document"></button>
+        <button pButton icon="pi pi-times" class="p-button-sm p-button-outlined" 
+                (click)="hideDocumentViewer()" 
+                pTooltip="Close"></button>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="content">
+    <div class="document-viewer-container" style="height: calc(90vh - 120px); overflow: auto;">
+      <!-- Image files -->
+      <img *ngIf="selectedDocument?.mime_type?.startsWith('image/') && documentViewerUrl" 
+           [src]="documentViewerUrl" 
+           [alt]="selectedDocument?.file_name"
+           style="max-width: 100%; max-height: 100%; object-fit: contain;">
+      
+      <!-- PDF files -->
+      <div *ngIf="selectedDocument?.mime_type === 'application/pdf'" style="height: 100%; display: flex; flex-direction: column;">
+        <!-- PDF Loading State -->
+        <div *ngIf="!pdfLoaded" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+          <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+          <p class="text-muted">Loading PDF...</p>
+          <button pButton label="Open PDF in New Tab" icon="pi pi-external-link" 
+                  (click)="openDocumentInNewTab()" 
+                  class="p-button-outlined"></button>
+        </div>
+        
+        <!-- PDF Viewer -->
+        <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && safeDocumentViewerUrl && pdfLoaded" 
+                [src]="safeDocumentViewerUrl" 
+                style="width: 100%; height: 100%; border: none;"
+                (load)="onPdfLoad()"
+                (error)="onPdfError()">
+        </iframe>
+        
+        <!-- PDF Error State -->
+        <div *ngIf="pdfError" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
+          <i class="pi pi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
+          <h4>PDF Loading Failed</h4>
+          <p class="text-muted">Unable to display PDF in browser.</p>
+          <div class="flex gap-2">
+            <button pButton label="Download PDF" icon="pi pi-download" 
+                    (click)="downloadDocument(selectedDocument!)" 
+                    class="p-button-primary"></button>
+            <button pButton label="Open in New Tab" icon="pi pi-external-link" 
+                    (click)="openDocumentInNewTab()" 
+                    class="p-button-outlined"></button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Text files -->
+      <div *ngIf="selectedDocument?.mime_type === 'text/plain' && documentViewerUrl" 
+           style="padding: 1rem; background: white; height: 100%; overflow: auto;">
+        <pre style="margin: 0; white-space: pre-wrap; font-family: monospace;">{{ documentViewerUrl }}</pre>
+      </div>
+      
+      <!-- Office Documents and other files - Enhanced viewer -->
+      <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && 
+                  selectedDocument?.mime_type !== 'application/pdf' && 
+                  selectedDocument?.mime_type !== 'text/plain' && 
+                  documentViewerUrl" 
+           style="height: 100%; display: flex; flex-direction: column;">
+        
+        <!-- Try Microsoft Office Online Viewer first -->
+        <iframe *ngIf="getSafeOfficeViewerUrl()" 
+                [src]="getSafeOfficeViewerUrl()"
+                style="width: 100%; height: 100%; border: none;">
+        </iframe>
+        
+        <!-- Fallback for unsupported files -->
+        <div *ngIf="!getSafeOfficeViewerUrl()" 
+             class="flex align-items-center justify-content-center" 
+             style="height: 100%; flex-direction: column; gap: 1rem;">
+          <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
+          <h4>Document Preview</h4>
+          <p class="text-muted">This file type requires download for viewing.</p>
+          <button pButton label="Download File" icon="pi pi-download" 
+                  (click)="downloadDocument(selectedDocument!)" 
+                  class="p-button-primary"></button>
+        </div>
+      </div>
+      
+      <!-- Loading state -->
+      <div *ngIf="!documentViewerUrl" 
+           class="flex align-items-center justify-content-center" 
+           style="height: 100%;">
+        <div class="text-center">
+          <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
+          <p class="mt-2 text-muted">Loading document...</p>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>
 
   `
 })
@@ -347,6 +522,19 @@ export class UserCreateComponent implements OnInit {
   designationOptions: any[] = [];
   statusOptions: any[] = [];
   roleOptions: any[] = [];
+  
+  // Document handling properties
+  userDocuments: (EntityDocument & { file?: File })[] = [];
+  documentUploadPath: string = '/uploads/documents/user';
+  documentTypeOptions: any[] = [];
+  
+  // Document viewer dialog
+  isDocumentViewerVisible = false;
+  selectedDocument: EntityDocument | null = null;
+  documentViewerUrl: string = '';
+  safeDocumentViewerUrl: SafeResourceUrl | null = null;
+  pdfLoaded: boolean = false;
+  pdfError: boolean = false;
 
   onRoleChange(event: any) {
     this.selectedRole = event.value;
@@ -406,6 +594,7 @@ export class UserCreateComponent implements OnInit {
     this.usernameManuallyEdited = false;
     this.isEditMode = false;
     this.userId = null;
+    this.userDocuments = []; // Reset documents array
   }
   constructor(
     private router: Router,
@@ -416,7 +605,9 @@ export class UserCreateComponent implements OnInit {
     private route: ActivatedRoute,
     private confirmationService: ConfirmationService,
     private masterCodeService: MasterCodeService,
-    private masterTypeService: MasterTypeService
+    private masterTypeService: MasterTypeService,
+    private entityDocumentService: EntityDocumentService,
+    private sanitizer: DomSanitizer
   ) {}
 
   // Helper to map codes to option objects
@@ -427,6 +618,10 @@ export class UserCreateComponent implements OnInit {
   }
 
   ngOnInit() {
+    // Load document upload path and document type options
+    this.loadDocumentUploadPath();
+    this.loadDocumentTypeOptions();
+    
     // Fetch branches and departments first
     let branchesLoaded = false;
     let departmentsLoaded = false;
@@ -486,6 +681,11 @@ export class UserCreateComponent implements OnInit {
                     ? res.user.department.map((d: any) => typeof d === 'string' ? d : d.code)
                     : [];
                 this.user.department = this.mapCodesToOptions(departmentCodes, this.departmentOptions);
+                
+                // Load user documents
+                if (res.user.employee_id) {
+                  this.loadUserDocuments(res.user.employee_id);
+                }
               }
             },
             error: (err: any) => {
@@ -570,7 +770,7 @@ export class UserCreateComponent implements OnInit {
   }
   
 
-  createUser() {
+  async createUser() {
     if (this.user.password !== this.user.confirmPassword) {
       this.toast.showError('Error', 'Passwords do not match!');
       return;
@@ -595,30 +795,37 @@ export class UserCreateComponent implements OnInit {
         : this.user.employmentType,
       permission: this.selectedPermissions.join(',') // <-- send as comma-separated string
     };
-    this.userService.createUser(userToSend).subscribe({
-      next: (res: any) => {
-        this.toast.showSuccess('Success', 'User created successfully!');
-        this.confirmationService.confirm({
-          message: 'Need to create another user?',
-          header: 'Create Another User',
-          icon: 'pi pi-question-circle',
-          acceptLabel: 'Yes',
-          rejectLabel: 'No',
-          accept: () => {
-            this.onCancel(); // Reset the form for a new user
-          },
-          reject: () => {
-            this.router.navigate(['/settings/user_management']);
-          }
-        });
-      },
-      error: (err: any) => {
-        this.toast.showError('Error', 'Error creating user: ' + (err.error?.message || err.message));
+    
+    try {
+      const res = await this.userService.createUser(userToSend).toPromise();
+      this.toast.showSuccess('Success', 'User created successfully!');
+      
+      // Save documents if user was created successfully
+      if (res && res.user && res.user.employee_id) {
+        // Use the response data to ensure we have the correct employee_id
+        const userWithResponseData = { ...this.user, employeeId: res.user.employee_id };
+        await this.saveDocuments(userWithResponseData);
       }
-    });
+      
+      this.confirmationService.confirm({
+        message: 'Need to create another user?',
+        header: 'Create Another User',
+        icon: 'pi pi-question-circle',
+        acceptLabel: 'Yes',
+        rejectLabel: 'No',
+        accept: () => {
+          this.onCancel(); // Reset the form for a new user
+        },
+        reject: () => {
+          this.router.navigate(['/settings/user_management']);
+        }
+      });
+    } catch (err: any) {
+      this.toast.showError('Error', 'Error creating user: ' + (err.error?.message || err.message));
+    }
   }
 
-  updateUser() {
+  async updateUser() {
     if (!this.userId) return;
     // Store branch and department as comma-separated label strings
     const userToSend = {
@@ -640,15 +847,22 @@ export class UserCreateComponent implements OnInit {
         : this.user.employmentType,
       permission: this.selectedPermissions.join(',') // <-- send as comma-separated string
     };
-    this.userService.updateUser(this.userId, userToSend).subscribe({
-      next: (res: any) => {
-        this.toast.showSuccess('Success', 'User updated successfully!');
-        this.router.navigate(['/settings/user_management']);
-      },
-      error: (err: any) => {
-        this.toast.showError('Error', 'Error updating user: ' + (err.error?.message || err.message));
+    
+    try {
+      const res = await this.userService.updateUser(this.userId, userToSend).toPromise();
+      this.toast.showSuccess('Success', 'User updated successfully!');
+      
+      // Save documents if user was updated successfully
+      if (res && res.user && res.user.employee_id) {
+        // Use the response data to ensure we have the correct employee_id
+        const userWithResponseData = { ...this.user, employeeId: res.user.employee_id };
+        await this.saveDocuments(userWithResponseData);
       }
-    });
+      
+      this.router.navigate(['/settings/user_management']);
+    } catch (err: any) {
+      this.toast.showError('Error', 'Error updating user: ' + (err.error?.message || err.message));
+    }
   }
 
   get branchOptions() {
@@ -675,5 +889,303 @@ export class UserCreateComponent implements OnInit {
 
   onBranchChange() {
     this.user.department = [];
+  }
+
+  // Document handling methods
+  loadDocumentUploadPath() {
+    console.log('Loading document upload path for user...');
+    this.entityDocumentService.getUploadPath('user').subscribe({
+      next: (response: any) => {
+        console.log('Document upload path loaded:', response.value);
+        this.documentUploadPath = response.value;
+      },
+      error: (error: any) => {
+        console.error('Error loading document upload path:', error);
+        this.documentUploadPath = '/uploads/documents/user';
+      }
+    });
+  }
+
+  loadDocumentTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
+        this.documentTypeOptions = (types || [])
+          .filter(t => t.key === 'USER_DOC_TYPE' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        console.log('Document type options loaded:', this.documentTypeOptions);
+      },
+      error: (error) => {
+        console.error('Error loading document types:', error);
+        this.toast.showError('Error', 'Failed to load document types');
+      }
+    });
+  }
+
+  addDocument() {
+    this.userDocuments.push({
+      entity_type: 'user',
+      entity_code: this.user.employeeId,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeDocument(index: number) {
+    const document = this.userDocuments[index];
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          // Delete from server if it exists
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.toast.showSuccess('Success', 'Document deleted');
+              this.userDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.toast.showError('Error', 'Failed to delete document');
+            }
+          });
+        } else {
+          // Just remove from local array if not saved yet
+          this.userDocuments.splice(index, 1);
+          this.toast.showSuccess('Success', 'Document removed');
+        }
+      }
+    });
+  }
+
+  onFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.userDocuments[index].file = file;
+      this.userDocuments[index].file_name = file.name;
+      this.userDocuments[index].file_size = file.size;
+      this.userDocuments[index].mime_type = file.type;
+    }
+  }
+
+  downloadDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    console.log('=== FRONTEND DOWNLOAD REQUEST ===');
+    console.log('Document ID:', doc.id);
+    console.log('Document:', doc);
+    
+    this.entityDocumentService.download(doc.id).subscribe({
+      next: (blob: any) => {
+        console.log('Download successful, blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.file_name;
+        link.click();
+        window.URL.revokeObjectURL(url);
+        
+        console.log('Download link clicked');
+      },
+      error: (error: any) => {
+        console.error('Error downloading document:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        this.toast.showError('Error', 'Failed to download document');
+      }
+    });
+  }
+
+  viewDocument(doc: EntityDocument) {
+    if (!doc.id) return;
+    
+    console.log('=== FRONTEND VIEW REQUEST ===');
+    console.log('Document ID:', doc.id);
+    console.log('Document:', doc);
+    
+    this.selectedDocument = doc;
+    this.isDocumentViewerVisible = true;
+    this.pdfLoaded = false;
+    this.pdfError = false;
+    
+    // Always load fresh from server - no caching for blob URLs
+    this.entityDocumentService.view(doc.id).subscribe({
+      next: (blob: any) => {
+        console.log('View successful, blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+        
+        this.documentViewerUrl = window.URL.createObjectURL(blob);
+        this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
+        
+        console.log('Document viewer URL created:', this.documentViewerUrl);
+        
+        // Immediate load for PDFs
+        if (doc.mime_type === 'application/pdf') {
+          this.pdfLoaded = true;
+        } else {
+          // Short delay for other file types
+          setTimeout(() => {
+            this.pdfLoaded = true;
+          }, 300);
+        }
+      },
+      error: (error: any) => {
+        console.error('Error viewing document:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        this.toast.showError('Error', 'Failed to view document');
+        this.hideDocumentViewer();
+      }
+    });
+  }
+
+  hideDocumentViewer() {
+    this.isDocumentViewerVisible = false;
+    this.selectedDocument = null;
+    if (this.documentViewerUrl) {
+      window.URL.revokeObjectURL(this.documentViewerUrl);
+      this.documentViewerUrl = '';
+    }
+    this.safeDocumentViewerUrl = null;
+    this.pdfLoaded = false;
+    this.pdfError = false;
+  }
+
+  getOfficeViewerUrl(): string {
+    if (!this.documentViewerUrl || !this.selectedDocument) return '';
+    
+    // Check if it's a blob URL
+    if (this.documentViewerUrl.startsWith('blob:')) {
+      // For blob URLs, we can't use online viewers directly
+      // We'll return empty to show the fallback
+      return '';
+    }
+    
+    // For regular URLs, try Microsoft Office Online Viewer
+    const encodedUrl = encodeURIComponent(this.documentViewerUrl);
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+  }
+
+  getSafeOfficeViewerUrl(): SafeResourceUrl | null {
+    const url = this.getOfficeViewerUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  }
+
+  openDocumentInNewTab() {
+    if (this.selectedDocument?.id) {
+      // Use the server URL instead of blob URL for better compatibility
+      const serverUrl = `${window.location.origin}/api/entity-documents/${this.selectedDocument.id}/view`;
+      window.open(serverUrl, '_blank');
+    }
+  }
+
+  onPdfLoad() {
+    console.log('PDF loaded successfully');
+    this.pdfLoaded = true;
+    this.pdfError = false;
+  }
+
+  onPdfError() {
+    console.log('PDF failed to load');
+    this.pdfError = true;
+    this.pdfLoaded = false;
+  }
+
+  loadUserDocuments(employeeId: string) {
+    this.entityDocumentService.getByEntityCode('user', employeeId).subscribe({
+      next: (documents: any) => {
+        this.userDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading user documents:', error);
+        this.userDocuments = [];
+      }
+    });
+  }
+
+  async saveDocuments(userData?: any) {
+    const user = userData || this.user;
+    console.log('=== SAVE DOCUMENTS DEBUG ===');
+    console.log('User data received:', user);
+    console.log('User employeeId:', user?.employeeId);
+    console.log('User fullName:', user?.fullName);
+    
+    if (!user?.employeeId) {
+      console.log('No employeeId found, returning early');
+      return;
+    }
+
+    // Filter out documents without doc_type selected
+    const documentsToUpload = this.userDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.userDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.toast.showError('Validation Error', 'Please select document type for all documents before saving');
+      return;
+    }
+
+    const uploadPromises = documentsToUpload
+      .map(doc => {
+        console.log('Preparing to upload document:', {
+          entity_type: 'user',
+          entity_code: user.employeeId,
+          entity_name: user.fullName, // Include user name for folder creation
+          doc_type: doc.doc_type,
+          document_number: doc.document_number || '',
+          valid_from: doc.valid_from || '',
+          valid_till: doc.valid_till || '',
+          file_name: doc.file?.name,
+          uploadPath: this.documentUploadPath
+        });
+
+        console.log('=== FRONTEND UPLOAD DEBUG ===');
+        console.log('Document upload path being sent:', this.documentUploadPath);
+        console.log('User employeeId:', user.employeeId);
+        console.log('User fullName:', user.fullName);
+        
+        const formData = new FormData();
+        formData.append('entity_type', 'user');
+        formData.append('entity_code', user.employeeId);
+        formData.append('entity_name', user.fullName); // Include user name for folder creation
+        formData.append('doc_type', doc.doc_type);
+        formData.append('document_number', doc.document_number || '');
+        formData.append('valid_from', doc.valid_from || '');
+        formData.append('valid_till', doc.valid_till || '');
+        formData.append('document', doc.file!);
+        formData.append('uploadPath', this.documentUploadPath);
+
+        return this.entityDocumentService.uploadDocument(formData).toPromise();
+      });
+
+    const updatePromises = this.userDocuments
+      .filter(doc => doc.id && !doc.file) // Only update existing documents without new files
+      .map(doc => {
+        return this.entityDocumentService.update(doc.id!, {
+          doc_type: doc.doc_type,
+          document_number: doc.document_number,
+          valid_from: doc.valid_from,
+          valid_till: doc.valid_till
+        }).toPromise();
+      });
+
+    await Promise.all([...uploadPromises, ...updatePromises]);
+    this.toast.showSuccess('Success', 'Documents saved successfully');
+    this.loadUserDocuments(user.employeeId);
   }
 }

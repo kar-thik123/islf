@@ -99,6 +99,7 @@ export interface DocumentPaths {
   customer: string;
   vendor: string;
   company: string;
+  user: string;
 }
 
 export interface AppConfig {
@@ -207,7 +208,8 @@ export class ConfigService {
     documentPaths: {
       customer: '/uploads/documents/customer',
       vendor: '/uploads/documents/vendor',
-      company: '/uploads/documents/company'
+      company: '/uploads/documents/company',
+      user: '/uploads/documents/user'
     }
   };
 

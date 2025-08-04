@@ -9,6 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { LoginService } from '../../services/login.service';
+import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
 
 
@@ -41,6 +42,7 @@ import { UserService } from '../../services/user.service';
                     </button>
                 </li>
 
+
             </ul>
         </div>
     </div>`
@@ -51,8 +53,13 @@ export class AppTopbar {
     userName: string | null = null;
     userAvatar: string | null = null;
 
-    constructor(public layoutService: LayoutService, private loginService: LoginService, private userService: UserService) {
-        this.userName = this.loginService.getUserName();
+    constructor(
+        public layoutService: LayoutService, 
+        private loginService: LoginService, 
+        private authService: AuthService,
+        private userService: UserService
+    ) {
+        this.userName = this.authService.getUserName();
         if (this.userName) {
             this.userService.getUserByUsername(this.userName).subscribe({
                 next: (res) => {
