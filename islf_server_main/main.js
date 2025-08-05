@@ -38,6 +38,8 @@ const numberRelationRouter = require('./routes/number_relation');
 app.use('/api/number_relation', numberRelationRouter);
 const departmentRouter = require('./routes/department');
 app.use('/api/department', departmentRouter);
+const serviceTypesRouter = require('./routes/service_types');
+app.use('/api/service-types', serviceTypesRouter);
 const companyRouter = require('./routes/company');
 app.use('/api/company', companyRouter);
 const branchRouter = require('./routes/branch');

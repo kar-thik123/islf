@@ -215,6 +215,8 @@ router.get('/config', async (req, res) => {
         customer: config.document_upload_path_customer || '/uploads/documents/customer',
         vendor: config.document_upload_path_vendor || '/uploads/documents/vendor',
         company: config.document_upload_path_company || '/uploads/documents/company',
+        branch: config.document_upload_path_branch || '/uploads/documents/branch',
+        department: config.document_upload_path_department || '/uploads/documents/department',
         user: config.document_upload_path_user || '/uploads/documents/user'
       }
     };
@@ -338,6 +340,8 @@ router.post('/config', async (req, res) => {
       { key: 'document_upload_path_customer', value: config.documentPaths.customer },
       { key: 'document_upload_path_vendor', value: config.documentPaths.vendor },
       { key: 'document_upload_path_company', value: config.documentPaths.company },
+      { key: 'document_upload_path_branch', value: config.documentPaths.branch },
+      { key: 'document_upload_path_department', value: config.documentPaths.department },
       { key: 'document_upload_path_user', value: config.documentPaths.user }
     ];
     

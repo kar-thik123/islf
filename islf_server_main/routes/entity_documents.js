@@ -160,7 +160,7 @@ router.get('/:entityType/:entityCode', async (req, res) => {
 // UPLOAD new document (use entity_code)
 router.post('/upload', upload.single('document'), async (req, res) => {
   try {
-    const { entity_type, entity_code, entity_name, doc_type, document_number, valid_from, valid_till, uploadPath } = req.body;
+    const { entity_type, entity_code, entity_name, doc_type, document_number, valid_from, valid_till } = req.body;
     const file = req.file;
     if (!entity_type || !entity_code || !doc_type || !file) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -212,6 +212,20 @@ router.post('/upload', upload.single('document'), async (req, res) => {
           entityName = companyResult.rows[0].name || entity_code;
         }
         break;
+      case 'branch':
+        const branchResult = await pool.query('SELECT code, name FROM branches WHERE code = $1', [entity_code]);
+        entityExists = branchResult.rows.length > 0;
+        if (entityExists && !entityName) {
+          entityName = branchResult.rows[0].name || entity_code;
+        }
+        break;
+      case 'department':
+        const departmentResult = await pool.query('SELECT code, name FROM departments WHERE code = $1', [entity_code]);
+        entityExists = departmentResult.rows.length > 0;
+        if (entityExists && !entityName) {
+          entityName = departmentResult.rows[0].name || entity_code;
+        }
+        break;
       default:
         return res.status(400).json({ error: 'Invalid entity type' });
     }
@@ -220,13 +234,37 @@ router.post('/upload', upload.single('document'), async (req, res) => {
       return res.status(404).json({ error: `${entity_type} not found` });
     }
 
-    // Determine base upload directory from settings
+    // Fetch configured upload path from settings table
     console.log('=== UPLOAD PATH DEBUG ===');
-    console.log('UploadPath received:', uploadPath);
     console.log('Entity type:', entity_type);
-    console.log('Default path:', path.join('uploads', 'documents', entity_type));
     
-    let baseUploadDir = uploadPath && uploadPath.trim() !== '' ? uploadPath : path.join('uploads', 'documents', entity_type);
+    let baseUploadDir;
+    try {
+      const settingsKey = `document_upload_path_${entity_type}`;
+      console.log('Looking for settings key:', settingsKey);
+      
+      const settingsResult = await pool.query(
+        "SELECT value FROM settings WHERE key = $1", 
+        [settingsKey]
+      );
+      
+      console.log('Settings query result:', settingsResult.rows);
+      
+      if (settingsResult.rows.length > 0 && settingsResult.rows[0].value) {
+        baseUploadDir = settingsResult.rows[0].value;
+        console.log('✅ Using configured path from settings:', baseUploadDir);
+      } else {
+        // Fallback to default path
+        baseUploadDir = path.join('uploads', 'documents', entity_type);
+        console.log('⚠️ No configured path found, using default path:', baseUploadDir);
+      }
+    } catch (settingsErr) {
+      console.error('❌ Error fetching settings:', settingsErr);
+      // Fallback to default path
+      baseUploadDir = path.join('uploads', 'documents', entity_type);
+      console.log('⚠️ Using default path due to settings error:', baseUploadDir);
+    }
+    
     console.log('Base upload dir before absolute check:', baseUploadDir);
     
     if (!path.isAbsolute(baseUploadDir)) {
@@ -329,6 +367,64 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting document:', err);
     res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
+
+// Debug route to check document upload paths
+router.get('/debug/upload-paths', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT key, value FROM settings WHERE key LIKE 'document_upload_path_%' ORDER BY key");
+    res.json({
+      message: 'Document upload paths from database',
+      paths: result.rows,
+      count: result.rows.length
+    });
+  } catch (err) {
+    console.error('Error fetching upload paths:', err);
+    res.status(500).json({ error: 'Failed to fetch upload paths' });
+  }
+});
+
+// Debug route to check document types
+router.get('/debug/document-types/:entity_type', async (req, res) => {
+  try {
+    const { entity_type } = req.params;
+    let docTypeKey;
+    
+    switch (entity_type) {
+      case 'company':
+      case 'branch':
+      case 'department':
+        docTypeKey = 'DOC_TYPE';
+        break;
+      case 'customer':
+        docTypeKey = 'CUS_DOC_TYPE';
+        break;
+      case 'vendor':
+        docTypeKey = 'VENDOR_DOC_TYPE';
+        break;
+      case 'user':
+        docTypeKey = 'USER_DOC_TYPE';
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid entity type' });
+    }
+    
+    const result = await pool.query(
+      "SELECT value, description FROM master_type WHERE key = $1 AND status = 'Active' ORDER BY value",
+      [docTypeKey]
+    );
+    
+    res.json({
+      message: `Document types for ${entity_type}`,
+      entity_type,
+      docTypeKey,
+      types: result.rows,
+      count: result.rows.length
+    });
+  } catch (err) {
+    console.error('Error fetching document types:', err);
+    res.status(500).json({ error: 'Failed to fetch document types' });
   }
 });
 

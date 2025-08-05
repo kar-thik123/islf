@@ -57,7 +57,16 @@ interface NumberSeries {
     <p-confirmDialog></p-confirmDialog>
     
     <div class="card">
-    <div class="font-semibold text-xl mb-4">Number Series  </div>
+    <div class="font-semibold text-xl mb-4">Number Series</div>
+    
+    <!-- Validation Help Note -->
+    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+      <p class="text-sm text-blue-800">
+        <i class="pi pi-info-circle mr-2"></i>
+        <strong>Required:</strong> For each number series, you must select either "Default" or "Manual" before saving. 
+        These options are mutually exclusive - selecting one will automatically uncheck the other.
+      </p>
+    </div>
       <!-- ✅ Add Series button and Clear button -->
       <p-table
         #dt
@@ -204,6 +213,7 @@ interface NumberSeries {
             <td>
               <p-checkbox [(ngModel)]="ser.isPrimary" binary="true" [disabled]="!ser.isEditing"></p-checkbox>
             </td>
+
             <td>
             <div class="flex items-center space-x-[8px]">
               <button
@@ -221,6 +231,7 @@ interface NumberSeries {
                 class="p-button-sm"
                 (click)="saveRow(ser)"
                 title="Save"
+                [disabled]="!isRowValid(ser)"
                 *ngIf="ser.isEditing"
               ></button>
               <button
@@ -299,6 +310,16 @@ export class NumberSeriesComponent implements OnInit {
   }
 
   saveRow(row: NumberSeries) {
+    // Validate that either Default or Manual must be selected
+    if (!row.isDefault && !row.isManual) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Either "Default" or "Manual" must be selected before saving.' 
+      });
+      return;
+    }
+
     // Default basecode to code if not set
     if (!row.basecode && row.code) {
       row.basecode = row.code;
@@ -425,5 +446,10 @@ export class NumberSeriesComponent implements OnInit {
     return this.seriesList()
       .filter(item => item.isPrimary && item.code && item.code !== currentCode)
       .map(item => ({ label: item.code, value: item.code }));
+  }
+
+  // Helper method to check if a row is valid (has either Default or Manual selected)
+  isRowValid(row: NumberSeries): boolean {
+    return !!(row.isDefault || row.isManual);
   }
 }

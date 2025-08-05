@@ -10,6 +10,7 @@ import { ToastModule } from 'primeng/toast';
 import { CompanyService, Company } from '../../../services/company.service';
 import { BranchService, Branch } from '../../../services/branch.service';
 import { DepartmentService, Department } from '../../../services/department.service';
+import { ServiceTypeService, ServiceType } from '../../../services/servicetype.service';
 import { ConfigService } from '../../../services/config.service';
 import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
 import { TabsModule } from 'primeng/tabs';
@@ -35,7 +36,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <p-tab [value]="0">Company</p-tab>
             <p-tab [value]="1">Branches</p-tab>
             <p-tab [value]="2">Departments</p-tab>
-            <p-tab [value]='3'>Operations</p-tab>
+            <p-tab [value]="3">Service Types</p-tab>
+          
           </p-tablist>
           <p-tabpanels>
             <p-tabpanel [value]="0">
@@ -136,6 +138,54 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                 </div>
               </div>
             </p-tabpanel>
+            <p-tabpanel [value]="3">
+              <!-- Service Type Section: Show all companies, each with their branches, departments and service types -->
+              <div *ngFor="let company of companies" class="mb-8">
+                <div class="mb-4 border rounded p-4 bg-blue-50">
+                  <div class="font-bold text-lg">{{ company.name }}</div>
+                  <div class="text-xs text-gray-500">Code: {{ company.code }}</div>
+                </div>
+                <div *ngFor="let branch of getBranchesForCompany(company.code)" class="mb-8">
+                  <div class="w-full border rounded-xl shadow bg-green-50 p-4 mb-2">
+                    <div class="font-bold text-lg">{{ branch.name }}</div>
+                    <div class="text-xs text-gray-500">Incharge: {{ branch.incharge_name }}</div>
+                  </div>
+                  <div *ngFor="let dept of branch.departments" class="mb-6">
+                    <div class="w-full border rounded-xl shadow bg-yellow-50 p-4 mb-2">
+                      <div class="flex justify-between items-center">
+                        <div>
+                          <div class="font-bold text-lg">{{ dept.name }}</div>
+                          <div class="text-xs text-gray-500">Incharge: {{ dept.incharge_name }}</div>
+                        </div>
+                        <button pButton icon="pi pi-plus" label="Add Service Type" class="p-button-sm p-button-success" (click)="openServiceTypeDialog(dept)"></button>
+                      </div>
+                    </div>
+                    <h3 class="text-xl font-semibold mt-6 mb-6 ml-[2px]">Service Types</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      <div *ngFor="let serviceType of dept.serviceTypes" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openServiceTypeDialog(dept, serviceType); $event.stopPropagation()">
+                        <div class="branch-header">
+                          <div class="col-span-full flex justify-between items-center w-full">
+                            <div class="text-lg font-bold uppercase">{{ serviceType.name }}</div>
+                            <div class="text-sm font-medium">Incharge: {{ serviceType.incharge_name }}</div>
+                          </div>
+                        </div>
+                        <div class="p-4">
+                          <div class="text-xs text-gray-600 mb-2">{{ serviceType.description }}</div>
+                          <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div><strong>Code:</strong> {{ serviceType.code }}</div>
+                            <div><strong>Incharge From:</strong> {{ serviceType.incharge_from | configDate }}</div>
+                            <div><strong>Status:</strong> {{ serviceType.status }}</div>
+                            <div><strong>Start:</strong> {{ serviceType.start_date | configDate }}</div>
+                            <div><strong>Close:</strong> {{ serviceType.close_date ? (serviceType.close_date | configDate) : '-' }}</div>
+                            <div class="col-span-2"><strong>Remarks:</strong> {{ serviceType.remarks }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </p-tabpanel>
           </p-tabpanels>
         </p-tabs>
         <!-- Dialogs remain unchanged -->
@@ -156,7 +206,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedCompany[field.key]" 
                   [name]="field.key"
-                  [disabled]="field.key === 'code' && !!selectedCompany?.code"
+                  [disabled]="field.key === 'code' && isCompanyCodeDisabled()"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)" />
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
@@ -195,18 +245,17 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
           <!-- Document Upload Button -->
           <div class="col-span-2">
-            <hr class="w-full border-t border-gray-300 my-4" />
+            
             <div class="flex justify-between items-center">
-              <label class="block text-sm font-semibold text-gray-700">Company Documents</label>
+             
               <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openCompanyDocumentDialog()"></button>
+              <button pButton label="Navigate to Mapping" class="p-button-primary" (click)="navigateToMapping()"></button>
             </div>
           </div>
 
           </form>
         
-          <div class="text-right">
-            <button pButton label="Navigate to Mapping" class="p-button-primary" (click)="navigateToMapping()"></button>
-          </div>
+        
           <ng-template pTemplate="footer">
             <div class="text-right">
               <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeCompanyDialog()"></button>
@@ -230,8 +279,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedBranch[field.key]" 
                   [name]="field.key"
-                  [disabled]="field.key === 'code' && !!selectedBranch?.code"
-                  [disabled]="field.key === 'company_code' && !!selectedBranch?.company_code"
+                  [disabled]="(field.key === 'code' && isBranchCodeDisabled()) || (field.key === 'company_code' && isBranchCompanyCodeDisabled())"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)" />
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
@@ -242,7 +290,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <div class="col-span-2">
               <hr class="w-full border-t border-gray-300 my-4" />
               <div class="flex justify-between items-center">
-                <label class="block text-sm font-semibold text-gray-700">Branch Documents</label>
+                
                 <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openBranchDocumentDialog()"></button>
               </div>
             </div>
@@ -270,9 +318,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedDepartment[field.key]" 
                   [name]="field.key"
-                  [disabled]="field.key === 'code' && !!selectedDepartment?.code"
-                  [disabled]="field.key === 'branch_code' && !!selectedDepartment?.branch_code" 
-                  [disabled]="field.key === 'company_code' && !!selectedDepartment?.company_code"
+                  [disabled]="(field.key === 'code' && isDepartmentCodeDisabled()) || (field.key === 'branch_code' && isDepartmentBranchCodeDisabled()) || (field.key === 'company_code' && isDepartmentCompanyCodeDisabled())"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)" />
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
@@ -283,7 +329,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <div class="col-span-2">
               <hr class="w-full border-t border-gray-300 my-4" />
               <div class="flex justify-between items-center">
-                <label class="block text-sm font-semibold text-gray-700">Department Documents</label>
+                
                 <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openDepartmentDocumentDialog()"></button>
               </div>
             </div>
@@ -295,6 +341,45 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             </div>
           </ng-template>
         </p-dialog>
+        <p-dialog header="{{ selectedServiceType?.code ? 'Edit' : 'Add' }} Service Type" [(visible)]="displayServiceTypeDialog" [modal]="true" [style]="{ width: '700px' }" [closable]="false">
+          <form class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngIf="serviceTypeFormError" class="text-red-600 mb-2">{{ serviceTypeFormError }}</div>
+            <ng-container *ngFor="let field of serviceTypeFields">
+              <div>
+                <label class="block mb-1 font-medium">
+                  {{ field.label }}
+                  <span *ngIf="field.required" class="text-red-600">*</span>
+                </label>
+                <input 
+                  [type]="field.type" 
+                  pInputText 
+                  class="w-full" 
+                  [class.border-red-500]="getFieldError(field.key)"
+                  [(ngModel)]="selectedServiceType[field.key]" 
+                  [name]="field.key"
+                  [disabled]="(field.key === 'code' && isServiceTypeCodeDisabled()) || (field.key === 'department_code' && isServiceTypeDepartmentCodeDisabled()) || (field.key === 'branch_code' && isServiceTypeBranchCodeDisabled()) || (field.key === 'company_code' && isServiceTypeCompanyCodeDisabled())"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (blur)="onFieldBlur(field.key)" />
+                <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
+              </div>
+            </ng-container>
+
+            <!-- Document Upload Button -->
+            <div class="col-span-2">
+              <hr class="w-full border-t border-gray-300 my-4" />
+              <div class="flex justify-between items-center">
+                
+                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openServiceTypeDocumentDialog()"></button>
+              </div>
+            </div>
+          </form>
+          <ng-template pTemplate="footer">
+            <div class="text-right">
+              <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeServiceTypeDialog()"></button>
+              <button pButton label="Save" class="p-button-primary" type="button" (click)="saveServiceType()"></button>
+            </div>
+          </ng-template>
+        </p-dialog>
       </div>
       
       <!-- Company Document Dialog -->
@@ -302,7 +387,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
         header="Company Documents" 
         [(visible)]="displayCompanyDocumentDialog" 
         [modal]="true" 
-        [style]="{ width: '1000px' }" 
+        [style]="{ width: '1200px' }" 
         [closable]="false">
         <div class="space-y-4">
           <p-table [value]="companyDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
@@ -370,7 +455,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
         header="Branch Documents" 
         [(visible)]="displayBranchDocumentDialog" 
         [modal]="true" 
-        [style]="{ width: '1000px' }" 
+        [style]="{ width: '1200px' }" 
         [closable]="false">
         <div class="space-y-4">
           <p-table [value]="branchDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
@@ -438,7 +523,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
         header="Department Documents" 
         [(visible)]="displayDepartmentDocumentDialog" 
         [modal]="true" 
-        [style]="{ width: '1000px' }" 
+        [style]="{ width: '1200px' }" 
         [closable]="false">
         <div class="space-y-4">
           <p-table [value]="departmentDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
@@ -497,6 +582,74 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
           <div class="text-right">
             <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeDepartmentDocumentDialog()"></button>
             <button pButton label="Save Documents" class="p-button-primary" (click)="saveDepartmentDocuments()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Service Type Document Dialog -->
+      <p-dialog 
+        header="Service Type Documents" 
+        [(visible)]="displayServiceTypeDocumentDialog" 
+        [modal]="true" 
+        [style]="{ width: '1200px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <p-table [value]="serviceTypeDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>DOC. TYPE</th>
+                <th>DOCUMENT NUMBER</th>
+                <th>VALID FROM</th>
+                <th>VALID TILL</th>
+                <th>FILE</th>
+                <th>Action</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+              <tr>
+                <td>
+                  <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                </td>
+                <td>
+                  <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                </td>
+                <td>
+                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                </td>
+                <td>
+                  <input type="file" (change)="onServiceTypeFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"/>
+                  <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
+                </td>
+                <td>
+                  <div class="flex gap-1">
+                    <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
+                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeServiceTypeDocument(rowIndex)" pTooltip="Delete Document"></button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              <tr>
+                <td colspan="6">
+                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addServiceTypeDocument()"></button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeServiceTypeDocumentDialog()"></button>
+            <button pButton label="Save Documents" class="p-button-primary" (click)="saveServiceTypeDocuments()"></button>
           </div>
         </ng-template>
       </p-dialog>
@@ -635,19 +788,80 @@ export class CompanyManagementComponent implements OnInit {
     return this.branches.filter(b => b.company_code === companyCode);
   }
 
+  // Add this method to filter departments by branch code
+  getDepartmentsForBranch(branchCode: string): Department[] {
+    const branch = this.branches.find(b => b.code === branchCode);
+    return branch?.departments || [];
+  }
+
+  // Add this method to filter service types by department code
+  getServiceTypesForDepartment(departmentCode: string): ServiceType[] {
+    const department = this.branches
+      .flatMap(b => b.departments || [])
+      .find(d => d.code === departmentCode);
+    return department?.serviceTypes || [];
+  }
+
+  // Helper methods for disabled conditions
+  isCompanyCodeDisabled(): boolean {
+    return this.companies.some(c => c.code === this.selectedCompany?.code);
+  }
+
+  isBranchCodeDisabled(): boolean {
+    return this.branches.some(b => b.code === this.selectedBranch?.code);
+  }
+
+  isBranchCompanyCodeDisabled(): boolean {
+    return !!this.selectedBranch?.company_code;
+  }
+
+  isDepartmentCodeDisabled(): boolean {
+    const departments = this.getDepartmentsForBranch(this.selectedDepartment?.branch_code || '');
+    return departments.some(d => d.code === this.selectedDepartment?.code);
+  }
+
+  isDepartmentBranchCodeDisabled(): boolean {
+    return !!this.selectedDepartment?.branch_code;
+  }
+
+  isDepartmentCompanyCodeDisabled(): boolean {
+    return !!this.selectedDepartment?.company_code;
+  }
+
+  isServiceTypeCodeDisabled(): boolean {
+    const serviceTypes = this.getServiceTypesForDepartment(this.selectedServiceType?.department_code || '');
+    return serviceTypes.some((st: ServiceType) => st.code === this.selectedServiceType?.code);
+  }
+
+  isServiceTypeDepartmentCodeDisabled(): boolean {
+    return !!this.selectedServiceType?.department_code;
+  }
+
+  isServiceTypeBranchCodeDisabled(): boolean {
+    return !!this.selectedServiceType?.branch_code;
+  }
+
+  isServiceTypeCompanyCodeDisabled(): boolean {
+    return !!this.selectedServiceType?.company_code;
+  }
+
   selectedCompany: Company = {} as Company;
   selectedBranch: Branch = {} as Branch;
   selectedDepartment: Department = {} as Department;
+  selectedServiceType: ServiceType = {} as ServiceType;
   currentBranchForDepartment: Branch | null = null;
+  currentDepartmentForServiceType: Department | null = null;
 
   displayCompanyDialog = false;
   displayBranchDialog = false;
   displayDepartmentDialog = false;
+  displayServiceTypeDialog = false;
   
   // Document dialog visibility
   displayCompanyDocumentDialog = false;
   displayBranchDocumentDialog = false;
   displayDepartmentDocumentDialog = false;
+  displayServiceTypeDocumentDialog = false;
 
   // Track original company data for change detection
   originalCompanyData: Company | null = null;
@@ -695,11 +909,27 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'remarks', label: 'Remarks', type: 'text', required: false },
   ];
 
+  serviceTypeFields = [
+    { key: 'company_code', label: 'Company Code', type: 'text', required: true },
+    { key: 'branch_code', label: 'Branch Code', type: 'text', required: true },
+    { key: 'department_code', label: 'Department Code', type: 'text', required: true },
+    { key: 'code', label: 'Service Type Code', type: 'text', required: true },
+    { key: 'name', label: 'Service Type Name', type: 'text', required: true },
+    { key: 'description', label: 'Description', type: 'text', required: false },
+    { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
+    { key: 'incharge_from', label: 'Incharge From Date', type: 'date', required: false },
+    { key: 'status', label: 'Status', type: 'text', required: false },
+    { key: 'start_date', label: 'Start Date', type: 'date', required: false },
+    { key: 'close_date', label: 'Close Date', type: 'date', required: false },
+    { key: 'remarks', label: 'Remarks', type: 'text', required: false },
+  ];
+
   maxCompanies = 1;
   errorMessage = '';
   companyFormError = '';
   branchFormError = '';
   departmentFormError = '';
+  serviceTypeFormError = '';
   
   // Field-level error tracking
   fieldErrors: { [key: string]: string } = {};
@@ -709,6 +939,7 @@ export class CompanyManagementComponent implements OnInit {
   companyDocuments: (EntityDocument & { file?: File })[] = [];
   branchDocuments: (EntityDocument & { file?: File })[] = [];
   departmentDocuments: (EntityDocument & { file?: File })[] = [];
+  serviceTypeDocuments: (EntityDocument & { file?: File })[] = [];
   documentTypeOptions: any[] = [];
   
   // Document viewer properties
@@ -723,6 +954,7 @@ export class CompanyManagementComponent implements OnInit {
     private companyService: CompanyService,
     private branchService: BranchService,
     private departmentService: DepartmentService,
+    private serviceTypeService: ServiceTypeService,
     private http: HttpClient,
     private router: Router,
     private confirmationService: ConfirmationService,
@@ -877,9 +1109,41 @@ export class CompanyManagementComponent implements OnInit {
             branch.departments.push(dept);
           }
         });
+        // Load service types for departments
+        this.loadServiceTypesForDepartments();
       },
       error: (error) => {
         console.error('Error loading departments:', error);
+      }
+    });
+  }
+
+  loadServiceTypesForDepartments() {
+    this.serviceTypeService.getAll().subscribe({
+      next: (serviceTypes) => {
+        // Clear all department service types first
+        this.branches.forEach(branch => {
+          if (branch.departments) {
+            branch.departments.forEach(dept => {
+              dept.serviceTypes = [];
+            });
+          }
+        });
+        
+        serviceTypes.forEach(serviceType => {
+          const department = this.branches
+            .flatMap(b => b.departments || [])
+            .find(d => d.code === serviceType.department_code);
+          if (department) {
+            if (!Array.isArray(department.serviceTypes)) {
+              department.serviceTypes = [];
+            }
+            department.serviceTypes.push(serviceType);
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading service types:', error);
       }
     });
   }
@@ -1115,6 +1379,78 @@ export class CompanyManagementComponent implements OnInit {
     }
   }
 
+  openServiceTypeDialog(department: Department, serviceType: ServiceType | null = null) {
+    this.currentDepartmentForServiceType = department;
+    this.selectedServiceType = serviceType
+      ? { ...serviceType }
+      : { company_code: department.company_code, branch_code: department.branch_code, department_code: department.code } as ServiceType;
+    this.displayServiceTypeDialog = true;
+    this.serviceTypeFormError = '';
+    this.clearFieldErrors();
+    
+    // Load existing documents if editing
+    if (serviceType?.code) {
+      this.loadServiceTypeDocuments(serviceType.code);
+    } else {
+      this.serviceTypeDocuments = [];
+    }
+  }
+
+  closeServiceTypeDialog() {
+    this.displayServiceTypeDialog = false;
+    this.selectedServiceType = {} as ServiceType;
+    this.serviceTypeFormError = '';
+    this.clearFieldErrors();
+  }
+
+  saveServiceType() {
+    if (!this.selectedServiceType) return;
+    this.serviceTypeFormError = '';
+    // Validate required fields
+    const missing = this.serviceTypeFields.filter(f => f.required && !this.selectedServiceType[f.key as keyof ServiceType]);
+    if (missing.length > 0) {
+      this.serviceTypeFormError = `Please fill all required fields: ${missing.map(f => f.label).join(', ')}`;
+      return;
+    }
+    if (typeof this.selectedServiceType.code === 'string') {
+      this.selectedServiceType.code = this.selectedServiceType.code.trim();
+    }
+    console.log('Saving service type:', this.selectedServiceType);
+
+    // Check if the code exists in the loaded service types for this department
+    const serviceTypes = this.getServiceTypesForDepartment(this.selectedServiceType.department_code);
+    const codeExists = serviceTypes.some(st => st.code === this.selectedServiceType.code);
+
+    if (!codeExists) {
+      this.serviceTypeService.create(this.selectedServiceType).subscribe({
+        next: async (created) => {
+          // Save documents after service type is created
+          await this.saveServiceTypeDocuments();
+          this.loadServiceTypesForDepartments();
+          this.closeServiceTypeDialog();
+          this.serviceTypeFormError = '';
+        },
+        error: (err) => {
+          console.error('Error creating service type:', err);
+        }
+      });
+    } else {
+      console.log('Updating service type with code:', this.selectedServiceType.code, 'Payload:', this.selectedServiceType);
+      this.serviceTypeService.update(this.selectedServiceType.code, this.selectedServiceType).subscribe({
+        next: async () => {
+          // Save documents after service type is updated
+          await this.saveServiceTypeDocuments();
+          this.loadServiceTypesForDepartments();
+          this.closeServiceTypeDialog();
+          this.serviceTypeFormError = '';
+        },
+        error: (err) => {
+          console.error('Error updating service type:', err);
+        }
+      });
+    }
+  }
+
   openBranchDialogForCompany(company: Company) {
     this.selectedBranch = { company_code: company.code } as Branch;
     this.displayBranchDialog = true;
@@ -1159,6 +1495,19 @@ export class CompanyManagementComponent implements OnInit {
 
   closeDepartmentDocumentDialog() {
     this.displayDepartmentDocumentDialog = false;
+  }
+
+  openServiceTypeDocumentDialog() {
+    if (this.selectedServiceType?.code) {
+      this.loadServiceTypeDocuments(this.selectedServiceType.code);
+      this.displayServiceTypeDocumentDialog = true;
+    } else {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please save the service type first before uploading documents' });
+    }
+  }
+
+  closeServiceTypeDocumentDialog() {
+    this.displayServiceTypeDocumentDialog = false;
   }
 
   onLogoSelected(event: any) {
@@ -1239,6 +1588,8 @@ export class CompanyManagementComponent implements OnInit {
       value = this.selectedBranch[field as keyof Branch];
     } else if (this.displayDepartmentDialog && this.selectedDepartment) {
       value = this.selectedDepartment[field as keyof Department];
+    } else if (this.displayServiceTypeDialog && this.selectedServiceType) {
+      value = this.selectedServiceType[field as keyof ServiceType];
     }
     
     const error = this.validateField(field, value);
@@ -1467,6 +1818,70 @@ export class CompanyManagementComponent implements OnInit {
     }
   }
 
+  // Service Type document methods
+  loadServiceTypeDocuments(serviceTypeCode: string) {
+    this.entityDocumentService.getByEntityCode('service_type', serviceTypeCode).subscribe({
+      next: (documents: any) => {
+        this.serviceTypeDocuments = documents;
+      },
+      error: (error: any) => {
+        console.error('Error loading service type documents:', error);
+        this.serviceTypeDocuments = [];
+      }
+    });
+  }
+
+  addServiceTypeDocument() {
+    this.serviceTypeDocuments.push({
+      entity_type: 'service_type',
+      entity_code: this.selectedServiceType.code,
+      doc_type: '',
+      document_number: '',
+      valid_from: '',
+      valid_till: '',
+      file_path: '',
+      file_name: '',
+      file_size: 0,
+      mime_type: ''
+    });
+  }
+
+  removeServiceTypeDocument(index: number) {
+    const document = this.serviceTypeDocuments[index];
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this document?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (document.id) {
+          this.entityDocumentService.delete(document.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document deleted' });
+              this.serviceTypeDocuments.splice(index, 1);
+            },
+            error: (error: any) => {
+              console.error('Error deleting document:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete document' });
+            }
+          });
+        } else {
+          this.serviceTypeDocuments.splice(index, 1);
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Document removed' });
+        }
+      }
+    });
+  }
+
+  onServiceTypeFileSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.serviceTypeDocuments[index].file = file;
+      this.serviceTypeDocuments[index].file_name = file.name;
+      this.serviceTypeDocuments[index].file_size = file.size;
+      this.serviceTypeDocuments[index].mime_type = file.type;
+    }
+  }
+
   // Document viewer methods
   viewDocument(doc: EntityDocument) {
     if (!doc.id) return;
@@ -1648,6 +2063,39 @@ export class CompanyManagementComponent implements OnInit {
       formData.append('entity_type', 'department');
       formData.append('entity_code', this.selectedDepartment.code);
       formData.append('entity_name', `${this.selectedDepartment.code} - ${this.selectedDepartment.name}`);
+      formData.append('doc_type', doc.doc_type);
+      formData.append('document_number', doc.document_number || '');
+      formData.append('valid_from', doc.valid_from || '');
+      formData.append('valid_till', doc.valid_till || '');
+      formData.append('document', doc.file!);
+
+      return this.entityDocumentService.uploadDocument(formData).toPromise();
+    });
+
+    await Promise.all(uploadPromises);
+    this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
+  }
+
+  async saveServiceTypeDocuments() {
+    if (!this.selectedServiceType?.code) return;
+
+    const documentsToUpload = this.serviceTypeDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
+    const documentsWithoutDocType = this.serviceTypeDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
+    
+    if (documentsWithoutDocType.length > 0) {
+      this.messageService.add({ 
+        severity: 'error', 
+        summary: 'Validation Error', 
+        detail: 'Please select document type for all documents before saving' 
+      });
+      return;
+    }
+
+    const uploadPromises = documentsToUpload.map(doc => {
+      const formData = new FormData();
+      formData.append('entity_type', 'service_type');
+      formData.append('entity_code', this.selectedServiceType.code);
+      formData.append('entity_name', `${this.selectedServiceType.code} - ${this.selectedServiceType.name}`);
       formData.append('doc_type', doc.doc_type);
       formData.append('document_number', doc.document_number || '');
       formData.append('valid_from', doc.valid_from || '');

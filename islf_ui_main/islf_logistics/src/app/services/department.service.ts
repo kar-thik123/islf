@@ -14,6 +14,7 @@ export interface Department {
   start_date?: string;
   close_date?: string;
   remarks?: string;
+  serviceTypes?: any[];
   [key: string]: any;
 }
 
