@@ -15,13 +15,13 @@ router.get('/', async (req, res) => {
 
 // Create master UOM
 router.post('/', async (req, res) => {
-  const { uom_type, code, description, /*start_day, end_day, working_days,*/ active } = req.body;
+  const { uom_type, code, description, active } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO master_uom (uom_type, code, description, /*/*start_day, end_day, working_days,*/*/ active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO master_uom (uom_type, code, description, active)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [uom_type, code, description, /*start_day, end_day, working_days,*/ active]
+      [uom_type, code, description, active]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -33,14 +33,14 @@ router.post('/', async (req, res) => {
 // Update master UOM by ID
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { uom_type, code, description, /*start_day, end_day, working_days,*/ active } = req.body;
+  const { uom_type, code, description, active } = req.body;
   try {
     const result = await pool.query(
       `UPDATE master_uom
-       SET uom_type = $1, code = $2, description = $3, start_day = $4, end_day = $5, working_days = $6, active = $7
-       WHERE id = $8
+       SET uom_type = $1, code = $2, description = $3, active = $4
+       WHERE id = $5
        RETURNING *`,
-      [uom_type, code, description, /*start_day, end_day, working_days,*/ active, id]
+      [uom_type, code, description, active, id]
     );
     if (result.rowCount === 0) return res.status(404).json({ error: 'UOM not found' });
     res.json(result.rows[0]);

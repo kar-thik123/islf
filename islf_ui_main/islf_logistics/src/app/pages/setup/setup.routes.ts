@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { CompanyManagementComponent } from './Company/company_management';
+import { CompanyTreeComponent } from './Company/company-tree';
 import { NumberSeriesComponent } from './numberseries';
 import { NumberSeriesRelationComponent } from './numberseriesrelation';
 import { mappingComponent } from './mapping';
@@ -13,6 +14,7 @@ export default [
 
    
     { path: 'company_management', component: CompanyManagementComponent, data: { breadcrumb: 'Settings >>> Company Management', title: 'Company_Management - ISLF' } },
+    { path: 'company_tree', component: CompanyTreeComponent, data: { breadcrumb: 'Settings >>> Company Tree', title: 'Company_Tree - ISLF' } },
     {path:'number_series',component:NumberSeriesComponent, data:{ breadcrumb: 'Settings >>> Number Series',title: 'Number_Series- ISLF'}},
     {path:'number_relation',component:NumberSeriesRelationComponent, data:{ breadcrumb: 'Settings >>> Number Series Relation',title: 'Number_Relation- ISLF'}},
     {path:'mapping',component:mappingComponent, data:{ breadcrumb: 'Settings >>> Mapping',title: 'Mapping - ISLF'}},

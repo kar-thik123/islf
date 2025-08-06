@@ -14,6 +14,14 @@ import { AppLayout } from '@/layout/components/app.layout';
 import { NumberSeriesComponent } from './numberseries';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService, Mapping } from '@/services/mapping.service';
+import { NumberSeriesRelationService } from '@/services/number-series-relation.service';
+import { CompanyService, Company } from '@/services/company.service';
+import { BranchService, Branch } from '@/services/branch.service';
+import { DepartmentService, Department } from '@/services/department.service';
+import { ServiceTypeService, ServiceType } from '@/services/servicetype.service';
+import { DialogModule } from 'primeng/dialog';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 
 interface NumberSeries {
   id?: number;
@@ -35,125 +43,134 @@ interface NumberSeries {
     TableModule,
     ToastModule,
     InputTextModule,
- 
-   
+    IconFieldModule,
+    InputIconModule,
+    DialogModule,
   ],
   providers: [MessageService],
   template: `
     <p-toast></p-toast>
     
-    <div class="card">
-      <p-toolbar>
-        <ng-template pTemplate="start">
-          <h4>Number Series Management</h4>
+    <div class="card mt-4">
+      <div class="font-semibold text-xl mb-4">Number Series Relation Mappings</div>
+      <p-table
+        #dt
+        [value]="mappingRelations"
+        dataKey="id"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 20, 50]"
+        [showGridlines]="true"
+        [rowHover]="true"
+        [globalFilterFields]="['codeType', 'mapping', 'company', 'branch', 'department', 'serviceType']"
+        responsiveLayout="scroll"
+      >
+        <ng-template #caption>
+          <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
+            <button pButton type="button" label="Add Mapping Relation" icon="pi pi-plus" class="p-button" (click)="showMappingDialog = true"></button>
+            <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
+            <p-iconfield iconPosition="left" class="ml-auto">
+              <p-inputicon>
+                <i class="pi pi-search"></i>
+              </p-inputicon>
+              <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" />
+            </p-iconfield>
+          </div>
         </ng-template>
-        <ng-template pTemplate="end">
-          <button pButton icon="pi pi-refresh" class="p-button-rounded p-button-text" (click)="refresh()"></button>
+        <ng-template #header>
+          <tr>
+            <th>
+              <div class="flex justify-between items-center">
+                Code Type
+                <p-columnFilter type="text" field="codeType" display="menu" placeholder="Search by code type"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Mapping
+                <p-columnFilter type="text" field="mapping" display="menu" placeholder="Search by mapping"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Company
+                <p-columnFilter type="text" field="company" display="menu" placeholder="Search by company"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Branch
+                <p-columnFilter type="text" field="branch" display="menu" placeholder="Search by branch"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Department
+                <p-columnFilter type="text" field="department" display="menu" placeholder="Search by department"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Service Type
+                <p-columnFilter type="text" field="serviceType" display="menu" placeholder="Search by service type"></p-columnFilter>
+              </div>
+            </th>
+            <th>Actions</th>
+          </tr>
         </ng-template>
-      </p-toolbar>
-
-      <p-panel header="Number Series Mapping" [toggleable]="true" [collapsed]="false">
-      <h3 class="section-header">Number Series Mapping for Master</h3>
+        <ng-template pTemplate="body" let-row let-i="rowIndex">
+          <tr>
+            <td>{{ row.codeType }}</td>
+            <td>{{ row.mapping }}</td>
+            <td>{{ row.company }}</td>
+            <td>{{ row.branch }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.serviceType }}</td>
+            <td>
+              <button pButton icon="pi pi-pencil" class="p-button-text" (click)="editMappingRelation(i)"></button>
+              <button pButton icon="pi pi-trash" class="p-button-text p-button-danger" (click)="deleteMappingRelation(i)"></button>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="footer">
+          <div class="flex justify-between items-center w-full">
+            <span>Total Relations: {{ mappingRelations.length }}</span>
+          </div>
+        </ng-template>
+      </p-table>
+      <p-dialog header="Mapping Relation" [(visible)]="showMappingDialog" [modal]="true" [closable]="true" [dismissableMask]="true" [style]="{width: '40vw'}">
         <div class="p-fluid grid">
-        
+          <!-- Code Type, Mapping, Company, Branch, Department, Service Type dropdowns here (reuse previous form) -->
           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="customerCode">Customer Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerCode" optionLabel="description" optionValue="code" placeholder="Select Customer Code No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
+            <label for="codeType">Code Type</label>
+            <p-dropdown [options]="codeTypes" [(ngModel)]="selectedCodeType" optionLabel="label" optionValue="value" placeholder="Select Code Type"></p-dropdown>
           </div>
-
           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="vendorCode">Vendor Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vendorCode" optionLabel="description" optionValue="code" placeholder="Select Vendor Code No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
+            <label for="mapping">Mapping (No Series Relation)</label>
+            <p-dropdown [options]="mappingOptions" [(ngModel)]="selectedMapping" optionLabel="label" optionValue="value" placeholder="Select Mapping"></p-dropdown>
           </div>
-         <div class="field col-12 md:col-6 lg:col-4">
-            <label for="vesselCode">Vessel Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().vesselCode" optionLabel="description" optionValue="code" placeholder="Select Vessel Code No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
-          </div>
-          </div>
-           <h3 class="section-header">Number Series Mapping for Operations</h3>
-          <div class="p-fluid grid">
           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="employeeCode">Employee Code No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().employeeCode" optionLabel="description" optionValue="code" placeholder="Select Employee Code No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
+            <label for="company">Company</label>
+            <p-dropdown [options]="companyOptions" [(ngModel)]="selectedCompany" optionLabel="name" optionValue="code" placeholder="Select Company" (onChange)="onCompanyChange()"></p-dropdown>
           </div>
-
           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="customerQuote">Customer Quote No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().customerQuote" optionLabel="description" optionValue="code" placeholder="Select Customer Quote No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
+            <label for="branch">Branch</label>
+            <p-dropdown [options]="branchOptions" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="code" placeholder="Select Branch" (onChange)="onBranchChange()"></p-dropdown>
           </div>
-
           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="invoiceNo">Invoice No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().invoiceNo" optionLabel="description" optionValue="code" placeholder="Select Invoice No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
+            <label for="department">Department</label>
+            <p-dropdown [options]="departmentOptions" [(ngModel)]="selectedDepartment" optionLabel="name" optionValue="code" placeholder="Select Department" (onChange)="onDepartmentChange()"></p-dropdown>
           </div>
-
           <div class="field col-12 md:col-6 lg:col-4">
-            <label for="taxNo">Tax No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().taxNo" optionLabel="description" optionValue="code" placeholder="Select Tax No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
+            <label for="serviceType">Service Type</label>
+            <p-dropdown [options]="serviceTypeOptions" [(ngModel)]="selectedServiceType" optionLabel="name" optionValue="code" placeholder="Select Service Type"></p-dropdown>
           </div>
- 
-          <div class="field col-12 md:col-6 lg:col-4">
-            <label for="jobcardNo">Jobcard No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().jobcardNo" optionLabel="description" optionValue="code" placeholder="Select Jobcard No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
-          </div>
-<!--
-          <div class="field col-12 md:col-6 lg:col-4">
-            <label for="branchNo">Branch No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().branchNo" optionLabel="description" optionValue="code" placeholder="Select Branch No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
-          </div>
-
-          <div class="field col-12 md:col-6 lg:col-4">
-            <label for="departmentNo">Department No Series</label>
-            <p-dropdown [options]="numberSeries()" [(ngModel)]="selectedSeries().departmentNo" optionLabel="description" optionValue="code" placeholder="Select Department No Series" [filter]="true" filterBy="description">
-              <ng-template let-item pTemplate="item">
-                <div>{{item.code}} </div>
-              </ng-template>
-            </p-dropdown>
-          </div>  -->
-           
         </div>
-
         <div class="flex justify-content-end gap-2 mt-4">
-          <button pButton type="button" label="Save" icon="pi pi-save" (click)="save()"></button>
-          <button pButton type="button" label="Reset" icon="pi pi-refresh" class="p-button-secondary" (click)="reset()"></button>
+          <button pButton type="button" label="Save" icon="pi pi-save" (click)="saveMappingRelation()"></button>
+          <button pButton type="button" label="Cancel" icon="pi pi-times" class="p-button-secondary" (click)="showMappingDialog = false; resetMappingForm()"></button>
         </div>
-      </p-panel>
+      </p-dialog>
     </div>
   `,
   styles: [`
@@ -216,7 +233,7 @@ interface NumberSeries {
 export class mappingComponent implements OnInit {
   private mappingToLoad: Mapping | null = null;
 
-  selectedSeries = signal<Mapping>({
+  selectedSeries = {
     customerCode: null,
     vendorCode: null,
     employeeCode: null,
@@ -227,41 +244,124 @@ export class mappingComponent implements OnInit {
     branchNo: null,
     departmentNo: null,
     vesselCode: null
-  });
+  };
 
   numberSeriesList = signal<NumberSeries[]>([]);
+
+  codeTypes = [
+    { label: 'Customer Code No Series', value: 'customerCode' },
+    { label: 'Vendor Code No Series', value: 'vendorCode' },
+    { label: 'Vessel Code No Series', value: 'vesselCode' },
+    { label: 'Employee Code No Series', value: 'employeeCode' },
+    { label: 'Customer Quote No Series', value: 'customerQuote' },
+    { label: 'Invoice No Series', value: 'invoiceNo' },
+    { label: 'Tax No Series', value: 'taxNo' },
+    { label: 'Jobcard No Series', value: 'jobcardNo' },
+    { label: 'CR No Series', value: 'crNo' },
+    { label: 'Booking No Series', value: 'bookingNo' },
+    { label: 'Enquiry', value: 'enquiry' },
+    { label: 'Source', value: 'source' }
+  ];
+
+  // Replace signals with plain properties for form fields
+  selectedCodeType: string | null = null;
+  selectedMapping: string | null = null;
+  selectedCompany: string | null = null;
+  selectedBranch: string | null = null;
+  selectedDepartment: string | null = null;
+  selectedServiceType: string | null = null;
+
+  // Also update mappingOptions, companyOptions, branchOptions, departmentOptions, serviceTypeOptions to be plain arrays
+  mappingOptions: { label: string, value: string }[] = [];
+  companyOptions: Company[] = [];
+  branchOptions: Branch[] = [];
+  departmentOptions: Department[] = [];
+  serviceTypeOptions: ServiceType[] = [];
+
+  // Add signals for dialog and mapping relations list
+  showMappingDialog: boolean = false;
+  mappingRelations: any[] = []; // Replace 'any' with a proper interface if needed
+  editingIndex: number | null = null;
 
   constructor(
     private messageService: MessageService,
     private numberSeriesService: NumberSeriesService,
-    private mappingService: MappingService
+    private mappingService: MappingService,
+    private numberSeriesRelationService: NumberSeriesRelationService,
+    private companyService: CompanyService,
+    private branchService: BranchService,
+    private departmentService: DepartmentService,
+    private serviceTypeService: ServiceTypeService
   ) {
   }
 
   ngOnInit() {
-    this.loadNumberSeries();
-    this.loadMapping();
+    this.loadMappingOptions();
+    this.loadCompanies();
+    this.loadMappingRelations(); // <-- add this
   }
 
-  loadNumberSeries() {
-    this.numberSeriesService.getAll().subscribe(data => {
-      this.numberSeriesList.set(data);
+  loadMappingOptions() {
+    this.numberSeriesRelationService.getNumberSeriesCodes().subscribe(options => {
+      this.mappingOptions = options;
     });
   }
 
-  loadMapping() {
-    this.mappingService.getMapping().subscribe({
-      next: (mapping) => {
-        this.selectedSeries.set(mapping);
-      },
-      error: () => {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load mapping'
-        });
-      }
+  loadCompanies() {
+    this.companyService.getAll().subscribe(companies => {
+      this.companyOptions = companies;
     });
+  }
+
+  onCompanyChange() {
+    const company = this.selectedCompany;
+    if (company) {
+      this.branchService.getAll().subscribe(branches => {
+        this.branchOptions = branches.filter(b => b.company_code === company);
+        this.selectedBranch = null;
+        this.departmentOptions = [];
+        this.selectedDepartment = null;
+        this.serviceTypeOptions = [];
+        this.selectedServiceType = null;
+      });
+    } else {
+      this.branchOptions = [];
+      this.selectedBranch = null;
+      this.departmentOptions = [];
+      this.selectedDepartment = null;
+      this.serviceTypeOptions = [];
+      this.selectedServiceType = null;
+    }
+  }
+
+  onBranchChange() {
+    const branch = this.selectedBranch;
+    if (branch) {
+      this.departmentService.getAll().subscribe(departments => {
+        this.departmentOptions = departments.filter(d => d.branch_code === branch);
+        this.selectedDepartment = null;
+        this.serviceTypeOptions = [];
+        this.selectedServiceType = null;
+      });
+    } else {
+      this.departmentOptions = [];
+      this.selectedDepartment = null;
+      this.serviceTypeOptions = [];
+      this.selectedServiceType = null;
+    }
+  }
+
+  onDepartmentChange() {
+    const department = this.selectedDepartment;
+    if (department) {
+      this.serviceTypeService.getByDepartment(department).subscribe(serviceTypes => {
+        this.serviceTypeOptions = serviceTypes;
+        this.selectedServiceType = null;
+      });
+    } else {
+      this.serviceTypeOptions = [];
+      this.selectedServiceType = null;
+    }
   }
 
   numberSeries() {
@@ -277,25 +377,18 @@ export class mappingComponent implements OnInit {
     // Implement your actual refresh logic here
   }
 
-  private getCode(val: any): string | null {
-    if (!val) return null;
-    if (typeof val === 'string') return val;
-    if (typeof val === 'object' && 'code' in val) return val.code;
-    return null;
-  }
-
   save() {
     const mapping: Mapping = {
-      customerCode: this.getCode(this.selectedSeries().customerCode),
-      vendorCode: this.getCode(this.selectedSeries().vendorCode),
-      employeeCode: this.getCode(this.selectedSeries().employeeCode),
-      customerQuote: this.getCode(this.selectedSeries().customerQuote),
-      invoiceNo: this.getCode(this.selectedSeries().invoiceNo),
-      taxNo: this.getCode(this.selectedSeries().taxNo),
-      jobcardNo: this.getCode(this.selectedSeries().jobcardNo),
-      branchNo: this.getCode(this.selectedSeries().branchNo),
-      departmentNo: this.getCode(this.selectedSeries().departmentNo),
-      vesselCode: this.getCode(this.selectedSeries().vesselCode)
+      customerCode: this.selectedSeries.customerCode,
+      vendorCode: this.selectedSeries.vendorCode,
+      employeeCode: this.selectedSeries.employeeCode,
+      customerQuote: this.selectedSeries.customerQuote,
+      invoiceNo: this.selectedSeries.invoiceNo,
+      taxNo: this.selectedSeries.taxNo,
+      jobcardNo: this.selectedSeries.jobcardNo,
+      branchNo: this.selectedSeries.branchNo,
+      departmentNo: this.selectedSeries.departmentNo,
+      vesselCode: this.selectedSeries.vesselCode
     };
     this.mappingService.saveMapping(mapping).subscribe({
       next: () => {
@@ -315,8 +408,71 @@ export class mappingComponent implements OnInit {
     });
   }
 
+  loadMappingRelations() {
+    // TODO: Replace with actual API call if available
+    // For now, use localStorage or a static array for demo
+    const stored = localStorage.getItem('mappingRelations');
+    this.mappingRelations = stored ? JSON.parse(stored) : [];
+  }
+
+  saveMappingRelation() {
+    const mappingRelation = {
+      codeType: this.selectedCodeType,
+      mapping: this.selectedMapping,
+      company: this.selectedCompany,
+      branch: this.selectedBranch,
+      department: this.selectedDepartment,
+      serviceType: this.selectedServiceType
+    };
+    if (this.editingIndex !== null) {
+      this.mappingRelations[this.editingIndex] = mappingRelation;
+      this.editingIndex = null;
+    } else {
+      this.mappingRelations = [...this.mappingRelations, mappingRelation];
+    }
+    localStorage.setItem('mappingRelations', JSON.stringify(this.mappingRelations));
+    this.showMappingDialog = false;
+    this.resetMappingForm();
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Saved',
+      detail: 'Mapping relation saved.'
+    });
+  }
+
+  editMappingRelation(index: number) {
+    const rel = this.mappingRelations[index];
+    this.selectedCodeType = rel.codeType;
+    this.selectedMapping = rel.mapping;
+    this.selectedCompany = rel.company;
+    this.selectedBranch = rel.branch;
+    this.selectedDepartment = rel.department;
+    this.selectedServiceType = rel.serviceType;
+    this.editingIndex = index;
+    this.showMappingDialog = true;
+  }
+
+  deleteMappingRelation(index: number) {
+    this.mappingRelations.splice(index, 1);
+    localStorage.setItem('mappingRelations', JSON.stringify(this.mappingRelations));
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Deleted',
+      detail: 'Mapping relation deleted.'
+    });
+  }
+
+  resetMappingForm() {
+    this.selectedCodeType = null;
+    this.selectedMapping = null;
+    this.selectedCompany = null;
+    this.selectedBranch = null;
+    this.selectedDepartment = null;
+    this.selectedServiceType = null;
+  }
+
   reset() {
-    this.selectedSeries.set({
+    this.selectedSeries = {
       customerCode: null,
       vendorCode: null,
       employeeCode: null,
@@ -327,11 +483,18 @@ export class mappingComponent implements OnInit {
       branchNo: null,
       departmentNo: null,
       vesselCode: null
-    });
+    };
     this.messageService.add({
       severity: 'info',
       summary: 'Reset',
       detail: 'Form has been reset'
     });
+  }
+
+  clear(table: any) {
+    table.clear();
+  }
+  onGlobalFilter(table: any, event: Event) {
+    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
 }

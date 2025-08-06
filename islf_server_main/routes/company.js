@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { logSetupEvent } = require('../log');
 const router = express.Router();
 
 // Get all companies
@@ -33,6 +34,18 @@ router.post('/', async (req, res) => {
       'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, address1, address2, logo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
       [code, name, name2, gst, phone, landline, email, website, address1, address2, logo]
     );
+    
+    // Log the setup event
+    await logSetupEvent({
+      username: req.user?.username || 'system',
+      action: 'CREATE',
+      setupType: 'Company',
+      entityType: 'company',
+      entityCode: code,
+      entityName: name,
+      details: `Company created: ${name} (${code})`
+    });
+    
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating company:', err);
@@ -44,23 +57,89 @@ router.post('/', async (req, res) => {
 router.put('/:code', async (req, res) => {
   const { name, name2, gst, phone, landline, email, website, address1, address2, logo } = req.body;
   try {
+    const oldResult = await pool.query('SELECT * FROM companies WHERE code = $1', [req.params.code]);
+    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const oldCompany = oldResult.rows[0];
+    
     const result = await pool.query(
       'UPDATE companies SET name = $1, name2 = $2, gst = $3, phone = $4, landline = $5, email = $6, website = $7, address1 = $8, address2 = $9, logo = $10 WHERE code = $11 RETURNING *',
       [name, name2, gst, phone, landline, email, website, address1, address2, logo, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const changedFields = [];
+    const fieldsToCheck = {
+      name,
+      name2,
+      gst,
+      phone,
+      landline,
+      email,
+      website,
+      address1,
+      address2
+      
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      if (value instanceof Date) return value.toISOString().split('T')[0];
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValueRaw = fieldsToCheck[field];
+      const oldValueRaw = oldCompany[field];
+      const newValue = normalize(newValueRaw);
+      const oldValue = normalize(oldValueRaw);
+      
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+      changedFields.push(`${field}: "${oldValue}" → "${newValue}"`);
+    }
+  }
+    const details = changedFields.length > 0
+      ? `Company updated:\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
+
+    // Log the setup event
+    await logSetupEvent({
+      username: req.user?.username || 'system',
+      action: 'UPDATE',
+      setupType: 'Company',
+      entityType: 'company',
+      entityCode: req.params.code,
+      entityName: name,
+      details
+    });
+    
     res.json(result.rows[0]);
-  } catch (err) {
+    // End of try block
+  } 
+  catch (err) {
     console.error('Error updating company:', err);
     res.status(500).json({ error: 'Failed to update company' });
   }
-});
+  });
 
 // Delete company
 router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM companies WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    
+    // Log the setup event
+    await logSetupEvent({
+      username: req.user?.username || 'system',
+      action: 'DELETE',
+      setupType: 'Company',
+      entityType: 'company',
+      entityCode: req.params.code,
+      entityName: result.rows[0]?.name || 'Unknown',
+      details: `Company deleted: ${JSON.stringify({
+        name: result.rows[0]?.name || 'Unknown',
+        code: req.params.code
+      })}`
+    });
+    
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting company:', err);

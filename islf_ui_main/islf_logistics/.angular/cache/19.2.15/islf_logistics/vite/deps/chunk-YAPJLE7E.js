@@ -257,6 +257,7 @@ function EventBus() {
 }
 
 export {
+  EventBus,
   isEmpty,
   deepEquals,
   isNotEmpty,
@@ -277,7 +278,6 @@ export {
   minifyCSS,
   removeAccents,
   toKebabCase,
-  toTokenKey,
-  EventBus
+  toTokenKey
 };
-//# sourceMappingURL=chunk-NJ25EVEJ.js.map
+//# sourceMappingURL=chunk-YAPJLE7E.js.map

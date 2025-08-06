@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { logMasterEvent } = require('../log');
 const router = express.Router();
 
 // GET all vendors
@@ -70,6 +71,17 @@ router.post('/', async (req, res) => {
         bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || [])
       ]
     );
+    
+    // Log the master event
+    await logMasterEvent({
+      username: req.user?.username || 'system',
+      action: 'CREATE',
+      masterType: 'Vendor',
+      recordId: vendor_no,
+      recordName: name,
+      details: `Vendor created: ${name} (${vendor_no})`
+    });
+    
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating vendor:', err);
@@ -101,6 +113,17 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
+    
+    // Log the master event
+    await logMasterEvent({
+      username: req.user?.username || 'system',
+      action: 'UPDATE',
+      masterType: 'Vendor',
+      recordId: vendor_no,
+      recordName: name,
+      details: `Vendor updated: ${name} (${vendor_no})`
+    });
+    
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating vendor:', err);
@@ -122,6 +145,17 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
+    
+    // Log the master event
+    await logMasterEvent({
+      username: req.user?.username || 'system',
+      action: 'DELETE',
+      masterType: 'Vendor',
+      recordId: result.rows[0].vendor_no,
+      recordName: result.rows[0].name,
+      details: `Vendor deleted: ${result.rows[0].name} (${result.rows[0].vendor_no})`
+    });
+    
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting vendor:', err);

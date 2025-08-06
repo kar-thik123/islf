@@ -3,26 +3,26 @@ import {
 } from "./chunk-VTEETGKK.js";
 import {
   Button
-} from "./chunk-GO5I5UQ3.js";
-import {
-  DomHandler
-} from "./chunk-Z7QHAORV.js";
+} from "./chunk-2TDUQKAR.js";
 import {
   TimesIcon,
   WindowMaximizeIcon,
   WindowMinimizeIcon
-} from "./chunk-HOCYYNX7.js";
+} from "./chunk-UIUITDET.js";
+import {
+  DomHandler
+} from "./chunk-Z7QHAORV.js";
 import {
   BaseComponent
-} from "./chunk-JMK2FJ5F.js";
+} from "./chunk-ZTLX2KFD.js";
 import {
   BaseStyle
-} from "./chunk-6F4A23W7.js";
+} from "./chunk-Q6RQEDY6.js";
 import {
   PrimeTemplate,
   SharedModule,
   TranslationKeys
-} from "./chunk-6Z63YHRQ.js";
+} from "./chunk-CNWRIVXC.js";
 import {
   addClass,
   appendChild,
@@ -2274,4 +2274,4 @@ export {
   Dialog,
   DialogModule
 };
-//# sourceMappingURL=chunk-KWZNR2M7.js.map
+//# sourceMappingURL=chunk-WHSWXD3O.js.map

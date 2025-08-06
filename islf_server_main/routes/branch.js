@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { logSetupEvent } = require('../log');
 const router = express.Router();
 
 // Get all branches
@@ -44,6 +45,18 @@ router.post('/', async (req, res) => {
       'INSERT INTO branches (code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
       [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks]
     );
+    
+    // Log the setup event
+    await logSetupEvent({
+      username: req.user?.username || 'system',
+      action: 'CREATE',
+      setupType: 'Branch',
+      entityType: 'branch',
+      entityCode: code,
+      entityName: name,
+      details: `Branch created: ${name} (${code}) for company ${company_code}`
+    });
+    
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating branch:', err);
@@ -60,6 +73,18 @@ router.put('/:code', async (req, res) => {
       [company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    
+    // Log the setup event
+    await logSetupEvent({
+      username: req.user?.username || 'system',
+      action: 'UPDATE',
+      setupType: 'Branch',
+      entityType: 'branch',
+      entityCode: req.params.code,
+      entityName: name,
+      details: `Branch updated: ${name} (${req.params.code}) for company ${company_code}`
+    });
+    
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating branch:', err);
@@ -72,6 +97,18 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM branches WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    
+    // Log the setup event
+    await logSetupEvent({
+      username: req.user?.username || 'system',
+      action: 'DELETE',
+      setupType: 'Branch',
+      entityType: 'branch',
+      entityCode: req.params.code,
+      entityName: result.rows[0]?.name || 'Unknown',
+      details: `Branch deleted: ${result.rows[0]?.name || 'Unknown'} (${req.params.code})`
+    });
+    
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting branch:', err);
