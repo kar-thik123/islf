@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { ContextPayloadService } from './context-payload.service';
 
 export interface MasterLocation {
   id?: number;
@@ -20,18 +21,18 @@ export interface MasterLocation {
 export class MasterLocationService {
   private apiUrl = `${environment.apiUrl}/api/master_location`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
 
   getAll(): Observable<MasterLocation[]> {
     return this.http.get<MasterLocation[]>(this.apiUrl);
   }
 
   create(data: MasterLocation): Observable<MasterLocation> {
-    return this.http.post<MasterLocation>(this.apiUrl, data);
+    return this.http.post<MasterLocation>(this.apiUrl, this.contextPayload.withContext(data));
   }
 
   update(code: string, data: Partial<MasterLocation>): Observable<MasterLocation> {
-    return this.http.put<MasterLocation>(`${this.apiUrl}/${code}`, data);
+    return this.http.put<MasterLocation>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(data));
   }
 
   delete(code: string): Observable<any> {

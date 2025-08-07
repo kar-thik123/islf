@@ -13,7 +13,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { AppLayout } from '@/layout/components/app.layout';
 import { NumberSeriesComponent } from './numberseries';
 import { NumberSeriesService } from '@/services/number-series.service';
-import { MappingService, Mapping } from '@/services/mapping.service';
+import { MappingService, Mapping, MappingRelation } from '@/services/mapping.service';
 import { NumberSeriesRelationService } from '@/services/number-series-relation.service';
 import { CompanyService, Company } from '@/services/company.service';
 import { BranchService, Branch } from '@/services/branch.service';
@@ -259,8 +259,9 @@ export class mappingComponent implements OnInit {
     { label: 'Jobcard No Series', value: 'jobcardNo' },
     { label: 'CR No Series', value: 'crNo' },
     { label: 'Booking No Series', value: 'bookingNo' },
-    { label: 'Enquiry', value: 'enquiry' },
-    { label: 'Source', value: 'source' }
+    { label: 'Enquiry No Series', value: 'enquiryNo' },
+    { label: 'Source No Series', value: 'sourceNo' }
+
   ];
 
   // Replace signals with plain properties for form fields
@@ -280,7 +281,7 @@ export class mappingComponent implements OnInit {
 
   // Add signals for dialog and mapping relations list
   showMappingDialog: boolean = false;
-  mappingRelations: any[] = []; // Replace 'any' with a proper interface if needed
+  mappingRelations: MappingRelation[] = [];
   editingIndex: number | null = null;
 
   constructor(
@@ -409,41 +410,97 @@ export class mappingComponent implements OnInit {
   }
 
   loadMappingRelations() {
-    // TODO: Replace with actual API call if available
-    // For now, use localStorage or a static array for demo
-    const stored = localStorage.getItem('mappingRelations');
-    this.mappingRelations = stored ? JSON.parse(stored) : [];
+    this.mappingService.getMappingRelations().subscribe({
+      next: (relations) => {
+        this.mappingRelations = relations;
+      },
+      error: (error) => {
+        console.error('Error loading mapping relations:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load mapping relations'
+        });
+      }
+    });
   }
 
   saveMappingRelation() {
+    if (!this.selectedCodeType || !this.selectedMapping) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Code Type and Mapping are required'
+      });
+      return;
+    }
+
     const mappingRelation = {
       codeType: this.selectedCodeType,
       mapping: this.selectedMapping,
-      company: this.selectedCompany,
-      branch: this.selectedBranch,
-      department: this.selectedDepartment,
-      serviceType: this.selectedServiceType
+      companyCode: this.selectedCompany,
+      branchCode: this.selectedBranch,
+      departmentCode: this.selectedDepartment,
+      serviceTypeCode: this.selectedServiceType
     };
+
     if (this.editingIndex !== null) {
-      this.mappingRelations[this.editingIndex] = mappingRelation;
-      this.editingIndex = null;
+      // Update existing relation
+      const relationId = this.mappingRelations[this.editingIndex].id;
+      if (relationId) {
+        this.mappingService.updateMappingRelation(relationId, mappingRelation).subscribe({
+          next: () => {
+            this.loadMappingRelations();
+            this.showMappingDialog = false;
+            this.resetMappingForm();
+            this.editingIndex = null;
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Updated',
+              detail: 'Mapping relation updated successfully'
+            });
+          },
+          error: (error) => {
+            console.error('Error updating mapping relation:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to update mapping relation'
+            });
+          }
+        });
+      }
     } else {
-      this.mappingRelations = [...this.mappingRelations, mappingRelation];
+      // Create new relation
+      this.mappingService.createMappingRelation(mappingRelation).subscribe({
+        next: () => {
+          this.loadMappingRelations();
+          this.showMappingDialog = false;
+          this.resetMappingForm();
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Created',
+            detail: 'Mapping relation created successfully'
+          });
+        },
+        error: (error) => {
+          console.error('Error creating mapping relation:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to create mapping relation'
+          });
+        }
+      });
     }
-    localStorage.setItem('mappingRelations', JSON.stringify(this.mappingRelations));
-    this.showMappingDialog = false;
-    this.resetMappingForm();
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Saved',
-      detail: 'Mapping relation saved.'
-    });
   }
 
   editMappingRelation(index: number) {
     const rel = this.mappingRelations[index];
     this.selectedCodeType = rel.codeType;
     this.selectedMapping = rel.mapping;
+    // Note: The backend returns display names, but we need to find the codes
+    // For now, we'll use the display names as codes (this should be improved)
     this.selectedCompany = rel.company;
     this.selectedBranch = rel.branch;
     this.selectedDepartment = rel.department;
@@ -453,13 +510,27 @@ export class mappingComponent implements OnInit {
   }
 
   deleteMappingRelation(index: number) {
-    this.mappingRelations.splice(index, 1);
-    localStorage.setItem('mappingRelations', JSON.stringify(this.mappingRelations));
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Deleted',
-      detail: 'Mapping relation deleted.'
-    });
+    const relation = this.mappingRelations[index];
+    if (relation.id) {
+      this.mappingService.deleteMappingRelation(relation.id).subscribe({
+        next: () => {
+          this.loadMappingRelations();
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Deleted',
+            detail: 'Mapping relation deleted successfully'
+          });
+        },
+        error: (error) => {
+          console.error('Error deleting mapping relation:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to delete mapping relation'
+          });
+        }
+      });
+    }
   }
 
   resetMappingForm() {

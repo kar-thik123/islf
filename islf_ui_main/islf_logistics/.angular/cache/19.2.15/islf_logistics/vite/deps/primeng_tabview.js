@@ -1,27 +1,27 @@
 import {
   Tooltip,
   TooltipModule
-} from "./chunk-4CIIQKXC.js";
+} from "./chunk-LQNGZPZZ.js";
 import "./chunk-VTEETGKK.js";
 import {
   Ripple
-} from "./chunk-NTL2BBOY.js";
+} from "./chunk-HC25PNUN.js";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   TimesIcon
-} from "./chunk-UIUITDET.js";
+} from "./chunk-MYTEAKUP.js";
 import "./chunk-Z7QHAORV.js";
 import {
   BaseComponent
-} from "./chunk-ZTLX2KFD.js";
+} from "./chunk-NSZZODPD.js";
 import {
   BaseStyle
-} from "./chunk-Q6RQEDY6.js";
+} from "./chunk-P7OY3265.js";
 import {
   PrimeTemplate,
   SharedModule
-} from "./chunk-CNWRIVXC.js";
+} from "./chunk-TJYP5LVK.js";
 import {
   find,
   findSingle,
@@ -32,8 +32,6 @@ import {
   getWidth,
   uuid
 } from "./chunk-PQ4YWBDM.js";
-import "./chunk-TZIJKBMI.js";
-import "./chunk-YAPJLE7E.js";
 import {
   CommonModule,
   NgClass,
@@ -102,9 +100,11 @@ import {
   ɵɵtextInterpolate1,
   ɵɵviewQuery
 } from "./chunk-6OPZE6ZR.js";
-import "./chunk-WPM5VTLQ.js";
 import "./chunk-PEBH6BBU.js";
+import "./chunk-WPM5VTLQ.js";
 import "./chunk-4S3KYZTJ.js";
+import "./chunk-CWYBPNCF.js";
+import "./chunk-NJ25EVEJ.js";
 import "./chunk-GOMI4DH3.js";
 
 // node_modules/primeng/fesm2022/primeng-tabview.mjs

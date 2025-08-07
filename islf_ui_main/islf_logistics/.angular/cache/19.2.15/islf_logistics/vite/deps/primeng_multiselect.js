@@ -1,49 +1,49 @@
 import {
   Tooltip
-} from "./chunk-4CIIQKXC.js";
+} from "./chunk-LQNGZPZZ.js";
+import {
+  Scroller
+} from "./chunk-YIXO6GWE.js";
+import {
+  IconField
+} from "./chunk-YJ6XXJAS.js";
+import {
+  InputIcon
+} from "./chunk-KX32G6VH.js";
 import {
   Overlay
-} from "./chunk-JDS2J6L5.js";
+} from "./chunk-K7B3ZRFN.js";
+import {
+  Checkbox
+} from "./chunk-62WPOIAR.js";
+import {
+  InputText
+} from "./chunk-CPDZG237.js";
 import {
   ObjectUtils
 } from "./chunk-VTEETGKK.js";
 import {
-  Scroller
-} from "./chunk-UCD4SNI5.js";
-import {
-  IconField
-} from "./chunk-I3TJWBOK.js";
-import {
-  InputIcon
-} from "./chunk-QRMW6A4S.js";
-import {
-  Checkbox
-} from "./chunk-IS6C7PYU.js";
-import {
-  InputText
-} from "./chunk-E4SNGER6.js";
-import {
   Ripple
-} from "./chunk-NTL2BBOY.js";
+} from "./chunk-HC25PNUN.js";
 import {
   AutoFocus
-} from "./chunk-UPLRGDAO.js";
+} from "./chunk-FUA3YVDZ.js";
 import {
   CheckIcon,
   ChevronDownIcon,
   SearchIcon,
   TimesCircleIcon,
   TimesIcon
-} from "./chunk-UIUITDET.js";
+} from "./chunk-MYTEAKUP.js";
 import {
   DomHandler
 } from "./chunk-Z7QHAORV.js";
 import {
   BaseComponent
-} from "./chunk-ZTLX2KFD.js";
+} from "./chunk-NSZZODPD.js";
 import {
   BaseStyle
-} from "./chunk-Q6RQEDY6.js";
+} from "./chunk-P7OY3265.js";
 import {
   FilterService,
   Footer,
@@ -52,7 +52,7 @@ import {
   PrimeTemplate,
   SharedModule,
   TranslationKeys
-} from "./chunk-CNWRIVXC.js";
+} from "./chunk-TJYP5LVK.js";
 import {
   findSingle,
   focus,
@@ -66,16 +66,6 @@ import {
 } from "./chunk-PQ4YWBDM.js";
 import "./chunk-QVAT74PT.js";
 import "./chunk-SZJPLAKF.js";
-import "./chunk-TZIJKBMI.js";
-import {
-  deepEquals,
-  equals,
-  findLastIndex,
-  isArray,
-  isNotEmpty,
-  isPrintableCharacter,
-  resolveFieldData
-} from "./chunk-YAPJLE7E.js";
 import {
   FormsModule,
   NG_VALUE_ACCESSOR,
@@ -162,9 +152,19 @@ import {
   ɵɵtwoWayProperty,
   ɵɵviewQuery
 } from "./chunk-6OPZE6ZR.js";
-import "./chunk-WPM5VTLQ.js";
 import "./chunk-PEBH6BBU.js";
+import "./chunk-WPM5VTLQ.js";
 import "./chunk-4S3KYZTJ.js";
+import "./chunk-CWYBPNCF.js";
+import {
+  deepEquals,
+  equals,
+  findLastIndex,
+  isArray,
+  isNotEmpty,
+  isPrintableCharacter,
+  resolveFieldData
+} from "./chunk-NJ25EVEJ.js";
 import {
   __spreadProps,
   __spreadValues
@@ -1742,15 +1742,18 @@ var theme2 = ({
 }
 
 .p-multiselect-label {
-    display: flex;
-    align-items-center;
-    gap: calc(${dt("multiselect.padding.y")} / 2);
     white-space: nowrap;
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
     padding: ${dt("multiselect.padding.y")} ${dt("multiselect.padding.x")};
     color: ${dt("multiselect.color")};
+}
+
+.p-multiselect-display-chip .p-multiselect-label {
+    display: flex;
+    align-items: center;
+    gap: calc(dt('multiselect.padding.y') / 2);
 }
 
 .p-multiselect-label.p-placeholder {

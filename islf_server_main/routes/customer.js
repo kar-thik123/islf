@@ -18,14 +18,33 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   let {
     seriesCode, customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-    bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+    bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
+    companyCode, branchCode,departmentCode,ServiceTypeCode // <-- expect these in the request
   } = req.body;
+  // Debug: log the request body
+  console.log('REQ BODY:', req.body);
   try {
+    // Relation-based number series lookup
+    if (!seriesCode && companyCode && branchCode && departmentCode && ServiceTypeCode) {
+      const mappingRes = await pool.query(
+        `SELECT mapping FROM mapping_relations WHERE code_type = 'customerCode' AND company_code = $1 AND branch_code = $2 AND department_code = $3 AND service_type_code = $4 LIMIT 1`,
+        [companyCode, branchCode, departmentCode, ServiceTypeCode]
+      );
+      // Debug: log mapping result
+      console.log('MAPPING RESULT:', mappingRes.rows);
+      if (mappingRes.rows.length > 0) {
+        seriesCode = mappingRes.rows[0].mapping;
+        // Debug: log series code from mapping
+        console.log('SERIES CODE FROM MAPPING:', seriesCode);
+      }
+    }
     if (seriesCode) {
       const seriesResult = await pool.query(
         'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
         [seriesCode]
       );
+      // Debug: log number series result
+      console.log('NUMBER SERIES RESULT:', seriesResult.rows);
       if (seriesResult.rows.length === 0) {
         return res.status(400).json({ error: 'Number series not found' });
       }
@@ -45,6 +64,8 @@ router.post('/', async (req, res) => {
           'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1',
           [seriesCode]
         );
+        // Debug: log number relation result
+        console.log('NUMBER RELATION RESULT:', relResult.rows);
         if (relResult.rows.length === 0) {
           return res.status(400).json({ error: 'Number series relation not found' });
         }

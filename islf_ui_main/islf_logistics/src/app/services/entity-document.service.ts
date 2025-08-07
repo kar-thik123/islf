@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { ContextPayloadService } from './context-payload.service';
 
 export interface EntityDocument {
   id?: number;
@@ -23,7 +24,7 @@ export interface EntityDocument {
 export class EntityDocumentService {
   private apiUrl = `${environment.apiUrl}/api/entity_documents`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
 
   // Get all documents for an entity by code
   getByEntityCode(entityType: string, entityCode: string): Observable<EntityDocument[]> {
@@ -32,12 +33,16 @@ export class EntityDocumentService {
 
   // Upload a new document
   uploadDocument(formData: FormData): Observable<EntityDocument> {
+    const ctx = this.contextPayload['contextService'].getContext();
+    if (ctx.companyCode) formData.set('companyCode', ctx.companyCode);
+    if (ctx.branchCode) formData.set('branchCode', ctx.branchCode);
+    if (ctx.departmentCode) formData.set('departmentCode', ctx.departmentCode);
     return this.http.post<EntityDocument>(`${this.apiUrl}/upload`, formData);
   }
 
   // Update document metadata
   update(id: number, data: Partial<EntityDocument>): Observable<EntityDocument> {
-    return this.http.put<EntityDocument>(`${this.apiUrl}/${id}`, data);
+    return this.http.put<EntityDocument>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data));
   }
 
   // Delete document

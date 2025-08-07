@@ -15,9 +15,19 @@ router.get('/', async (req, res) => {
 
 // CREATE new vessel (with number series logic and manual/default check)
 router.post('/', async (req, res) => {
-  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active } = req.body;
+  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active, companyCode, branchCode, departmentCode, ServiceTypeCode } = req.body;
   try {
-    if (seriesCode) {
+    // Relation-based number series lookup
+    if (!seriesCode && companyCode && branchCode && departmentCode && ServiceTypeCode) {
+      const mappingRes = await pool.query(
+        `SELECT mapping FROM mapping_relations WHERE code_type = 'vesselCode' AND company_code = $1 AND branch_code = $2 AND department_code = $3 AND service_type_code = $4 LIMIT 1`,
+        [companyCode, branchCode, departmentCode, ServiceTypeCode]
+      );
+      if (mappingRes.rows.length > 0) {
+        seriesCode = mappingRes.rows[0].mapping;
+      }
+    }
+    if (seriesCode && companyCode && branchCode && departmentCode && ServiceTypeCode) {
       // 1. Get the number series for the selected code
       const seriesResult = await pool.query(
         'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
@@ -58,7 +68,6 @@ router.post('/', async (req, res) => {
       // Fallback: generate code as VESSEL-<timestamp>
       code = 'VESSEL-' + Date.now();
     }
-    
     // Check for duplicate IMO number if provided
     if (imo_number && imo_number.trim() !== '') {
       const imoExists = await pool.query('SELECT 1 FROM master_vessel WHERE imo_number = $1', [imo_number]);
@@ -66,7 +75,6 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'IMO number already exists' });
       }
     }
-    
     // 4. Insert the new vessel
     const result = await pool.query(
       `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active)

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { ContextPayloadService } from './context-payload.service';
 
 export interface CustomerContact {
   name: string;
@@ -38,18 +39,18 @@ export interface Customer {
 export class CustomerService {
   private apiUrl = `${environment.apiUrl}/api/customer`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
 
   getAll(): Observable<Customer[]> {
     return this.http.get<Customer[]>(this.apiUrl);
   }
 
   create(data: Partial<Customer> & { seriesCode?: string }): Observable<Customer> {
-    return this.http.post<Customer>(this.apiUrl, data);
+    return this.http.post<Customer>(this.apiUrl, this.contextPayload.withContext(data));
   }
 
   update(id: number, data: Partial<Customer>): Observable<Customer> {
-    return this.http.put<Customer>(`${this.apiUrl}/${id}`, data);
+    return this.http.put<Customer>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data));
   }
 
   delete(id: number): Observable<any> {

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { ContextPayloadService } from './context-payload.service';
 
 export interface VendorContact {
   name: string;
@@ -38,18 +39,18 @@ export interface Vendor {
 export class VendorService {
   private apiUrl = `${environment.apiUrl}/api/vendor`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
 
   getAll(): Observable<Vendor[]> {
     return this.http.get<Vendor[]>(this.apiUrl);
   }
 
   create(data: Partial<Vendor> & { seriesCode?: string }): Observable<Vendor> {
-    return this.http.post<Vendor>(this.apiUrl, data);
+    return this.http.post<Vendor>(this.apiUrl, this.contextPayload.withContext(data));
   }
 
   update(id: number, data: Partial<Vendor>): Observable<Vendor> {
-    return this.http.put<Vendor>(`${this.apiUrl}/${id}`, data);
+    return this.http.put<Vendor>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data));
   }
 
   delete(id: number): Observable<any> {

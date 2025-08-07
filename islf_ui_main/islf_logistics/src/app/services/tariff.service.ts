@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ContextPayloadService } from './context-payload.service';
 
 export interface Tariff {
   id?: number;
@@ -28,17 +29,17 @@ export interface Tariff {
 export class TariffService {
   private baseUrl = '/api/tariff';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
 
   getAll(): Observable<Tariff[]> {
     return this.http.get<Tariff[]>(this.baseUrl);
   }
 
   create(tariff: Tariff): Observable<Tariff> {
-    return this.http.post<Tariff>(this.baseUrl, tariff);
+    return this.http.post<Tariff>(this.baseUrl, this.contextPayload.withContext(tariff));
   }
 
   update(id: number, tariff: Tariff): Observable<Tariff> {
-    return this.http.put<Tariff>(`${this.baseUrl}/${id}`, tariff);
+    return this.http.put<Tariff>(`${this.baseUrl}/${id}`, this.contextPayload.withContext(tariff));
   }
 } 

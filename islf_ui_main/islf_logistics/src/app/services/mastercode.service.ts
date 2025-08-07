@@ -2,12 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { ContextPayloadService } from './context-payload.service';
 
 @Injectable({ providedIn: 'root' })
 export class MasterCodeService {
   private apiUrl = `${environment.apiUrl}/api/master_code`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
 
   // 🔄 Get all master records
   getMasters(): Observable<any> {
@@ -16,7 +17,7 @@ export class MasterCodeService {
 
   // ✅ Update status (Active/Inactive)
   updateMasterStatus(code: string, status: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${code}/status`, { status });
+    return this.http.patch(`${this.apiUrl}/${code}/status`, this.contextPayload.withContext({ status }));
   }
 
   // ✏️ Get a single master record by ID (for edit)
@@ -26,12 +27,12 @@ export class MasterCodeService {
 
   // 💾 Create a new master entry
   createMaster(data: any): Observable<any> {
-    return this.http.post<any>(this.apiUrl, data);
+    return this.http.post<any>(this.apiUrl, this.contextPayload.withContext(data));
   }
 
   // 🔁 Update existing master entry
   updateMaster(code: string, data: any): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${code}`, data);
+    return this.http.put<any>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(data));
   }
 
   // ❌ Delete master entry

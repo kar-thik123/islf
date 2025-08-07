@@ -88,7 +88,8 @@ import { MessageService } from 'primeng/api';
                  <img
                         src="assets/layout/images/logo.jpg"
                         alt="logo"
-                        class="block mx-auto drop-shadow-2xl "
+                        class="block mx-auto drop-shadow-2xl"
+                        style="width: 120px; height: auto; margin-bottom: 10px;"
                     />
                 <div class="mb-6">
                     <div
