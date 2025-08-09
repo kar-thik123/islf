@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 export interface Department {
   code: string;
@@ -23,10 +24,14 @@ export interface Department {
 export class DepartmentService {
   private apiUrl = '/api/department';
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
   getAll(): Observable<Department[]> {
     return this.http.get<Department[]>(this.apiUrl);
+  }
+
+  getByBranch(branchCode: string): Observable<Department[]> {
+    return this.http.get<Department[]>(`${this.apiUrl}?branch_code=${branchCode}`);
   }
 
   getByCode(code: string): Observable<Department> {
@@ -34,11 +39,11 @@ export class DepartmentService {
   }
 
   create(department: Department): Observable<Department> {
-    return this.http.post<Department>(this.apiUrl, this.contextPayload.withContext(department));
+    return this.http.post<Department>(this.apiUrl, this.contextPayload.withContext(department, this.contextService.getContext()));
   }
 
   update(code: string, department: Department): Observable<Department> {
-    return this.http.put<Department>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(department));
+    return this.http.put<Department>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(department, this.contextService.getContext()));
   }
 
   delete(code: string): Observable<any> {

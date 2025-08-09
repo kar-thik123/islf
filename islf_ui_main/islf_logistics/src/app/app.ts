@@ -44,9 +44,21 @@ export class AppComponent {
   }
 
   updateContextSelectorVisibility() {
-    const isLoggedIn = this.authService.auth && this.authService.isLoggedIn();
+    const isLoggedIn = this.authService.isAuthenticated();
     const isPublicRoute = ['/login', '/forgotpassword', '/newpassword', '/lockscreen'].some(r => this.router.url.includes(r));
-    this.showContextSelector = isLoggedIn && !isPublicRoute && !this.contextService.isContextSet();
+    const isContextSet = this.contextService.isContextSet();
+    
+    // Debug logging
+    console.log('Context selector check:', {
+      isLoggedIn,
+      isPublicRoute,
+      isContextSet,
+      url: this.router.url
+    });
+    
+    // Show context selector only when user is logged in and context is not set
+    // and we're not on a public route
+    this.showContextSelector = isLoggedIn && !isPublicRoute && !isContextSet;
     if (this.showContextSelector) {
       this.contextService.loadOptions();
     }

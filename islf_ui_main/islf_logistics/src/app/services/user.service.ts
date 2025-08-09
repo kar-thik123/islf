@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,10 +10,10 @@ import { ContextPayloadService } from './context-payload.service';
 export class UserService {
   private apiUrl = '/api/user';
 
-  constructor(private http: HttpClient , private contextPayload: ContextPayloadService) {}
+  constructor(private http: HttpClient , private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
   createUser(user: any): Observable<any> {
-    return this.http.post<any>(this.apiUrl, this.contextPayload.withContext(user));
+    return this.http.post<any>(this.apiUrl, this.contextPayload.withContext(user, this.contextService.getContext()));
   }
 
   getUsers(): Observable<any> {
@@ -24,7 +25,7 @@ export class UserService {
   }
 
   updateUser(id: string, user: any): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(user));
+    return this.http.put<any>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(user, this.contextService.getContext()));
   }
 
   getUserByUsername(username: string): Observable<any> {

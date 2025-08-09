@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { LoginService } from './login.service';
+import { ContextService } from './context.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,7 +10,7 @@ export class AuthService {
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
-  constructor(private loginService: LoginService) {
+  constructor(private loginService: LoginService, private contextService: ContextService) {
     // Check initial authentication state
     this.checkAuthState();
   }
@@ -27,11 +28,13 @@ export class AuthService {
   login(token: string, name: string, rememberMe: boolean): void {
     this.loginService.setToken(token, rememberMe);
     this.loginService.setUserName(name, rememberMe);
+    console.log('User logged in, setting auth state to true');
     this.isAuthenticatedSubject.next(true);
   }
 
   logout(): void {
     this.loginService.logout();
+    console.log('User logged out, setting auth state to false');
     this.isAuthenticatedSubject.next(false);
   }
 

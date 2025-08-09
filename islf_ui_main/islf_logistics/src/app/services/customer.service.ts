@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 export interface CustomerContact {
   name: string;
@@ -39,18 +40,34 @@ export interface Customer {
 export class CustomerService {
   private apiUrl = `${environment.apiUrl}/api/customer`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
   getAll(): Observable<Customer[]> {
-    return this.http.get<Customer[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    let params: any = {};
+    
+    if (context.companyCode) {
+      params.company_code = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branch_code = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.department_code = context.departmentCode;
+    }
+    if(context.serviceType) {
+      params.service_type = context.serviceType;  
+    }
+    
+    return this.http.get<Customer[]>(this.apiUrl, { params });
   }
 
   create(data: Partial<Customer> & { seriesCode?: string }): Observable<Customer> {
-    return this.http.post<Customer>(this.apiUrl, this.contextPayload.withContext(data));
+    return this.http.post<Customer>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   update(id: number, data: Partial<Customer>): Observable<Customer> {
-    return this.http.put<Customer>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data));
+    return this.http.put<Customer>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   delete(id: number): Observable<any> {

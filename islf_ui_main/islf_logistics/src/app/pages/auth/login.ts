@@ -184,6 +184,7 @@ export class Login {
         }
         this.loginService.login(this.identifier, this.password).subscribe({
             next: (res) => {
+                console.log('Login successful, navigating to root');
                 this.authService.login(res.token, res.name || '', this.rememberMe);
                 this.messageService.add({severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000});
                 this.router.navigate(['/']);

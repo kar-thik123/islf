@@ -3,10 +3,40 @@ const pool = require('../db');
 const { logMasterEvent } = require('../log');
 const router = express.Router();
 
-// GET all customers
+// GET all customers with optional context-based filtering
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM customer ORDER BY id ASC');
+    const { company_code, branch_code, department_code , service_type_code } = req.query;
+    let query = 'SELECT * FROM customer';
+    let params = [];
+    let paramIndex = 1;
+    
+    // Build WHERE clause based on provided context parameters
+    const whereConditions = [];
+    if (company_code) {
+      whereConditions.push(`company_code = $${paramIndex++}`);
+      params.push(company_code);
+    }
+    if (branch_code) {
+      whereConditions.push(`branch_code = $${paramIndex++}`);
+      params.push(branch_code);
+    }
+    if (department_code) {
+      whereConditions.push(`department_code = $${paramIndex++}`);
+      params.push(department_code);
+    }
+    if(service_type_code) { 
+      whereConditions.push(`service_type_code = $${paramIndex++}`);
+      params.push(service_type_code);
+    }
+    
+    if (whereConditions.length > 0) {
+      query += ' WHERE ' + whereConditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY id ASC';
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching customers:', err);
@@ -19,17 +49,42 @@ router.post('/', async (req, res) => {
   let {
     seriesCode, customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
     bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-    companyCode, branchCode,departmentCode,ServiceTypeCode // <-- expect these in the request
+    companyCode, branchCode,departmentCode,servicetypeCode// <-- expect these in the request
   } = req.body;
   // Debug: log the request body
   console.log('REQ BODY:', req.body);
   try {
     // Relation-based number series lookup
-    if (!seriesCode && companyCode && branchCode && departmentCode && ServiceTypeCode) {
-      const mappingRes = await pool.query(
-        `SELECT mapping FROM mapping_relations WHERE code_type = 'customerCode' AND company_code = $1 AND branch_code = $2 AND department_code = $3 AND service_type_code = $4 LIMIT 1`,
-        [companyCode, branchCode, departmentCode, ServiceTypeCode]
-      );
+    // This approach handles null values in mapping_relations as wildcards
+    if (!seriesCode && companyCode && branchCode && departmentCode) {
+      // First try to find exact match including service_type_code
+      let mappingRes;
+      if (servicetypeCode) {
+        mappingRes = await pool.query(
+          `SELECT mapping FROM mapping_relations
+           WHERE code_type = $1
+           AND company_code = $2
+           AND branch_code = $3
+           AND department_code = $4
+           AND (service_type_code = $5 OR service_type_code IS NULL)
+           ORDER BY CASE WHEN service_type_code IS NULL THEN 1 ELSE 0 END, id DESC
+           LIMIT 1`,
+          ['customerCode', companyCode, branchCode, departmentCode, servicetypeCode]
+        );
+      } else {
+        mappingRes = await pool.query(
+          `SELECT mapping FROM mapping_relations
+           WHERE code_type = $1
+           AND company_code = $2
+           AND branch_code = $3
+           AND department_code = $4
+           AND service_type_code IS NULL
+           ORDER BY id DESC
+           LIMIT 1`,
+          ['customerCode', companyCode, branchCode, departmentCode]
+        );
+      }
+      
       // Debug: log mapping result
       console.log('MAPPING RESULT:', mappingRes.rows);
       if (mappingRes.rows.length > 0) {
@@ -70,7 +125,14 @@ router.post('/', async (req, res) => {
           return res.status(400).json({ error: 'Number series relation not found' });
         }
         const rel = relResult.rows[0];
-        const nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+        let nextNo;
+        if (rel.last_no_used === 0) {
+          // If this is the first use, start with starting_no
+          nextNo = Number(rel.starting_no);
+        } else {
+          // Otherwise, increment from last_no_used
+          nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+        }
         customer_no = `${rel.prefix || ''}${nextNo}`;
         await pool.query(
           'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
@@ -78,18 +140,20 @@ router.post('/', async (req, res) => {
         );
       }
     } else if (!customer_no || customer_no === 'AUTO') {
-      customer_no = 'CUSTOMER-' + Date.now();
+      customer_no = 'CUS-' + Date.now();
     }
     const result = await pool.query(
       `INSERT INTO customer (
         customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
+        company_code, branch_code, department_code, service_type_code
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
-      ) RETURNING *`,
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22 ) RETURNING *`,
       [
         customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || [])
+        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
+        companyCode, branchCode, departmentCode, servicetypeCode
       ]
     );
     

@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { LoginService } from '../../services/login.service';
 import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
+import { ContextService } from '../../services/context.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -15,7 +16,7 @@ import { CommonModule } from '@angular/common';
         CommonModule,
         ButtonModule,
         DrawerModule,
-        BadgeModule,
+        BadgeModule
     ],
     template: `
         <p-drawer
@@ -73,7 +74,8 @@ export class AppProfileSidebar implements OnInit {
         private router: Router,
         private loginService: LoginService,
         private authService: AuthService,
-        private userService: UserService
+        private userService: UserService,
+        private contextService: ContextService
     ) {
         this.userName = this.authService.getUserName();
     }
@@ -109,6 +111,7 @@ export class AppProfileSidebar implements OnInit {
     // Sign out logic
     signOut() {
         this.authService.logout();
+        this.contextService.clearContext();
         this.onDrawerHide();
         this.router.navigate(['/auth/login']);
     }

@@ -3,10 +3,21 @@ const pool = require('../db');
 const { logSetupEvent } = require('../log');
 const router = express.Router();
 
-// Get all branches
+// Get all branches, optionally filtered by company_code
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM branches ORDER BY code DESC');
+    const { company_code } = req.query;
+    let query = 'SELECT * FROM branches';
+    let params = [];
+    
+    if (company_code) {
+      query += ' WHERE company_code = $1';
+      params.push(company_code);
+    }
+    
+    query += ' ORDER BY code DESC';
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching branches:', err);

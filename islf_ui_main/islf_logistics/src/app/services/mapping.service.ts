@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 export interface Mapping {
   customerCode: string | null;
@@ -40,14 +41,14 @@ export interface MappingRelationCreate {
 export class MappingService {
   private apiUrl = `${environment.apiUrl}/api/mapping`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
   getMapping(): Observable<Mapping> {
     return this.http.get<Mapping>(this.apiUrl);
   }
 
   saveMapping(mapping: Mapping): Observable<any> {
-    return this.http.post(this.apiUrl, this.contextPayload.withContext(mapping));
+    return this.http.post(this.apiUrl, this.contextPayload.withContext(mapping, this.contextService.getContext()));
   }
 
   // Mapping Relations CRUD operations
@@ -56,11 +57,11 @@ export class MappingService {
   }
 
   createMappingRelation(relation: MappingRelationCreate): Observable<MappingRelation> {
-    return this.http.post<MappingRelation>(`${this.apiUrl}/relations`, this.contextPayload.withContext(relation));
+    return this.http.post<MappingRelation>(`${this.apiUrl}/relations`, this.contextPayload.withContext(relation, this.contextService.getContext()));
   }
 
   updateMappingRelation(id: number, relation: MappingRelationCreate): Observable<MappingRelation> {
-    return this.http.put<MappingRelation>(`${this.apiUrl}/relations/${id}`, this.contextPayload.withContext(relation));
+    return this.http.put<MappingRelation>(`${this.apiUrl}/relations/${id}`, this.contextPayload.withContext(relation, this.contextService.getContext()));
   }
 
   deleteMappingRelation(id: number): Observable<any> {

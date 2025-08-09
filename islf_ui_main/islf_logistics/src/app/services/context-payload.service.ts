@@ -1,21 +1,22 @@
 import { Injectable } from '@angular/core';
-import { ContextService } from './context.service';
+import { UserContext } from './context.service';
 
 @Injectable({ providedIn: 'root' })
 export class ContextPayloadService {
-  constructor(private contextService: ContextService) {}
+  constructor() {}
 
-  withContext<T extends object>(payload: T): T & {
+  withContext<T extends object>(payload: T, context: UserContext): T & {
     companyCode?: string;
     branchCode?: string;
     departmentCode?: string;
+    serviceTypeCode?: string;
   } {
-    const ctx = this.contextService.getContext();
     return {
       ...payload,
-      companyCode: ctx.companyCode,
-      branchCode: ctx.branchCode,
-      departmentCode: ctx.departmentCode
+      companyCode: context.companyCode,
+      branchCode: context.branchCode,
+      departmentCode: context.departmentCode,
+      serviceTypeCode: context.serviceType || undefined
     };
   }
 }

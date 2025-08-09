@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 export interface NumberSeriesRelation {
   id: number;
@@ -39,7 +40,7 @@ export class NumberSeriesRelationService {
   private apiUrl = '/api/number_relation';
   private numberSeriesApiUrl = '/api/number_series';
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService,private contextService: ContextService) {}
 
   getAll(): Observable<NumberSeriesRelation[]> {
     return this.http.get<any[]>(this.apiUrl).pipe(
@@ -76,13 +77,13 @@ export class NumberSeriesRelationService {
   create(relation: NumberSeriesRelation): Observable<NumberSeriesRelation> {
     // Convert dates to proper format for backend
     const payload = this.convertDatesForBackend(relation);
-    return this.http.post<NumberSeriesRelation>(this.apiUrl, this.contextPayload.withContext(payload));
+    return this.http.post<NumberSeriesRelation>(this.apiUrl, this.contextPayload.withContext(payload, this.contextService.getContext()));
   }
 
   update(id: number, relation: NumberSeriesRelation): Observable<NumberSeriesRelation> {
     // Convert dates to proper format for backend
     const payload = this.convertDatesForBackend(relation);
-    return this.http.put<NumberSeriesRelation>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(payload));
+    return this.http.put<NumberSeriesRelation>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(payload, this.contextService.getContext()));
   }
 
   delete(id: number): Observable<any> {

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Output, EventEmitter } from '@angular/core';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { ButtonModule } from 'primeng/button';
@@ -24,8 +24,9 @@ import { ContextService, UserContext } from '../services/context.service';
           <label for="company" class="block mb-2 font-medium">Company</label>
           <p-dropdown
             id="company"
-            [options]="contextService.companyOptions$ | async"
+            [options]="(contextService.companyOptions$ | async) || []"
             [(ngModel)]="selectedCompany"
+            (onChange)="onCompanyChange()"
             optionLabel="label"
             optionValue="value"
             placeholder="Select Company"
@@ -37,8 +38,9 @@ import { ContextService, UserContext } from '../services/context.service';
           <label for="branch" class="block mb-2 font-medium">Branch</label>
           <p-dropdown
             id="branch"
-            [options]="contextService.branchOptions$ | async"
+            [options]="(contextService.branchOptions$ | async) || []"
             [(ngModel)]="selectedBranch"
+            (onChange)="onBranchChange()"
             optionLabel="label"
             optionValue="value"
             placeholder="Select Branch"
@@ -50,13 +52,28 @@ import { ContextService, UserContext } from '../services/context.service';
           <label for="department" class="block mb-2 font-medium">Department</label>
           <p-dropdown
             id="department"
-            [options]="contextService.departmentOptions$ | async"
+            [options]="(contextService.departmentOptions$ | async) || []"
             [(ngModel)]="selectedDepartment"
             optionLabel="label"
             optionValue="value"
             placeholder="Select Department"
             [showClear]="true"
           ></p-dropdown>
+        </div>
+
+        <div>
+          <!--<label for="serviceType" class="block mb-2 font-medium">Service Type</label>
+          <p-dropdown
+            id="serviceType"
+            [options]="(contextService.serviceTypeOptions$ | async) || []"
+            [(ngModel)]="selectedServiceType"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select Service Type"
+            [showClear]="true"
+            [disabled]="true"
+          ></p-dropdown>
+          -->
         </div>
 
         <div class="text-right pt-3">
@@ -79,21 +96,66 @@ export class ContextSelectorComponent {
   selectedCompany?: string;
   selectedBranch?: string;
   selectedDepartment?: string;
-
+  selectedServiceType?: string;
+ 
+  @Output() contextSet = new EventEmitter<UserContext>();
+ 
   constructor(public contextService: ContextService) {}
+ 
+  onCompanyChange() {
+    this.selectedBranch = undefined;
+    this.selectedDepartment = undefined;
+    this.selectedServiceType = undefined;
+    this.contextService.clearBranchOptions();
+    this.contextService.clearDepartmentOptions();
+    this.contextService.clearServiceTypeOptions();
+    
+    if (this.selectedCompany) {
+      this.contextService.loadBranchesForCompany(this.selectedCompany);
+    }
+  }
+ 
+  onBranchChange() {
+    this.selectedDepartment = undefined;
+    this.selectedServiceType = undefined;
+    this.contextService.clearDepartmentOptions();
+    this.contextService.clearServiceTypeOptions();
+    
+    if (this.selectedBranch) {
+      this.contextService.loadDepartmentsForBranch(this.selectedBranch);
+    }
+  }
 
+  onDepartmentChange() {
+    this.selectedServiceType = undefined;
+    this.contextService.clearServiceTypeOptions();
+    
+    if (this.selectedDepartment) {
+      this.contextService.loadServiceTypesForDepartment(this.selectedDepartment);
+    }
+  }
+ 
   canSave(): boolean {
     return !!(this.selectedCompany && this.selectedBranch && this.selectedDepartment);
   }
-
+ 
   saveContext(): void {
+    if (!this.selectedCompany || !this.selectedBranch || !this.selectedDepartment) {
+      return;
+    }
+    
+    // Clear previous context before setting new one
+    this.contextService.clearContext();
+    
     const ctx: UserContext = {
-      companyCode: this.selectedCompany!,
-      branchCode: this.selectedBranch!,
-      departmentCode: this.selectedDepartment!
+      companyCode: this.selectedCompany,
+      branchCode: this.selectedBranch,
+      departmentCode: this.selectedDepartment,
+      serviceType: this.selectedServiceType || null
     };
+    console.log('Saving context in selector:', ctx);
     this.contextService.setContext(ctx);
+    this.contextSet.emit(ctx);
     this.visible = false;
-    // Optionally emit an event if needed
   }
 }

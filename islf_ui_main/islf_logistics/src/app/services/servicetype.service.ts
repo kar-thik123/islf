@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 export interface ServiceType {
   id?: number;
@@ -28,7 +29,7 @@ export interface ServiceType {
 export class ServiceTypeService {
   private apiUrl = '/api/service-types';
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) { }
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) { }
 
   getAll(): Observable<ServiceType[]> {
     return this.http.get<ServiceType[]>(this.apiUrl);
@@ -43,11 +44,11 @@ export class ServiceTypeService {
   }
 
   create(serviceType: ServiceType): Observable<ServiceType> {
-    return this.http.post<ServiceType>(this.apiUrl, this.contextPayload.withContext(serviceType));
+    return this.http.post<ServiceType>(this.apiUrl, this.contextPayload.withContext(serviceType, this.contextService.getContext()));
   }
 
   update(code: string, serviceType: ServiceType): Observable<ServiceType> {
-    return this.http.put<ServiceType>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(serviceType));
+    return this.http.put<ServiceType>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(serviceType, this.contextService.getContext()));
   }
 
   delete(code: string): Observable<void> {

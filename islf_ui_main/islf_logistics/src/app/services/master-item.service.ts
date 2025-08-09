@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
 
 export interface MasterItem {
   id?: number;
@@ -17,18 +18,18 @@ export interface MasterItem {
 export class MasterItemService {
   private apiUrl = `${environment.apiUrl}/api/master_item`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService) {}
+  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
   getAll(): Observable<MasterItem[]> {
     return this.http.get<MasterItem[]>(this.apiUrl);
   }
 
   create(data: MasterItem): Observable<MasterItem> {
-    return this.http.post<MasterItem>(this.apiUrl, this.contextPayload.withContext(data));
+    return this.http.post<MasterItem>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   update(id: number, data: Partial<MasterItem>): Observable<MasterItem> {
-    return this.http.put<MasterItem>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data));
+    return this.http.put<MasterItem>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   delete(id: number): Observable<any> {
