@@ -2,11 +2,57 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-// GET all vessels
+// GET all vessels with optional context filtering
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM master_vessel ORDER BY id ASC');
-    res.json(result.rows);
+    const { companyCode, branchCode, departmentCode, serviceTypeCode } = req.query;
+    
+    // If context parameters are provided, filter vessels by their context
+    if (companyCode || branchCode || departmentCode || serviceTypeCode) {
+      // Filter vessels by their stored context values
+      let query = `
+        SELECT *
+        FROM master_vessel
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      let paramIndex = 1;
+      
+      if (companyCode) {
+        query += ` AND company_code = $${paramIndex}`;
+        params.push(companyCode);
+        paramIndex++;
+      }
+      
+      if (branchCode) {
+        query += ` AND branch_code = $${paramIndex}`;
+        params.push(branchCode);
+        paramIndex++;
+      }
+      
+      if (departmentCode) {
+        query += ` AND department_code = $${paramIndex}`;
+        params.push(departmentCode);
+        paramIndex++;
+      }
+      
+      // Note: service_type_code column doesn't exist in master_vessel table
+      // if (serviceTypeCode) {
+      //   query += ` AND service_type_code = $${paramIndex}`;
+      //   params.push(serviceTypeCode);
+      //   paramIndex++;
+      // }
+      
+      query += ` ORDER BY id ASC`;
+      
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    } else {
+      // If no context parameters, return all vessels
+      const result = await pool.query('SELECT * FROM master_vessel ORDER BY id ASC');
+      res.json(result.rows);
+    }
   } catch (err) {
     console.error('Error fetching vessels:', err);
     res.status(500).json({ error: 'Failed to fetch vessels' });
@@ -18,16 +64,16 @@ router.post('/', async (req, res) => {
   let { seriesCode, code, vessel_name, imo_number, flag, year_build, active, companyCode, branchCode, departmentCode, ServiceTypeCode } = req.body;
   try {
     // Relation-based number series lookup
-    if (!seriesCode && companyCode && branchCode && departmentCode && ServiceTypeCode) {
+    if (!seriesCode && companyCode && branchCode && departmentCode) {
       const mappingRes = await pool.query(
-        `SELECT mapping FROM mapping_relations WHERE code_type = 'vesselCode' AND company_code = $1 AND branch_code = $2 AND department_code = $3 AND service_type_code = $4 LIMIT 1`,
-        [companyCode, branchCode, departmentCode, ServiceTypeCode]
+        `SELECT mapping FROM mapping_relations WHERE code_type = 'vesselCode' AND company_code = $1 AND branch_code = $2 AND department_code = $3 LIMIT 1`,
+        [companyCode, branchCode, departmentCode]
       );
       if (mappingRes.rows.length > 0) {
         seriesCode = mappingRes.rows[0].mapping;
       }
     }
-    if (seriesCode && companyCode && branchCode && departmentCode && ServiceTypeCode) {
+    if (seriesCode && companyCode && branchCode && departmentCode) {
       // 1. Get the number series for the selected code
       const seriesResult = await pool.query(
         'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
@@ -77,10 +123,10 @@ router.post('/', async (req, res) => {
     }
     // 4. Insert the new vessel
     const result = await pool.query(
-      `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active, company_code, branch_code, department_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [code, vessel_name, imo_number, flag, year_build, active]
+      [code, vessel_name, imo_number, flag, year_build, active, companyCode, branchCode, departmentCode]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -113,10 +159,10 @@ router.put('/:id', async (req, res) => {
     
     const result = await pool.query(
       `UPDATE master_vessel
-       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6
-       WHERE id = $7
+       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6, company_code = $7, branch_code = $8, department_code = $9
+       WHERE id = $10
        RETURNING *`,
-      [code, vessel_name, imo_number, flag, year_build, active, id]
+      [code, vessel_name, imo_number, flag, year_build, active, companyCode, branchCode, departmentCode, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vessel not found' });
@@ -151,4 +197,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -34,6 +34,8 @@ export class AuthService {
 
   logout(): void {
     this.loginService.logout();
+    this.contextService.clearContext();
+    this.contextService.hideContextSelector();
     console.log('User logged out, setting auth state to false');
     this.isAuthenticatedSubject.next(false);
   }

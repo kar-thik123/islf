@@ -627,6 +627,71 @@ interface DocumentPaths {
             </p-card>
         </div>
         </p-tabPanel>
+        
+        <!-- Validate/Filter Tab -->
+        <p-tabPanel header="Validate/Filter">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <p-card header="Validation Settings">
+              <div class="space-y-4">
+                <div>
+                  <label class="block mb-2 font-medium">Customer:</label>
+                  <p-dropdown
+                    [(ngModel)]="validationSettings.customerFilter"
+                    [options]="customerFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select customer filter"
+                    class="w-full">
+                  </p-dropdown>
+                  <small class="block mt-1 text-gray-500">
+                    C = Company, D = Department, B = Branch, ST = Service Type
+                  </small>
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">Vendor:</label>
+                  <p-dropdown
+                    [(ngModel)]="validationSettings.vendorFilter"
+                    [options]="vendorFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select vendor filter"
+                    class="w-full">
+                  </p-dropdown>
+                  <small class="block mt-1 text-gray-500">
+                    C = Company, D = Department, B = Branch, ST = Service Type
+                  </small>
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">Manual Entry:</label>
+                  <input
+                    type="text"
+                    pInputText
+                    [(ngModel)]="validationSettings.manualCustomerFilter"
+                    class="w-full"
+                    placeholder="e.g., C, CB, CBD, CBDST"
+                    (input)="onManualCustomerFilterChange($event)" />
+                  <small class="block mt-1 text-gray-500">
+                    Enter combinations like C, CB, CBD, CBDST
+                  </small>
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">Vessel:</label>
+                  <p-dropdown
+                    [(ngModel)]="validationSettings.vesselFilter"
+                    [options]="vesselFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select vessel filter"
+                    class="w-full">
+                  </p-dropdown>
+                  <small class="block mt-1 text-gray-500">
+                    C = Company, D = Department, B = Branch, ST = Service Type
+                  </small>
+                </div>
+              </div>
+            </p-card>
+          </div>
+        </p-tabPanel>
       </p-tabView>
 
       <!-- Action Buttons -->
@@ -769,6 +834,14 @@ export class ITSetupComponent implements OnInit {
     apiSecret: ''
   };
 
+  // Validation Settings
+  validationSettings = {
+    customerFilter: '',
+    vendorFilter: '',
+    vesselFilter: '',
+    manualCustomerFilter: ''
+  };
+
   // Options for dropdowns
   languageOptions = [
     { label: 'English', value: 'en' },
@@ -889,6 +962,25 @@ export class ITSetupComponent implements OnInit {
     { label: 'Inches (IN)', value: 'IN' }
   ];
 
+  customerFilterOptions = [
+    { label: 'C (Company)', value: 'C' },
+    { label: 'CB (Company + Branch)', value: 'CB' },
+    { label: 'CBD (Company + Branch + Department)', value: 'CBD' },
+    { label: 'CBDST (Company + Branch + Department + Service Type)', value: 'CBDST' }
+  ];
+  vendorFilterOptions = [
+    { label: 'C (Company)', value: 'C' },
+    { label: 'CB (Company + Branch)', value: 'CB' },
+    { label: 'CBD (Company + Branch + Department)', value: 'CBD' },
+    { label: 'CBDST (Company + Branch + Department + Service Type)', value: 'CBDST' }
+  ];
+  vesselFilterOptions = [
+    { label: 'C (Company)', value: 'C' },
+    { label: 'CB (Company + Branch)', value: 'CB' },
+    { label: 'CBD (Company + Branch + Department)', value: 'CBD' },
+    { label: 'CBDST (Company + Branch + Department + Service Type)', value: 'CBDST' }
+  ];
+
   // State management
   message = signal('');
   error = signal('');
@@ -917,11 +1009,14 @@ export class ITSetupComponent implements OnInit {
         this.maintenanceSettings = config.maintenance;
         this.brandingSettings = config.branding;
         this.logisticsSettings = config.logistics;
-        this.documentUploadPaths = { 
+        this.documentUploadPaths = {
           ...config.documentPaths,
           branch: (config.documentPaths as any)?.branch || '/uploads/documents/branch',
           department: (config.documentPaths as any)?.department || '/uploads/documents/department'
         };
+        if (config.validation) {
+          this.validationSettings = config.validation;
+        }
       }
     });
   }
@@ -942,11 +1037,14 @@ export class ITSetupComponent implements OnInit {
         this.maintenanceSettings = { ...config.maintenance };
         this.brandingSettings = { ...config.branding };
         this.logisticsSettings = { ...config.logistics };
-        this.documentUploadPaths = { 
+        this.documentUploadPaths = {
           ...config.documentPaths,
           branch: (config.documentPaths as any)?.branch || '/uploads/documents/branch',
           department: (config.documentPaths as any)?.department || '/uploads/documents/department'
         };
+        if (config.validation) {
+          this.validationSettings = config.validation;
+        }
         
         this.loading.set(false);
         this.message.set('Settings loaded successfully!');
@@ -989,7 +1087,8 @@ export class ITSetupComponent implements OnInit {
       maintenance: this.maintenanceSettings,
       branding: this.brandingSettings,
       logistics: this.logisticsSettings,
-      documentPaths: this.documentUploadPaths
+      documentPaths: this.documentUploadPaths,
+      validation: this.validationSettings
     };
 
     // Save using the config service
@@ -1046,6 +1145,9 @@ export class ITSetupComponent implements OnInit {
             branch: (defaultConfig.documentPaths as any)?.branch || '/uploads/documents/branch',
             department: (defaultConfig.documentPaths as any)?.department || '/uploads/documents/department'
           };
+          if (defaultConfig.validation) {
+            this.validationSettings = defaultConfig.validation;
+          }
         }
 
         this.defaultLogo.set(null);
@@ -1058,5 +1160,18 @@ export class ITSetupComponent implements OnInit {
         });
       }
       });
-  }
-} 
+ }
+
+ onManualCustomerFilterChange(event: any) {
+   const value = event.target.value.toUpperCase();
+   // Validate that the input only contains allowed characters (C, B, D, ST)
+   if (value && !/^[CBDST]+$/.test(value)) {
+     // If invalid characters are found, we could show an error message
+     // For now, we'll just not update the customerFilter value
+     return;
+   }
+   
+   // Update the customerFilter value to match the manual entry
+   this.validationSettings.customerFilter = value;
+ }
+}

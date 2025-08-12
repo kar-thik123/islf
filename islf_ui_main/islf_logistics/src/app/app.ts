@@ -3,10 +3,6 @@ import { Router, RouterOutlet } from '@angular/router';
 import { ToastModule } from 'primeng/toast';
 import { CommonModule } from '@angular/common';
 import { ContextService, UserContext } from './services/context.service';
-import { ContextSelectorComponent } from './pages/context-selector.component';
-import { DialogModule } from 'primeng/dialog';
-import { DropdownModule } from 'primeng/dropdown';
-import { FormsModule } from '@angular/forms';
 import { AuthService } from './services/auth.service';
 
 @Component({
@@ -15,23 +11,15 @@ import { AuthService } from './services/auth.service';
   imports: [
     RouterOutlet,
     ToastModule,
-    CommonModule,
-    ContextSelectorComponent,
-    DialogModule,
-    DropdownModule,
-    FormsModule
+    CommonModule
+    // Removed ContextSelectorComponent to avoid conflicts with AppTopbar
   ],
   template: `
-    <app-context-selector
-      *ngIf="showContextSelector"
-      (contextSet)="onContextSet($event)">
-    </app-context-selector>
-    <router-outlet *ngIf="!showContextSelector"></router-outlet>
+   
+    <router-outlet></router-outlet>
   `
 })
 export class AppComponent {
-  showContextSelector = false;
-
   constructor(
     private contextService: ContextService,
     private authService: AuthService,
@@ -41,6 +29,15 @@ export class AppComponent {
   ngOnInit() {
     this.router.events.subscribe(() => this.updateContextSelectorVisibility());
     this.updateContextSelectorVisibility();
+    
+    // Subscribe to context service to show context selector when needed
+    this.contextService.showContextSelector$.subscribe(show => {
+      // We're not using AppComponent's context selector anymore, 
+      // AppTopbar handles this now
+    });
+    
+    // Debug logging for context selector visibility
+    console.log('AppComponent initialized');
   }
 
   updateContextSelectorVisibility() {
@@ -56,15 +53,9 @@ export class AppComponent {
       url: this.router.url
     });
     
-    // Show context selector only when user is logged in and context is not set
-    // and we're not on a public route
-    this.showContextSelector = isLoggedIn && !isPublicRoute && !isContextSet;
-    if (this.showContextSelector) {
-      this.contextService.loadOptions();
+    // After login, if context is not set, show the context selector
+    if (isLoggedIn && !isPublicRoute && !isContextSet) {
+      this.contextService.showContextSelector();
     }
-  }
-
-  onContextSet(ctx: UserContext) {
-    this.showContextSelector = false;
   }
 }

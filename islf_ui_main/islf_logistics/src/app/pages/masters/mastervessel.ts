@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -14,6 +14,9 @@ import { MasterVesselService, MasterVessel } from '../../services/master-vessel.
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
 import { MasterLocationService } from '@/services/master-location.service';
+import { ConfigService } from '@/services/config.service';
+import { ContextService } from '@/services/context.service';
+import { Subscription } from 'rxjs';
 
 interface FlagOption {
   label: string;
@@ -154,15 +157,35 @@ interface FlagOption {
           <div class="grid-container">
             <div class="grid-item">
               <label for="code">Code</label>
-              <input id="code" pInputText [(ngModel)]="selectedVessel.code" [disabled]="!isManualSeries || !selectedVessel.isNew" />
+              <input 
+                id="code" 
+                pInputText 
+                [(ngModel)]="selectedVessel.code" 
+                [disabled]="!isManualSeries || !selectedVessel.isNew" 
+                (ngModelChange)="onFieldChange('code', selectedVessel.code)" 
+                [ngClass]="{'ng-invalid ng-dirty': getFieldError('code')}" 
+              />
+              <small *ngIf="getFieldError('code')" class="p-error">{{getFieldError('code')}}</small>
             </div>
             <div class="grid-item">
               <label for="vessel_name">Vessel Name</label>
-              <input id="vessel_name" pInputText [(ngModel)]="selectedVessel.vessel_name" />
+              <input 
+                id="vessel_name" 
+                pInputText 
+                [(ngModel)]="selectedVessel.vessel_name" 
+                (ngModelChange)="onFieldChange('vessel_name', selectedVessel.vessel_name)" 
+                [ngClass]="{'ng-invalid ng-dirty': getFieldError('vessel_name')}" 
+              />
+              <small *ngIf="getFieldError('vessel_name')" class="p-error">{{getFieldError('vessel_name')}}</small>
             </div>
             <div class="grid-item">
               <label for="imo_number">IMO Number</label>
-              <input id="imo_number" pInputText [(ngModel)]="selectedVessel.imo_number" placeholder="Enter IMO number" />
+              <input 
+                id="imo_number" 
+                pInputText 
+                [(ngModel)]="selectedVessel.imo_number" 
+                placeholder="Enter IMO number" 
+              />
             </div>
             <div class="grid-item">
               <label for="flag">Flag</label>
@@ -175,14 +198,17 @@ interface FlagOption {
                 optionValue="value"
                 placeholder="Select Flag"
                 [filter]="true"
+                (onChange)="onFieldChange('flag', selectedVessel.flag)"
+                [ngClass]="{'ng-invalid ng-dirty': getFieldError('flag')}"
               ></p-dropdown>
+              <small *ngIf="getFieldError('flag')" class="p-error">{{getFieldError('flag')}}</small>
             </div>
            
             <div class="grid-item">
               <label for="year_build">Year Build</label>
               <p-calendar
                 id="year_build"
-                appendTo = "body"
+                appendTo="body"
                 [(ngModel)]="selectedVessel.year_build"
                 view="year"
                 dateFormat="yy"
@@ -190,7 +216,10 @@ interface FlagOption {
                 placeholder="Select Year"
                 [yearNavigator]="true"
                 yearRange="1900:2030"
+                (onSelect)="onFieldChange('year_build', selectedVessel.year_build)"
+                [ngClass]="{'ng-invalid ng-dirty': getFieldError('year_build')}"
               ></p-calendar>
+              <small *ngIf="getFieldError('year_build')" class="p-error">{{getFieldError('year_build')}}</small>
             </div>
             <div class="grid-item">
               <label for="active">Status</label>
@@ -231,7 +260,7 @@ interface FlagOption {
     }
   `]
 })
-export class MasterVesselComponent implements OnInit {
+export class MasterVesselComponent implements OnInit, OnDestroy {
   vessels: MasterVessel[] = [];
   flagOptions: FlagOption[] = [];
   activeOptions = [
@@ -242,19 +271,39 @@ export class MasterVesselComponent implements OnInit {
   isManualSeries: boolean = false;
   isDialogVisible = false;
   selectedVessel: (MasterVessel & { isNew?: boolean }) | null = null;
+  
+  // Field validation states
+  fieldErrors: { [key: string]: string } = {};
+  touchedFields: { [key: string]: boolean } = {};
+  private contextSubscription: Subscription | undefined;
 
   constructor(
     private masterVesselService: MasterVesselService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private masterLocationService: MasterLocationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private configService: ConfigService,
+    private contextService: ContextService
   ) {}
 
   ngOnInit() {
     this.refreshList();
     this.loadMappedVesselSeriesCode();
     this.loadFlagOptions();
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.subscribe(() => {
+      console.log('Context changed in MasterVesselComponent, reloading data...');
+      this.refreshList();
+      this.loadMappedVesselSeriesCode();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   loadFlagOptions() {
@@ -271,15 +320,28 @@ export class MasterVesselComponent implements OnInit {
   }
 
   loadMappedVesselSeriesCode() {
-    this.mappingService.getMapping().subscribe(mapping => {
-      this.mappedVesselSeriesCode = mapping.vesselCode;
-      if (this.mappedVesselSeriesCode) {
-        this.numberSeriesService.getAll().subscribe(seriesList => {
-          const found = seriesList.find((s: any) => s.code === this.mappedVesselSeriesCode);
-          this.isManualSeries = !!(found && found.is_manual);
-        });
-      } else {
-        this.isManualSeries = false;
+    this.mappingService.getMapping().subscribe({
+      next: (mapping) => {
+        this.mappedVesselSeriesCode = mapping.vesselCode;
+        if (this.mappedVesselSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedVesselSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('Vessel series code mapped:', this.mappedVesselSeriesCode, 'Manual:', this.isManualSeries);
+            },
+            error: (error) => {
+              console.error('Error loading number series:', error);
+            }
+          });
+        } else {
+          this.isManualSeries = false;
+          console.log('No vessel series code mapped');
+        }
+      },
+      error: (error) => {
+        console.error('Error loading mapping:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load mapping configuration' });
       }
     });
   }
@@ -289,12 +351,85 @@ export class MasterVesselComponent implements OnInit {
   }
 
   refreshList() {
-    this.masterVesselService.getAll().subscribe(data => {
-      this.vessels = data;
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const vesselFilter = config?.validation?.vesselFilter || '';
+    
+    // Determine if we should filter by context based on validation settings
+    const filterByContext = !!vesselFilter;
+    
+    this.masterVesselService.getAll(filterByContext).subscribe({
+      next: (data) => {
+        this.vessels = data;
+      },
+      error: (err) => {
+        console.error('Failed to load vessels:', err);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load vessels' });
+      }
     });
   }
 
   addRow() {
+    console.log('Add Vessel button clicked - starting addRow method');
+    
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const vesselFilter = config?.validation?.vesselFilter || '';
+    
+    console.log('Vessel filter:', vesselFilter);
+    
+    // Check if we need to validate context
+    if (vesselFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      let contextValid = true;
+      let missingContexts = [];
+      
+      if (vesselFilter.includes('C') && !context.companyCode) {
+        contextValid = false;
+        missingContexts.push('Company');
+      }
+      
+      if (vesselFilter.includes('B') && !context.branchCode) {
+        contextValid = false;
+        missingContexts.push('Branch');
+      }
+      
+      if (vesselFilter.includes('D') && !context.departmentCode) {
+        contextValid = false;
+        missingContexts.push('Department');
+      }
+      
+      if (vesselFilter.includes('ST') && !context.serviceType) {
+        contextValid = false;
+        missingContexts.push('Service Type');
+      }
+      
+      console.log('Context valid:', contextValid);
+      console.log('Missing contexts:', missingContexts);
+      
+      // If context is not valid, show an error message and trigger the context selector
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a vessel.`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // Reset validation state
+    this.fieldErrors = {};
+    this.touchedFields = {};
+    
     this.selectedVessel = {
       code: '', // Will be filled after creation or entered if manual
       vessel_name: '',
@@ -312,16 +447,72 @@ export class MasterVesselComponent implements OnInit {
     this.isDialogVisible = true;
   }
 
+  // Validation methods
+  validateField(field: string, value: any): string {
+    switch (field) {
+      case 'code':
+        if (this.isManualSeries && (!value || (typeof value === 'string' && value.trim() === ''))) return 'Code is required';
+        break;
+      case 'vessel_name':
+        if (!value || (typeof value === 'string' && value.trim() === '')) return 'Vessel Name is required';
+        break;
+      case 'flag':
+        if (!value || (typeof value === 'string' && value.trim() === '')) return 'Flag is required';
+        break;
+      case 'year_build':
+        if (!value) return 'Year Build is required';
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(field: string, value: any) {
+    const error = this.validateField(field, value);
+    if (error) {
+      this.fieldErrors[field] = error;
+    } else {
+      delete this.fieldErrors[field];
+    }
+    this.touchedFields[field] = true;
+  }
+
+  getFieldError(field: string): string {
+    return this.touchedFields[field] ? this.fieldErrors[field] || '' : '';
+  }
+
+  validateForm(): boolean {
+    if (!this.selectedVessel) return false;
+    
+    // For code, only require it if it's a manual series
+    const requiredFields = this.isManualSeries ?
+      ['code', 'vessel_name', 'flag', 'year_build'] :
+      ['vessel_name', 'flag', 'year_build'];
+      
+    for (const field of requiredFields) {
+      const error = this.validateField(field, this.selectedVessel[field as keyof MasterVessel]);
+      if (error) {
+        this.fieldErrors[field] = error;
+        // Mark all fields as touched when form validation runs
+        this.touchedFields[field] = true;
+      }
+    }
+    
+    return Object.keys(this.fieldErrors).length === 0;
+  }
+
   saveRow() {
     if (!this.selectedVessel) return;
-    if (!this.selectedVessel.vessel_name || !this.selectedVessel.flag || !this.selectedVessel.year_build) {
+    
+    // Validate the form
+    if (!this.validateForm()) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation Error',
-        detail: 'Vessel Name, Flag, and Year Build are required.'
+        detail: 'Please fill in all required fields correctly.'
       });
       return;
     }
+    
     if (this.selectedVessel.isNew && this.vessels.some(v => v.code === this.selectedVessel?.code)) {
       this.messageService.add({
         severity: 'warn',
@@ -330,20 +521,31 @@ export class MasterVesselComponent implements OnInit {
       });
       return;
     }
+    
+    // Get the current context for relation mapping
+    const context = this.contextService.getContext();
+    
     const payload: any = {
       vessel_name: this.selectedVessel.vessel_name,
       imo_number: this.selectedVessel.imo_number,
       flag: this.selectedVessel.flag,
       year_build: this.selectedVessel.year_build,
       active: this.selectedVessel.active,
-      seriesCode: this.mappedVesselSeriesCode // Always use mapped code
+      seriesCode: this.mappedVesselSeriesCode, // Always use mapped code
+      companyCode: context.companyCode,
+      branchCode: context.branchCode,
+      departmentCode: context.departmentCode,
+      ServiceTypeCode: context.serviceType
     };
+    
     if (this.selectedVessel.code) {
       payload.code = this.selectedVessel.code; // For manual series
     }
+    
     const req = this.selectedVessel.isNew
       ? this.masterVesselService.create(payload)
-      : this.masterVesselService.update(this.selectedVessel.id!, this.selectedVessel);
+      : this.masterVesselService.update(this.selectedVessel.id!, payload);
+      
     req.subscribe({
       next: (createdVessel) => {
         const msg = this.selectedVessel?.isNew ? 'Vessel created' : 'Vessel updated';
@@ -351,8 +553,13 @@ export class MasterVesselComponent implements OnInit {
         this.refreshList();
         this.hideDialog();
       },
-      error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });
+      error: (err) => {
+        console.error('Operation failed:', err);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: err.error?.error || 'Operation failed' 
+        });
       }
     });
   }
@@ -360,6 +567,8 @@ export class MasterVesselComponent implements OnInit {
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedVessel = null;
+    this.fieldErrors = {};
+    this.touchedFields = {};
   }
 
   clear(table: any) {

@@ -107,6 +107,8 @@ app.use('/api/tariff', tariffRouter);
 
 
 
+
+
 // DB connection check
 const pool = require('./db');
 pool.connect()
@@ -127,6 +129,5 @@ pool.connect()
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Server accessible via localhost at: http://localhost:${PORT}`);
-    console.log(`Server accessible via Hamachi at: http://25.5.93.125:${PORT}`);
 }); 
+    console.log(`Server accessible via Hamachi at: http://25.5.93.125:${PORT}`);

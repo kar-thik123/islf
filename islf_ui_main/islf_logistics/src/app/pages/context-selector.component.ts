@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { ButtonModule } from 'primeng/button';
@@ -18,6 +18,7 @@ import { ContextService, UserContext } from '../services/context.service';
       [closable]="false"
       [dismissableMask]="false"
       [style]="{ width: '400px' }"
+      (onHide)="onDialogHide()"
     >
       <div class="p-fluid p-3 space-y-3">
         <div>
@@ -91,16 +92,37 @@ import { ContextService, UserContext } from '../services/context.service';
     </p-dialog>
   `
 })
-export class ContextSelectorComponent {
-  visible = true;
+export class ContextSelectorComponent implements OnInit, OnChanges {
+  @Input() visible = false;
+  @Output() visibleChange = new EventEmitter<boolean>();
+  @Output() contextSet = new EventEmitter<UserContext>();
+  
   selectedCompany?: string;
   selectedBranch?: string;
   selectedDepartment?: string;
   selectedServiceType?: string;
  
-  @Output() contextSet = new EventEmitter<UserContext>();
- 
   constructor(public contextService: ContextService) {}
+ 
+  ngOnInit() {
+    // Initialize context values if already set
+    this.initializeContextValues();
+  }
+  
+  ngOnChanges(changes: SimpleChanges) {
+    // Re-initialize context values when visibility changes
+    if (changes['visible'] && changes['visible'].currentValue === true) {
+      this.initializeContextValues();
+    }
+  }
+  
+  initializeContextValues() {
+    const context = this.contextService.getContext();
+    this.selectedCompany = context.companyCode;
+    this.selectedBranch = context.branchCode;
+    this.selectedDepartment = context.departmentCode;
+    this.selectedServiceType = context.serviceType || undefined;
+  }
  
   onCompanyChange() {
     this.selectedBranch = undefined;
@@ -136,11 +158,11 @@ export class ContextSelectorComponent {
   }
  
   canSave(): boolean {
-    return !!(this.selectedCompany && this.selectedBranch && this.selectedDepartment);
+    return !!this.selectedCompany ;
   }
  
   saveContext(): void {
-    if (!this.selectedCompany || !this.selectedBranch || !this.selectedDepartment) {
+    if (!this.selectedCompany ) {
       return;
     }
     
@@ -157,5 +179,10 @@ export class ContextSelectorComponent {
     this.contextService.setContext(ctx);
     this.contextSet.emit(ctx);
     this.visible = false;
+    this.visibleChange.emit(false);
+  }
+  
+  onDialogHide() {
+    this.visibleChange.emit(false);
   }
 }

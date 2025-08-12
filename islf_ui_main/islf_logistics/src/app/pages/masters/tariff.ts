@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -17,10 +17,11 @@ import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { CustomerService } from '@/services/customer.service';
 import { VendorService } from '@/services/vendor.service';
+import { ContextService } from '../../services/context.service';
 import { CurrencyCodeComponent } from './currencycode';
 import { ContainerCodeComponent } from './containercode';
 import { CustomerComponent } from './customer';
@@ -374,7 +375,8 @@ import { MasterUOMComponent } from './masteruom';
     }
   `]
 })
-export class TariffComponent implements OnInit {
+export class TariffComponent implements OnInit, OnDestroy {
+  private contextSubscription: Subscription = new Subscription();
   tariffs: any[] = [];
   modeOptions = [
     { label: 'IMPORT', value: 'IMPORT' },
@@ -427,7 +429,8 @@ export class TariffComponent implements OnInit {
     private masterItemService: MasterItemService,
     private currencyCodeService: CurrencyCodeService,
     private customerService: CustomerService,
-    private vendorService: VendorService
+    private vendorService: VendorService,
+    private contextService: ContextService
   ) {}
 
   // Validation methods
@@ -503,6 +506,21 @@ export class TariffComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.loadAllData();
+
+    // Subscribe to context changes to reload data
+    this.contextSubscription.add(
+      this.contextService.context$.subscribe(() => {
+        this.loadAllData();
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.contextSubscription.unsubscribe();
+  }
+
+  private loadAllData() {
     forkJoin([
       this.loadShippingTypeOptions(),
       this.loadCargoTypeOptions(),
@@ -515,7 +533,7 @@ export class TariffComponent implements OnInit {
       this.loadCustomerOptions(),
       this.loadVendorOptions()
     ]).subscribe(() => {
-    this.refreshList();
+      this.refreshList();
     });
   }
 
@@ -799,4 +817,4 @@ export class TariffComponent implements OnInit {
     
   }
 }
-// ... existing code ... 
+// ... existing code ...

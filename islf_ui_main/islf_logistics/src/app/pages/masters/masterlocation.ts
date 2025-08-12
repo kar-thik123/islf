@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -12,6 +12,8 @@ import { TabsModule } from 'primeng/tabs';
 import { MessageService } from 'primeng/api';
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { ContextService } from '../../services/context.service';
+import { Subscription } from 'rxjs';
 import { Country, State, City } from 'country-state-city/lib';
 
 @Component({
@@ -294,7 +296,8 @@ import { Country, State, City } from 'country-state-city/lib';
     }
   `]
 })
-export class MasterLocationComponent implements OnInit {
+export class MasterLocationComponent implements OnInit, OnDestroy {
+  private contextSubscription: Subscription = new Subscription();
   locations: MasterLocation[] = [];
   locationTypeOptions: any[] = [];
   locationTypes: { label: string; value: string }[] = [];
@@ -316,7 +319,8 @@ export class MasterLocationComponent implements OnInit {
   constructor(
     private masterLocationService: MasterLocationService,
     private masterTypeService: MasterTypeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private contextService: ContextService
   ) {}
 
   ngOnInit() {
@@ -327,6 +331,17 @@ export class MasterLocationComponent implements OnInit {
       console.log('Location type options from master type:', this.locationTypeOptions);
       this.updateLocationTypes();
     });
+
+    // Subscribe to context changes to reload data
+    this.contextSubscription.add(
+      this.contextService.context$.subscribe(() => {
+        this.refreshList();
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.contextSubscription.unsubscribe();
   }
 
   onGlobalFilter(event: Event, table: any) {

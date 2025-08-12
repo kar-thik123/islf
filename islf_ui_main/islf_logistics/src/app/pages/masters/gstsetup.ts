@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule, Table } from 'primeng/table';
@@ -9,6 +9,8 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { MasterLocationService } from '@/services/master-location.service';
+import { ContextService } from '../../services/context.service';
+import { Subscription } from 'rxjs';
 
 interface GstRule {
   id?: number;
@@ -137,7 +139,8 @@ interface GstRule {
     </div>
   `
 })
-export class GstSetupComponent implements OnInit {
+export class GstSetupComponent implements OnInit, OnDestroy {
+  private contextSubscription: Subscription = new Subscription();
   gstRules = signal<GstRule[]>([]);
   locationOptions: { label: string, value: string }[] = [];
   fieldErrors: { [key: string]: { [field: string]: string } } = {};
@@ -145,10 +148,26 @@ export class GstSetupComponent implements OnInit {
 
   constructor(
     private messageService: MessageService,
-    private masterLocationService: MasterLocationService
+    private masterLocationService: MasterLocationService,
+    private contextService: ContextService
   ) {}
 
   ngOnInit() {
+    this.loadLocationOptions();
+
+    // Subscribe to context changes to reload data
+    this.contextSubscription.add(
+      this.contextService.context$.subscribe(() => {
+        this.loadLocationOptions();
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.contextSubscription.unsubscribe();
+  }
+
+  private loadLocationOptions() {
     this.masterLocationService.getAll().subscribe(locations => {
       const gstLocations = locations.filter(l => l.type === 'GST_LOCATION' && l.active);
       this.locationOptions = gstLocations.map(l => ({

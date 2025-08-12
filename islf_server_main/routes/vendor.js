@@ -3,10 +3,40 @@ const pool = require('../db');
 const { logMasterEvent } = require('../log');
 const router = express.Router();
 
-// GET all vendors
+// GET all vendors with optional context-based filtering
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM vendor ORDER BY id ASC');
+    const { company_code, branch_code, department_code, service_type_code } = req.query;
+    let query = 'SELECT * FROM vendor';
+    let params = [];
+    let paramIndex = 1;
+    
+    // Build WHERE clause based on provided context parameters
+    const whereConditions = [];
+    if (company_code) {
+      whereConditions.push(`company_code = $${paramIndex++}`);
+      params.push(company_code);
+    }
+    if (branch_code) {
+      whereConditions.push(`branch_code = $${paramIndex++}`);
+      params.push(branch_code);
+    }
+    if (department_code) {
+      whereConditions.push(`department_code = $${paramIndex++}`);
+      params.push(department_code);
+    }
+    if (service_type_code) { 
+      whereConditions.push(`service_type_code = $${paramIndex++}`);
+      params.push(service_type_code);
+    }
+    
+    if (whereConditions.length > 0) {
+      query += ' WHERE ' + whereConditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY id ASC';
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching vendors:', err);
@@ -18,9 +48,44 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   let {
     seriesCode, vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-    bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+    bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
+    companyCode, branchCode, departmentCode, service_type_code // <-- expect these in the request
   } = req.body;
   try {
+    // Relation-based number series lookup
+    if (!seriesCode && companyCode && branchCode && departmentCode) {
+      // First try to find exact match including service_type_code
+      let mappingRes;
+      if (service_type_code) {
+        mappingRes = await pool.query(
+          `SELECT mapping FROM mapping_relations
+           WHERE code_type = $1
+           AND company_code = $2
+           AND branch_code = $3
+           AND department_code = $4
+           AND (service_type_code = $5 OR service_type_code IS NULL)
+           ORDER BY CASE WHEN service_type_code IS NULL THEN 1 ELSE 0 END, id DESC
+           LIMIT 1`,
+          ['vendorCode', companyCode, branchCode, departmentCode, service_type_code]
+        );
+      } else {
+        mappingRes = await pool.query(
+          `SELECT mapping FROM mapping_relations
+           WHERE code_type = $1
+           AND company_code = $2
+           AND branch_code = $3
+           AND department_code = $4
+           AND service_type_code IS NULL
+           ORDER BY id DESC
+           LIMIT 1`,
+          ['vendorCode', companyCode, branchCode, departmentCode]
+        );
+      }
+      
+      if (mappingRes.rows.length > 0) {
+        seriesCode = mappingRes.rows[0].mapping;
+      }
+    }
     if (seriesCode) {
       const seriesResult = await pool.query(
         'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
@@ -57,18 +122,21 @@ router.post('/', async (req, res) => {
         );
       }
     } else if (!vendor_no || vendor_no === 'AUTO') {
-      vendor_no = 'CUSTOMER-' + Date.now();
+      vendor_no = 'VENDOR-' + Date.now();
     }
     const result = await pool.query(
       `INSERT INTO vendor (
         vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
+        company_code, branch_code, department_code, service_type_code
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+        $19, $20, $21, $22
       ) RETURNING *`,
       [
         vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || [])
+        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
+        companyCode, branchCode, departmentCode, service_type_code
       ]
     );
     
@@ -97,17 +165,20 @@ router.put('/:id', async (req, res) => {
   }
   const {
     vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-    bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+    bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
+    company_code, branch_code, department_code, service_type_code
   } = req.body;
   try {
     const result = await pool.query(
       `UPDATE vendor SET
         vendor_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
-        bill_to_vendor_name = $13, vat_gst_no = $14, place_of_supply = $15, pan_no = $16, tan_no = $17, contacts = $18
-      WHERE id = $19 RETURNING *`,
+        bill_to_vendor_name = $13, vat_gst_no = $14, place_of_supply = $15, pan_no = $16, tan_no = $17, contacts = $18,
+        company_code = $19, branch_code = $20, department_code = $21, service_type_code = $22
+      WHERE id = $23 RETURNING *`,
       [
         vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []), id
+        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
+        company_code, branch_code, department_code, service_type_code, id
       ]
     );
     if (result.rows.length === 0) {
@@ -163,4 +234,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

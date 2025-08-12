@@ -9,14 +9,14 @@ export class ContextPayloadService {
     companyCode?: string;
     branchCode?: string;
     departmentCode?: string;
-    serviceTypeCode?: string;
+    serviceType?: string | null;
   } {
     return {
       ...payload,
       companyCode: context.companyCode,
       branchCode: context.branchCode,
       departmentCode: context.departmentCode,
-      serviceTypeCode: context.serviceType || undefined
+      serviceType: context.serviceType
     };
   }
 }

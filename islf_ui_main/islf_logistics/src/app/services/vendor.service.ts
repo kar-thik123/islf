@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 export interface VendorContact {
   name: string;
@@ -40,18 +41,63 @@ export interface Vendor {
 export class VendorService {
   private apiUrl = `${environment.apiUrl}/api/vendor`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) {}
 
   getAll(): Observable<Vendor[]> {
-    return this.http.get<Vendor[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const vendorFilter = config?.validation?.vendorFilter || '';
+    
+    let params: any = {};
+    
+    // Only send context parameters based on the IT setup validation/filter settings
+    if (vendorFilter.includes('C') && context.companyCode) {
+      params.company_code = context.companyCode;
+    }
+    if (vendorFilter.includes('B') && context.branchCode) {
+      params.branch_code = context.branchCode;
+    }
+    if (vendorFilter.includes('D') && context.departmentCode) {
+      params.department_code = context.departmentCode;
+    }
+    if (vendorFilter.includes('ST') && context.serviceType) {
+      params.service_type_code = context.serviceType;
+    }
+    
+    return this.http.get<Vendor[]>(this.apiUrl, { params });
   }
 
   create(data: Partial<Vendor> & { seriesCode?: string }): Observable<Vendor> {
-    return this.http.post<Vendor>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const vendorFilter = config?.validation?.vendorFilter || '';
+    
+    // Add serviceType to context if needed
+    const contextWithServiceType = {
+      ...context,
+      serviceType: vendorFilter.includes('ST') ? context.serviceType : undefined
+    };
+    
+    return this.http.post<Vendor>(this.apiUrl, this.contextPayload.withContext(data, contextWithServiceType));
   }
 
   update(id: number, data: Partial<Vendor>): Observable<Vendor> {
-    return this.http.put<Vendor>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, this.contextService.getContext()));
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const vendorFilter = config?.validation?.vendorFilter || '';
+    
+    // Add serviceType to context if needed
+    const contextWithServiceType = {
+      ...context,
+      serviceType: vendorFilter.includes('ST') ? context.serviceType : undefined
+    };
+    
+    return this.http.put<Vendor>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, contextWithServiceType));
   }
 
   delete(id: number): Observable<any> {

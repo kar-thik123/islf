@@ -21,8 +21,24 @@ export class MasterVesselService {
 
   constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
-  getAll(): Observable<MasterVessel[]> {
-    return this.http.get<MasterVessel[]>(this.apiUrl);
+  getAll(filterByContext: boolean = false): Observable<MasterVessel[]> {
+    let url = this.apiUrl;
+    
+    if (filterByContext) {
+      const context = this.contextService.getContext();
+      const params = new URLSearchParams();
+      
+      if (context.companyCode) params.append('companyCode', context.companyCode);
+      if (context.branchCode) params.append('branchCode', context.branchCode);
+      if (context.departmentCode) params.append('departmentCode', context.departmentCode);
+      if (context.serviceType) params.append('serviceTypeCode', context.serviceType);
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+    }
+    
+    return this.http.get<MasterVessel[]>(url);
   }
 
   create(data: MasterVessel): Observable<MasterVessel> {
@@ -36,4 +52,4 @@ export class MasterVesselService {
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
-} 
+}

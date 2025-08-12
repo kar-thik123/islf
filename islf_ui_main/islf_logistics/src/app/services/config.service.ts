@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, switchMap } from 'rxjs/operators';
 
 export interface SystemConfig {
   maxCompanies: number;
@@ -102,6 +102,13 @@ export interface DocumentPaths {
   user: string;
 }
 
+export interface ValidationConfig {
+  customerFilter: string;
+  vendorFilter: string;
+  vesselFilter: string;
+  manualCustomerFilter: string;
+}
+
 export interface AppConfig {
   system: SystemConfig;
   email: EmailConfig;
@@ -111,6 +118,7 @@ export interface AppConfig {
   branding: BrandingConfig;
   logistics: LogisticsConfig;
   documentPaths: DocumentPaths;
+  validation?: ValidationConfig;
 }
 
 @Injectable({
@@ -210,16 +218,57 @@ export class ConfigService {
       vendor: '/uploads/documents/vendor',
       company: '/uploads/documents/company',
       user: '/uploads/documents/user'
+    },
+    validation: {
+      customerFilter: '',
+      vendorFilter: '',
+      vesselFilter: '',
+      manualCustomerFilter: ''
     }
   };
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private injector: Injector) {
     this.loadConfig();
+    
+    // Subscribe to context changes and reload config when context changes
+    // Use setTimeout to avoid circular dependency during initialization
+    setTimeout(() => {
+      try {
+        // Import ContextService dynamically to avoid circular dependency
+        import('./context.service').then(({ ContextService }) => {
+          const contextService = this.injector.get(ContextService);
+          contextService.context$.subscribe(() => {
+            this.loadConfig().subscribe();
+          });
+        });
+      } catch (error) {
+        // ContextService might not be available yet, that's okay
+        console.log('ContextService not available during ConfigService initialization');
+      }
+    }, 0);
   }
 
   // Load configuration from backend
   loadConfig(): Observable<AppConfig> {
-    return this.http.get<AppConfig>('/api/settings/config').pipe(
+    // Get current context to include in the request
+    let contextParams = '';
+    try {
+      // Try to get ContextService from injector
+      const contextService = this.injector.get('ContextService' as any);
+      const context = contextService?.getContext();
+      if (context && context.companyCode) {
+        const params = new URLSearchParams();
+        if (context.companyCode) params.append('company_code', context.companyCode);
+        if (context.branchCode) params.append('branch_code', context.branchCode);
+        if (context.departmentCode) params.append('department_code', context.departmentCode);
+        contextParams = params.toString() ? '?' + params.toString() : '';
+      }
+    } catch (error) {
+      // ContextService might not be available, continue without context
+      console.log('Could not get context for config loading:', error);
+    }
+    
+    return this.http.get<AppConfig>(`/api/settings/config${contextParams}`).pipe(
       tap(config => {
         this.configSubject.next(config);
         this.applyConfig(config);
@@ -498,4 +547,4 @@ export class ConfigService {
     this.configSubject.next(this.defaultConfig);
     this.applyConfig(this.defaultConfig);
   }
-} 
+}

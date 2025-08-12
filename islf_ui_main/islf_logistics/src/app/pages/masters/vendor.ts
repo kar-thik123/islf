@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -17,7 +17,9 @@ import { MasterLocationService, MasterLocation } from '../../services/master-loc
 import { MasterTypeService } from '../../services/mastertype.service';
 import { EntityDocumentService, EntityDocument } from '../../services/entity-document.service';
 import { DepartmentService } from '../../services/department.service';
-
+import { ConfigService } from '@/services/config.service';
+import { ContextService } from '@/services/context.service';
+import { Subscription } from 'rxjs';
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
   return arr.filter(val => {
@@ -149,7 +151,7 @@ function toTitleCase(str: string): string {
           <div class="grid-container">
             <div class="grid-item">
               <label for="vendor_no">Vendor No. <span class="text-red-500">*</span></label>
-              <input #vendorNoInput id="vendor_no" pInputText [(ngModel)]="selectedVendor.vendor_no" [disabled]="!isManualSeries || !selectedVendor.isNew" (ngModelChange)="updateBillToVendorNameDefault(); onFieldChange('vendor_no', vendorNoInput.value)" (blur)="onFieldBlur('vendor_no')" required />
+              <input #vendorNoInput id="vendor_no" pInputText [(ngModel)]="selectedVendor.vendor_no" [disabled]="!isManualSeries || !selectedVendor.isNew" (ngModelChange)="updateBillToVendorNameDefault(); onFieldChange('vendor_no', vendorNoInput.value)" (blur)="onFieldBlur('vendor_no')" [required]="isManualSeries" />
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('vendor_no')">{{ getFieldError('vendor_no') }}</small>
             </div>
             <div class="grid-item">
@@ -509,7 +511,7 @@ function toTitleCase(str: string): string {
     }
   `]
 })
-export class VendorComponent implements OnInit {
+export class VendorComponent implements OnInit, OnDestroy {
   vendors: Vendor[] = [];
   vendorTypeOptions: any[] = [];
   blockedOptions = [
@@ -540,6 +542,7 @@ export class VendorComponent implements OnInit {
   safeDocumentViewerUrl: SafeResourceUrl | null = null;
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
+  private contextSubscription: Subscription | null = null;
   
 
 
@@ -553,6 +556,8 @@ export class VendorComponent implements OnInit {
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
     private departmentService: DepartmentService,
+    private configService: ConfigService,
+    private contextService: ContextService,
     private sanitizer: DomSanitizer
   ) {}
 
@@ -562,6 +567,20 @@ export class VendorComponent implements OnInit {
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
     this.loadDepartmentOptions();
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.subscribe(() => {
+      console.log('Context changed in VendorComponent, reloading data...');
+      this.refreshList();
+      this.loadMappedVendorSeriesCode();
+      this.loadDocumentUploadPath();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   loadOptions() {
@@ -635,6 +654,63 @@ export class VendorComponent implements OnInit {
   }
 
   addRow() {
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const vendorFilter= config?.validation?.vendorFilter || '';
+    
+    console.log('Vendor filter:', vendorFilter);
+    
+       // Check if we need to validate context
+    if (vendorFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      let contextValid = true;
+      let missingContexts = [];
+      
+      if (vendorFilter.includes('C') && !context.companyCode) {
+        contextValid = false;
+        missingContexts.push('Company');
+      }
+      
+      if (vendorFilter.includes('B') && !context.branchCode) {
+        contextValid = false;
+        missingContexts.push('Branch');
+      }
+      
+      if (vendorFilter.includes('D') && !context.departmentCode) {
+        contextValid = false;
+        missingContexts.push('Department');
+      }
+      
+      if (vendorFilter.includes('ST') && !context.serviceType) {
+        contextValid = false;
+        missingContexts.push('Service Type');
+      }
+      
+      console.log('Context valid:', contextValid);
+      console.log('Missing contexts:', missingContexts);
+      
+      // If context is not valid, show an error message and trigger the context selector
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector.`
+        });
+        
+        // Show the context selector dialog
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    console.log('Validation passed, proceeding with adding vendor');
+    
+
     this.selectedVendor = {
       vendor_no: '',
       type: '',
@@ -914,7 +990,11 @@ export class VendorComponent implements OnInit {
   validateForm(): boolean {
     if (!this.selectedVendor) return false;
     
-    const requiredFields = ['vendor_no', 'type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
+    // For vendor_no, only require it if it's a manual series
+    const requiredFields = this.isManualSeries ?
+      ['vendor_no', 'type', 'name', 'country', 'state', 'city', 'vat_gst_no'] :
+      ['type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
+      
     for (const field of requiredFields) {
       const error = this.validateField(field, this.selectedVendor[field as keyof Vendor]);
       if (error) {
@@ -1245,4 +1325,4 @@ export class VendorComponent implements OnInit {
     this.loadVendorDocuments(vendor.vendor_no);
   }
 
-} 
+}

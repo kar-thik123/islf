@@ -112,6 +112,7 @@ export class AppProfileSidebar implements OnInit {
     signOut() {
         this.authService.logout();
         this.contextService.clearContext();
+        this.contextService.hideContextSelector();
         this.onDrawerHide();
         this.router.navigate(['/auth/login']);
     }

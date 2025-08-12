@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -8,6 +8,8 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { CurrencyCodeService } from '../../services/currencycode.service';
+import { ContextService } from '../../services/context.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'currency-code',
@@ -168,7 +170,8 @@ import { CurrencyCodeService } from '../../services/currencycode.service';
   `,
   styles: [],
 })
-export class CurrencyCodeComponent implements OnInit {
+export class CurrencyCodeComponent implements OnInit, OnDestroy {
+  private contextSubscription: Subscription = new Subscription();
   currencies: any[] = [];
   statuses = [
     { label: 'Active', value: 'Active' },
@@ -180,7 +183,8 @@ export class CurrencyCodeComponent implements OnInit {
 
   constructor(
     private currencyService: CurrencyCodeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private contextService: ContextService
   ) {}
 
   // Validation methods
@@ -253,6 +257,17 @@ export class CurrencyCodeComponent implements OnInit {
 
   ngOnInit() {
     this.refreshList();
+
+    // Subscribe to context changes to reload data
+    this.contextSubscription.add(
+      this.contextService.context$.subscribe(() => {
+        this.refreshList();
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.contextSubscription.unsubscribe();
   }
 
   refreshList() {
@@ -350,4 +365,4 @@ export class CurrencyCodeComponent implements OnInit {
     const value = (event.target as HTMLInputElement).value;
     table.filterGlobal(value, 'contains');
   }
-} 
+}

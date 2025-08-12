@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -11,6 +11,8 @@ import { MessageService } from 'primeng/api';
 import { CalendarModule } from 'primeng/calendar';
 import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { ContextService } from '../../services/context.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'master-uom',
@@ -246,7 +248,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
     }
   `]
 })
-export class MasterUOMComponent implements OnInit {
+export class MasterUOMComponent implements OnInit, OnDestroy {
   uoms: MasterUOM[] = [];
   uomTypeOptions: any[] = [];
   activeOptions = [
@@ -256,11 +258,13 @@ export class MasterUOMComponent implements OnInit {
 
   isDialogVisible = false;
   selectedUOM: (MasterUOM & { isNew?: boolean }) | null = null;
+  private contextSubscription: Subscription | undefined;
 
   constructor(
     private masterUOMService: MasterUOMService,
     private masterTypeService: MasterTypeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private contextService: ContextService
   ) {}
 
   ngOnInit() {
@@ -268,6 +272,18 @@ export class MasterUOMComponent implements OnInit {
     this.masterTypeService.getAll().subscribe((types: any[]) => {
       this.uomTypeOptions = types.filter(t => t.key === 'UOM' && t.status === 'Active');
     });
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.subscribe(() => {
+      console.log('Context changed in MasterUOMComponent, reloading data...');
+      this.refreshList();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   onGlobalFilter(event: Event, table: any) {

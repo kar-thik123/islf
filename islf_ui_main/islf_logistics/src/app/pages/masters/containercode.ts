@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -8,6 +8,8 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ContainerCodeService } from '../../services/containercode.service';
+import { ContextService } from '../../services/context.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'container-code',
@@ -168,7 +170,8 @@ import { ContainerCodeService } from '../../services/containercode.service';
   `,
   styles: [],
 })
-export class ContainerCodeComponent implements OnInit {
+export class ContainerCodeComponent implements OnInit, OnDestroy {
+  private contextSubscription: Subscription = new Subscription();
   containers: any[] = [];
   statuses = [
     { label: 'Active', value: 'Active' },
@@ -180,7 +183,8 @@ export class ContainerCodeComponent implements OnInit {
 
   constructor(
     private containerService: ContainerCodeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private contextService: ContextService
   ) {}
 
   // Validation methods
@@ -253,6 +257,17 @@ export class ContainerCodeComponent implements OnInit {
 
   ngOnInit() {
     this.refreshList();
+
+    // Subscribe to context changes to reload data
+    this.contextSubscription.add(
+      this.contextService.context$.subscribe(() => {
+        this.refreshList();
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.contextSubscription.unsubscribe();
   }
 
   refreshList() {
@@ -344,4 +359,4 @@ export class ContainerCodeComponent implements OnInit {
     const value = (event.target as HTMLInputElement).value;
     table.filterGlobal(value, 'contains');
   }
-} 
+}

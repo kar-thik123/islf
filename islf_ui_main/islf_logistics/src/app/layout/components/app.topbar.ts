@@ -12,14 +12,13 @@ import { LoginService } from '../../services/login.service';
 import { AuthService } from '../../services/auth.service';
 import { UserService } from '../../services/user.service';
 import { ContextService } from '../../services/context.service';
-import { DialogModule } from 'primeng/dialog';
-import { DropdownModule } from 'primeng/dropdown';
-import { FormsModule } from '@angular/forms';
+import { ContextSelectorComponent } from '../../pages/context-selector.component';
+import { Observable } from 'rxjs';
 
 @Component({
     selector: '[app-topbar]',
     standalone: true,
-    imports: [RouterModule, CommonModule, StyleClassModule, AppBreadcrumb, InputTextModule, ButtonModule, IconFieldModule, InputIconModule, DialogModule, DropdownModule, FormsModule],
+    imports: [RouterModule, CommonModule, StyleClassModule, AppBreadcrumb, InputTextModule, ButtonModule, IconFieldModule, InputIconModule, ContextSelectorComponent],
     template: `<div class="layout-topbar">
         <div class="topbar-start">
             <button #menubutton type="button" class="topbar-menubutton p-link p-trigger" (click)="onMenuButtonClick()">
@@ -52,88 +51,30 @@ import { FormsModule } from '@angular/forms';
     </div>
     
     <!-- Context Selector Dialog -->
-    <p-dialog
-        header="Select Context"
-        [(visible)]="showContextDialog"
-        [modal]="true"
-        [style]="{ width: '50vw' }"
-        [draggable]="false"
-        [resizable]="false"
-    >
-        <div class="p-fluid p-3 space-y-3">
-            <div>
-                <label for="company" class="block mb-2 font-medium">Company</label>
-                <p-dropdown
-                    id="company"
-                    [options]="(contextService.companyOptions$ | async) || []"
-                    [(ngModel)]="selectedCompany"
-                    (onChange)="onCompanyChange()"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select Company"
-                    [showClear]="true"
-                ></p-dropdown>
-            </div>
-
-            <div>
-                <label for="branch" class="block mb-2 font-medium">Branch</label>
-                <p-dropdown
-                    id="branch"
-                    [options]="(contextService.branchOptions$ | async) || []"
-                    [(ngModel)]="selectedBranch"
-                    (onChange)="onBranchChange()"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select Branch"
-                    [showClear]="true"
-                ></p-dropdown>
-            </div>
-
-            <div>
-                <label for="department" class="block mb-2 font-medium">Department</label>
-                <p-dropdown
-                    id="department"
-                    [options]="(contextService.departmentOptions$ | async) || []"
-                    [(ngModel)]="selectedDepartment"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select Department"
-                    [showClear]="true"
-                ></p-dropdown>
-            </div>
-
-            <div class="text-right pt-3">
-                <button
-                    pButton
-                    type="button"
-                    label="Save"
-                    icon="pi pi-check"
-                    class="p-button-primary"
-                    (click)="saveContext()"
-                    [disabled]="!canSave()"
-                ></button>
-            </div>
-        </div>
-    </p-dialog>`
+    <app-context-selector
+        [visible]="(showContextDialog$ | async) ?? false"
+        (contextSet)="onContextSet($event)"
+        (visibleChange)="onContextDialogVisibilityChange($event)">
+    </app-context-selector>`
 })
 export class AppTopbar implements OnInit {
     @ViewChild('menubutton') menuButton!: ElementRef;
 
     userName: string | null = null;
     userAvatar: string | null = null;
-    showContextDialog: boolean = false;
-    selectedCompany?: string;
-    selectedBranch?: string;
-    selectedDepartment?: string;
+    showContextDialog$: Observable<boolean>;
 
     constructor(
-        public layoutService: LayoutService, 
-        private loginService: LoginService, 
+        public layoutService: LayoutService,
+        private loginService: LoginService,
         private authService: AuthService,
         private userService: UserService,
         public contextService: ContextService
     ) {
         this.userName = this.authService.getUserName();
+        this.userAvatar = '/layout/images/avatar.png'; // Default avatar
+        this.showContextDialog$ = this.contextService.showContextSelector$;
+        
         if (this.userName) {
             this.userService.getUserByUsername(this.userName).subscribe({
                 next: (res) => {
@@ -143,20 +84,12 @@ export class AppTopbar implements OnInit {
                     this.userAvatar = '/layout/images/avatar.png';
                 }
             });
-        } else {
-            this.userAvatar = '/layout/images/avatar.png';
         }
     }
 
     ngOnInit() {
         // Initialize context options
         this.contextService.loadOptions();
-        
-        // Initialize context values if already set
-        const context = this.contextService.getContext();
-        this.selectedCompany = context.companyCode;
-        this.selectedBranch = context.branchCode;
-        this.selectedDepartment = context.departmentCode;
     }
 
     onMenuButtonClick() {
@@ -172,48 +105,20 @@ export class AppTopbar implements OnInit {
     }
     
     onContextButtonClick() {
-        this.showContextDialog = true;
+        this.contextService.showContextSelector();
     }
     
-    onCompanyChange() {
-        this.selectedBranch = undefined;
-        this.selectedDepartment = undefined;
-        this.contextService.clearBranchOptions();
-        this.contextService.clearDepartmentOptions();
-        
-        if (this.selectedCompany) {
-            this.contextService.loadBranchesForCompany(this.selectedCompany);
-        }
+    onContextSet(context: any) {
+        // Context has been set, hide the dialog
+        this.contextService.hideContextSelector();
     }
-
-    onBranchChange() {
-        this.selectedDepartment = undefined;
-        this.contextService.clearDepartmentOptions();
-        
-        if (this.selectedBranch) {
-            this.contextService.loadDepartmentsForBranch(this.selectedBranch);
+    
+    onContextDialogVisibilityChange(visible: boolean) {
+        // Update the context service when the dialog visibility changes
+        if (visible) {
+            this.contextService.showContextSelector();
+        } else {
+            this.contextService.hideContextSelector();
         }
-    }
-
-    canSave(): boolean {
-        return !!(this.selectedCompany && this.selectedBranch && this.selectedDepartment);
-    }
-
-    saveContext(): void {
-        if (!this.selectedCompany || !this.selectedBranch || !this.selectedDepartment) {
-            return;
-        }
-        
-        // Clear previous context before setting new one
-        this.contextService.clearContext();
-        
-        const ctx = {
-            companyCode: this.selectedCompany,
-            branchCode: this.selectedBranch,
-            departmentCode: this.selectedDepartment
-        };
-        
-        this.contextService.setContext(ctx);
-        this.showContextDialog = false;
     }
 }

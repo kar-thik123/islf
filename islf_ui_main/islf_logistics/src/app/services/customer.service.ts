@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 export interface CustomerContact {
   name: string;
@@ -40,34 +41,63 @@ export interface Customer {
 export class CustomerService {
   private apiUrl = `${environment.apiUrl}/api/customer`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) {}
 
   getAll(): Observable<Customer[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig(); // Get current config to check validation settings
+    const customerFilter = config?.validation?.customerFilter || '';
+    
     let params: any = {};
     
-    if (context.companyCode) {
+    // Only send context parameters based on the IT setup validation/filter settings
+    if (customerFilter.includes('C') && context.companyCode) {
       params.company_code = context.companyCode;
     }
-    if (context.branchCode) {
+    if (customerFilter.includes('B') && context.branchCode) {
       params.branch_code = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (customerFilter.includes('D') && context.departmentCode) {
       params.department_code = context.departmentCode;
     }
-    if(context.serviceType) {
-      params.service_type = context.serviceType;  
+    if (customerFilter.includes('ST') && context.serviceType) {
+      params.service_type_code = context.serviceType;
     }
     
     return this.http.get<Customer[]>(this.apiUrl, { params });
   }
 
   create(data: Partial<Customer> & { seriesCode?: string }): Observable<Customer> {
-    return this.http.post<Customer>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const customerFilter = config?.validation?.customerFilter || '';
+    
+    // Add serviceType to context if needed
+    const contextWithServiceType = {
+      ...context,
+      serviceType: customerFilter.includes('ST') ? context.serviceType : undefined
+    };
+    
+    return this.http.post<Customer>(this.apiUrl, this.contextPayload.withContext(data, contextWithServiceType));
   }
 
   update(id: number, data: Partial<Customer>): Observable<Customer> {
-    return this.http.put<Customer>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, this.contextService.getContext()));
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const customerFilter = config?.validation?.customerFilter || '';
+    
+    // Add serviceType to context if needed
+    const contextWithServiceType = {
+      ...context,
+      serviceType: customerFilter.includes('ST') ? context.serviceType : undefined
+    };
+    
+    return this.http.put<Customer>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, contextWithServiceType));
   }
 
   delete(id: number): Observable<any> {

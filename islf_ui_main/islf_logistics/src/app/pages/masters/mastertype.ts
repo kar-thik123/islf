@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -9,6 +9,8 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { MasterCodeService } from '../../services/mastercode.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { ContextService } from '@/services/context.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'master-type',
@@ -203,10 +205,11 @@ import { MasterTypeService } from '../../services/mastertype.service';
   `,
   styles: [],
 })
-export class MasterTypeComponent implements OnInit {
+export class MasterTypeComponent implements OnInit, OnDestroy {
   types: any[] = [];
   activeTypes: any[] = [];
   masterCodeOptions: any[] = [];
+  private contextSubscription: Subscription | undefined;
   statuses = [
     { label: 'Active', value: 'Active' },
     { label: 'Inactive', value: 'Inactive' }
@@ -218,7 +221,8 @@ export class MasterTypeComponent implements OnInit {
   constructor(
     private masterCodeService: MasterCodeService,
     private masterTypeService: MasterTypeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private contextService: ContextService
   ) {}
 
   // Validation methods
@@ -300,6 +304,18 @@ export class MasterTypeComponent implements OnInit {
       this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
     });
     this.refreshList();
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.subscribe(() => {
+      console.log('Context changed in MasterTypeComponent, reloading data...');
+      this.refreshList();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   refreshList() {

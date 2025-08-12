@@ -117,12 +117,52 @@ router.post('/document_upload_path_:entityType', async (req, res) => {
 // Get complete configuration
 router.get('/config', async (req, res) => {
   try {
-    const result = await pool.query("SELECT key, value FROM settings");
+    // Extract context parameters from query string
+    const { company_code, branch_code, department_code } = req.query;
+    
+    // Build query with context filtering
+    let query = "SELECT key, value FROM settings";
+    let queryParams = [];
+    let whereConditions = [];
+    
+    // Add context filtering if provided
+    if (company_code) {
+      whereConditions.push("(company_code = $" + (queryParams.length + 1) + " OR company_code IS NULL)");
+      queryParams.push(company_code);
+    }
+    if (branch_code) {
+      whereConditions.push("(branch_code = $" + (queryParams.length + 1) + " OR branch_code IS NULL)");
+      queryParams.push(branch_code);
+    }
+    if (department_code) {
+      whereConditions.push("(department_code = $" + (queryParams.length + 1) + " OR department_code IS NULL)");
+      queryParams.push(department_code);
+    }
+    
+    if (whereConditions.length > 0) {
+      query += " WHERE " + whereConditions.join(" AND ");
+    }
+    
+    // Order by specificity (most specific first)
+    query += " ORDER BY ";
+    query += "CASE WHEN department_code IS NOT NULL THEN 1 ";
+    query += "WHEN branch_code IS NOT NULL THEN 2 ";
+    query += "WHEN company_code IS NOT NULL THEN 3 ";
+    query += "ELSE 4 END";
+    
+    console.log('Config query:', query, 'Params:', queryParams);
+    
+    const result = await pool.query(query, queryParams);
     const config = {};
     
-    result.rows.forEach(row => {
-      config[row.key] = row.value;
-    });
+    // Process results, giving priority to more specific settings
+     const processedKeys = new Set();
+     result.rows.forEach(row => {
+       if (!processedKeys.has(row.key)) {
+         config[row.key] = row.value;
+         processedKeys.add(row.key);
+       }
+     });
     
     // Transform the flat structure to nested config object
     const appConfig = {
@@ -218,6 +258,12 @@ router.get('/config', async (req, res) => {
         branch: config.document_upload_path_branch || '/uploads/documents/branch',
         department: config.document_upload_path_department || '/uploads/documents/department',
         user: config.document_upload_path_user || '/uploads/documents/user'
+      },
+      validation: {
+        customerFilter: config.validation_customer_filter || '',
+        manualCustomerFilter: config.validation_manual_customer_filter || '',
+        vendorFilter: config.validation_vendor_filter || '',
+        vesselFilter: config.validation_vessel_filter || ''
       }
     };
     
@@ -342,7 +388,13 @@ router.post('/config', async (req, res) => {
       { key: 'document_upload_path_company', value: config.documentPaths.company },
       { key: 'document_upload_path_branch', value: config.documentPaths.branch },
       { key: 'document_upload_path_department', value: config.documentPaths.department },
-      { key: 'document_upload_path_user', value: config.documentPaths.user }
+      { key: 'document_upload_path_user', value: config.documentPaths.user },
+      
+      // Validation settings
+      { key: 'validation_customer_filter', value: config.validation?.customerFilter || '' },
+      { key: 'validation_manual_customer_filter', value: config.validation?.manualCustomerFilter || '' },
+      { key: 'validation_vendor_filter', value: config.validation?.vendorFilter || '' },
+      { key: 'validation_vessel_filter', value: config.validation?.vesselFilter || '' }
     ];
     
     // Save all settings
@@ -361,4 +413,4 @@ router.post('/config', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

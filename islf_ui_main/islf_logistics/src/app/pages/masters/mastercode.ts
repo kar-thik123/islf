@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -13,6 +13,8 @@ import { Router } from '@angular/router';
 import { MasterCodeService } from '../../services/mastercode.service';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { ContextService } from '@/services/context.service';
+import { Subscription } from 'rxjs';
 
 interface PageFieldOption {
   label: string;
@@ -214,9 +216,10 @@ interface PageFieldOption {
   `,
   styles: [],
 })
-export class MasterCodeComponent implements OnInit {
+export class MasterCodeComponent implements OnInit, OnDestroy {
   masters: any[] = [];
   activeCodes: any[] = [];
+  private contextSubscription: Subscription | undefined;
 
   statuses = [
     { label: 'Active', value: 'Active' },
@@ -242,7 +245,8 @@ export class MasterCodeComponent implements OnInit {
   constructor(
     private router: Router,
     private masterService: MasterCodeService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private contextService: ContextService
   ) {}
 
   // Validation methods
@@ -315,7 +319,18 @@ export class MasterCodeComponent implements OnInit {
 
   ngOnInit() {
     this.refreshList();
-  
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.subscribe(() => {
+      console.log('Context changed in MasterCodeComponent, reloading data...');
+      this.refreshList();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   refreshList() {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -17,6 +17,9 @@ import { MasterLocationService, MasterLocation } from '../../services/master-loc
 import { MasterTypeService } from '../../services/mastertype.service';
 import { EntityDocumentService, EntityDocument } from '../../services/entity-document.service';
 import { DepartmentService } from '../../services/department.service';
+import { ConfigService } from '../../services/config.service';
+import { ContextService } from '../../services/context.service';
+import { Subscription } from 'rxjs';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -518,7 +521,7 @@ function toTitleCase(str: string): string {
     }
   `]
 })
-export class CustomerComponent implements OnInit {
+export class CustomerComponent implements OnInit, OnDestroy {
   customers: Customer[] = [];
   customerTypeOptions: any[] = [];
   blockedOptions = [
@@ -549,6 +552,7 @@ export class CustomerComponent implements OnInit {
   safeDocumentViewerUrl: SafeResourceUrl | null = null;
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
+  private contextSubscription: Subscription | null = null;
   
 
 
@@ -562,6 +566,8 @@ export class CustomerComponent implements OnInit {
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
     private departmentService: DepartmentService,
+    private configService: ConfigService,
+    private contextService: ContextService,
     private sanitizer: DomSanitizer
   ) {}
 
@@ -571,6 +577,20 @@ export class CustomerComponent implements OnInit {
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
     this.loadDepartmentOptions();
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.subscribe(() => {
+      console.log('Context changed in CustomerComponent, reloading data...');
+      this.refreshList();
+      this.loadMappedCustomerSeriesCode();
+      this.loadDocumentUploadPath();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   loadOptions() {
@@ -644,6 +664,63 @@ export class CustomerComponent implements OnInit {
   }
 
   addRow() {
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const customerFilter = config?.validation?.customerFilter || '';
+    
+    console.log('Customer filter:', customerFilter);
+    
+    // Check if we need to validate context
+    if (customerFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      let contextValid = true;
+      let missingContexts = [];
+      
+      if (customerFilter.includes('C') && !context.companyCode) {
+        contextValid = false;
+        missingContexts.push('Company');
+      }
+      
+      if (customerFilter.includes('B') && !context.branchCode) {
+        contextValid = false;
+        missingContexts.push('Branch');
+      }
+      
+      if (customerFilter.includes('D') && !context.departmentCode) {
+        contextValid = false;
+        missingContexts.push('Department');
+      }
+      
+      if (customerFilter.includes('ST') && !context.serviceType) {
+        contextValid = false;
+        missingContexts.push('Service Type');
+      }
+      
+      console.log('Context valid:', contextValid);
+      console.log('Missing contexts:', missingContexts);
+      
+      // If context is not valid, show an error message and trigger the context selector
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector.`
+        });
+        
+        // Show the context selector dialog
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    console.log('Validation passed, proceeding with adding customer');
+    
+    // If validation passes, proceed with adding the customer
     this.selectedCustomer = {
       customer_no: '',
       type: '',
@@ -1254,4 +1331,4 @@ export class CustomerComponent implements OnInit {
     this.loadCustomerDocuments(customer.customer_no);
   }
 
-} 
+}
