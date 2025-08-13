@@ -17,6 +17,7 @@ import { MasterLocationService } from '@/services/master-location.service';
 import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 interface FlagOption {
   label: string;
@@ -42,11 +43,14 @@ interface FlagOption {
     <p-toast></p-toast>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Vessel Master</div>
+      
+      
       <p-table
         #dt
         [value]="vessels"
         dataKey="id"
         [paginator]="true"
+
         [rows]="10"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
@@ -140,6 +144,9 @@ interface FlagOption {
             </td>
           </tr>
         </ng-template>
+        <ng-template pTemplate="paginatorleft" let-state>
+          Total Vessels: {{ state.totalRecords }}
+        </ng-template>
       </p-table>
     </div>
     <p-dialog
@@ -191,7 +198,6 @@ interface FlagOption {
               <label for="flag">Flag</label>
               <p-dropdown
                 id="flag"
-                appendTo="body"
                 [options]="flagOptions"
                 [(ngModel)]="selectedVessel.flag"
                 optionLabel="label"
@@ -208,7 +214,6 @@ interface FlagOption {
               <label for="year_build">Year Build</label>
               <p-calendar
                 id="year_build"
-                appendTo="body"
                 [(ngModel)]="selectedVessel.year_build"
                 view="year"
                 dateFormat="yy"
@@ -224,7 +229,6 @@ interface FlagOption {
             <div class="grid-item">
               <label for="active">Status</label>
               <p-dropdown
-                appendTo="body"
                 id="active"
                 [options]="activeOptions"
                 [(ngModel)]="selectedVessel.active"
@@ -288,15 +292,16 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.refreshList();
-    this.loadMappedVesselSeriesCode();
     this.loadFlagOptions();
+    this.reloadData(); // Use the optimized reload method
     
     // Subscribe to context changes and reload data when context changes
-    this.contextSubscription = this.contextService.context$.subscribe(() => {
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(() => {
       console.log('Context changed in MasterVesselComponent, reloading data...');
-      this.refreshList();
-      this.loadMappedVesselSeriesCode();
+      this.reloadData();
     });
   }
 
@@ -319,29 +324,82 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadMappedVesselSeriesCode() {
-    this.mappingService.getMapping().subscribe({
-      next: (mapping) => {
-        this.mappedVesselSeriesCode = mapping.vesselCode;
-        if (this.mappedVesselSeriesCode) {
-          this.numberSeriesService.getAll().subscribe({
-            next: (seriesList) => {
-              const found = seriesList.find((s: any) => s.code === this.mappedVesselSeriesCode);
-              this.isManualSeries = !!(found && found.is_manual);
-              console.log('Vessel series code mapped:', this.mappedVesselSeriesCode, 'Manual:', this.isManualSeries);
+  loadMappedVesselSeriesCode(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Get current context for context-based mapping
+      const context = this.contextService.getContext();
+      
+      // Try context-based mapping first
+      this.mappingService.findMappingByContext(
+        'vesselCode',
+        context.companyCode || '',
+        context.branchCode || '',
+        context.departmentCode || '',
+        context.serviceType || ''
+      ).subscribe({
+        next: (contextMapping) => {
+          if (contextMapping && contextMapping.mapping) {
+            this.mappedVesselSeriesCode = contextMapping.mapping;
+            console.log('Context-based vessel series code mapped:', this.mappedVesselSeriesCode);
+            this.checkSeriesManualFlag(resolve, reject);
+          } else {
+            // Fallback to generic mapping if context-based mapping fails
+            console.log('No context-based vessel mapping found, falling back to generic mapping');
+            this.mappingService.getMapping().subscribe({
+              next: (mapping) => {
+                this.mappedVesselSeriesCode = mapping.vesselCode;
+                if (this.mappedVesselSeriesCode) {
+                  console.log('Generic vessel series code mapped:', this.mappedVesselSeriesCode);
+                  this.checkSeriesManualFlag(resolve, reject);
+                } else {
+                  this.isManualSeries = false;
+                  console.log('No vessel series code mapped');
+                  resolve();
+                }
+              },
+              error: (error) => {
+                console.error('Error loading generic mapping:', error);
+                reject(error);
+              }
+            });
+          }
+        },
+        error: (error) => {
+          console.error('Error loading context-based mapping, falling back to generic mapping:', error);
+          // Fallback to generic mapping if context-based mapping fails
+          this.mappingService.getMapping().subscribe({
+            next: (mapping) => {
+              this.mappedVesselSeriesCode = mapping.vesselCode;
+              if (this.mappedVesselSeriesCode) {
+                console.log('Generic vessel series code mapped:', this.mappedVesselSeriesCode);
+                this.checkSeriesManualFlag(resolve, reject);
+              } else {
+                this.isManualSeries = false;
+                console.log('No vessel series code mapped');
+                resolve();
+              }
             },
             error: (error) => {
-              console.error('Error loading number series:', error);
+              console.error('Error loading generic mapping:', error);
+              reject(error);
             }
           });
-        } else {
-          this.isManualSeries = false;
-          console.log('No vessel series code mapped');
         }
+      });
+    });
+  }
+
+  private checkSeriesManualFlag(resolve: () => void, reject: (error: any) => void): void {
+    this.numberSeriesService.getAll().subscribe({
+      next: (seriesList) => {
+        const found = seriesList.find((s: any) => s.code === this.mappedVesselSeriesCode);
+        this.isManualSeries = !!(found && found.is_manual);
+        console.log('Vessel series code mapped:', this.mappedVesselSeriesCode, 'Manual:', this.isManualSeries);
+        resolve();
       },
       error: (error) => {
-        console.error('Error loading mapping:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load mapping configuration' });
+        console.error('Error loading number series:', error);
+        reject(error);
       }
     });
   }
@@ -350,22 +408,39 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
 
-  refreshList() {
-    // Get the Validation settings
-    const config = this.configService.getConfig();
-    const vesselFilter = config?.validation?.vesselFilter || '';
+  reloadData() {
+    console.log('Starting data reload...');
     
-    // Determine if we should filter by context based on validation settings
-    const filterByContext = !!vesselFilter;
-    
-    this.masterVesselService.getAll(filterByContext).subscribe({
-      next: (data) => {
-        this.vessels = data;
-      },
-      error: (err) => {
-        console.error('Failed to load vessels:', err);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load vessels' });
-      }
+    // Load both vessel data and mapping in parallel
+    Promise.all([
+      this.refreshList(),
+      this.loadMappedVesselSeriesCode()
+    ]).finally(() => {
+      console.log('Data reload completed');
+    });
+  }
+
+  refreshList(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Get the Validation settings
+      const config = this.configService.getConfig();
+      const vesselFilter = config?.validation?.vesselFilter || '';
+      
+      // Determine if we should filter by context based on validation settings
+      const filterByContext = !!vesselFilter;
+      
+      this.masterVesselService.getAll(filterByContext).subscribe({
+        next: (data) => {
+          this.vessels = data;
+          console.log(`Loaded ${data.length} vessels`);
+          resolve();
+        },
+        error: (err) => {
+          console.error('Failed to load vessels:', err);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load vessels' });
+          reject(err);
+        }
+      });
     });
   }
 
@@ -430,16 +505,32 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     this.fieldErrors = {};
     this.touchedFields = {};
     
-    this.selectedVessel = {
-      code: '', // Will be filled after creation or entered if manual
-      vessel_name: '',
-      imo_number: '',
-      flag: '',
-      year_build: '',
-      active: true,
-      isNew: true
-    };
-    this.isDialogVisible = true;
+    // Load mapping to determine if series is manual before showing dialog
+    this.loadMappedVesselSeriesCode().then(() => {
+      this.selectedVessel = {
+        code: '', // Will be filled after creation or entered if manual
+        vessel_name: '',
+        imo_number: '',
+        flag: '',
+        year_build: '',
+        active: true,
+        isNew: true
+      };
+      this.isDialogVisible = true;
+    }).catch((error) => {
+      console.error('Error loading vessel mapping:', error);
+      // Still show dialog even if mapping fails
+      this.selectedVessel = {
+        code: '',
+        vessel_name: '',
+        imo_number: '',
+        flag: '',
+        year_build: '',
+        active: true,
+        isNew: true
+      };
+      this.isDialogVisible = true;
+    });
   }
 
   editRow(vessel: MasterVessel) {

@@ -5,12 +5,12 @@ import {
   AutoFocus
 } from "./chunk-IL6JGZUL.js";
 import {
-  SpinnerIcon
-} from "./chunk-RJ5B57QY.js";
-import {
   Badge,
   BadgeModule
 } from "./chunk-WBZ76YSR.js";
+import {
+  SpinnerIcon
+} from "./chunk-RJ5B57QY.js";
 import {
   BaseComponent
 } from "./chunk-B5RSUTO6.js";
@@ -1986,4 +1986,4 @@ export {
   Button,
   ButtonModule
 };
-//# sourceMappingURL=chunk-4WLORA34.js.map
+//# sourceMappingURL=chunk-DJAOIREZ.js.map

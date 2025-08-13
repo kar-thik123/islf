@@ -18,7 +18,7 @@ import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
 import { forkJoin, Subscription } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { CustomerService } from '@/services/customer.service';
 import { VendorService } from '@/services/vendor.service';
 import { ContextService } from '../../services/context.service';
@@ -27,10 +27,10 @@ import { ContainerCodeComponent } from './containercode';
 import { CustomerComponent } from './customer';
 import { VendorComponent } from './vendor';
 import { MasterUOMComponent } from './masteruom';
-// Import all required services (to be implemented or stubbed)
-// ... existing code ...
+import { ConfigService } from '../../services/config.service';
+
 @Component({
-  selector: 'tariff-master',
+  selector: 'app-tariff',
   standalone: true,
   providers: [MessageService],
   imports: [
@@ -103,8 +103,12 @@ import { MasterUOMComponent } from './masteruom';
             </td>
           </tr>
         </ng-template>
+        <ng-template pTemplate="paginatorleft" let-state>
+          Total Tariffs: {{ state.totalRecords }}
+        </ng-template>
       </p-table>
     </div>
+    
     <p-dialog
       header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Tariff"
       [(visible)]="isDialogVisible"
@@ -117,150 +121,103 @@ import { MasterUOMComponent } from './masteruom';
     >
       <ng-template pTemplate="content">
         <div *ngIf="selectedTariff" class="p-fluid form-grid dialog-body-padding">
-          
           <div class="grid-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
             <div class="grid-item">
               <label>Code <span class="text-red-500">*</span></label>
               <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')"/>
               <small *ngIf="fieldErrors['code']" class="p-error">{{ fieldErrors['code'] }}</small>
             </div>
-                          <div class="grid-item">
-                <label>Mode <span class="text-red-500">*</span></label>
-                <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode"></p-dropdown>
-                <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
+            <div class="grid-item">
+              <label>Mode <span class="text-red-500">*</span></label>
+              <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode"></p-dropdown>
+              <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Shipping Type</label>
+              <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select Shipping Type"></p-dropdown>
+              <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Cargo Type</label>
+              <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type"></p-dropdown>
+              <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Tariff Type</label>
+              <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type"></p-dropdown>
+              <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Basis</label>
+              <div class="flex">
+                <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" (ngModelChange)="onFieldChange('basis', selectedTariff.basis)" [ngClass]="getFieldErrorClass('basis')" [ngStyle]="getFieldErrorStyle('basis')" placeholder="Select Basis" class="flex-1"></p-dropdown>
+                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('basis')"></button>
               </div>
-                          <div class="grid-item">
-                <label>Shipping Type</label>
-                <div class="flex">
-                  <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select ShippingType" class="flex-1"></p-dropdown>
-                </div>
-                <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
+              <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Container Type</label>
+              <div class="flex">
+                <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select Container Type" class="flex-1"></p-dropdown>
+                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('containerType')"></button>
               </div>
-                          <div class="grid-item">
-                <label>Cargo Type</label>
-                <div class="flex">
-                  <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select CargoType" class="flex-1"></p-dropdown>
-                </div>
-                <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
+              <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Item Name</label>
+              <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name"></p-dropdown>
+              <small *ngIf="fieldErrors['itemName']" class="p-error">{{ fieldErrors['itemName'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Currency</label>
+              <div class="flex">
+                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1"></p-dropdown>
+                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('currency')"></button>
               </div>
-                          <div class="grid-item">
-                <label>Tariff Type</label>
-                <div class="flex">
-                  <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select TariffType" class="flex-1"></p-dropdown>
-                </div>
-                <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
-              </div>
-                          <div class="grid-item">
-                <label>Basis</label>
-                <div class="flex">
-                  <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" (ngModelChange)="onFieldChange('basis', selectedTariff.basis)" [ngClass]="getFieldErrorClass('basis')" [ngStyle]="getFieldErrorStyle('basis')" placeholder="Select Basis" class="flex-1"></p-dropdown>
-                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('basis')"></button>
-                </div>
-                <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
-              </div>
-                          <div class="grid-item">
-                <label>Container Type</label>
-                <div class="flex">
-                  <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select ContainerType" class="flex-1"></p-dropdown>
-                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('containerType')"></button>
-                </div>
-                <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
-              </div>
-                          <div class="grid-item">
-                <label>Item Name</label>
-                <div class="flex">
-                  <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" class="flex-1"></p-dropdown>
-                </div>
-                <small *ngIf="fieldErrors['itemName']" class="p-error">{{ fieldErrors['itemName'] }}</small>
-              </div>
-                          <div class="grid-item">
-                <label>Currency</label>
-                <div class="flex">
-                  <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1"></p-dropdown>
-                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('currency')"></button>
-                </div>
-                <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
-              </div>
+              <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
+            </div>
             <div class="grid-item">
               <label>From</label>
-              <p-dropdown  appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')" placeholder="Select From Location"></p-dropdown>
               <small *ngIf="fieldErrors['from']" class="p-error">{{ fieldErrors['from'] }}</small>
             </div>
             <div class="grid-item">
               <label>To</label>
-              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')" placeholder="Select To Location"></p-dropdown>
               <small *ngIf="fieldErrors['to']" class="p-error">{{ fieldErrors['to'] }}</small>
             </div>
             <div class="grid-item">
               <label>Party Type</label>
-              <p-dropdown [options]="partyTypeOptions" [(ngModel)]="selectedTariff.partyType" (ngModelChange)="onFieldChange('partyType', selectedTariff.partyType)" [ngClass]="getFieldErrorClass('partyType')" [ngStyle]="getFieldErrorStyle('partyType')"></p-dropdown>
-              <small *ngIf="fieldErrors['partyType']" class="p-error">{{ fieldErrors['partyType'] }}</small>
+              <p-dropdown [options]="partyTypeOptions" [(ngModel)]="selectedTariff.partyType" (ngModelChange)="onPartyTypeChange()" placeholder="Select Party Type"></p-dropdown>
             </div>
-            <div class="grid-item" *ngIf="selectedTariff.partyType === 'Customer'">
-              <label>Customer Name</label>
+            <div class="grid-item" *ngIf="selectedTariff.partyType">
+              <label>Party Name</label>
               <div class="flex">
-                <p-dropdown
-                  [options]="customerOptions"
-                  [(ngModel)]="selectedTariff.partyName"
-                  optionLabel="label"
-                  optionValue="value"
-                  (ngModelChange)="onFieldChange('partyName', selectedTariff.partyName)"
-                  [ngClass]="getFieldErrorClass('partyName')"
-                  [ngStyle]="getFieldErrorStyle('partyName')"
-                  placeholder="Select Customer"
-                  class="flex-1"
-                  appendTo="body"
-                  [filter]="true"
-                ></p-dropdown>
-                <button
-                  pButton
-                  icon="pi pi-ellipsis-h"
-                  class="p-button-sm ml-2"
-                  (click)="openMaster('customer')"
-                ></button>
+                <p-dropdown 
+                  [options]="selectedTariff.partyType === 'Customer' ? customerOptions : vendorOptions" 
+                  [(ngModel)]="selectedTariff.partyName" 
+                  (ngModelChange)="onFieldChange('partyName', selectedTariff.partyName)" 
+                  [ngClass]="getFieldErrorClass('partyName')" 
+                  [ngStyle]="getFieldErrorStyle('partyName')" 
+                  placeholder="Select {{ selectedTariff.partyType }}" 
+                  class="flex-1">
+                </p-dropdown>
+                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('partyType')"></button>
               </div>
               <small *ngIf="fieldErrors['partyName']" class="p-error">{{ fieldErrors['partyName'] }}</small>
             </div>
-            <div class="grid-item" *ngIf="selectedTariff.partyType === 'Vendor'">
-              <label>Carrier</label>
-              <div class="flex">
-                <p-dropdown
-                  [options]="vendorOptions"
-                  [(ngModel)]="selectedTariff.partyName"
-                  optionLabel="label"
-                  optionValue="value"
-                  (ngModelChange)="onFieldChange('partyName', selectedTariff.partyName)"
-                  [ngClass]="getFieldErrorClass('partyName')"
-                  [ngStyle]="getFieldErrorStyle('partyName')"
-                  placeholder="Select Carrier"
-                  class="flex-1"
-                  appendTo="body"
-                  [filter]="true"
-                ></p-dropdown>
-                <button
-                  pButton
-                  icon="pi pi-ellipsis-h"
-                  class="p-button-sm ml-2"
-                  (click)="openMaster('carrier')"
-                ></button>
-              </div>
-              <small *ngIf="fieldErrors['partyName']" class="p-error">{{ fieldErrors['partyName'] }}</small>
+            <div class="grid-item">
+              <label>Effective Date</label>
+              <p-calendar [(ngModel)]="selectedTariff.effectiveDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body"></p-calendar>
             </div>
-              <div class="grid-item">
-                <label>Effective Date</label>
-                <p-calendar [(ngModel)]="selectedTariff.effectiveDate" dateFormat="dd-mm-yy" showIcon="true"  appendTo="body"></p-calendar>
-                </div>
-
-                <div class="grid-item">
-                <label>Period Start Date</label>
-                <p-calendar [(ngModel)]="selectedTariff.periodStartDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body"></p-calendar>
-                </div>
-
-                <div class="grid-item">
-                <label>Period End Date</label>
-                <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body"></p-calendar>
-                </div>
-
+            <div class="grid-item">
+              <label>Period Start Date</label>
+              <p-calendar [(ngModel)]="selectedTariff.periodStartDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body"></p-calendar>
+            </div>
+            <div class="grid-item">
+              <label>Period End Date</label>
+              <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body"></p-calendar>
+            </div>
             <div class="grid-item">
               <label>Charges</label>
               <input pInputText type="number" [(ngModel)]="selectedTariff.charges" (ngModelChange)="onFieldChange('charges', selectedTariff.charges)" [ngClass]="getFieldErrorClass('charges')" [ngStyle]="getFieldErrorStyle('charges')"/>
@@ -268,7 +225,7 @@ import { MasterUOMComponent } from './masteruom';
             </div>
             <div class="grid-item">
               <label>Freight Charge Type</label>
-              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Freight Charge Type "></p-dropdown>
+              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Freight Charge Type"></p-dropdown>
             </div>
           
           </div>
@@ -281,6 +238,7 @@ import { MasterUOMComponent } from './masteruom';
         </div>
       </ng-template>
     </p-dialog>
+    
     <!-- Currency Code Dialog -->
     <p-dialog
       header="Currency Codes"
@@ -304,12 +262,13 @@ import { MasterUOMComponent } from './masteruom';
       [style]="{ width: '900px' }"
       [closable]="true"
       [draggable]="false"
-      [resizable]="false"   
+      [resizable]="false"
     >
       <ng-template pTemplate="content">
         <container-code></container-code>
       </ng-template>
     </p-dialog>
+    
     <!-- Customer Master Dialog -->
     <p-dialog
       header="Customer Master"
@@ -324,6 +283,7 @@ import { MasterUOMComponent } from './masteruom';
         <customer-master></customer-master>
       </ng-template>
     </p-dialog>
+    
     <!-- Vendor Master Dialog -->
     <p-dialog
       header="Vendor Master"
@@ -338,6 +298,7 @@ import { MasterUOMComponent } from './masteruom';
         <vendor-master></vendor-master>
       </ng-template>
     </p-dialog>
+    
     <!-- UOM (Basis) Dialog -->
     <p-dialog
       header="Unit of Measure (Basis Only)"
@@ -352,31 +313,10 @@ import { MasterUOMComponent } from './masteruom';
         <master-uom></master-uom>
       </ng-template>
     </p-dialog>
-  `,
-  styles: [`
-    .grid-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-    }
-    .grid-item {
-      display: flex;
-      flex-direction: column;
-    }
-    .section-header {
-      font-weight: bold;
-      margin-top: 1.5rem;
-      margin-bottom: 0.5rem;
-      font-size: 1.1rem;
-    }
-    label {
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
-  `]
+  `
 })
 export class TariffComponent implements OnInit, OnDestroy {
-  private contextSubscription: Subscription = new Subscription();
+  private contextSubscription: Subscription | undefined;
   tariffs: any[] = [];
   modeOptions = [
     { label: 'IMPORT', value: 'IMPORT' },
@@ -430,6 +370,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     private currencyCodeService: CurrencyCodeService,
     private customerService: CustomerService,
     private vendorService: VendorService,
+    private configService: ConfigService,
     private contextService: ContextService
   ) {}
 
@@ -509,15 +450,18 @@ export class TariffComponent implements OnInit, OnDestroy {
     this.loadAllData();
 
     // Subscribe to context changes to reload data
-    this.contextSubscription.add(
-      this.contextService.context$.subscribe(() => {
-        this.loadAllData();
-      })
-    );
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      this.loadAllData();
+    });
   }
 
   ngOnDestroy() {
-    this.contextSubscription.unsubscribe();
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   private loadAllData() {
@@ -648,34 +592,145 @@ export class TariffComponent implements OnInit, OnDestroy {
     return found ? found.label : value;
   }
 
-  refreshList() {   
-    this.tariffService.getAll().subscribe(data => {
-      this.tariffs = data.map((tariff: any) => ({
-        ...tariff,
-        shippingType: tariff.shipping_type,
-        cargoType: tariff.cargo_type,
-        containerType: tariff.container_type,
-        itemName: tariff.item_name,
-        from: tariff.from_location,
-        to: tariff.to_location,
-        partyType: tariff.party_type,
-        partyName: tariff.party_name,
-        tariffType: tariff.tariff_type,
-        basis: tariff.basis,
-        currency: tariff.currency,
-        charges: tariff.charges,
-        mode: tariff.mode,
-        effectiveDate: tariff.effective_date,
-        periodStartDate: tariff.period_start_date,
-        periodEndDate: tariff.period_end_date,
-        freightChargeType: tariff.freight_charge_type,
-        // ...add any other mappings as needed
-      }));
+  refreshList() {
+    console.log('Refreshing tariff list - starting refreshList method');
+    
+    // Get the validation settings for context-based filtering
+    const config = this.configService.getConfig();
+    const tariffFilter = config?.validation?.tariffFilter || '';
+    
+    console.log('Tariff filter:', tariffFilter);
+    
+    // Check if we need to validate context for filtering
+    if (tariffFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context for filtering:', context);
+      
+      // Check if the required context is set based on the filter
+      if (tariffFilter.includes('C') && !context.companyCode) {
+        console.log('Company context required but not set - showing empty list');
+        this.tariffs = [];
+        return;
+      }
+      
+      if (tariffFilter.includes('B') && !context.branchCode) {
+        console.log('Branch context required but not set - showing empty list');
+        this.tariffs = [];
+        return;
+      }
+      
+      if (tariffFilter.includes('D') && !context.departmentCode) {
+        console.log('Department context required but not set - showing empty list');
+        this.tariffs = [];
+        return;
+      }
+    }
+    
+    // Proceed with fetching data if context validation passes
+    this.tariffService.getAll().subscribe({
+      next: (data) => {
+        console.log('Tariff data loaded successfully:', data.length, 'records');
+        this.tariffs = data.map((tariff: any) => ({
+          ...tariff,
+          shippingType: tariff.shipping_type,
+          cargoType: tariff.cargo_type,
+          containerType: tariff.container_type,
+          itemName: tariff.item_name,
+          from: tariff.from_location,
+          to: tariff.to_location,
+          partyType: tariff.party_type,
+          partyName: tariff.party_name,
+          tariffType: tariff.tariff_type,
+          basis: tariff.basis,
+          currency: tariff.currency,
+          charges: tariff.charges,
+          mode: tariff.mode,
+          effectiveDate: tariff.effective_date,
+          periodStartDate: tariff.period_start_date,
+          periodEndDate: tariff.period_end_date,
+          freightChargeType: tariff.freight_charge_type,
+          // ...add any other mappings as needed
+        }));
+      },
+      error: (error) => {
+        console.error('Error loading tariff data:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load tariff data'
+        });
+        this.tariffs = [];
+      }
     });
   }
 
   addRow() {
-    // Wait for all options to be loaded before opening dialog
+    console.log('Add Tariff button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const tariffFilter = config?.validation?.tariffFilter || '';
+    
+    console.log('Tariff filter:', tariffFilter);
+    
+    // Check if we need to validate context
+    if (tariffFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      if (tariffFilter.includes('C') && !context.companyCode) {
+        console.log('Company context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Company before adding a new tariff.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+      
+      if (tariffFilter.includes('B') && !context.branchCode) {
+        console.log('Branch context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Branch before adding a new tariff.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+      
+      if (tariffFilter.includes('D') && !context.departmentCode) {
+        console.log('Department context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Department before adding a new tariff.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+
+    console.log('Context validation passed - proceeding with add tariff');
+    
+    // Existing addRow logic
+    this.selectedTariff = {
+      id: null,
+      code: '',
+      mode: '',
+      // ... other fields
+      isNew: true
+    };
+    this.isDialogVisible = true;
+    this.fieldErrors = {};
+    
+    // Load options using forkJoin
     forkJoin([
       this.loadShippingTypeOptions(),
       this.loadCargoTypeOptions(),
@@ -687,32 +742,7 @@ export class TariffComponent implements OnInit, OnDestroy {
       this.loadItemOptions(),
       this.loadCustomerOptions(),
       this.loadVendorOptions()
-    ]).subscribe(() => {
-    this.selectedTariff = {
-      code: '',
-      mode: '',
-      shippingType: '',
-      cargoType: '',
-      tariffType: '',
-      basis: '',
-      containerType: '',
-      itemName: '',
-      currency: '',
-      from: '',
-      to: '',
-      partyType: '',
-      partyName: '',
-      charges: '',
-      freightChargeType: '',
-      effectiveDate: null,
-      periodStartDate: null,
-      periodEndDate: null,
-      isNew: true
-    };
-    this.fieldErrors = {};
-    this.isFormValid = false;
-    this.isDialogVisible = true;
-    });
+    ]).subscribe();
   }
 
   editRow(tariff: any) {
@@ -793,7 +823,6 @@ export class TariffComponent implements OnInit, OnDestroy {
     delete this.fieldErrors['partyName'];
     this.updateFormValidity();
   }
-
   openMaster(type: string) {
     if (type === 'currency') {
       this.showCurrencyDialog = true;
@@ -812,9 +841,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     } else if (type === 'basis') {
       this.showUOMDialog = true;
     } else {
-    this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
+      this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
-    
   }
 }
-// ... existing code ...

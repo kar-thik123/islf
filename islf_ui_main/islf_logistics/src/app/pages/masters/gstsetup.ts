@@ -9,8 +9,10 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { MasterLocationService } from '@/services/master-location.service';
+import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 interface GstRule {
   id?: number;
@@ -140,44 +142,137 @@ interface GstRule {
   `
 })
 export class GstSetupComponent implements OnInit, OnDestroy {
-  private contextSubscription: Subscription = new Subscription();
   gstRules = signal<GstRule[]>([]);
   locationOptions: { label: string, value: string }[] = [];
   fieldErrors: { [key: string]: { [field: string]: string } } = {};
+  private contextSubscription: Subscription | undefined;
   @ViewChild('dt') dt!: Table;
 
   constructor(
     private messageService: MessageService,
     private masterLocationService: MasterLocationService,
+    private configService: ConfigService,
     private contextService: ContextService
   ) {}
 
   ngOnInit() {
-    this.loadLocationOptions();
-
-    // Subscribe to context changes to reload data
-    this.contextSubscription.add(
-      this.contextService.context$.subscribe(() => {
-        this.loadLocationOptions();
-      })
-    );
-  }
-
-  ngOnDestroy() {
-    this.contextSubscription.unsubscribe();
-  }
-
-  private loadLocationOptions() {
-    this.masterLocationService.getAll().subscribe(locations => {
-      const gstLocations = locations.filter(l => l.type === 'GST_LOCATION' && l.active);
-      this.locationOptions = gstLocations.map(l => ({
-        label: `${l.gst_state_code} - ${l.name}`,
-        value: `${l.gst_state_code} - ${l.name}`
-      }));
+    this.refreshList();
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(() => {
+      console.log('Context changed in GstSetupComponent, reloading data...');
+      this.refreshList();
     });
   }
 
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
+  }
+
+  refreshList() {
+    console.log('Refreshing GST setup list');
+    
+    try {
+      // Get the validation settings
+      const config = this.configService.getConfig();
+      const gstsetupFilter = config?.validation?.gstsetupFilter || '';
+      
+      console.log('GST Setup filter for refresh:', gstsetupFilter);
+      
+      // Check if we need to apply context-based filtering
+      if (gstsetupFilter) {
+        // Get the current context
+        const context = this.contextService.getContext();
+        
+        console.log('Current context for filtering:', context);
+        
+        // Check if the required context is set based on the filter
+        const hasRequiredContext = 
+          (!gstsetupFilter.includes('C') || context.companyCode) &&
+          (!gstsetupFilter.includes('B') || context.branchCode) &&
+          (!gstsetupFilter.includes('D') || context.departmentCode);
+        
+        if (!hasRequiredContext) {
+          console.log('Required context not available for filtering, showing empty list');
+          this.locationOptions = [];
+          this.gstRules.set([]);
+          return;
+        }
+      }
+      
+      this.masterLocationService.getAll().subscribe({
+        next: (locations) => {
+          const gstLocations = locations.filter(l => l.type === 'GST_LOCATION' && l.active);
+          this.locationOptions = gstLocations.map(l => ({
+            label: `${l.gst_state_code} - ${l.name}`,
+            value: `${l.gst_state_code} - ${l.name}`
+          }));
+          console.log('GST locations loaded successfully:', this.locationOptions.length);
+        },
+        error: (error) => {
+          console.error('Error loading GST locations:', error);
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to load GST locations' 
+          });
+          this.locationOptions = [];
+        }
+      });
+    } catch (error) {
+      console.error('Error in refreshList:', error);
+    }
+  }
+
   addRow() {
+    console.log('Add GST Rule button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const gstsetupFilter = config?.validation?.gstsetupFilter || '';
+    
+    console.log('GST Setup filter:', gstsetupFilter);
+    
+    // Check if we need to validate context
+    if (gstsetupFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+      
+      if (gstsetupFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (gstsetupFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (gstsetupFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+      
+      if (missingContexts.length > 0) {
+        console.log('Missing contexts:', missingContexts);
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} before adding GST rule`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // If validation passes or no validation required, proceed with adding row
     const newRow: GstRule = {
       from: '',
       to: '',
@@ -188,6 +283,8 @@ export class GstSetupComponent implements OnInit, OnDestroy {
       isNew: true
     };
     this.gstRules.set([newRow, ...this.gstRules()]);
+    
+    console.log('New GST rule row added successfully');
   }
 
   editRow(rule: GstRule) {

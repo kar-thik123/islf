@@ -67,4 +67,15 @@ export class MappingService {
   deleteMappingRelation(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/relations/${id}`);
   }
-} 
+
+  // Find mapping relation based on context
+  findMappingByContext(codeType: string, companyCode?: string, branchCode?: string, departmentCode?: string, serviceTypeCode?: string): Observable<any> {
+    let params = `codeType=${codeType}`;
+    if (companyCode) params += `&companyCode=${companyCode}`;
+    if (branchCode) params += `&branchCode=${branchCode}`;
+    if (departmentCode) params += `&departmentCode=${departmentCode}`;
+    if (serviceTypeCode) params += `&serviceTypeCode=${serviceTypeCode}`;
+    
+    return this.http.get<any>(`${this.apiUrl}/find?${params}`);
+  }
+}

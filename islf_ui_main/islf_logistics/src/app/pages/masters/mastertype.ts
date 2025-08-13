@@ -11,6 +11,7 @@ import { MasterCodeService } from '../../services/mastercode.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
+import { ConfigService } from '../../services/config.service';
 
 @Component({
   selector: 'master-type',
@@ -222,7 +223,8 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     private masterCodeService: MasterCodeService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private configService: ConfigService
   ) {}
 
   // Validation methods
@@ -303,13 +305,10 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     this.masterCodeService.getMasters().subscribe((codes: any[]) => {
       this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
     });
-    this.refreshList();
-    
-    // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
-      console.log('Context changed in MasterTypeComponent, reloading data...');
       this.refreshList();
     });
+    this.refreshList();
   }
 
   ngOnDestroy() {
@@ -319,29 +318,118 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.masterTypeService.getAll().subscribe(types => {
-      this.types = (types || []).map((t: any) => ({
-        ...t,
-        isEditing: false,
-        isNew: false
-      }));
-      this.activeTypes = this.types.filter((t: any) => t.status === 'Active');
-    });
+    console.log('Refreshing master types list');
+    
+    try {
+      // Get the validation settings
+      const config = this.configService.getConfig();
+      const masterTypeFilter = config?.validation?.masterTypeFilter || '';
+      
+      console.log('Master Type filter for refresh:', masterTypeFilter);
+      
+      // Check if we need to apply context-based filtering
+      if (masterTypeFilter) {
+        // Get the current context
+        const context = this.contextService.getContext();
+        
+        console.log('Current context for filtering:', context);
+        
+        // Check if the required context is set based on the filter
+        const hasRequiredContext = 
+          (!masterTypeFilter.includes('C') || context.companyCode) &&
+          (!masterTypeFilter.includes('B') || context.branchCode) &&
+          (!masterTypeFilter.includes('D') || context.departmentCode);
+        
+        if (!hasRequiredContext) {
+          console.log('Required context not available for filtering, showing empty list');
+          this.types = [];
+          this.activeTypes = [];
+          return;
+        }
+      }
+      
+      this.masterTypeService.getAll().subscribe({
+        next: (types) => {
+          this.types = (types || []).map((t: any) => ({
+            ...t,
+            isEditing: false,
+            isNew: false
+          }));
+          this.activeTypes = this.types.filter((t: any) => t.status === 'Active');
+          console.log('Master types loaded successfully:', this.types.length);
+        },
+        error: (error) => {
+          console.error('Error loading master types:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load master types'
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in refreshList:', error);
+    }
   }
 
   addRow() {
+    console.log('Add Master Type button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const masterTypeFilter = config?.validation?.masterTypeFilter || '';
+    
+    console.log('Master Type filter:', masterTypeFilter);
+    
+    // Check if we need to validate context
+    if (masterTypeFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+      
+      if (masterTypeFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (masterTypeFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (masterTypeFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+      
+      if (missingContexts.length > 0) {
+        console.log('Missing contexts:', missingContexts);
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} before adding master type`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
       key: null,
       value: '',
       description: '',
       status: 'Active',
-      isEditing: false,
+      isEditing: true,
       isNew: true
     };
     this.types = [newRow, ...this.types];
     // Clear field errors for new row
     this.fieldErrors['new'] = {};
+    
+    console.log('New master type row added successfully');
   }
 
   saveRow(type: any) {

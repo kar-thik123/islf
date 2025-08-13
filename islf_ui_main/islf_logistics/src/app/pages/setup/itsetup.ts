@@ -630,9 +630,12 @@ interface DocumentPaths {
         
         <!-- Validate/Filter Tab -->
         <p-tabPanel header="Validate/Filter">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <p-card header="Validation Settings">
-              <div class="space-y-4">
+          <div class="grid grid-cols-2 md:grid-cols-2 gap-6">
+         <p-card header="Validation Settings" class="col-span-2">
+         <small class="block mt-3 mb-3 text-gray-500 ">
+          C = Company, D = Department, B = Branch, ST = Service Type
+          </small>
+         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label class="block mb-2 font-medium">Customer:</label>
                   <p-dropdown
@@ -643,9 +646,7 @@ interface DocumentPaths {
                     placeholder="Select customer filter"
                     class="w-full">
                   </p-dropdown>
-                  <small class="block mt-1 text-gray-500">
-                    C = Company, D = Department, B = Branch, ST = Service Type
-                  </small>
+                  
                 </div>
                 <div>
                   <label class="block mb-2 font-medium">Vendor:</label>
@@ -657,11 +658,9 @@ interface DocumentPaths {
                     placeholder="Select vendor filter"
                     class="w-full">
                   </p-dropdown>
-                  <small class="block mt-1 text-gray-500">
-                    C = Company, D = Department, B = Branch, ST = Service Type
-                  </small>
+                  
                 </div>
-                <div>
+             <!---   <div>
                   <label class="block mb-2 font-medium">Manual Entry:</label>
                   <input
                     type="text"
@@ -673,7 +672,7 @@ interface DocumentPaths {
                   <small class="block mt-1 text-gray-500">
                     Enter combinations like C, CB, CBD, CBDST
                   </small>
-                </div>
+                </div>  --->
                 <div>
                   <label class="block mb-2 font-medium">Vessel:</label>
                   <p-dropdown
@@ -684,11 +683,112 @@ interface DocumentPaths {
                     placeholder="Select vessel filter"
                     class="w-full">
                   </p-dropdown>
-                  <small class="block mt-1 text-gray-500">
-                    C = Company, D = Department, B = Branch, ST = Service Type
-                  </small>
+                  
                 </div>
+                <div>
+                  <label class="block mb-2 font-medium">UOM:</label>
+                  <p-dropdown
+                    [(ngModel)]="validationSettings.uomFilter"
+                    [options]="vesselFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select UOM filter"
+                    class="w-full">
+                  </p-dropdown>
+                  
+                </div>
+                <div>
+                <label class="block mb-2 font-medium">Container Type</label>  
+                <p-dropdown
+                [(ngModel)]="validationSettings.containerFilter"
+                [options]="vesselFilterOptions"
+                 optionValue="value"
+                 placeholder="Select Container filter"
+                class="w-full">
+                </p-dropdown>
+                
+                </div>
+                <div>
+                  <label class="block mb-2 font-medium">Currency:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.currencyFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Currency filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">GST setup:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.gstsetupFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select GST Setup filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Location:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.locationFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Location filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Master Code:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.masterCodeFilter"
+
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Master Code filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Master Type:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.masterTypeFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Master Type filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Tariff:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.tariffFilter"
+
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Tariff filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Item:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.itemFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Item filter"
+                  class="w-full">
+                  </p-dropdown>
+                    
+                  </div>
               </div>
+              
             </p-card>
           </div>
         </p-tabPanel>
@@ -839,6 +939,16 @@ export class ITSetupComponent implements OnInit {
     customerFilter: '',
     vendorFilter: '',
     vesselFilter: '',
+    uomFilter: '',
+    itemFilter: '',
+    tariffFilter: '',
+    masterCodeFilter:'',
+    masterTypeFilter:'',
+    locationFilter:'',
+    currencyFilter:'',
+    containerFilter:'',
+    gstsetupFilter:'',
+
     manualCustomerFilter: ''
   };
 
@@ -963,22 +1073,22 @@ export class ITSetupComponent implements OnInit {
   ];
 
   customerFilterOptions = [
-    { label: 'C (Company)', value: 'C' },
-    { label: 'CB (Company + Branch)', value: 'CB' },
-    { label: 'CBD (Company + Branch + Department)', value: 'CBD' },
-    { label: 'CBDST (Company + Branch + Department + Service Type)', value: 'CBDST' }
+ { label: 'C ', value: 'C' },
+    { label: 'CB ', value: 'CB' },
+    { label: 'CBD ', value: 'CBD' },
+    { label: 'CBDST', value: 'CBDST' }
   ];
   vendorFilterOptions = [
-    { label: 'C (Company)', value: 'C' },
-    { label: 'CB (Company + Branch)', value: 'CB' },
-    { label: 'CBD (Company + Branch + Department)', value: 'CBD' },
-    { label: 'CBDST (Company + Branch + Department + Service Type)', value: 'CBDST' }
+    { label: 'C ', value: 'C' },
+    { label: 'CB ', value: 'CB' },
+    { label: 'CBD ', value: 'CBD' },
+    { label: 'CBDST', value: 'CBDST' }
   ];
   vesselFilterOptions = [
-    { label: 'C (Company)', value: 'C' },
-    { label: 'CB (Company + Branch)', value: 'CB' },
-    { label: 'CBD (Company + Branch + Department)', value: 'CBD' },
-    { label: 'CBDST (Company + Branch + Department + Service Type)', value: 'CBDST' }
+  { label: 'C ', value: 'C' },
+    { label: 'CB ', value: 'CB' },
+    { label: 'CBD ', value: 'CBD' },
+    { label: 'CBDST', value: 'CBDST' }
   ];
 
   // State management

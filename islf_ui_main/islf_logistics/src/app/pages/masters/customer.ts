@@ -133,6 +133,12 @@ function toTitleCase(str: string): string {
             </td>
           </tr>
         </ng-template>
+        <!-- 📊 Total Customers Count -->
+        <ng-template pTemplate="paginatorleft" let-state>
+          <div class="text-sm text-gray-600">
+            Total Customers: {{ state.totalRecords }}
+          </div>
+        </ng-template>
       </p-table>
     </div>
     <p-dialog
@@ -637,9 +643,10 @@ export class CustomerComponent implements OnInit, OnDestroy {
   }
 
   loadMappedCustomerSeriesCode() {
-    this.mappingService.getMapping().subscribe({
-      next: (mapping) => {
-        this.mappedCustomerSeriesCode = mapping.customerCode;
+    const context = this.contextService.getContext();
+    this.mappingService.findMappingByContext('customerCode', context.companyCode, context.branchCode, context.departmentCode, context.serviceType || undefined).subscribe({
+      next: (contextMapping) => {
+        this.mappedCustomerSeriesCode = contextMapping.mapping;
         if (this.mappedCustomerSeriesCode) {
           this.numberSeriesService.getAll().subscribe({
             next: (seriesList) => {
@@ -658,7 +665,6 @@ export class CustomerComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading mapping:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load mapping configuration' });
       }
     });
   }
@@ -742,8 +748,92 @@ export class CustomerComponent implements OnInit, OnDestroy {
       contacts: [],
       isNew: true
     };
-    this.isDialogVisible = true;
-    this.updateBillToCustomerNameDefault();
+    
+    // Load the mapped customer series code to determine if manual series is enabled
+    // Wait for the mapping to load before showing the dialog
+    // Get current context and find mapping relation
+    const context = this.contextService.getContext();
+    console.log('Current context for mapping:', context);
+    
+    // Find mapping relation based on context
+    this.mappingService.findMappingByContext(
+      'customerCode',
+      context.companyCode,
+      context.branchCode,
+      context.departmentCode,
+      context.serviceType || undefined
+    ).subscribe({
+      next: (mappingRelation) => {
+        console.log('Mapping relation response:', mappingRelation);
+        this.mappedCustomerSeriesCode = mappingRelation.mapping;
+        if (this.mappedCustomerSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('Customer series code mapped:', this.mappedCustomerSeriesCode, 'Manual:', this.isManualSeries);
+              
+              // Now show the dialog after the series mapping is loaded
+              this.isDialogVisible = true;
+              this.updateBillToCustomerNameDefault();
+            },
+            error: (error) => {
+              console.error('Error loading number series:', error);
+              // Show dialog anyway with default behavior
+              this.isManualSeries = false;
+              this.isDialogVisible = true;
+              this.updateBillToCustomerNameDefault();
+            }
+          });
+        } else {
+          this.isManualSeries = false;
+          console.log('No customer series code mapped from relation');
+          // Show dialog with manual series disabled
+          this.isDialogVisible = true;
+          this.updateBillToCustomerNameDefault();
+        }
+      },
+      error: (error) => {
+        console.error('Error loading mapping relation:', error);
+        // Fallback to old method if context-based mapping fails
+        console.log('Falling back to generic mapping method');
+        this.mappingService.getMapping().subscribe({
+          next: (mapping) => {
+            console.log('Fallback mapping response:', mapping);
+            this.mappedCustomerSeriesCode = mapping.customerCode;
+            if (this.mappedCustomerSeriesCode) {
+              this.numberSeriesService.getAll().subscribe({
+                next: (seriesList) => {
+                  const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
+                  this.isManualSeries = !!(found && found.is_manual);
+                  console.log('Customer series code mapped (fallback):', this.mappedCustomerSeriesCode, 'Manual:', this.isManualSeries);
+                  this.isDialogVisible = true;
+                  this.updateBillToCustomerNameDefault();
+                },
+                error: (error) => {
+                  console.error('Error loading number series (fallback):', error);
+                  this.isManualSeries = false;
+                  this.isDialogVisible = true;
+                  this.updateBillToCustomerNameDefault();
+                }
+              });
+            } else {
+              this.isManualSeries = false;
+              console.log('No customer series code mapped (fallback)');
+              this.isDialogVisible = true;
+              this.updateBillToCustomerNameDefault();
+            }
+          },
+          error: (error) => {
+            console.error('Error loading mapping (fallback):', error);
+            // Show dialog anyway with default behavior
+            this.isManualSeries = false;
+            this.isDialogVisible = true;
+            this.updateBillToCustomerNameDefault();
+          }
+        });
+      }
+    });
   }
 
   updateBillToCustomerNameDefault() {

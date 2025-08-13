@@ -23,7 +23,20 @@ export class MasterUOMService {
   constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
 
   getAll(): Observable<MasterUOM[]> {
-    return this.http.get<MasterUOM[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<MasterUOM[]>(this.apiUrl, { params });
   }
 
   create(data: MasterUOM): Observable<MasterUOM> {

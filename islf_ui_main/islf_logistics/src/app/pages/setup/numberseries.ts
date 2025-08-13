@@ -306,7 +306,7 @@ export class NumberSeriesComponent implements OnInit {
       isEditing: true,
       isNew: true
     };
-    this.seriesList.set([...this.seriesList(), newRow]);
+    this.seriesList.set([newRow, ...this.seriesList()]);
   }
 
   saveRow(row: NumberSeries) {

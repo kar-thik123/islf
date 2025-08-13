@@ -12,7 +12,9 @@ import { CalendarModule } from 'primeng/calendar';
 import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
+import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'master-uom',
@@ -141,6 +143,9 @@ import { Subscription } from 'rxjs';
             </td>
           </tr>
         </ng-template>
+        <ng-template pTemplate="paginatorleft" let-state>
+          Total UOMs: {{ state.totalRecords }}
+        </ng-template>
       </p-table>
     </div>
 
@@ -264,7 +269,8 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     private masterUOMService: MasterUOMService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private configService: ConfigService
   ) {}
 
   ngOnInit() {
@@ -274,7 +280,10 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     });
     
     // Subscribe to context changes and reload data when context changes
-    this.contextSubscription = this.contextService.context$.subscribe(() => {
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(() => {
       console.log('Context changed in MasterUOMComponent, reloading data...');
       this.refreshList();
     });
@@ -297,6 +306,62 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   }
 
   addRow() {
+    console.log('Add UOM button clicked - starting addRow method');
+    
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const uomFilter = config?.validation?.uomFilter || '';
+    
+    console.log('UOM filter:', uomFilter);
+    
+    // Check if we need to validate context
+    if (uomFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      let contextValid = true;
+      let missingContexts = [];
+      
+      if (uomFilter.includes('C') && !context.companyCode) {
+        contextValid = false;
+        missingContexts.push('Company');
+      }
+      
+      if (uomFilter.includes('B') && !context.branchCode) {
+        contextValid = false;
+        missingContexts.push('Branch');
+      }
+      
+      if (uomFilter.includes('D') && !context.departmentCode) {
+        contextValid = false;
+        missingContexts.push('Department');
+      }
+      
+      if (uomFilter.includes('ST') && !context.serviceType) {
+        contextValid = false;
+        missingContexts.push('Service Type');
+      }
+      
+      console.log('Context valid:', contextValid);
+      console.log('Missing contexts:', missingContexts);
+      
+      // If context is not valid, show an error message and trigger the context selector
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a UOM.`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
     this.selectedUOM = {
       uom_type: '',
       code: '',

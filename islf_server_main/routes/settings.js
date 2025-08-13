@@ -117,52 +117,12 @@ router.post('/document_upload_path_:entityType', async (req, res) => {
 // Get complete configuration
 router.get('/config', async (req, res) => {
   try {
-    // Extract context parameters from query string
-    const { company_code, branch_code, department_code } = req.query;
-    
-    // Build query with context filtering
-    let query = "SELECT key, value FROM settings";
-    let queryParams = [];
-    let whereConditions = [];
-    
-    // Add context filtering if provided
-    if (company_code) {
-      whereConditions.push("(company_code = $" + (queryParams.length + 1) + " OR company_code IS NULL)");
-      queryParams.push(company_code);
-    }
-    if (branch_code) {
-      whereConditions.push("(branch_code = $" + (queryParams.length + 1) + " OR branch_code IS NULL)");
-      queryParams.push(branch_code);
-    }
-    if (department_code) {
-      whereConditions.push("(department_code = $" + (queryParams.length + 1) + " OR department_code IS NULL)");
-      queryParams.push(department_code);
-    }
-    
-    if (whereConditions.length > 0) {
-      query += " WHERE " + whereConditions.join(" AND ");
-    }
-    
-    // Order by specificity (most specific first)
-    query += " ORDER BY ";
-    query += "CASE WHEN department_code IS NOT NULL THEN 1 ";
-    query += "WHEN branch_code IS NOT NULL THEN 2 ";
-    query += "WHEN company_code IS NOT NULL THEN 3 ";
-    query += "ELSE 4 END";
-    
-    console.log('Config query:', query, 'Params:', queryParams);
-    
-    const result = await pool.query(query, queryParams);
+    const result = await pool.query("SELECT key, value FROM settings");
     const config = {};
     
-    // Process results, giving priority to more specific settings
-     const processedKeys = new Set();
-     result.rows.forEach(row => {
-       if (!processedKeys.has(row.key)) {
-         config[row.key] = row.value;
-         processedKeys.add(row.key);
-       }
-     });
+    result.rows.forEach(row => {
+      config[row.key] = row.value;
+    });
     
     // Transform the flat structure to nested config object
     const appConfig = {
@@ -263,7 +223,18 @@ router.get('/config', async (req, res) => {
         customerFilter: config.validation_customer_filter || '',
         manualCustomerFilter: config.validation_manual_customer_filter || '',
         vendorFilter: config.validation_vendor_filter || '',
-        vesselFilter: config.validation_vessel_filter || ''
+        vesselFilter: config.validation_vessel_filter || '',
+        uomFilter: config.validation_uom_filter || '',
+        itemFilter: config.validation_item_filter || '',
+        tariffFilter: config.validation_tariff_filter || '',
+        masterCodeFilter: config.validation_master_code_filter || '',
+        masterTypeFilter: config.validation_master_type_filter || '',
+        locationFilter: config.validation_location_filter || '',
+        currencyFilter: config.validation_currency_filter || '',
+        containerFilter: config.validation_container_filter || '',
+        gstsetupFilter: config.validation_gstsetup_filter || '',
+
+
       }
     };
     
@@ -390,11 +361,21 @@ router.post('/config', async (req, res) => {
       { key: 'document_upload_path_department', value: config.documentPaths.department },
       { key: 'document_upload_path_user', value: config.documentPaths.user },
       
-      // Validation settings
+      // Validation settings - ADD ALL MISSING FILTERS
       { key: 'validation_customer_filter', value: config.validation?.customerFilter || '' },
       { key: 'validation_manual_customer_filter', value: config.validation?.manualCustomerFilter || '' },
       { key: 'validation_vendor_filter', value: config.validation?.vendorFilter || '' },
-      { key: 'validation_vessel_filter', value: config.validation?.vesselFilter || '' }
+      { key: 'validation_uom_filter', value: config.validation?.uomFilter || '' },
+      { key: 'validation_vessel_filter', value: config.validation?.vesselFilter || '' },
+      // ADD THESE MISSING LINES:
+      { key: 'validation_container_filter', value: config.validation?.containerFilter || '' },
+      { key: 'validation_currency_filter', value: config.validation?.currencyFilter || '' },
+      { key: 'validation_gstsetup_filter', value: config.validation?.gstsetupFilter || '' },
+      { key: 'validation_location_filter', value: config.validation?.locationFilter || '' },
+      { key: 'validation_master_code_filter', value: config.validation?.masterCodeFilter || '' },
+      { key: 'validation_master_type_filter', value: config.validation?.masterTypeFilter || '' },
+      { key: 'validation_tariff_filter', value: config.validation?.tariffFilter || '' },
+      { key: 'validation_item_filter', value: config.validation?.itemFilter || '' }
     ];
     
     // Save all settings

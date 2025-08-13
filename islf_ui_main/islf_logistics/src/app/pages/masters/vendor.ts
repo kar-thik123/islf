@@ -132,6 +132,12 @@ function toTitleCase(str: string): string {
             </td>
           </tr>
         </ng-template>
+        <!-- 📊 Total Vendors Count -->
+        <ng-template pTemplate="paginatorleft" let-state>
+          <div class="text-sm text-gray-600">
+            Total Vendors: {{ state.totalRecords }}
+          </div>
+        </ng-template>
       </p-table>
     </div>
     <p-dialog
@@ -626,29 +632,105 @@ export class VendorComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadMappedVendorSeriesCode() {
-    this.mappingService.getMapping().subscribe({
-      next: (mapping) => {
-        this.mappedVendorSeriesCode = mapping.vendorCode;
-        if (this.mappedVendorSeriesCode) {
-          this.numberSeriesService.getAll().subscribe({
-            next: (seriesList) => {
-              const found = seriesList.find((s: any) => s.code === this.mappedVendorSeriesCode);
-              this.isManualSeries = !!(found && found.is_manual);
-              console.log('Vendor series code mapped:', this.mappedVendorSeriesCode, 'Manual:', this.isManualSeries);
+  loadMappedVendorSeriesCode(): Promise<void> {
+    return new Promise((resolve) => {
+      const context = this.contextService.getContext();
+      console.log('Loading vendor series code for context:', context);
+      
+      // Try context-based mapping first
+      this.mappingService.findMappingByContext(
+        'vendorCode',
+        context.companyCode || '',
+        context.branchCode || '',
+        context.departmentCode || '',
+        context.serviceType || ''
+      ).subscribe({
+        next: (contextMapping) => {
+          console.log('Context mapping result:', contextMapping);
+          if (contextMapping && contextMapping.mapping) {
+            this.mappedVendorSeriesCode = contextMapping.mapping;
+            this.checkSeriesManualFlag().then(() => {
+              console.log('Vendor series code mapped (context-based):', this.mappedVendorSeriesCode, 'Manual:', this.isManualSeries);
+              resolve();
+            });
+          } else {
+            console.log('No context mapping found, falling back to generic mapping');
+            // Fallback to generic mapping
+            this.mappingService.getMapping().subscribe({
+              next: (mapping) => {
+                console.log('Generic mapping result:', mapping);
+                this.mappedVendorSeriesCode = mapping.vendorCode;
+                if (this.mappedVendorSeriesCode) {
+                  this.checkSeriesManualFlag().then(() => {
+                    console.log('Vendor series code mapped (generic):', this.mappedVendorSeriesCode, 'Manual:', this.isManualSeries);
+                    resolve();
+                  });
+                } else {
+                  this.isManualSeries = false;
+                  console.log('No vendor series code mapped');
+                  resolve();
+                }
+              },
+              error: (error) => {
+                  console.error('Error loading generic mapping:', error);
+                  this.isManualSeries = false;
+                  resolve();
+                }
+            });
+          }
+        },
+        error: (error) => {
+          console.error('Error loading context-based mapping, falling back to generic:', error);
+          // Fallback to generic mapping
+          this.mappingService.getMapping().subscribe({
+            next: (mapping) => {
+              console.log('Generic mapping result (fallback):', mapping);
+              this.mappedVendorSeriesCode = mapping.vendorCode;
+              if (this.mappedVendorSeriesCode) {
+                this.checkSeriesManualFlag().then(() => {
+                  console.log('Vendor series code mapped (generic fallback):', this.mappedVendorSeriesCode, 'Manual:', this.isManualSeries);
+                  resolve();
+                });
+              } else {
+                this.isManualSeries = false;
+                console.log('No vendor series code mapped');
+                resolve();
+              }
             },
             error: (error) => {
-              console.error('Error loading number series:', error);
+              console.error('Error loading generic mapping:', error);
+              this.isManualSeries = false;
+              resolve();
             }
           });
-        } else {
-          this.isManualSeries = false;
-          console.log('No vendor series code mapped');
         }
-      },
-      error: (error) => {
-        console.error('Error loading mapping:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load mapping configuration' });
+      });
+    });
+  }
+
+  private checkSeriesManualFlag(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.mappedVendorSeriesCode) {
+        console.log('Checking series manual flag for code:', this.mappedVendorSeriesCode);
+        this.numberSeriesService.getAll().subscribe({
+          next: (seriesList) => {
+            console.log('Number series list:', seriesList);
+            const found = seriesList.find((s: any) => s.code === this.mappedVendorSeriesCode);
+            console.log('Found series:', found);
+            this.isManualSeries = !!(found && found.is_manual);
+            console.log('Is manual series:', this.isManualSeries);
+            resolve();
+          },
+          error: (error) => {
+            console.error('Error loading number series:', error);
+            this.isManualSeries = false;
+            resolve();
+          }
+        });
+      } else {
+        this.isManualSeries = false;
+        console.log('No mapped vendor series code, setting manual to false');
+        resolve();
       }
     });
   }
@@ -732,8 +814,13 @@ export class VendorComponent implements OnInit, OnDestroy {
       contacts: [],
       isNew: true
     };
-    this.isDialogVisible = true;
-    this.updateBillToVendorNameDefault();
+    
+    // Load the mapped vendor series code to determine if manual series is enabled
+    this.loadMappedVendorSeriesCode().then(() => {
+      // Show the dialog after mapping is complete
+      this.isDialogVisible = true;
+      this.updateBillToVendorNameDefault();
+    });
   }
 
   updateBillToVendorNameDefault() {

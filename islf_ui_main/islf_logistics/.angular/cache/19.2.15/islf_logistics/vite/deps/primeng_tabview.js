@@ -6,12 +6,12 @@ import "./chunk-VTEETGKK.js";
 import {
   Ripple
 } from "./chunk-3UTK36IZ.js";
+import "./chunk-Z7QHAORV.js";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   TimesIcon
 } from "./chunk-RJ5B57QY.js";
-import "./chunk-Z7QHAORV.js";
 import {
   BaseComponent
 } from "./chunk-B5RSUTO6.js";
@@ -102,8 +102,8 @@ import {
   ɵɵtextInterpolate1,
   ɵɵviewQuery
 } from "./chunk-6OPZE6ZR.js";
-import "./chunk-PEBH6BBU.js";
 import "./chunk-WPM5VTLQ.js";
+import "./chunk-PEBH6BBU.js";
 import "./chunk-4S3KYZTJ.js";
 import "./chunk-GOMI4DH3.js";
 

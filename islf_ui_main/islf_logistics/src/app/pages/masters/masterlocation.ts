@@ -13,8 +13,10 @@ import { MessageService } from 'primeng/api';
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
+import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
 import { Country, State, City } from 'country-state-city/lib';
+
 
 @Component({
   selector: 'master-location',
@@ -158,6 +160,12 @@ import { Country, State, City } from 'country-state-city/lib';
               <button pButton type="button" icon="pi pi-pencil" (click)="editRow(loc)" class="p-button-sm"></button>
             </td>
           </tr>
+        </ng-template>
+        <!-- 📊 Total Locations Count -->
+        <ng-template pTemplate="paginatorleft" let-state>
+          <div class="text-sm text-gray-600">
+            Total Locations: {{ state.totalRecords }}
+          </div>
         </ng-template>
       </p-table>
             </p-tabpanel>
@@ -320,7 +328,8 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     private masterLocationService: MasterLocationService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private configService: ConfigService
   ) {}
 
   ngOnInit() {
@@ -349,13 +358,87 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.masterLocationService.getAll().subscribe(data => {
-      this.locations = data;
-      this.updateLocationTypes();
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const locationFilter = config?.validation?.locationFilter || '';
+    
+    // Determine if we should filter by context based on validation settings
+    const filterByContext = locationFilter.includes('Company') || 
+                           locationFilter.includes('Branch') || 
+                           locationFilter.includes('Department');
+    
+    console.log('Location filter:', locationFilter);
+    console.log('Filter by context:', filterByContext);
+    
+    // The BaseMasterService automatically handles context filtering
+    // so we don't need to pass any parameters to getAll()
+    this.masterLocationService.getAll().subscribe({
+      next: (data) => {
+        this.locations = data || [];
+        this.updateLocationTypes();
+        console.log('Locations loaded:', this.locations.length);
+      },
+      error: (error) => {
+        console.error('Error loading locations:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to load locations' 
+        });
+        this.locations = [];
+      }
     });
   }
 
+  // Add to the addRow method:
+  
   addRow() {
+    console.log('Add Location button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const locationFilter = config?.validation?.locationFilter || '';
+    
+    console.log('Location filter:', locationFilter);
+    
+    // Check if we need to validate context
+    if (locationFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+      
+      if (locationFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (locationFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (locationFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+      
+      const contextValid = missingContexts.length === 0;
+      
+      console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
+      
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Location.`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // If validation passes or no validation required, proceed with adding row
     // Set default type based on active tab index
     const defaultType = this.locationTypes.length > 0 ? this.locationTypes[this.activeTabIndex]?.value : '';
     

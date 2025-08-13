@@ -13,6 +13,7 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
+import { ConfigService } from '../../services/config.service';
 
 interface ItemTypeOption {
   key: string;
@@ -131,6 +132,9 @@ interface ItemTypeOption {
             </td>
           </tr>
         </ng-template>
+        <ng-template pTemplate="paginatorleft" let-state>
+          Total Items: {{ state.totalRecords }}
+        </ng-template>
       </p-table>
     </div>
 
@@ -231,7 +235,8 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     private masterItemService: MasterItemService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private configService: ConfigService
   ) {}
 
   ngOnInit() {
@@ -258,12 +263,84 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.masterItemService.getAll().subscribe(data => {
-      this.items = data;
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const itemFilter = config?.validation?.itemFilter || '';
+    
+    // Determine if we should filter by context based on validation settings
+    const filterByContext = itemFilter.includes('Company') || 
+                           itemFilter.includes('Branch') || 
+                           itemFilter.includes('Department');
+    
+    console.log('Item filter:', itemFilter);
+    console.log('Filter by context:', filterByContext);
+    
+    // The BaseMasterService automatically handles context filtering
+    // so we don't need to pass any parameters to getAll()
+    this.masterItemService.getAll().subscribe({
+      next: (data) => {
+        this.items = data || [];
+        console.log('Items loaded:', this.items.length);
+      },
+      error: (error) => {
+        console.error('Error loading items:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to load items' 
+        });
+        this.items = [];
+      }
     });
   }
 
   addRow() {
+    console.log('Add Item button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const itemFilter = config?.validation?.itemFilter || '';
+    
+    console.log('Item filter:', itemFilter);
+    
+    // Check if we need to validate context
+    if (itemFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+      
+      if (itemFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (itemFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (itemFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+      
+      const contextValid = missingContexts.length === 0;
+      
+      console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
+      
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding an Item.`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // If validation passes or no validation required, proceed with adding row
     this.selectedItem = {
       item_type: '',
       code: '',

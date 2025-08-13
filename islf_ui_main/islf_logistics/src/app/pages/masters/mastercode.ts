@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit ,OnDestroy} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -13,9 +13,10 @@ import { Router } from '@angular/router';
 import { MasterCodeService } from '../../services/mastercode.service';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
-import { ContextService } from '@/services/context.service';
+import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
-
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { ContextService } from '../../services/context.service';
 interface PageFieldOption {
   label: string;
   value: string;
@@ -216,6 +217,9 @@ interface PageFieldOption {
   `,
   styles: [],
 })
+// Add imports and implement OnDestroy:
+
+
 export class MasterCodeComponent implements OnInit, OnDestroy {
   masters: any[] = [];
   activeCodes: any[] = [];
@@ -246,82 +250,18 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
     private router: Router,
     private masterService: MasterCodeService,
     private messageService: MessageService,
+    private configService: ConfigService,
     private contextService: ContextService
   ) {}
-
-  // Validation methods
-  validateField(master: any, fieldName: string, value: any): string {
-    switch (fieldName) {
-      case 'code':
-        if (!value || value.toString().trim() === '') {
-          return ' *Code is required';
-        }
-        if (master.isNew && this.isCodeDuplicate(master, value)) {
-          return ' *Code already exists';
-        }
-        break;
-      case 'description':
-        if (!value || value.toString().trim() === '') {
-          return ' *Description is required';
-        }
-        break;
-    }
-    return '';
-  }
-
-  onFieldChange(master: any, fieldName: string, value: any) {
-    const error = this.validateField(master, fieldName, value);
-    if (!this.fieldErrors[master.code || 'new']) {
-      this.fieldErrors[master.code || 'new'] = {};
-    }
-    if (error) {
-      this.fieldErrors[master.code || 'new'][fieldName] = error;
-    } else {
-      delete this.fieldErrors[master.code || 'new'][fieldName];
-    }
-  }
-
-  isCodeDuplicate(master: any, code: string): boolean {
-    if (!master.isNew) return false;
-    const codeValue = code.trim().toLowerCase();
-    return this.masters.some(m => 
-      m !== master && 
-      (m.code || '').trim().toLowerCase() === codeValue
-    );
-  }
-
-  getFieldErrorClass(master: any, fieldName: string): string {
-    const errors = this.fieldErrors[master.code || 'new'];
-    return errors && errors[fieldName] ? 'p-invalid' : '';
-  }
-
-  getFieldErrorStyle(master: any, fieldName: string): { [key: string]: string } {
-    const errors = this.fieldErrors[master.code || 'new'];
-    return errors && errors[fieldName] ? { 'border-color': '#f44336' } : {};
-  }
-
-  getFieldError(master: any, fieldName: string): string {
-    const errors = this.fieldErrors[master.code || 'new'];
-    return errors ? errors[fieldName] || '' : '';
-  }
-
-  isMasterValid(master: any): boolean {
-    const errors = this.fieldErrors[master.code || 'new'];
-    if (!errors) return false;
-    
-    const hasCodeError = errors['code'];
-    const hasDescriptionError = errors['description'];
-    
-    return !hasCodeError && !hasDescriptionError && 
-           master.code && master.code.toString().trim() !== '' &&
-           master.description && master.description.toString().trim() !== '';
-  }
 
   ngOnInit() {
     this.refreshList();
     
     // Subscribe to context changes and reload data when context changes
-    this.contextSubscription = this.contextService.context$.subscribe(() => {
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(() => {
       console.log('Context changed in MasterCodeComponent, reloading data...');
       this.refreshList();
     });
@@ -334,14 +274,40 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.masterService.getMasters().subscribe((res: any) => {
-      this.masters = (res || []).map((item: any) => ({
-        ...item,
-        isEditing: false,
-        isNew: false,
-        reference: item.reference ? item.reference.split(',') : []
-      }));
-      this.activeCodes = this.masters.filter((c: any) => c.status === 'Active');
+    // Get the Validation settings
+    const config = this.configService.getConfig();
+    const masterCodeFilter = config?.validation?.masterCodeFilter || '';
+    
+    // Determine if we should filter by context based on validation settings
+    const filterByContext = masterCodeFilter.includes('Company') || 
+                           masterCodeFilter.includes('Branch') || 
+                           masterCodeFilter.includes('Department');
+    
+    console.log('Master code filter:', masterCodeFilter);
+    console.log('Filter by context:', filterByContext);
+    
+    // The BaseMasterService automatically handles context filtering
+    // so we don't need to pass any parameters to getMasters()
+    this.masterService.getMasters().subscribe({
+      next: (res: any) => {
+        this.masters = (res || []).map((item: any) => ({
+          ...item,
+          isEditing: false,
+          isNew: false,
+          reference: item.reference ? item.reference.split(',') : []
+        }));
+        this.activeCodes = this.masters.filter((c: any) => c.status === 'Active');
+        console.log('Master codes loaded:', this.masters.length);
+      },
+      error: (error) => {
+        console.error('Error loading master codes:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to load master codes' 
+        });
+        this.masters = [];
+      }
     });
   }
 
@@ -349,7 +315,124 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
     return this.activeCodes;
   }
 
+  // Add missing validation methods
+  validateField(master: any, fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'code':
+        if (!value || value.toString().trim() === '') {
+          return 'Code is required';
+        }
+        if (master?.isNew && this.isCodeDuplicate(value)) {
+          return 'Code already exists';
+        }
+        break;
+      case 'description':
+        if (!value || value.toString().trim() === '') {
+          return 'Description is required';
+        }
+        break;
+    }
+    return '';
+  }
+
+  onFieldChange(master: any, fieldName: string, value: any) {
+    const error = this.validateField(master, fieldName, value);
+    const masterKey = master.isNew ? 'new' : master.code;
+    
+    if (!this.fieldErrors[masterKey]) {
+      this.fieldErrors[masterKey] = {};
+    }
+    
+    if (error) {
+      this.fieldErrors[masterKey][fieldName] = error;
+    } else {
+      delete this.fieldErrors[masterKey][fieldName];
+    }
+  }
+
+  isCodeDuplicate(code: string): boolean {
+    const codeValue = code.trim().toLowerCase();
+    return this.masters.some(m => 
+      (m.code || '').trim().toLowerCase() === codeValue && !m.isNew
+    );
+  }
+
+  getFieldErrorClass(master: any, fieldName: string): string {
+    const masterKey = master.isNew ? 'new' : master.code;
+    return this.fieldErrors[masterKey]?.[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(master: any, fieldName: string): { [key: string]: string } {
+    const masterKey = master.isNew ? 'new' : master.code;
+    return this.fieldErrors[masterKey]?.[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
+
+  getFieldError(master: any, fieldName: string): string {
+    const masterKey = master.isNew ? 'new' : master.code;
+    return this.fieldErrors[masterKey]?.[fieldName] || '';
+  }
+
+  isMasterValid(master: any): boolean {
+    const masterKey = master.isNew ? 'new' : master.code;
+    const errors = this.fieldErrors[masterKey] || {};
+    
+    // Check if there are any validation errors
+    if (Object.keys(errors).length > 0) {
+      return false;
+    }
+    
+    // Check required fields
+    return master.code && master.code.trim() !== '' &&
+           master.description && master.description.trim() !== '';
+  }
+
   addRow() {
+    console.log('Add Master Code button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const masterCodeFilter = config?.validation?.masterCodeFilter || '';
+    
+    console.log('Master code filter:', masterCodeFilter);
+    
+    // Check if we need to validate context
+    if (masterCodeFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+      
+      if (masterCodeFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (masterCodeFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (masterCodeFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+      
+      const contextValid = missingContexts.length === 0;
+      
+      console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
+      
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Master Code.`
+        });
+        
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
       code: '',

@@ -2,11 +2,50 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-// Get all master UOMs
+// Get all master UOMs with optional context filtering
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM master_uom ORDER BY code ASC');
-    res.json(result.rows);
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    // If context parameters are provided, filter UOMs by their context
+    if (companyCode || branchCode || departmentCode) {
+      // Filter UOMs by their stored context values
+      let query = `
+        SELECT *
+        FROM master_uom
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      let paramIndex = 1;
+      
+      if (companyCode) {
+        query += ` AND company_code = $${paramIndex}`;
+        params.push(companyCode);
+        paramIndex++;
+      }
+      
+      if (branchCode) {
+        query += ` AND branch_code = $${paramIndex}`;
+        params.push(branchCode);
+        paramIndex++;
+      }
+      
+      if (departmentCode) {
+        query += ` AND department_code = $${paramIndex}`;
+        params.push(departmentCode);
+        paramIndex++;
+      }
+      
+      query += ` ORDER BY code ASC`;
+      
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    } else {
+      // If no context filtering, return all UOMs
+      const result = await pool.query('SELECT * FROM master_uom ORDER BY code ASC');
+      res.json(result.rows);
+    }
   } catch (err) {
     console.error('Error fetching master UOMs:', err);
     res.status(500).json({ error: 'Failed to fetch master UOMs' });
@@ -15,13 +54,15 @@ router.get('/', async (req, res) => {
 
 // Create master UOM
 router.post('/', async (req, res) => {
-  const { uom_type, code, description, active } = req.body;
+  console.log('POST /master_uom - Request body:', JSON.stringify(req.body, null, 2));
+  const { uom_type, code, description, active, company_code, branch_code, department_code } = req.body;
+  console.log('Extracted context values:', { company_code, branch_code, department_code });
   try {
     const result = await pool.query(
-      `INSERT INTO master_uom (uom_type, code, description, active)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO master_uom (uom_type, code, description, active, company_code, branch_code, department_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [uom_type, code, description, active]
+      [uom_type, code, description, active, company_code, branch_code, department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -33,7 +74,7 @@ router.post('/', async (req, res) => {
 // Update master UOM by ID
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { uom_type, code, description, active } = req.body;
+  const { uom_type, code, description, active} = req.body;
   try {
     const result = await pool.query(
       `UPDATE master_uom

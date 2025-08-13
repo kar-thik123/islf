@@ -6,17 +6,15 @@ export class ContextPayloadService {
   constructor() {}
 
   withContext<T extends object>(payload: T, context: UserContext): T & {
-    companyCode?: string;
-    branchCode?: string;
-    departmentCode?: string;
-    serviceType?: string | null;
+    company_code?: string;
+    branch_code?: string;
+    department_code?: string;
   } {
     return {
       ...payload,
-      companyCode: context.companyCode,
-      branchCode: context.branchCode,
-      departmentCode: context.departmentCode,
-      serviceType: context.serviceType
+      company_code: context.companyCode,
+      branch_code: context.branchCode,
+      department_code: context.departmentCode
     };
   }
 }

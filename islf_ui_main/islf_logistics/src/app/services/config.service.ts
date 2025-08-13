@@ -2,6 +2,7 @@ import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { tap, switchMap } from 'rxjs/operators';
+import { ContextService } from './context.service';
 
 export interface SystemConfig {
   maxCompanies: number;
@@ -106,6 +107,18 @@ export interface ValidationConfig {
   customerFilter: string;
   vendorFilter: string;
   vesselFilter: string;
+  uomFilter: string;
+  itemFilter: string;
+  tariffFilter: string;
+  masterCodeFilter: string;
+  masterTypeFilter: string;
+  locationFilter: string;
+  currencyFilter: string;
+  containerFilter: string;
+  gstsetupFilter: string;
+
+    
+
   manualCustomerFilter: string;
 }
 
@@ -223,6 +236,16 @@ export class ConfigService {
       customerFilter: '',
       vendorFilter: '',
       vesselFilter: '',
+      uomFilter: '',
+      itemFilter: '',
+      tariffFilter: '',
+      masterCodeFilter: '',
+      masterTypeFilter: '',
+      locationFilter: '',
+      currencyFilter: '',
+      containerFilter: '',
+      gstsetupFilter: '',
+
       manualCustomerFilter: ''
     }
   };
@@ -253,15 +276,17 @@ export class ConfigService {
     // Get current context to include in the request
     let contextParams = '';
     try {
-      // Try to get ContextService from injector
-      const contextService = this.injector.get('ContextService' as any);
-      const context = contextService?.getContext();
-      if (context && context.companyCode) {
-        const params = new URLSearchParams();
-        if (context.companyCode) params.append('company_code', context.companyCode);
-        if (context.branchCode) params.append('branch_code', context.branchCode);
-        if (context.departmentCode) params.append('department_code', context.departmentCode);
-        contextParams = params.toString() ? '?' + params.toString() : '';
+      // Try to get ContextService from injector, but handle circular dependency
+      const contextService = this.injector.get(ContextService, null);
+      if (contextService) {
+        const context = contextService.getContext();
+        if (context && context.companyCode) {
+          const params = new URLSearchParams();
+          if (context.companyCode) params.append('company_code', context.companyCode);
+          if (context.branchCode) params.append('branch_code', context.branchCode);
+          if (context.departmentCode) params.append('department_code', context.departmentCode);
+          contextParams = params.toString() ? '?' + params.toString() : '';
+        }
       }
     } catch (error) {
       // ContextService might not be available, continue without context
