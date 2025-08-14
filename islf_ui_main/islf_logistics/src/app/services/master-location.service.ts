@@ -22,10 +22,28 @@ export interface MasterLocation {
 export class MasterLocationService {
   private apiUrl = `${environment.apiUrl}/api/master_location`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService
+  ) {}
 
-  getAll(): Observable<MasterLocation[]> {
-    return this.http.get<MasterLocation[]>(this.apiUrl);
+  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
+  getAll(): Observable<any[]> {
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<any[]>(this.apiUrl, { params });
   }
 
   create(data: MasterLocation): Observable<MasterLocation> {
@@ -39,4 +57,4 @@ export class MasterLocationService {
   delete(code: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${code}`);
   }
-} 
+}

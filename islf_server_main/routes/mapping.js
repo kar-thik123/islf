@@ -5,6 +5,7 @@ const router = express.Router();
 // GET mapping (fetch most recent mapping relation)
 router.get('/', async (req, res) => {
   try {
+    
     const result = await pool.query('SELECT * FROM mapping_relations ORDER BY id DESC LIMIT 1');
     if (result.rows.length === 0) {
       // Return default empty mapping if not set
@@ -60,9 +61,13 @@ router.post('/', async (req, res) => {
 });
 
 // GET all mapping relations
+// Update the GET /relations endpoint
 router.get('/relations', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    // Build dynamic query with context filtering
+    let query = `
       SELECT 
         mr.id,
         mr.code_type as "codeType",
@@ -76,8 +81,38 @@ router.get('/relations', async (req, res) => {
       LEFT JOIN branches b ON mr.branch_code = b.code
       LEFT JOIN departments d ON mr.department_code = d.code
       LEFT JOIN service_types st ON mr.service_type_code = st.code
-      ORDER BY mr.id DESC
-    `);
+    `;
+    
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+    
+    // Add context-based filtering
+    if (companyCode) {
+      conditions.push(`mr.company_code = $${paramIndex}`);
+      params.push(companyCode);
+      paramIndex++;
+    }
+    
+    if (branchCode) {
+      conditions.push(`mr.branch_code = $${paramIndex}`);
+      params.push(branchCode);
+      paramIndex++;
+    }
+    
+    if (departmentCode) {
+      conditions.push(`mr.department_code = $${paramIndex}`);
+      params.push(departmentCode);
+      paramIndex++;
+    }
+    
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+    
+    query += ` ORDER BY mr.id DESC`;
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching mapping relations:', err);
@@ -187,4 +222,4 @@ router.get('/find', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

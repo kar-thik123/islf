@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InputTextModule } from 'primeng/inputtext';
 import { Table, TableModule } from 'primeng/table';
@@ -10,6 +10,11 @@ import { DropdownModule } from 'primeng/dropdown';
 import { Router } from '@angular/router';
 import { UserCreateComponent } from './usercreate';
 import { UserService } from '../../../services/user.service';
+import { ConfigService } from '../../../services/config.service';
+import { ContextService } from '../../../services/context.service';
+import { MessageService } from 'primeng/api';
+import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'user-list',
@@ -151,16 +156,44 @@ import { UserService } from '../../../services/user.service';
     </div>
   `
 })
-export class UserListComponent implements OnInit {
+export class UserListComponent implements OnInit, OnDestroy {
   users: any[] = [];
   statuses = [
     { label: 'Active', value: 'Active' },
     { label: 'Inactive', value: 'Inactive' }
   ];
+  
+  private contextSubscription?: Subscription;
 
-  constructor(private router: Router, private userService: UserService) {}
+  constructor(
+    private router: Router, 
+    private userService: UserService,
+    private configService: ConfigService,
+    private contextService: ContextService,
+    private messageService: MessageService
+  ) {}
 
   ngOnInit() {
+    this.refreshUserList();
+    
+    // Subscribe to context changes
+    this.contextSubscription = this.contextService.context$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged()
+      )
+      .subscribe(() => {
+        this.refreshUserList();
+      });
+  }
+  
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
+  }
+  
+  refreshUserList() {
     this.userService.getUsers().subscribe((res) => {
       this.users = res.users || [];
     });
@@ -175,6 +208,51 @@ export class UserListComponent implements OnInit {
   }
 
   navigateToCreateUser() {
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const userListFilter = config?.validation?.userListFilter || '';
+    
+    console.log('User list filter:', userListFilter);
+    
+    // Check if we need to validate context
+    if (userListFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      let contextValid = true;
+      let missingContexts = [];
+      
+      if (userListFilter.includes('C') && !context.companyCode) {
+        contextValid = false;
+        missingContexts.push('Company');
+      }
+      
+      if (userListFilter.includes('B') && !context.branchCode) {
+        contextValid = false;
+        missingContexts.push('Branch');
+      }
+      
+      if (userListFilter.includes('D') && !context.departmentCode) {
+        contextValid = false;
+        missingContexts.push('Department');
+      }
+      
+      if (!contextValid) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} in the context selector.`
+        });
+        
+        // Show the context selector dialog
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
     this.router.navigate(['settings/create_user']);
   }
 

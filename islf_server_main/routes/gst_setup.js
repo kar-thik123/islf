@@ -5,7 +5,37 @@ const router = express.Router();
 // GET all GST rules
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM gst_setup ORDER BY id ASC');
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    let query = `
+      SELECT *
+      FROM gst_setup
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (companyCode) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(companyCode);
+      paramIndex++;
+    }
+    
+    if (branchCode) {
+      query += ` AND branch_code = $${paramIndex}`;
+      params.push(branchCode);
+      paramIndex++;
+    }
+    
+    if (departmentCode) {
+      query += ` AND department_code = $${paramIndex}`;
+      params.push(departmentCode);
+      paramIndex++;
+    }
+    
+    query += ` ORDER BY id ASC`;
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch GST rules' });
@@ -14,14 +44,16 @@ router.get('/', async (req, res) => {
 
 // CREATE new GST rule
 router.post('/', async (req, res) => {
-  const { from, to, sgst, cgst, igst } = req.body;
+  const { from, to, sgst, cgst, igst, company_code, branch_code, department_code } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO gst_setup ("from", "to", sgst, cgst, igst) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [from, to, sgst, cgst, igst]
+      'INSERT INTO gst_setup ("from", "to", sgst, cgst, igst,company_code,branch_code,department_code) VALUES ($1, $2, $3, $4, $5,$6,$7,$8) RETURNING *',
+      [from, to, sgst, cgst, igst,company_code,branch_code,department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error('Error creating GST rule:', err);
+
     res.status(500).json({ error: 'Failed to create GST rule' });
   }
 });
@@ -52,4 +84,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

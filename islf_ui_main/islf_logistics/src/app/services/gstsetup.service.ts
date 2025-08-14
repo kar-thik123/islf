@@ -18,10 +18,28 @@ export interface GstRule {
 export class GstSetupService {
   private apiUrl = `${environment.apiUrl}/api/gst_setup`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService
+  ) {}
 
+  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
   getAll(): Observable<GstRule[]> {
-    return this.http.get<GstRule[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<GstRule[]>(this.apiUrl, { params });
   }
 
   create(data: GstRule): Observable<GstRule> {
@@ -35,4 +53,4 @@ export class GstSetupService {
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
-} 
+}

@@ -12,6 +12,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'master-type',
@@ -305,9 +306,16 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     this.masterCodeService.getMasters().subscribe((codes: any[]) => {
       this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
     });
-    this.contextSubscription = this.contextService.context$.subscribe(() => {
+    
+    // 🔄 Updated context subscription to match UOM pattern
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(() => {
+      console.log('Context changed in MasterTypeComponent, reloading data...');
       this.refreshList();
     });
+    
     this.refreshList();
   }
 
@@ -321,32 +329,8 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     console.log('Refreshing master types list');
     
     try {
-      // Get the validation settings
-      const config = this.configService.getConfig();
-      const masterTypeFilter = config?.validation?.masterTypeFilter || '';
-      
-      console.log('Master Type filter for refresh:', masterTypeFilter);
-      
-      // Check if we need to apply context-based filtering
-      if (masterTypeFilter) {
-        // Get the current context
-        const context = this.contextService.getContext();
-        
-        console.log('Current context for filtering:', context);
-        
-        // Check if the required context is set based on the filter
-        const hasRequiredContext = 
-          (!masterTypeFilter.includes('C') || context.companyCode) &&
-          (!masterTypeFilter.includes('B') || context.branchCode) &&
-          (!masterTypeFilter.includes('D') || context.departmentCode);
-        
-        if (!hasRequiredContext) {
-          console.log('Required context not available for filtering, showing empty list');
-          this.types = [];
-          this.activeTypes = [];
-          return;
-        }
-      }
+      // ❌ Remove this entire context validation block
+      // The backend service should handle context filtering automatically
       
       this.masterTypeService.getAll().subscribe({
         next: (types) => {

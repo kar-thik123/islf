@@ -18,10 +18,28 @@ export interface MasterItem {
 export class MasterItemService {
   private apiUrl = `${environment.apiUrl}/api/master_item`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService
+  ) {}
 
+  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
   getAll(): Observable<MasterItem[]> {
-    return this.http.get<MasterItem[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<MasterItem[]>(this.apiUrl, { params });
   }
 
   create(data: MasterItem): Observable<MasterItem> {

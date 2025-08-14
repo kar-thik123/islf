@@ -233,8 +233,10 @@ router.get('/config', async (req, res) => {
         currencyFilter: config.validation_currency_filter || '',
         containerFilter: config.validation_container_filter || '',
         gstsetupFilter: config.validation_gstsetup_filter || '',
-
-
+        numberSeriesFilter: config.validation_number_series_filter || '',
+        numberSeriesRelationFilter: config.validation_number_series_relation_filter || '',
+        userListFilter: config.validation_user_list_filter || '',
+        mappingFilter: config.validation_mapping_filter || '', // Add this line
       }
     };
     
@@ -375,7 +377,11 @@ router.post('/config', async (req, res) => {
       { key: 'validation_master_code_filter', value: config.validation?.masterCodeFilter || '' },
       { key: 'validation_master_type_filter', value: config.validation?.masterTypeFilter || '' },
       { key: 'validation_tariff_filter', value: config.validation?.tariffFilter || '' },
-      { key: 'validation_item_filter', value: config.validation?.itemFilter || '' }
+      { key: 'validation_item_filter', value: config.validation?.itemFilter || '' },
+      { key: 'validation_number_series_filter', value: config.validation?.numberSeriesFilter || '' },
+      { key: 'validation_number_series_relation_filter', value: config.validation?.numberSeriesRelationFilter || '' },
+      { key: 'validation_user_list_filter', value: config.validation?.userListFilter || '' },
+      { key: 'validation_mapping_filter', value: config.validation?.mappingFilter || '' }, // Add this line
     ];
     
     // Save all settings

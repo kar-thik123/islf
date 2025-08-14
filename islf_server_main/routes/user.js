@@ -26,7 +26,10 @@ router.post('/', async (req, res) => {
     shiftTiming,
     bio,
     avatar,
-    permission
+    permission,
+    company_code,
+    branch_code,
+    department_code
   } = req.body;
 
   // Debug: log received permission
@@ -43,10 +46,10 @@ router.post('/', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (
-        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, created_at
+        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, company_code, branch_code, department_code, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
-      ) RETURNING id, username, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, created_at`,
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW()
+      ) RETURNING *`,
       [
         username,
         hashedPassword,
@@ -68,7 +71,10 @@ router.post('/', async (req, res) => {
         shiftTiming,
         bio,
         avatar, // avatar from frontend, mapped to avatar_url in DB
-        permission
+        permission,
+        company_code,
+        branch_code,
+        department_code
       ]
     );
     res.status(201).json({ user: result.rows[0] });
@@ -79,16 +85,39 @@ router.post('/', async (req, res) => {
       console.error('Database error:', err); // 👈 for debugging
       res.status(500).json({ message: 'Database error', error: err });
     }
-    
   }
 });
 
 // Get all users
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT id, full_name, employee_id, designation, joining_date, status, bio, permission FROM users`
-    );
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    let query = `SELECT id, full_name, employee_id, designation, joining_date, status, bio, permission FROM users`;
+    let queryParams = [];
+    let whereConditions = [];
+    
+    // Add context-based filtering
+    if (companyCode) {
+      whereConditions.push(`company_code = $${queryParams.length + 1}`);
+      queryParams.push(companyCode);
+    }
+    
+    if (branchCode) {
+      whereConditions.push(`branch_code = $${queryParams.length + 1}`);
+      queryParams.push(branchCode);
+    }
+    
+    if (departmentCode) {
+      whereConditions.push(`department_code = $${queryParams.length + 1}`);
+      queryParams.push(departmentCode);
+    }
+    
+    if (whereConditions.length > 0) {
+      query += ` WHERE ${whereConditions.join(' AND ')}`;
+    }
+    
+    const result = await pool.query(query, queryParams);
     const users = result.rows.map(user => ({
       id: user.id,
       full_name: user.full_name,
@@ -234,4 +263,4 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

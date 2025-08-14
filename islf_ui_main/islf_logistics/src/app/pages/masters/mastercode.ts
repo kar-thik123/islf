@@ -274,20 +274,9 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    // Get the Validation settings
-    const config = this.configService.getConfig();
-    const masterCodeFilter = config?.validation?.masterCodeFilter || '';
+    console.log('Refreshing master codes list...');
     
-    // Determine if we should filter by context based on validation settings
-    const filterByContext = masterCodeFilter.includes('Company') || 
-                           masterCodeFilter.includes('Branch') || 
-                           masterCodeFilter.includes('Department');
-    
-    console.log('Master code filter:', masterCodeFilter);
-    console.log('Filter by context:', filterByContext);
-    
-    // The BaseMasterService automatically handles context filtering
-    // so we don't need to pass any parameters to getMasters()
+    // The service now handles context filtering automatically
     this.masterService.getMasters().subscribe({
       next: (res: any) => {
         this.masters = (res || []).map((item: any) => ({

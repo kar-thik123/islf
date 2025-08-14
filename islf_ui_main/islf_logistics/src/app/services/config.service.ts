@@ -116,9 +116,10 @@ export interface ValidationConfig {
   currencyFilter: string;
   containerFilter: string;
   gstsetupFilter: string;
-
-    
-
+  numberSeriesFilter: string;
+  numberSeriesRelationFilter: string;
+  userListFilter: string;
+  mappingFilter: string; // Add this line
   manualCustomerFilter: string;
 }
 
@@ -245,7 +246,10 @@ export class ConfigService {
       currencyFilter: '',
       containerFilter: '',
       gstsetupFilter: '',
-
+      numberSeriesFilter: '',
+      numberSeriesRelationFilter: '',
+      userListFilter: '',
+      mappingFilter: '', // Add this line
       manualCustomerFilter: ''
     }
   };

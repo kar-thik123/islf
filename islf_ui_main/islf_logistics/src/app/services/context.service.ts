@@ -48,7 +48,7 @@ export class ContextService {
 
   setContext(ctx: UserContext) {
     console.log('Setting context:', ctx);
-    this.context = ctx;
+    this.context = ctx; // This completely replaces the old context
     sessionStorage.setItem(this.storageKey, JSON.stringify(ctx));
     
     // Emit the new context to all subscribers

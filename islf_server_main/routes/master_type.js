@@ -5,7 +5,37 @@ const router = express.Router();
 // Get all master types
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM master_type ORDER BY id DESC');
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    let query = `
+      SELECT *
+      FROM master_type
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (companyCode) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(companyCode);
+      paramIndex++;
+    }
+    
+    if (branchCode) {
+      query += ` AND branch_code = $${paramIndex}`;
+      params.push(branchCode);
+      paramIndex++;
+    }
+    
+    if (departmentCode) {
+      query += ` AND department_code = $${paramIndex}`;
+      params.push(departmentCode);
+      paramIndex++;
+    }
+    
+    query += ` ORDER BY key ASC`;
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch master types' });
@@ -25,11 +55,12 @@ router.get('/:id', async (req, res) => {
 
 // Create master type
 router.post('/', async (req, res) => {
-  const { key, value, description, status } = req.body;
+  const { key, value, description, status ,company_code,branch_code,department_code} = req.body;
+
   try {
     const result = await pool.query(
-      'INSERT INTO master_type (key, value, description, status) VALUES ($1, $2, $3, $4) RETURNING *',
-      [key, value, description, status]
+      'INSERT INTO master_type (key, value, description, status,company_code,branch_code,department_code) VALUES ($1, $2, $3, $4,$5,$6,$7) RETURNING *',
+      [key, value, description, status,company_code,branch_code,department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -64,4 +95,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

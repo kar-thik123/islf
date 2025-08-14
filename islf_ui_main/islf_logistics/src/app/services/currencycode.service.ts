@@ -9,10 +9,28 @@ import { ContextService } from './context.service';
 export class CurrencyCodeService {
   private apiUrl = `${environment.apiUrl}/api/currency_code`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService
+  ) {}
 
+  // 🔄 Updated getCurrencies method to match UOM pattern (unconditional context sending)
   getCurrencies(): Observable<any> {
-    return this.http.get<any>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<any>(this.apiUrl, { params });
   }
 
   createCurrency(data: any): Observable<any> {

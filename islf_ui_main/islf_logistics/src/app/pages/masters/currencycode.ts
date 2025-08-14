@@ -214,33 +214,8 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
     console.log('Refreshing currency codes list');
     
     try {
-      // Get the validation settings
-      const config = this.configService.getConfig();
-      const currencyFilter = config?.validation?.currencyFilter || '';
+      // ❌ Remove context validation block
       
-      console.log('Currency filter for refresh:', currencyFilter);
-      
-      // Check if we need to apply context-based filtering
-      if (currencyFilter) {
-        // Get the current context
-        const context = this.contextService.getContext();
-        
-        console.log('Current context for filtering:', context);
-        
-        // Check if the required context is set based on the filter
-        const hasRequiredContext = 
-          (!currencyFilter.includes('C') || context.companyCode) &&
-          (!currencyFilter.includes('B') || context.branchCode) &&
-          (!currencyFilter.includes('D') || context.departmentCode);
-        
-        if (!hasRequiredContext) {
-          console.log('Required context not available for filtering, showing empty list');
-          this.currencies = [];
-          return;
-        }
-      }
-      
-      // The BaseMasterService automatically handles context filtering
       this.currencyService.getCurrencies().subscribe({
         next: (res: any) => {
           this.currencies = (res || []).map((item: any) => ({

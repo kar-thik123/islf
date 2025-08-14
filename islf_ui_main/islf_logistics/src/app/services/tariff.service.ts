@@ -30,10 +30,28 @@ export interface Tariff {
 export class TariffService {
   private baseUrl = '/api/tariff';
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService
+  ) {}
 
+  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
   getAll(): Observable<Tariff[]> {
-    return this.http.get<Tariff[]>(this.baseUrl);
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<Tariff[]>(this.baseUrl, { params });
   }
 
   create(tariff: Tariff): Observable<Tariff> {
@@ -43,4 +61,4 @@ export class TariffService {
   update(id: number, tariff: Tariff): Observable<Tariff> {
     return this.http.put<Tariff>(`${this.baseUrl}/${id}`, this.contextPayload.withContext(tariff, this.contextService.getContext()));
   }
-} 
+}

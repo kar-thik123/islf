@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 import { map } from 'rxjs/operators';
 
 export interface NumberSeries {
@@ -23,10 +24,33 @@ export interface NumberSeries {
 export class NumberSeriesService {
   private apiUrl = `${environment.apiUrl}/api/number_series`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService , private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) {}
 
+  // Updated getAll method with context-based filtering
   getAll(): Observable<NumberSeries[]> {
-    return this.http.get<NumberSeries[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const numberSeriesFilter = config?.validation?.numberSeriesFilter || '';
+    
+    let params: any = {};
+    
+    // Only send context parameters based on the validation/filter settings
+    if (numberSeriesFilter.includes('C') && context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (numberSeriesFilter.includes('B') && context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (numberSeriesFilter.includes('D') && context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<NumberSeries[]>(this.apiUrl, { params });
   }
 
   getById(id: number): Observable<NumberSeries> {

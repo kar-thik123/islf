@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit, ViewChild } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule, Table } from 'primeng/table';
@@ -13,10 +13,13 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { NumberSeriesRelationService, NumberSeriesRelation } from '@/services/number-series-relation.service';
 import { ConfigService } from '@/services/config.service';
+import { ContextService } from '@/services/context.service';
 import { ConfigDatePipe } from '@/pipes/config-date.pipe';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputSwitchModule } from 'primeng/inputswitch';
+import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-number-series-relation',
@@ -310,7 +313,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     }
   `]
 })
-export class NumberSeriesRelationComponent implements OnInit {
+export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
   relationList = signal<NumberSeriesRelation[]>([]);
   searchTerm = '';
   displayDialog = false;
@@ -318,6 +321,8 @@ export class NumberSeriesRelationComponent implements OnInit {
   numberSeriesCodes: { label: string, value: string }[] = [];
   filterFields: string[] = ['numberSeries', 'prefix'];
   @ViewChild('dt') dt!: Table;
+  
+  private contextSubscription?: Subscription;
 
   // Computed property to check if a relation is stopped due to end date
   isExpired = (relation: NumberSeriesRelation): boolean => {
@@ -372,7 +377,8 @@ export class NumberSeriesRelationComponent implements OnInit {
     private confirmationService: ConfirmationService,
     private location: Location,
     private numberSeriesRelationService: NumberSeriesRelationService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private contextService: ContextService
   ) {}
 
   ngOnInit() {
@@ -380,6 +386,22 @@ export class NumberSeriesRelationComponent implements OnInit {
     this.numberSeriesRelationService.getNumberSeriesCodes().subscribe(codes => {
       this.numberSeriesCodes = codes;
     });
+    
+    // Subscribe to context changes
+    this.contextSubscription = this.contextService.context$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged()
+      )
+      .subscribe(() => {
+        this.refreshList();
+      });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   refreshList() {
@@ -391,6 +413,37 @@ export class NumberSeriesRelationComponent implements OnInit {
   }
 
   addRow() {
+    // Check context validation based on numberSeriesRelationFilter
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.numberSeriesRelationFilter || '';
+    const context = this.contextService.getContext();
+    
+    if (filter) {
+      const missingContext = [];
+      
+      if (filter.includes('C') && !context.companyCode) {
+        missingContext.push('Company');
+      }
+      if (filter.includes('B') && !context.branchCode) {
+        missingContext.push('Branch');
+      }
+      if (filter.includes('D') && !context.departmentCode) {
+        missingContext.push('Department');
+      }
+      
+      if (missingContext.length > 0) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: `Please select ${missingContext.join(', ')} before adding a number series relation.`
+        });
+        
+        // Show context selector
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
     this.selectedRow = {
       id: 0,
       numberSeries: '',

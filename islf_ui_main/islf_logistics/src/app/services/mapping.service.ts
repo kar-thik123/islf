@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service'; // Add this
 
 export interface Mapping {
   customerCode: string | null;
@@ -41,7 +42,12 @@ export interface MappingRelationCreate {
 export class MappingService {
   private apiUrl = `${environment.apiUrl}/api/mapping`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService,
+    private configService: ConfigService // Add this
+  ) {}
 
   getMapping(): Observable<Mapping> {
     return this.http.get<Mapping>(this.apiUrl);
@@ -52,8 +58,29 @@ export class MappingService {
   }
 
   // Mapping Relations CRUD operations
+  // Update getMappingRelations to include context-based filtering
   getMappingRelations(): Observable<MappingRelation[]> {
-    return this.http.get<MappingRelation[]>(`${this.apiUrl}/relations`);
+    // Get filter configuration
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.mappingFilter || '';
+    const context = this.contextService.getContext();
+    
+    let params = new HttpParams();
+    
+    // Add context parameters based on filter configuration
+    if (filter) {
+      if (filter.includes('C') && context.companyCode) {
+        params = params.set('companyCode', context.companyCode);
+      }
+      if (filter.includes('B') && context.branchCode) {
+        params = params.set('branchCode', context.branchCode);
+      }
+      if (filter.includes('D') && context.departmentCode) {
+        params = params.set('departmentCode', context.departmentCode);
+      }
+    }
+    
+    return this.http.get<MappingRelation[]>(`${this.apiUrl}/relations`, { params });
   }
 
   createMappingRelation(relation: MappingRelationCreate): Observable<MappingRelation> {

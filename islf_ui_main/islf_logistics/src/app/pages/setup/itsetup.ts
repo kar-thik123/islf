@@ -15,6 +15,7 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService, AppConfig } from '../../services/config.service';
+import { map } from 'rxjs';
 
 // Define DocumentPaths interface
 interface DocumentPaths {
@@ -784,9 +785,51 @@ interface DocumentPaths {
                    optionValue="value"
                   placeholder="Select Item filter"
                   class="w-full">
-                  </p-dropdown>
-                    
+                  </p-dropdown>   
                   </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Number Series:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.numberSeriesFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Number Series filter"
+                  class="w-full">
+                  </p-dropdown>
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Number Series Relation:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.numberSeriesRelationFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Number Series Relation filter"
+                  class="w-full">
+                  </p-dropdown>
+                  </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Mapping:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.mappingFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Mapping filter"
+                  class="w-full">
+                  </p-dropdown>
+                  </div>
+
+                  <div>
+                  <label class="block mb-2 font-medium">User List:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.userListFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select User List filter"
+                  class="w-full">
+                  </p-dropdown>
+                  </div>
+
+
               </div>
               
             </p-card>
@@ -948,6 +991,12 @@ export class ITSetupComponent implements OnInit {
     currencyFilter:'',
     containerFilter:'',
     gstsetupFilter:'',
+    numberSeriesFilter:'',
+    numberSeriesRelationFilter:'',
+    userListFilter:'',
+    mappingFilter:'',
+
+
 
     manualCustomerFilter: ''
   };

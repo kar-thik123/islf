@@ -263,20 +263,9 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    // Get the Validation settings
-    const config = this.configService.getConfig();
-    const itemFilter = config?.validation?.itemFilter || '';
+    console.log('Refreshing items list');
     
-    // Determine if we should filter by context based on validation settings
-    const filterByContext = itemFilter.includes('Company') || 
-                           itemFilter.includes('Branch') || 
-                           itemFilter.includes('Department');
-    
-    console.log('Item filter:', itemFilter);
-    console.log('Filter by context:', filterByContext);
-    
-    // The BaseMasterService automatically handles context filtering
-    // so we don't need to pass any parameters to getAll()
+    // ❌ Remove context validation - let backend handle filtering
     this.masterItemService.getAll().subscribe({
       next: (data) => {
         this.items = data || [];

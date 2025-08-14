@@ -2,10 +2,38 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-// Get all number series relations
+// Get all number series relations with context-based filtering
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM number_relation ORDER BY id DESC');
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    let query = 'SELECT * FROM number_relation';
+    const queryParams = [];
+    const conditions = [];
+    
+    // Add context-based filtering
+    if (companyCode) {
+      conditions.push(`company_code = $${queryParams.length + 1}`);
+      queryParams.push(companyCode);
+    }
+    
+    if (branchCode) {
+      conditions.push(`branch_code = $${queryParams.length + 1}`);
+      queryParams.push(branchCode);
+    }
+    
+    if (departmentCode) {
+      conditions.push(`department_code = $${queryParams.length + 1}`);
+      queryParams.push(departmentCode);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY id DESC';
+    
+    const result = await pool.query(query, queryParams);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching number series relations:', err);
@@ -35,7 +63,10 @@ router.post('/', async (req, res) => {
     endingDate,
     prefix,
     lastNoUsed,
-    incrementBy
+    incrementBy,
+    company_code,
+    branch_code,
+    department_code
   } = req.body;
 
   // Validate mutual exclusivity
@@ -44,9 +75,12 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    // Fetch the first company code from companies table
-    const companyResult = await pool.query('SELECT code FROM companies LIMIT 1');
-    const company_code = companyResult.rows[0]?.code || null;
+    // Get default company code if not provided
+    let finalCompanyCode = company_code;
+    if (!finalCompanyCode) {
+      const companyResult = await pool.query('SELECT code FROM companies LIMIT 1');
+      finalCompanyCode = companyResult.rows[0]?.code || null;
+    }
     
     // Handle date conversion for proper timezone storage
     let processedStartingDate = startingDate;
@@ -57,20 +91,19 @@ router.post('/', async (req, res) => {
     }
     
     if (endingDate) {
-      // Ensure the date is stored in UTC
       const date = new Date(endingDate);
       processedEndingDate = date.toISOString();
     }
 
-    // Handle ending_no constraint - if ending date is set, set ending_no to 0 instead of null
+    // Handle ending_no constraint
     let finalEndingNo = endingNo;
     if (endingDate && !endingNo) {
-      finalEndingNo = 0; // Use 0 instead of null to satisfy NOT NULL constraint
+      finalEndingNo = 0;
     }
     
     const result = await pool.query(
-      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, ending_date, prefix, last_no_used, increment_by, company_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, company_code]
+      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, ending_date, prefix, last_no_used, increment_by, company_code, branch_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, branch_code, department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -90,10 +123,12 @@ router.put('/:id', async (req, res) => {
     prefix,
     lastNoUsed,
     incrementBy,
-    company_code
+    company_code,
+    branch_code,
+    department_code
   } = req.body;
 
-  console.log('Update request body:', req.body); // Debug logging
+  console.log('Update request body:', req.body);
 
   // Validate mutual exclusivity
   if (endingNo && endingDate) {
@@ -110,7 +145,6 @@ router.put('/:id', async (req, res) => {
     }
     
     if (endingDate) {
-      // Ensure the date is stored in UTC
       const date = new Date(endingDate);
       processedEndingDate = date.toISOString();
     }
@@ -122,28 +156,15 @@ router.put('/:id', async (req, res) => {
       finalCompanyCode = companyResult.rows[0]?.code || null;
     }
 
-    // Handle ending_no constraint - if ending date is set, set ending_no to 0 instead of null
+    // Handle ending_no constraint
     let finalEndingNo = endingNo;
     if (endingDate && !endingNo) {
-      finalEndingNo = 0; // Use 0 instead of null to satisfy NOT NULL constraint
+      finalEndingNo = 0;
     }
     
-    console.log('Processed data:', {
-      numberSeries,
-      processedStartingDate,
-      startingNo,
-      finalEndingNo,
-      processedEndingDate,
-      prefix,
-      lastNoUsed,
-      incrementBy,
-      finalCompanyCode,
-      id: req.params.id
-    });
-
     const result = await pool.query(
-      'UPDATE number_relation SET number_series = $1, starting_date = $2, starting_no = $3, ending_no = $4, ending_date = $5, prefix = $6, last_no_used = $7, increment_by = $8, company_code = $9 WHERE id = $10 RETURNING *',
-      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, req.params.id]
+      'UPDATE number_relation SET number_series = $1, starting_date = $2, starting_no = $3, ending_no = $4, ending_date = $5, prefix = $6, last_no_used = $7, increment_by = $8, company_code = $9, branch_code = $10, department_code = $11 WHERE id = $12 RETURNING *',
+      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, branch_code, department_code, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
@@ -210,4 +231,4 @@ router.get('/debug/record/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

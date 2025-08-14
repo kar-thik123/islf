@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit, ViewChild } from '@angular/core';
+import { Component, signal, computed, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
@@ -18,6 +18,11 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputSwitchModule } from 'primeng/inputswitch';
+// Add these new imports
+import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { ContextService } from '../../services/context.service';
+import { ConfigService } from '../../services/config.service';
 
 
 interface NumberSeries {
@@ -258,21 +263,42 @@ interface NumberSeries {
     </div>
   `
 })
-export class NumberSeriesComponent implements OnInit {
+export class NumberSeriesComponent implements OnInit, OnDestroy {
   seriesList = signal<NumberSeries[]>([]);
   searchTerm = '';
   filterFields: string[] = ['code', 'description', 'basecode'];
   @ViewChild('dt') dt!: Table;
+  
+  // Add context subscription property
+  private contextSubscription?: Subscription;
 
   constructor(
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private location: Location,
-    private numberSeriesService: NumberSeriesService
+    private numberSeriesService: NumberSeriesService,
+    // Add these new services
+    private contextService: ContextService,
+    private configService: ConfigService
   ) {}
 
   ngOnInit() {
     this.refreshList();
+    
+    // Subscribe to context changes and reload data when context changes
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(() => {
+      console.log('Context changed in NumberSeriesComponent, reloading data...');
+      this.refreshList();
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) {
+      this.contextSubscription.unsubscribe();
+    }
   }
 
   refreshList() {
@@ -296,6 +322,47 @@ export class NumberSeriesComponent implements OnInit {
   }
 
   addRow() {
+    console.log('Add Number Series button clicked - starting addRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const numberSeriesFilter = config?.validation?.numberSeriesFilter || '';
+    
+    console.log('Number Series filter:', numberSeriesFilter);
+    
+    // Check if we need to validate context
+    if (numberSeriesFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+      
+      if (numberSeriesFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (numberSeriesFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (numberSeriesFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+      
+      if (missingContexts.length > 0) {
+        console.log('Missing contexts:', missingContexts);
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} before adding a new number series.`
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    // Proceed with adding new row if context validation passes
     const newRow: NumberSeries = {
       code: '',
       description: '',

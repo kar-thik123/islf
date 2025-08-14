@@ -5,7 +5,37 @@ const router = express.Router();
 // GET all currency codes
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM currency_code ORDER BY code ASC');
+    const { companyCode, branchCode, departmentCode } = req.query;
+    
+    let query = `
+      SELECT *
+      FROM currency_code
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (companyCode) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(companyCode);
+      paramIndex++;
+    }
+    
+    if (branchCode) {
+      query += ` AND branch_code = $${paramIndex}`;
+      params.push(branchCode);
+      paramIndex++;
+    }
+    
+    if (departmentCode) {
+      query += ` AND department_code = $${paramIndex}`;
+      params.push(departmentCode);
+      paramIndex++;
+    }
+    
+    query += ` ORDER BY code ASC`;
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch currency codes' });
@@ -25,11 +55,12 @@ router.get('/:code', async (req, res) => {
 
 // CREATE new currency code
 router.post('/', async (req, res) => {
-  const { code, description, status } = req.body;
+  const { code, description, status ,company_code,branch_code,department_code } = req.body;
+
   try {
     const result = await pool.query(
-      'INSERT INTO currency_code (code, description, status) VALUES ($1, $2, $3) RETURNING *',
-      [code, description, status || 'Active']
+      'INSERT INTO currency_code (code, description, status,company_code,branch_code,department_code) VALUES ($1, $2, $3,$4,$5,$6) RETURNING *',
+      [code, description, status || 'Active',company_code,branch_code,department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -63,4 +94,4 @@ router.delete('/:code', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

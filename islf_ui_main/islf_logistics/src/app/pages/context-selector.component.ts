@@ -162,12 +162,12 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   }
  
   saveContext(): void {
-    if (!this.selectedCompany ) {
+    if (!this.selectedCompany) {
       return;
     }
     
-    // Clear previous context before setting new one
-    this.contextService.clearContext();
+    // ❌ Remove this line - it's causing the double emission
+    // this.contextService.clearContext();
     
     const ctx: UserContext = {
       companyCode: this.selectedCompany,
@@ -176,6 +176,8 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
       serviceType: this.selectedServiceType || null
     };
     console.log('Saving context in selector:', ctx);
+    
+    // ✅ Just set the new context directly
     this.contextService.setContext(ctx);
     this.contextSet.emit(ctx);
     this.visible = false;

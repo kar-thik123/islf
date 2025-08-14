@@ -121,7 +121,7 @@ import { ConfigService } from '../../services/config.service';
     >
       <ng-template pTemplate="content">
         <div *ngIf="selectedTariff" class="p-fluid form-grid dialog-body-padding">
-          <div class="grid-container" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
+          <div class="grid-container">
             <div class="grid-item">
               <label>Code <span class="text-red-500">*</span></label>
               <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')"/>
@@ -313,7 +313,75 @@ import { ConfigService } from '../../services/config.service';
         <master-uom></master-uom>
       </ng-template>
     </p-dialog>
-  `
+  `,
+  styles: [`
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      padding: 1rem;
+    }
+    
+    .grid-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .grid-item label {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+      color: #374151;
+    }
+    
+    .grid-item .flex {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .grid-item .flex-1 {
+      flex: 1;
+    }
+    
+    .grid-item p-dropdown,
+    .grid-item input,
+    .grid-item p-calendar {
+      width: 100%;
+    }
+    
+    .grid-item .p-error {
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+    }
+    
+    .dialog-body-padding {
+      padding: 0;
+    }
+    
+    .p-button-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+    }
+    
+    .text-red-500 {
+      color: #ef4444;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 1200px) {
+      .grid-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+  `]
 })
 export class TariffComponent implements OnInit, OnDestroy {
   private contextSubscription: Subscription | undefined;
@@ -595,40 +663,9 @@ export class TariffComponent implements OnInit, OnDestroy {
   refreshList() {
     console.log('Refreshing tariff list - starting refreshList method');
     
-    // Get the validation settings for context-based filtering
-    const config = this.configService.getConfig();
-    const tariffFilter = config?.validation?.tariffFilter || '';
+    // ❌ Remove context validation block
     
-    console.log('Tariff filter:', tariffFilter);
-    
-    // Check if we need to validate context for filtering
-    if (tariffFilter) {
-      // Get the current context
-      const context = this.contextService.getContext();
-      
-      console.log('Current context for filtering:', context);
-      
-      // Check if the required context is set based on the filter
-      if (tariffFilter.includes('C') && !context.companyCode) {
-        console.log('Company context required but not set - showing empty list');
-        this.tariffs = [];
-        return;
-      }
-      
-      if (tariffFilter.includes('B') && !context.branchCode) {
-        console.log('Branch context required but not set - showing empty list');
-        this.tariffs = [];
-        return;
-      }
-      
-      if (tariffFilter.includes('D') && !context.departmentCode) {
-        console.log('Department context required but not set - showing empty list');
-        this.tariffs = [];
-        return;
-      }
-    }
-    
-    // Proceed with fetching data if context validation passes
+    // Proceed with fetching data
     this.tariffService.getAll().subscribe({
       next: (data) => {
         console.log('Tariff data loaded successfully:', data.length, 'records');

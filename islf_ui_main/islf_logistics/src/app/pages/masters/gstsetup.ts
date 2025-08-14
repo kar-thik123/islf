@@ -9,6 +9,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { MasterLocationService } from '@/services/master-location.service';
+import { GstSetupService } from '@/services/gstsetup.service';
 import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
@@ -151,6 +152,7 @@ export class GstSetupComponent implements OnInit, OnDestroy {
   constructor(
     private messageService: MessageService,
     private masterLocationService: MasterLocationService,
+    private gstSetupService: GstSetupService,
     private configService: ConfigService,
     private contextService: ContextService
   ) {}
@@ -178,33 +180,29 @@ export class GstSetupComponent implements OnInit, OnDestroy {
     console.log('Refreshing GST setup list');
     
     try {
-      // Get the validation settings
-      const config = this.configService.getConfig();
-      const gstsetupFilter = config?.validation?.gstsetupFilter || '';
+      // ❌ Remove context validation block
       
-      console.log('GST Setup filter for refresh:', gstsetupFilter);
-      
-      // Check if we need to apply context-based filtering
-      if (gstsetupFilter) {
-        // Get the current context
-        const context = this.contextService.getContext();
-        
-        console.log('Current context for filtering:', context);
-        
-        // Check if the required context is set based on the filter
-        const hasRequiredContext = 
-          (!gstsetupFilter.includes('C') || context.companyCode) &&
-          (!gstsetupFilter.includes('B') || context.branchCode) &&
-          (!gstsetupFilter.includes('D') || context.departmentCode);
-        
-        if (!hasRequiredContext) {
-          console.log('Required context not available for filtering, showing empty list');
-          this.locationOptions = [];
-          this.gstRules.set([]);
-          return;
+      // Load GST rules from database
+      this.gstSetupService.getAll().subscribe({
+        next: (rules) => {
+          this.gstRules.set((rules || []).map((rule: any) => ({
+            ...rule,
+            isEditing: false,
+            isNew: false
+          })));
+          console.log('GST rules loaded successfully:', rules.length);
+        },
+        error: (error) => {
+          console.error('Error loading GST rules:', error);
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to load GST rules' 
+          });
         }
-      }
+      });
       
+      // Load GST locations for dropdowns
       this.masterLocationService.getAll().subscribe({
         next: (locations) => {
           const gstLocations = locations.filter(l => l.type === 'GST_LOCATION' && l.active);
@@ -300,14 +298,99 @@ export class GstSetupComponent implements OnInit, OnDestroy {
       this.onFieldChange(rule, 'to', rule.to);
     }
     if (!this.isValid(rule)) return;
-    rule.isEditing = false;
-    rule.isNew = false;
-    this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'GST Rule saved' });
+    
+    if (rule.isNew) {
+      // Create new GST rule
+      const newRule = {
+        from: rule.from,
+        to: rule.to,
+        sgst: rule.sgst || false,
+        cgst: rule.cgst || false,
+        igst: rule.igst || false
+      };
+      
+      this.gstSetupService.create(newRule).subscribe({
+        next: (created) => {
+          console.log('GST rule created successfully:', created);
+          this.messageService.add({ 
+            severity: 'success', 
+            summary: 'Saved', 
+            detail: 'GST Rule saved successfully' 
+          });
+          this.refreshList(); // Reload the list to get the updated data
+        },
+        error: (error) => {
+          console.error('Error creating GST rule:', error);
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to save GST rule' 
+          });
+        }
+      });
+    } else {
+      // Update existing GST rule
+      const updateRule = {
+        from: rule.from,
+        to: rule.to,
+        sgst: rule.sgst || false,
+        cgst: rule.cgst || false,
+        igst: rule.igst || false
+      };
+      
+      this.gstSetupService.update(rule.id!, updateRule).subscribe({
+        next: (updated) => {
+          console.log('GST rule updated successfully:', updated);
+          this.messageService.add({ 
+            severity: 'success', 
+            summary: 'Updated', 
+            detail: 'GST Rule updated successfully' 
+          });
+          this.refreshList(); // Reload the list to get the updated data
+        },
+        error: (error) => {
+          console.error('Error updating GST rule:', error);
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to update GST rule' 
+          });
+        }
+      });
+    }
   }
 
   deleteRow(rule: GstRule) {
-    this.gstRules.set(this.gstRules().filter(r => r !== rule));
-    this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'GST Rule deleted' });
+    if (rule.id) {
+      // Delete from database
+      this.gstSetupService.delete(rule.id).subscribe({
+        next: () => {
+          console.log('GST rule deleted successfully');
+          this.messageService.add({ 
+            severity: 'success', 
+            summary: 'Deleted', 
+            detail: 'GST Rule deleted successfully' 
+          });
+          this.refreshList(); // Reload the list
+        },
+        error: (error) => {
+          console.error('Error deleting GST rule:', error);
+          this.messageService.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to delete GST rule' 
+          });
+        }
+      });
+    } else {
+      // Remove from UI only (for new unsaved rows)
+      this.gstRules.set(this.gstRules().filter(r => r !== rule));
+      this.messageService.add({ 
+        severity: 'success', 
+        summary: 'Deleted', 
+        detail: 'GST Rule removed' 
+      });
+    }
   }
 
   clear(table: Table) {

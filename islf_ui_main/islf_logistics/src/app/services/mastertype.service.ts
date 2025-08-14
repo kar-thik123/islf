@@ -9,10 +9,28 @@ import { ContextService } from './context.service';
 export class MasterTypeService {
   private apiUrl = `${environment.apiUrl}/api/master_type`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService
+  ) {}
 
+  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
   getAll(): Observable<any[]> {
-    return this.http.get<any[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<any[]>(this.apiUrl, { params });
   }
 
   create(type: any): Observable<any> {

@@ -5,8 +5,45 @@ const router = express.Router();
 // GET all master items
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM master_item ORDER BY id ASC');
-    res.json(result.rows);
+     const { companyCode, branchCode, departmentCode } = req.query;
+    
+    // If context parameters are provided, filter by their context
+    if (companyCode || branchCode || departmentCode) {
+      let query = `
+        SELECT *
+        FROM master_item
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      let paramIndex = 1;
+      
+      if (companyCode) {
+        query += ` AND company_code = $${paramIndex}`;
+        params.push(companyCode);
+        paramIndex++;
+      }
+      
+      if (branchCode) {
+        query += ` AND branch_code = $${paramIndex}`;
+        params.push(branchCode);
+        paramIndex++;
+      }
+      
+      if (departmentCode) {
+        query += ` AND department_code = $${paramIndex}`;
+        params.push(departmentCode);
+        paramIndex++;
+      }
+      
+      query += ` ORDER BY code ASC`;
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    } else {
+      // If no context, return all items
+      const result = await pool.query('SELECT * FROM master_item ORDER BY id ASC');
+      res.json(result.rows);
+    }
   } catch (err) {
     console.error('Error fetching master items:', err);
     res.status(500).json({ error: 'Failed to fetch master items' });
@@ -15,13 +52,14 @@ router.get('/', async (req, res) => {
 
 // CREATE new master item
 router.post('/', async (req, res) => {
-  const { item_type, code, name, hs_code, active } = req.body;
+  const { item_type, code, name, hs_code, active,company_code,branch_code,department_code } = req.body;
+
   try {
     const result = await pool.query(
-      `INSERT INTO master_item (item_type, code, name, hs_code, active)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO master_item (item_type, code, name, hs_code, active,company_code,branch_code,department_code)
+       VALUES ($1, $2, $3, $4, $5,$6,$7,$8)
        RETURNING *`,
-      [item_type, code, name, hs_code, active]
+      [item_type, code, name, hs_code, active,company_code,branch_code,department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

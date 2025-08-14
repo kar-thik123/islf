@@ -4,16 +4,39 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 @Injectable({ providedIn: 'root' })
 export class MasterCodeService {
   private apiUrl = `${environment.apiUrl}/api/master_code`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) {}
 
-  // 🔄 Get all master records
+  // 🔄 Get all master records with context-based filtering
   getMasters(): Observable<any> {
-    return this.http.get<any>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const masterCodeFilter = config?.validation?.masterCodeFilter || '';
+    
+    let params: any = {};
+    
+    // Only send context parameters based on the validation/filter settings
+    if (masterCodeFilter.includes('C') && context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (masterCodeFilter.includes('B') && context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (masterCodeFilter.includes('D') && context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    return this.http.get<any>(this.apiUrl, { params });
   }
 
   // ✅ Update status (Active/Inactive)

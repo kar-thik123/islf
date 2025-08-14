@@ -358,42 +358,36 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    // Get the Validation settings
-    const config = this.configService.getConfig();
-    const locationFilter = config?.validation?.locationFilter || '';
+    console.log('Refreshing master locations list');
     
-    // Determine if we should filter by context based on validation settings
-    const filterByContext = locationFilter.includes('Company') || 
-                           locationFilter.includes('Branch') || 
-                           locationFilter.includes('Department');
-    
-    console.log('Location filter:', locationFilter);
-    console.log('Filter by context:', filterByContext);
-    
-    // The BaseMasterService automatically handles context filtering
-    // so we don't need to pass any parameters to getAll()
-    this.masterLocationService.getAll().subscribe({
-      next: (data) => {
-        this.locations = data || [];
-        this.updateLocationTypes();
-        console.log('Locations loaded:', this.locations.length);
-      },
-      error: (error) => {
-        console.error('Error loading locations:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load locations' 
-        });
-        this.locations = [];
-      }
-    });
+    try {
+      // ❌ Remove context validation block
+      
+      this.masterLocationService.getAll().subscribe({
+        next: (locations) => {
+          this.locations = (locations || []).map((l: any) => ({
+            ...l,
+            isEditing: false,
+            isNew: false
+          }));
+          console.log('Master locations loaded successfully:', this.locations.length);
+        },
+        error: (error) => {
+          console.error('Error loading master locations:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load master locations'
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in refreshList:', error);
+    }
   }
 
-  // Add to the addRow method:
-  
   addRow() {
-    console.log('Add Location button clicked - starting addRow method');
+    console.log('Add Master Location button clicked - starting addRow method');
     
     // Get the validation settings
     const config = this.configService.getConfig();
@@ -421,15 +415,12 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
         missingContexts.push('Department');
       }
       
-      const contextValid = missingContexts.length === 0;
-      
-      console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
-      
-      if (!contextValid) {
+      if (missingContexts.length > 0) {
+        console.log('Missing contexts:', missingContexts);
         this.messageService.add({
-          severity: 'error',
+          severity: 'warn',
           summary: 'Context Required',
-          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Location.`
+          detail: `Please select ${missingContexts.join(', ')} before adding master location`
         });
         
         // Trigger the context selector

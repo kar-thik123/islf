@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PanelModule } from 'primeng/panel';
@@ -22,6 +22,10 @@ import { ServiceTypeService, ServiceType } from '@/services/servicetype.service'
 import { DialogModule } from 'primeng/dialog';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { ConfigService } from '@/services/config.service';
+import { ContextService } from '@/services/context.service';
+import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 interface NumberSeries {
   id?: number;
@@ -67,7 +71,7 @@ interface NumberSeries {
       >
         <ng-template #caption>
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Mapping Relation" icon="pi pi-plus" class="p-button" (click)="showMappingDialog = true"></button>
+            <button pButton type="button" label="Add Mapping Relation" icon="pi pi-plus" class="p-button" (click)="showAddMappingDialog()"></button>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <p-iconfield iconPosition="left" class="ml-auto">
               <p-inputicon>
@@ -230,8 +234,9 @@ interface NumberSeries {
 
   `]
 })
-export class mappingComponent implements OnInit {
+export class mappingComponent implements OnInit, OnDestroy {
   private mappingToLoad: Mapping | null = null;
+  private contextSubscription: Subscription = new Subscription(); // Add this line
 
   selectedSeries = {
     customerCode: null,
@@ -292,14 +297,65 @@ export class mappingComponent implements OnInit {
     private companyService: CompanyService,
     private branchService: BranchService,
     private departmentService: DepartmentService,
-    private serviceTypeService: ServiceTypeService
-  ) {
-  }
+    private serviceTypeService: ServiceTypeService,
+    private configService: ConfigService, // Add this
+    private contextService: ContextService // Add this
+  ) {}
 
   ngOnInit() {
     this.loadMappingOptions();
     this.loadCompanies();
-    this.loadMappingRelations(); // <-- add this
+    this.loadMappingRelations();
+    
+    // Subscribe to context changes
+    this.contextSubscription = this.contextService.context$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged()
+      )
+      .subscribe(() => {
+        this.refreshMappingList();
+      });
+  }
+
+  // Also update the class to implement OnDestroy
+  ngOnDestroy() {
+    this.contextSubscription.unsubscribe();
+  }
+
+  refreshMappingList() {
+    this.loadMappingRelations();
+  }
+
+  // Add context validation before showing the dialog
+  showAddMappingDialog() {
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const mappingFilter = config?.validation?.mappingFilter || '';
+    const context = this.contextService.getContext();
+    
+    // Check if we need to validate context
+    if (mappingFilter) {
+      let contextMissing = false;
+      
+      if (mappingFilter.includes('C') && !context.companyCode) {
+        contextMissing = true;
+      }
+      if (mappingFilter.includes('B') && !context.branchCode) {
+        contextMissing = true;
+      }
+      if (mappingFilter.includes('D') && !context.departmentCode) {
+        contextMissing = true;
+      }
+      
+      // If context is missing, show the context selector dialog instead of error message
+      if (contextMissing) {
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+    
+    this.showMappingDialog = true;
   }
 
   loadMappingOptions() {
