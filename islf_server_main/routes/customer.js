@@ -182,7 +182,7 @@ router.put('/:id', async (req, res) => {
   }
   const {
     customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-    bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+    bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
   } = req.body;
   try {
     const result = await pool.query(

@@ -13,8 +13,10 @@ export interface Company {
   landline?: string;
   email?: string;
   website?: string;
-  address1?: string;
-  address2?: string;
+  pan_number?: string;
+  register_number?: string;
+  register_address?: string;
+  head_office_address?: string;
   [key: string]: any;
 }
 

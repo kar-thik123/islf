@@ -67,8 +67,6 @@ export interface MaintenanceConfig {
 export interface BrandingConfig {
   appName: string;
   companyName: string;
-  primaryColor: string;
-  secondaryColor: string;
   supportEmail: string;
   supportPhone: string;
   websiteUrl: string;
@@ -201,8 +199,6 @@ export class ConfigService {
     branding: {
       appName: 'ISLF Logistics',
       companyName: '',
-      primaryColor: '#3B82F6',
-      secondaryColor: '#1F2937',
       supportEmail: '',
       supportPhone: '',
       websiteUrl: '',
@@ -484,12 +480,7 @@ export class ConfigService {
   }
 
   private applyBranding(branding: BrandingConfig): void {
-    // Apply primary color
-    document.documentElement.style.setProperty('--primary-color', branding.primaryColor);
-    
-    // Apply secondary color
-    document.documentElement.style.setProperty('--secondary-color', branding.secondaryColor);
-    
+ 
     // Update document title
     document.title = branding.appName;
     

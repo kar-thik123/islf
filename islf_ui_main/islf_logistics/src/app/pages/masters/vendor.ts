@@ -19,6 +19,7 @@ import { EntityDocumentService, EntityDocument } from '../../services/entity-doc
 import { DepartmentService } from '../../services/department.service';
 import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
+import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
 import { Subscription } from 'rxjs';
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -66,7 +67,7 @@ function toTitleCase(str: string): string {
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['vendor_no', 'name', 'city', 'country', 'state', 'type']"
+        [globalFilterFields]="['vendor_no', 'name2', 'city', 'country', 'vat_gst_no', 'type']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -88,8 +89,8 @@ function toTitleCase(str: string): string {
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Name
-                <p-columnFilter type="text" field="name" display="menu" placeholder="Search by name"></p-columnFilter>
+                Alias
+                <p-columnFilter type="text" field="name2" display="menu" placeholder="Search by alias"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -106,8 +107,8 @@ function toTitleCase(str: string): string {
             </th>
             <th>
               <div class="flex justify-between items-center">
-                State
-                <p-columnFilter type="text" field="state" display="menu" placeholder="Search by state"></p-columnFilter>
+                VAT/GST No.
+                <p-columnFilter type="text" field="vat_gst_no" display="menu" placeholder="Search by VAT/GST No."></p-columnFilter>
               </div>
             </th>
             <th>
@@ -122,10 +123,11 @@ function toTitleCase(str: string): string {
         <ng-template pTemplate="body" let-vendor>
           <tr>
             <td>{{ vendor.vendor_no }}</td>
-            <td>{{ vendor.name }}</td>
+            <td>{{ vendor.name2 }}</td>
             <td>{{ vendor.city }}</td>
             <td>{{ vendor.country }}</td>
-            <td>{{ vendor.state }}</td>
+            <td>{{ vendor.vat_gst_no }}</td>
+
             <td>{{ vendor.type }}</td>
             <td>
               <button pButton icon="pi pi-pencil" (click)="editRow(vendor)" class="p-button-sm"></button>
@@ -150,6 +152,70 @@ function toTitleCase(str: string): string {
       [resizable]="false"
       (onHide)="hideDialog()"
     >
+
+    <!-- Account Detail Form Dialog -->
+    <p-dialog 
+      header="{{ selectedAccountDetail?.id ? 'Edit' : 'Add' }} Account Detail"
+      [(visible)]="displayAccountDetailFormDialog" 
+      [modal]="true" 
+      [style]="{width: '600px'}" 
+      [closable]="false"
+      [draggable]="false"
+      [resizable]="false">
+      
+      <ng-template pTemplate="content">
+        <div class="p-fluid form-grid">
+          <div class="grid-container">
+            <div class="grid-item">
+              <label for="beneficiary">Beneficiary <span class="text-red-500">*</span></label>
+              <input #beneficiaryInput id="beneficiary" pInputText [(ngModel)]="selectedAccountDetail.beneficiary" (ngModelChange)="onFieldChange('beneficiary', beneficiaryInput.value)" (blur)="onFieldBlur('beneficiary')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('beneficiary')">{{ getFieldError('beneficiary') }}</small>
+            </div>
+            <div class="grid-item">
+              <label for="bank_name">Bank Name <span class="text-red-500">*</span></label>
+              <input #bankNameInput id="bank_name" pInputText [(ngModel)]="selectedAccountDetail.bank_name" (ngModelChange)="onFieldChange('bank_name', bankNameInput.value)" (blur)="onFieldBlur('bank_name')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('bank_name')">{{ getFieldError('bank_name') }}</small>
+            </div>
+            <div class="grid-item">
+              <label for="account_number">Account Number <span class="text-red-500">*</span></label>
+              <input #accountNumberInput id="account_number" pInputText [(ngModel)]="selectedAccountDetail.account_number" (ngModelChange)="onFieldChange('account_number', accountNumberInput.value)" (blur)="onFieldBlur('account_number')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('account_number')">{{ getFieldError('account_number') }}</small>
+            </div>
+            <div class="grid-item">
+              <label for="account_type">Account Type</label>
+              <input id="account_type" pInputText [(ngModel)]="selectedAccountDetail.account_type" />
+            </div>
+            <div class="grid-item">
+              <label for="bank_branch_code">Bank Branch Code</label>
+              <input id="bank_branch_code" pInputText [(ngModel)]="selectedAccountDetail.bank_branch_code" />
+            </div>
+            <div class="grid-item">
+              <label for="rtgs_neft_code">RTGS/NEFT Code</label>
+              <input id="rtgs_neft_code" pInputText [(ngModel)]="selectedAccountDetail.rtgs_neft_code" />
+            </div>
+            <div class="grid-item">
+              <label for="swift_code">Swift Code</label>
+              <input id="swift_code" pInputText [(ngModel)]="selectedAccountDetail.swift_code" />
+            </div>
+            <div class="grid-item">
+              <label for="is_primary">Primary Account</label>
+              <p-dropdown id="is_primary" [options]="[{label: 'Yes', value: true}, {label: 'No', value: false}]" [(ngModel)]="selectedAccountDetail.is_primary" optionLabel="label" optionValue="value" placeholder="Select Primary Account"></p-dropdown>
+            </div>
+          </div>
+          <div class="grid-item" style="grid-column: 1 / -1;">
+            <label for="bank_address">Bank Address</label>
+            <textarea id="bank_address" pInputTextarea [(ngModel)]="selectedAccountDetail.bank_address" rows="3"></textarea>
+          </div>
+        </div>
+      </ng-template>
+      
+      <ng-template pTemplate="footer">
+        <div class="flex justify-content-end gap-2">
+          <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="closeAccountDetailDialog()"></button>
+          <button pButton label="{{ selectedAccountDetail?.id ? 'Update' : 'Add' }}" icon="pi pi-check" (click)="saveAccountDetail()"></button>
+        </div>
+      </ng-template>
+    </p-dialog>
       <ng-template pTemplate="content">
         <div *ngIf="selectedVendor" class="p-fluid form-grid dialog-body-padding">
           <!-- General -->
@@ -171,12 +237,17 @@ function toTitleCase(str: string): string {
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('name')">{{ getFieldError('name') }}</small>
             </div>
             <div class="grid-item">
-              <label>Name2</label>
+              <label>Alias</label>
               <input pInputText [(ngModel)]="selectedVendor.name2" />
             </div>
             <div class="grid-item">
               <label>Blocked</label>
               <p-dropdown [options]="blockedOptions" [(ngModel)]="selectedVendor.blocked" optionLabel="label" optionValue="value" placeholder="Select Blocked"></p-dropdown>
+            </div>
+            <div class="grid-item">
+              <label for="vat_gst_no">VAT/GST No. <span class="text-red-500">*</span></label>
+              <input #vatGstInput id="vat_gst_no" pInputText [(ngModel)]="selectedVendor.vat_gst_no" (ngModelChange)="onFieldChange('vat_gst_no', vatGstInput.value)" (blur)="onFieldBlur('vat_gst_no')" required />
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('vat_gst_no')">{{ getFieldError('vat_gst_no') }}</small>
             </div>
           </div>
           <!-- Address -->
@@ -186,10 +257,7 @@ function toTitleCase(str: string): string {
               <label>Address</label>
               <input pInputText [(ngModel)]="selectedVendor.address" />
             </div>
-            <div class="grid-item">
-              <label>Address1</label>
-              <input pInputText [(ngModel)]="selectedVendor.address1" />
-            </div>
+           
             <div class="grid-item">
               <label for="country">Country <span class="text-red-500">*</span></label>
               <p-dropdown id="country" [options]="countryOptions" [(ngModel)]="selectedVendor.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange(); onFieldChange('country', $event.value)" (onBlur)="onFieldBlur('country')" required></p-dropdown>
@@ -214,6 +282,7 @@ function toTitleCase(str: string): string {
               <input pInputText [(ngModel)]="selectedVendor.website" />
             </div>
           </div>
+          
           <!-- Invoicing -->
           <div class="section-header">Invoicing</div>
           <div class="grid-container">
@@ -229,11 +298,7 @@ function toTitleCase(str: string): string {
                 [editable]="true">
               </p-dropdown>
             </div>
-            <div class="grid-item">
-              <label for="vat_gst_no">VAT/GST No. <span class="text-red-500">*</span></label>
-              <input #vatGstInput id="vat_gst_no" pInputText [(ngModel)]="selectedVendor.vat_gst_no" (ngModelChange)="onFieldChange('vat_gst_no', vatGstInput.value)" (blur)="onFieldBlur('vat_gst_no')" required />
-              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('vat_gst_no')">{{ getFieldError('vat_gst_no') }}</small>
-            </div>
+            
             <div class="grid-item">
               <label>Place of Supply</label>
               <p-dropdown [options]="placeOfSupplyOptions" [(ngModel)]="selectedVendor.place_of_supply" optionLabel="label" optionValue="value" placeholder="Select Place of Supply"></p-dropdown>
@@ -264,9 +329,7 @@ function toTitleCase(str: string): string {
             <ng-template pTemplate="body" let-contact let-rowIndex="rowIndex">
               <tr>
                 <td><input pInputText [(ngModel)]="contact.name" /></td>
-                <td>
-                  <p-dropdown [options]="departmentOptions" [(ngModel)]="contact.department" optionLabel="label" appendTo="body" optionValue="value" placeholder="Select Department" [filter]="true"></p-dropdown>
-                </td>
+                <td><input pInputText [(ngModel)]="contact.department" /></td>
                 <td><input pInputText [(ngModel)]="contact.mobile" /></td>
                 <td><input pInputText [(ngModel)]="contact.landline" /></td>
                 <td><input pInputText [(ngModel)]="contact.email" /></td>
@@ -284,8 +347,7 @@ function toTitleCase(str: string): string {
               </tr>
             </ng-template>
           </p-table>
-          
-          <!-- Document Upload -->
+                    <!-- Document Upload -->
           <div class="section-header">Document Upload</div>
           <div class="document-upload-section">
           
@@ -342,6 +404,56 @@ function toTitleCase(str: string): string {
             </p-table>
           </div>
         </div>
+          <!-- Account Details -->
+          <div class="section-header">Account Details</div>
+          <div class="account-details-section">
+            <p-table [value]="vendorAccountDetails" [showGridlines]="true" [responsiveLayout]="'scroll'">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>BENEFICIARY</th>
+                  <th>BANK NAME</th>
+                  <th>ACCOUNT NUMBER</th>
+                  <th>ACCOUNT TYPE</th>
+                  <th>BANK BRANCH CODE</th>
+                  <th>RTGS/NEFT CODE</th>
+                  <th>SWIFT CODE</th>
+                  <th>Action</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-account let-rowIndex="rowIndex">
+                <tr [class.bg-yellow-50]="account.is_primary" 
+                    [class.border-l-2]="account.is_primary" 
+                    [class.border-yellow-400]="account.is_primary"
+                    [class.font-semibold]="account.is_primary">
+                  <td>
+                    <div class="flex items-center">
+                      <i class="pi pi-star text-yellow-500 mr-2" *ngIf="account.is_primary"></i>
+                      {{ account.beneficiary }}
+                    </div>
+                  </td>
+                  <td>{{ account.bank_name }}</td>
+                  <td>{{ account.account_number }}</td>
+                  <td>{{ account.account_type }}</td>
+                  <td>{{ account.bank_branch_code }}</td>
+                  <td>{{ account.rtgs_neft_code }}</td>
+                  <td>{{ account.swift_code }}</td>
+                  <td>
+                    <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1" (click)="openAccountDetailFormDialog('vendor', selectedVendor?.vendor_no || '', account)"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger" (click)="deleteAccountDetail(account)"></button>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="footer">
+                <tr>
+                  <td colspan="8">
+                    <button pButton label="Add Account Detail" icon="pi pi-plus" (click)="openAccountDetailFormDialog('vendor', selectedVendor?.vendor_no || '')"></button>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+
+
       </ng-template>
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
@@ -541,6 +653,22 @@ export class VendorComponent implements OnInit, OnDestroy {
   documentTypeOptions: any[] = [];
   departmentOptions: any[] = [];
   
+  // Account Details properties
+  vendorAccountDetails: AccountDetail[] = [];
+  displayAccountDetailFormDialog = false;
+  selectedAccountDetail: AccountDetail = {} as AccountDetail;
+  accountDetailFormError = '';
+  accountDetailFields = [
+    { key: 'beneficiary', label: 'Beneficiary', required: true },
+    { key: 'bank_name', label: 'Bank Name', required: true },
+    { key: 'account_number', label: 'Account Number', required: true },
+    { key: 'account_type', label: 'Account Type', required: false },
+    { key: 'bank_branch_code', label: 'Bank Branch Code', required: false },
+    { key: 'rtgs_neft_code', label: 'RTGS/NEFT Code', required: false },
+    { key: 'swift_code', label: 'Swift Code', required: false },
+    { key: 'bank_address', label: 'Bank Address', required: false }
+  ];
+  
   // Document viewer dialog
   isDocumentViewerVisible = false;
   selectedDocument: EntityDocument | null = null;
@@ -549,6 +677,129 @@ export class VendorComponent implements OnInit, OnDestroy {
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
   private contextSubscription: Subscription | null = null;
+
+  // Account Details Methods
+  loadAccountDetails(entityType: string, entityCode: string) {
+    this.accountDetailsService.getByEntity(entityType, entityCode).subscribe({
+      next: (details) => {
+        this.vendorAccountDetails = details;
+      },
+      error: (error) => {
+        console.error('Error loading account details:', error);
+        this.vendorAccountDetails = [];
+      }
+    });
+  }
+
+  openAccountDetailFormDialog(entityType: string, entityCode: string, accountDetail?: AccountDetail) {
+    this.selectedAccountDetail = accountDetail ? { ...accountDetail } : {
+      id: undefined,
+      entity_type: entityType,
+      entity_code: entityCode,
+      beneficiary: '',
+      bank_name: '',
+      account_number: '',
+      account_type: '',
+      bank_branch_code: '',
+      rtgs_neft_code: '',
+      swift_code: '',
+      bank_address: '',
+      is_primary: false
+    };
+    this.displayAccountDetailFormDialog = true;
+  }
+
+  closeAccountDetailDialog() {
+    this.displayAccountDetailFormDialog = false;
+    this.selectedAccountDetail = {} as AccountDetail;
+    this.accountDetailFormError = '';
+  }
+
+  saveAccountDetail() {
+    if (!this.selectedAccountDetail) return;
+
+    // Validate required fields
+    if (!this.selectedAccountDetail.beneficiary || !this.selectedAccountDetail.bank_name || !this.selectedAccountDetail.account_number) {
+      this.accountDetailFormError = 'Please fill in all required fields';
+      return;
+    }
+
+    const operation = this.selectedAccountDetail.id 
+      ? this.accountDetailsService.update(this.selectedAccountDetail.id, this.selectedAccountDetail)
+      : this.accountDetailsService.create(this.selectedAccountDetail);
+
+    operation.subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: this.selectedAccountDetail!.id ? 'Account detail updated successfully' : 'Account detail created successfully'
+        });
+        this.closeAccountDetailDialog();
+        this.loadAccountDetails(this.selectedAccountDetail!.entity_type, this.selectedAccountDetail!.entity_code);
+      },
+      error: (error) => {
+        console.error('Error saving account detail:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to save account detail'
+        });
+      }
+    });
+  }
+
+  deleteAccountDetail(accountDetail: AccountDetail) {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this account detail?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (accountDetail.id) {
+          this.accountDetailsService.delete(accountDetail.id).subscribe({
+            next: () => {
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Account detail deleted successfully'
+              });
+              this.loadAccountDetails(accountDetail.entity_type, accountDetail.entity_code);
+            },
+            error: (error) => {
+              console.error('Error deleting account detail:', error);
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to delete account detail'
+              });
+            }
+          });
+        }
+      }
+    });
+  }
+
+  onPrimaryChange(accountDetail: AccountDetail) {
+    if (!accountDetail.id || !this.selectedVendor) return;
+
+    // Create a complete AccountDetail object for the update
+    const updateData: AccountDetail = {
+      ...accountDetail,
+      is_primary: accountDetail.is_primary
+    };
+
+    this.accountDetailsService.update(accountDetail.id, updateData).subscribe({
+      next: () => {
+        this.loadAccountDetails('vendor', this.selectedVendor!.vendor_no);
+      },
+      error: (error: any) => {
+        console.error('Error updating primary status:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update primary status' });
+        // Revert the change
+        accountDetail.is_primary = !accountDetail.is_primary;
+      }
+    });
+  }
   
 
 
@@ -564,7 +815,8 @@ export class VendorComponent implements OnInit, OnDestroy {
     private departmentService: DepartmentService,
     private configService: ConfigService,
     private contextService: ContextService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private accountDetailsService: AccountDetailsService
   ) {}
 
   ngOnInit() {
@@ -572,7 +824,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.loadMappedVendorSeriesCode();
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
-    this.loadDepartmentOptions();
+  
     
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
@@ -846,10 +1098,55 @@ export class VendorComponent implements OnInit, OnDestroy {
       this.selectedVendor.bill_to_vendor_name = `${this.selectedVendor.vendor_no} - ${this.selectedVendor.name}`;
     }
     this.isDialogVisible = true;
-    // Load vendor documents
+    
+    // Populate state and city options based on existing values
+    if (this.selectedVendor.country) {
+      this.populateStateOptions(this.selectedVendor.country);
+      if (this.selectedVendor.state) {
+        this.populateCityOptions(this.selectedVendor.country, this.selectedVendor.state);
+      }
+    }
+    
+    // Load vendor documents and account details
     if (vendor.id) {
       this.loadVendorDocuments(vendor.vendor_no);
+      this.loadAccountDetails('vendor', vendor.vendor_no);
     }
+  }
+
+  // Add these helper methods
+  populateStateOptions(country: string) {
+    if (!country) {
+      this.stateOptions = [];
+      return;
+    }
+    
+    const matchingLocations = this.allLocations.filter(l => 
+      l.country && l.country.toLowerCase() === country.toLowerCase()
+    );
+    
+    const states = matchingLocations
+      .map(l => l.state)
+      .filter(Boolean);
+    
+    this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
+  }
+
+  populateCityOptions(country: string, state: string) {
+    if (!country || !state) {
+      this.cityOptions = [];
+      return;
+    }
+    
+    const cities = this.allLocations
+      .filter(l => 
+        l.country && l.country.toLowerCase() === country.toLowerCase() &&
+        l.state && l.state.toLowerCase() === state.toLowerCase()
+      )
+      .map(l => l.city)
+      .filter(Boolean);
+      
+    this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
   }
 
   async saveRow() {
@@ -1122,33 +1419,6 @@ export class VendorComponent implements OnInit, OnDestroy {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load document types' });
       }
     });
-  }
-
-  loadDepartmentOptions() {
-    // Hardcoded department options
-    this.departmentOptions = [
-      {
-        label: 'Sales',
-        value: 'Sales',
-      },
-      {
-        label: 'Documentation',
-        value: 'Documentation',
-      },
-      {
-        label: 'Customer Service',
-        value: 'Customer Service',
-      },
-      {
-        label: 'Operation',
-        value: 'Operation',
-      },
-      {
-        label: 'Accounts',
-        value: 'Accounts',
-      }
-    ];
-    console.log('Department options loaded:', this.departmentOptions);
   }
 
   addDocument() {

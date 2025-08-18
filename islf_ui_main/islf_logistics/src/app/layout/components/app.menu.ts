@@ -48,11 +48,17 @@ export class AppMenu {
                 icon: 'fa-solid fa-link',
                 routerLink: ['/settings/number_relation'],
               },
+               {
+                label: 'No. Series Mapping',
+                icon: 'fa-solid fa-sliders-h',
+                routerLink: ['/settings/mapping'],
+              },
               {
                 label: 'IT Setup',
                 icon: 'fa-solid fa-sliders-h',
                 routerLink: ['/settings/it_setup'],
               },
+              
               {
                 label: 'User Mgmt',
                 icon: 'fa-solid fa-user',
@@ -73,6 +79,16 @@ export class AppMenu {
                 icon: 'fa-solid fa-list',
                 routerLink: ['/logs/auth_logs'],
               },
+              {
+                label:'Masters Logs',
+                icon:'fa-solid fa-list',
+                routerLink : ['/logs/masters_logs'],
+              },
+              {
+                label:'Setup Logs',
+                icon:'fa-solid fa-list',
+                routerLink : ['/logs/setup_logs'],
+              }
             ],
           },
         ],

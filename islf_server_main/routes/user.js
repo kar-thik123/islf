@@ -43,6 +43,77 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    let finalEmployeeId = employeeId;
+    let seriesCode;
+
+    // Automatic series code lookup using context (same as customer.js)
+    if ((!employeeId || employeeId === '') && company_code && branch_code && department_code) {
+      // Look up the mapping for employeeCode
+      const mappingRes = await pool.query(
+        `SELECT mapping FROM mapping_relations
+         WHERE code_type = $1
+         AND company_code = $2
+         AND branch_code = $3
+         AND department_code = $4
+         ORDER BY id DESC
+         LIMIT 1`,
+        ['employeeCode', company_code, branch_code, department_code]
+      );
+      
+      console.log('MAPPING RESULT:', mappingRes.rows);
+      if (mappingRes.rows.length > 0) {
+        seriesCode = mappingRes.rows[0].mapping;
+        console.log('SERIES CODE FROM MAPPING:', seriesCode);
+      }
+    }
+
+    // Generate employee ID if series code found
+    if (seriesCode) {
+      const seriesResult = await pool.query(
+        'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
+        [seriesCode]
+      );
+      
+      console.log('NUMBER SERIES RESULT:', seriesResult.rows);
+      if (seriesResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Number series not found' });
+      }
+      
+      const series = seriesResult.rows[0];
+      if (!series.is_manual) {
+        // Generate automatic employee ID
+        const relResult = await pool.query(
+          'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1',
+          [seriesCode]
+        );
+        
+        console.log('NUMBER RELATION RESULT:', relResult.rows);
+        if (relResult.rows.length === 0) {
+          return res.status(400).json({ error: 'Number series relation not found' });
+        }
+        
+        const rel = relResult.rows[0];
+        let nextNo;
+        if (rel.last_no_used === 0) {
+          nextNo = Number(rel.starting_no);
+        } else {
+          nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+        }
+        
+        finalEmployeeId = `${rel.prefix || ''}${nextNo}`;
+        console.log('Generated employee ID:', finalEmployeeId);
+        
+        // Update the last_no_used
+        await pool.query(
+          'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+          [nextNo, rel.id]
+        );
+      }
+    } else if (!employeeId || employeeId === '') {
+      // Fallback if no series found
+      finalEmployeeId = 'EMP-' + Date.now();
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (
@@ -56,7 +127,7 @@ router.post('/', async (req, res) => {
         email,
         phoneNumber,
         fullName,
-        employeeId,
+        finalEmployeeId,
         gender,
         safeDateOfBirth,
         branch,
@@ -70,7 +141,7 @@ router.post('/', async (req, res) => {
         vehicleAssigned,
         shiftTiming,
         bio,
-        avatar, // avatar from frontend, mapped to avatar_url in DB
+        avatar,
         permission,
         company_code,
         branch_code,
@@ -82,7 +153,7 @@ router.post('/', async (req, res) => {
     if (err.code === '23505') {
       res.status(409).json({ message: 'Username, email, or phone already exists' });
     } else {
-      console.error('Database error:', err); // 👈 for debugging
+      console.error('Database error:', err);
       res.status(500).json({ message: 'Database error', error: err });
     }
   }

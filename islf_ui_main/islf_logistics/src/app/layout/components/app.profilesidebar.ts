@@ -104,7 +104,7 @@ export class AppProfileSidebar implements OnInit {
     goToProfile() {
         this.onDrawerHide();
         if (this.userId) {
-            this.router.navigate(['/setup/create_user', this.userId]);
+            this.router.navigate(['/settings/create_user', this.userId]);
         }
     }
 

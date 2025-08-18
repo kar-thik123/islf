@@ -48,10 +48,11 @@ export class ServiceTypeService {
   }
 
   update(code: string, serviceType: ServiceType): Observable<ServiceType> {
-    return this.http.put<ServiceType>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(serviceType, this.contextService.getContext()));
+    // Don't use context payload for updates to preserve existing values
+    return this.http.put<ServiceType>(`${this.apiUrl}/${code}`, serviceType);
   }
 
   delete(code: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${code}`);
   }
-} 
+}

@@ -569,20 +569,6 @@ interface DocumentPaths {
                     class="w-full"
                     placeholder="Your Company Name" />
                 </div>
-                <div>
-                  <label class="block mb-2 font-medium">Primary Color</label>
-                  <input 
-                    type="color" 
-                    [(ngModel)]="brandingSettings.primaryColor" 
-                    class="w-full h-10" />
-                </div>
-                <div>
-                  <label class="block mb-2 font-medium">Secondary Color</label>
-                  <input 
-                    type="color" 
-                    [(ngModel)]="brandingSettings.secondaryColor" 
-                    class="w-full h-10" />
-                </div>
               </div>
             </p-card>
 
@@ -948,8 +934,6 @@ export class ITSetupComponent implements OnInit {
   brandingSettings = {
     appName: 'ISLF Logistics',
     companyName: '',
-    primaryColor: '#3B82F6',
-    secondaryColor: '#1F2937',
     supportEmail: '',
     supportPhone: '',
     websiteUrl: '',

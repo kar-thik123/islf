@@ -1,4 +1,3 @@
-// user-create.component.ts (unchanged except for layout tweaks in template)
 import { Component, OnInit } from '@angular/core';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -28,6 +27,10 @@ import { MasterCodeService } from '../../../services/mastercode.service';
 import { MasterTypeService } from '../../../services/mastertype.service';
 import { EntityDocumentService, EntityDocument } from '../../../services/entity-document.service';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { NumberSeriesService } from '../../../services/number-series.service';
+import { MappingService } from '../../../services/mapping.service';
+import { ContextService } from '../../../services/context.service';
+import { NumberSeriesRelationService } from '../../../services/number-series-relation.service';
 
 
 @Component({
@@ -104,7 +107,15 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     </div>
     <div class="col-span-12 md:col-span-6">
       <label class="block font-semibold mb-1">Employee ID <span class="text-red-500">*</span></label>
-      <input type="text" pInputText class="w-full" [(ngModel)]="user.employeeId" name="employeeId" (input)="onEmployeeIdInput()" />
+      <input 
+        type="text" 
+        pInputText 
+        class="w-full" 
+        [(ngModel)]="user.employeeId" 
+        name="employeeId" 
+        (input)="onEmployeeIdInput()"
+        [disabled]="!isManualSeries || (isEditMode && !isManualSeries)" 
+        [placeholder]="!isManualSeries && !isEditMode ? 'Auto-generated' : ''" />
     </div>
     <div class="col-span-12 md:col-span-6">
       <label class="block font-semibold mb-1">Email <span class="text-red-500">*</span></label>
@@ -438,9 +449,11 @@ export class UserCreateComponent implements OnInit {
   selectedRole = '';
   permissions: any[] = [];
   selectedPermissions: any[] = [];
+  isManualSeries: boolean = false;
+  mappedEmployeeSeriesCode: string = '';
   user = {
     fullName: '',
-    employeeId: '',
+    employeeId: '' as string | undefined,
     email: '',
     phoneNumber: '',
     gender: '',
@@ -554,7 +567,7 @@ export class UserCreateComponent implements OnInit {
   }
   
   onEmployeeIdInput() {
-    if (!this.usernameManuallyEdited) {
+    if (!this.usernameManuallyEdited && this.user.employeeId) {
       this.user.username = this.user.employeeId;
     }
   }
@@ -607,7 +620,11 @@ export class UserCreateComponent implements OnInit {
     private masterCodeService: MasterCodeService,
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private numberSeriesService: NumberSeriesService,
+    private mappingService: MappingService,
+    private contextService: ContextService,
+    private numberSeriesRelationService: NumberSeriesRelationService
   ) {}
 
   // Helper to map codes to option objects
@@ -621,6 +638,9 @@ export class UserCreateComponent implements OnInit {
     // Load document upload path and document type options
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
+    
+    // Load employee number series configuration with context-based mapping
+    this.loadMappedEmployeeSeriesCode();
     
     // Fetch branches and departments first
     let branchesLoaded = false;
@@ -775,6 +795,9 @@ export class UserCreateComponent implements OnInit {
       this.toast.showError('Error', 'Passwords do not match!');
       return;
     }
+    
+    const context = this.contextService.getContext();
+    
     // Store branch and department as comma-separated label strings
     const userToSend = {
       ...this.user,
@@ -793,8 +816,19 @@ export class UserCreateComponent implements OnInit {
       employmentType: this.user.employmentType && typeof this.user.employmentType === 'object' && (this.user.employmentType as any).label
         ? (this.user.employmentType as any).label
         : this.user.employmentType,
-      permission: this.selectedPermissions.join(',') // <-- send as comma-separated string
+      permission: this.selectedPermissions.join(','),
+      // Add context information for backend number series generation
+      seriesCode: this.mappedEmployeeSeriesCode,
+      companyCode: context.companyCode,
+      branchCode: context.branchCode,
+      departmentCode: context.departmentCode,
+      serviceTypeCode: context.serviceType
     };
+    
+    // If not manual series, let backend generate employee ID
+    if (!this.isManualSeries) {
+      userToSend.employeeId = ''; // Use empty string instead of undefined
+    }
     
     try {
       const res = await this.userService.createUser(userToSend).toPromise();
@@ -924,7 +958,7 @@ export class UserCreateComponent implements OnInit {
   addDocument() {
     this.userDocuments.push({
       entity_type: 'user',
-      entity_code: this.user.employeeId,
+      entity_code: this.user.employeeId || '',
       doc_type: '',
       document_number: '',
       valid_from: '',
@@ -1115,6 +1149,70 @@ export class UserCreateComponent implements OnInit {
       error: (error: any) => {
         console.error('Error loading user documents:', error);
         this.userDocuments = [];
+      }
+    });
+  }
+
+  private loadMappedEmployeeSeriesCode() {
+    const context = this.contextService.getContext();
+    console.log('Loading employee series code for context:', context);
+    
+    // Use context-based mapping with NumberSeriesRelation
+    this.mappingService.findMappingByContext(
+      'employeeCode',
+      context.companyCode || '',
+      context.branchCode || '',
+      context.departmentCode || '',
+      context.serviceType || undefined
+    ).subscribe({
+      next: (contextMapping) => {
+        console.log('Employee mapping relation response:', contextMapping);
+        this.mappedEmployeeSeriesCode = contextMapping.mapping;
+        if (this.mappedEmployeeSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedEmployeeSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('Employee series code mapped:', this.mappedEmployeeSeriesCode, 'Manual:', this.isManualSeries);
+            },
+            error: (error) => {
+              console.error('Error loading number series:', error);
+            }
+          });
+        } else {
+          this.isManualSeries = false;
+          console.log('No employee series code mapping found for context');
+        }
+      },
+      error: (error) => {
+        console.error('Error loading employee mapping relation:', error);
+        // Fallback to generic mapping if context-based mapping fails
+        console.log('Falling back to generic mapping method');
+        this.mappingService.getMapping().subscribe({
+          next: (mapping) => {
+            console.log('Fallback mapping response:', mapping);
+            this.mappedEmployeeSeriesCode = mapping.employeeCode || '';
+            if (this.mappedEmployeeSeriesCode) {
+              this.numberSeriesService.getAll().subscribe({
+                next: (seriesList) => {
+                  const found = seriesList.find((s: any) => s.code === this.mappedEmployeeSeriesCode);
+                  this.isManualSeries = !!(found && found.is_manual);
+                  console.log('Employee series code mapped (fallback):', this.mappedEmployeeSeriesCode, 'Manual:', this.isManualSeries);
+                },
+                error: (error) => {
+                  console.error('Error loading number series (fallback):', error);
+                  this.isManualSeries = true; // Default to manual if error
+                }
+              });
+            } else {
+              this.isManualSeries = true; // Default to manual if no mapping
+            }
+          },
+          error: (error) => {
+            console.error('Error loading fallback mapping:', error);
+            this.isManualSeries = true; // Default to manual if error
+          }
+        });
       }
     });
   }

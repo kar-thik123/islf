@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
     const result = await pool.query(
       'INSERT INTO master_type (key, value, description, status,company_code,branch_code,department_code) VALUES ($1, $2, $3, $4,$5,$6,$7) RETURNING *',
       [key, value, description, status,company_code,branch_code,department_code]
-    );
+    );  
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create master type' });
@@ -72,11 +72,10 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { value, description, status } = req.body;
   try {
-    const result = await pool.query(
+       const result = await pool.query(
       'UPDATE master_type SET value = $1, description = $2, status = $3 WHERE id = $4 RETURNING *',
       [value, description, status, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    );    
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -85,12 +84,18 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete master type
+// Delete master type
 router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM master_type WHERE id = $1 RETURNING *', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Master type not found' });
+    }
+    
     res.json({ success: true });
   } catch (err) {
+    console.error('Error deleting master type:', err);
     res.status(500).json({ error: 'Failed to delete master type' });
   }
 });

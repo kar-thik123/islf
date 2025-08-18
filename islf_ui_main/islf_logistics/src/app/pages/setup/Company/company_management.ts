@@ -21,6 +21,9 @@ import { Router } from '@angular/router';
 import { EntityDocumentService, EntityDocument } from '../../../services/entity-document.service';
 import { MasterTypeService } from '../../../services/mastertype.service';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { AccountDetailsService, AccountDetail } from '../../../services/account-details.service';
+import { InchargeService, Incharge } from '../../../services/incharge.service';
+
 
 @Component({
   selector: 'app-company-hierarchy',
@@ -53,7 +56,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                 <div class="company-header ">
                   <h2 class="text-2xl font-bold uppercase">{{ company.name }}</h2>
                   <p class="text-sm mt-1 ">{{ company.name2 }}</p>
-                  <p class="text-sm mt-1 ">{{ company.address1 }}<span *ngIf="company.address2">, {{ company.address2 }}</span></p>
+                  <p class="text-sm mt-1 ">{{ company.register_address }}<span *ngIf="company.head_office_address">, {{ company.head_office_address }}</span></p>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 text-sm">
                   <div><strong>GST:</strong> {{ company.gst }}</div>
@@ -61,6 +64,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   <div><strong>Landline:</strong> {{ company.landline }}</div>
                   <div><strong>Email:</strong> {{ company.email }}</div>
                   <div><strong>Website:</strong> {{ company.website }}</div>
+                  <div><strong>PAN:</strong> {{ company.pan_number }}</div>
+                  <div><strong>Register No:</strong> {{ company.register_number }}</div>
                 </div>
               </div>
             </p-tabpanel>
@@ -173,7 +178,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                           </div>
                         </div>
                         <div class="p-4">
-                          <div class="text-xs text-gray-600 mb-2">{{ serviceType.description }}</div>
+                       
                           <div class="grid grid-cols-2 gap-2 text-xs">
                             <div><strong>Code:</strong> {{ serviceType.code }}</div>
                             <div><strong>Incharge From:</strong> {{ serviceType.incharge_from | configDate }}</div>
@@ -215,8 +220,14 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
-          
 
+            <!-- Incharge Button for Service Type (no account details needed) -->
+            <div class="col-span-2">
+              <hr class="w-full border-t border-gray-300 my-4" />
+              <div class="flex justify-start items-center">
+                <button pButton label="Incharge" icon="pi pi-user" class="p-button-outlined" (click)="openInchargeDialog('service_type', selectedServiceType.code)"></button>
+              </div>
+            </div>
 
             <!-- Logo upload -->
             <div class="col-span-2">
@@ -248,11 +259,10 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
           <!-- Document Upload Button -->
           <div class="col-span-2">
-            
             <div class="flex justify-between items-center">
-             
-              <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openCompanyDocumentDialog()"></button>
-              <button pButton label="Navigate to Mapping" class="p-button-primary" (click)="navigateToMapping()"></button>
+              <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined mr-2" (click)="openCompanyDocumentDialog()"></button>
+              <button pButton label="Incharge" icon="pi pi-user" class="p-button-outlined mr-2" (click)="openInchargeDialog('company', selectedCompany.code)"></button>
+              <button pButton label="Account Details" icon="pi pi-credit-card" class="p-button-outlined mr-2" (click)="openAccountDetailDialog('company', selectedCompany.code)"></button>
             </div>
           </div>
 
@@ -293,8 +303,9 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <div class="col-span-2">
               <hr class="w-full border-t border-gray-300 my-4" />
               <div class="flex justify-between items-center">
-                
-                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openBranchDocumentDialog()"></button>
+                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined mr-2" (click)="openBranchDocumentDialog()"></button>
+                <button pButton label="Incharge" icon="pi pi-user" class="p-button-outlined mr-2" (click)="openInchargeDialog('branch', selectedBranch.code)"></button>
+                <button pButton label="Account Details" icon="pi pi-credit-card" class="p-button-outlined" (click)="openAccountDetailDialog('branch', selectedBranch.code)"></button>
               </div>
             </div>
           </form>
@@ -332,8 +343,9 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <div class="col-span-2">
               <hr class="w-full border-t border-gray-300 my-4" />
               <div class="flex justify-between items-center">
-                
-                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined" (click)="openDepartmentDocumentDialog()"></button>
+                <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined mr-2" (click)="openDepartmentDocumentDialog()"></button>
+                <button pButton label="Incharge" icon="pi pi-user" class="p-button-outlined mr-2" (click)="openInchargeDialog('department', selectedDepartment.code)"></button>
+                <button pButton label="Account Details" icon="pi pi-credit-card" class="p-button-outlined" (click)="openAccountDetailDialog('department', selectedDepartment.code)"></button>
               </div>
             </div>
           </form>
@@ -590,6 +602,242 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       <!-- Toast for messages -->
       <p-toast></p-toast>
       
+
+      <!-- Account Details List Dialog -->
+      <p-dialog 
+        header="Account Details" 
+        [(visible)]="displayAccountDetailListDialog" 
+        [modal]="true" 
+        [style]="{ width: '1200px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <p-table [value]="accountDetails" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>BENEFICIARY</th>
+                <th>BANK NAME</th>
+                <th>ACCOUNT NUMBER</th>
+                <th>ACCOUNT TYPE</th>
+                <th>BRANCH CODE</th>
+                <th>RTGS/NEFT CODE</th>
+                <th>SWIFT CODE</th>
+                <th>Action</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-account>
+              <tr [class.bg-yellow-50]="account.is_primary" 
+                  [class.border-l-2]="account.is_primary" 
+                  [class.border-yellow-400]="account.is_primary"
+                  [class.font-semibold]="account.is_primary">
+                <td>
+                  <div class="flex items-center">
+                    <i class="pi pi-star text-yellow-500 mr-2" *ngIf="account.is_primary"></i>
+                    {{ account.beneficiary }}
+                  </div>
+                </td>
+                <td>{{ account.bank_name }}</td>
+                <td>{{ account.account_number }}</td>
+                <td>{{ account.account_type }}</td>
+                <td>{{ account.bank_branch_code }}</td>
+                <td>{{ account.rtgs_neft_code }}</td>
+                <td>{{ account.swift_code }}</td>
+                <td>
+                  <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode, account)"></button>
+                  <button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger" (click)="deleteAccountDetail(account)"></button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+          
+          <button pButton label="Add Account Detail" icon="pi pi-plus" class="p-button-primary mt-4" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode)"></button>
+        </div>
+        
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Close" class="p-button-secondary" (click)=" closeAccountDetailListDialog()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Account Detail Form Dialog -->
+      <p-dialog 
+        header="{{ selectedAccountDetail?.id ? 'Edit' : 'Add' }} Account Detail" 
+        [(visible)]="displayAccountDetailFormDialog" 
+        [modal]="true" 
+        [style]="{ width: '700px' }" 
+        [closable]="false">
+        <form class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div *ngIf="accountDetailFormError" class="col-span-2 text-red-600 mb-2">{{ accountDetailFormError }}</div>
+          
+          <!-- Beneficiary -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Beneficiary
+              <span class="text-red-600">*</span>
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('beneficiary')"
+              [(ngModel)]="selectedAccountDetail['beneficiary']" 
+              name="beneficiary"
+              (ngModelChange)="onFieldChange('beneficiary', $event)"
+              (blur)="onFieldBlur('beneficiary')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('beneficiary')">{{ getFieldError('beneficiary') }}</small>
+          </div>
+
+          <!-- Bank Name -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Bank Name
+              <span class="text-red-600">*</span>
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('bank_name')"
+              [(ngModel)]="selectedAccountDetail['bank_name']" 
+              name="bank_name"
+              (ngModelChange)="onFieldChange('bank_name', $event)"
+              (blur)="onFieldBlur('bank_name')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('bank_name')">{{ getFieldError('bank_name') }}</small>
+          </div>
+
+          <!-- Account Number -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Account Number
+              <span class="text-red-600">*</span>
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('account_number')"
+              [(ngModel)]="selectedAccountDetail['account_number']" 
+              name="account_number"
+              (ngModelChange)="onFieldChange('account_number', $event)"
+              (blur)="onFieldBlur('account_number')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('account_number')">{{ getFieldError('account_number') }}</small>
+          </div>
+
+          <!-- Bank Branch Code -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Bank Branch Code
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('bank_branch_code')"
+              [(ngModel)]="selectedAccountDetail['bank_branch_code']" 
+              name="bank_branch_code"
+              (ngModelChange)="onFieldChange('bank_branch_code', $event)"
+              (blur)="onFieldBlur('bank_branch_code')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('bank_branch_code')">{{ getFieldError('bank_branch_code') }}</small>
+          </div>
+
+          <!-- RTGS/NEFT Code -->
+          <div>
+            <label class="block mb-1 font-medium">
+              RTGS/NEFT Code
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('rtgs_neft_code')"
+              [(ngModel)]="selectedAccountDetail['rtgs_neft_code']" 
+              name="rtgs_neft_code"
+              (ngModelChange)="onFieldChange('rtgs_neft_code', $event)"
+              (blur)="onFieldBlur('rtgs_neft_code')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('rtgs_neft_code')">{{ getFieldError('rtgs_neft_code') }}</small>
+          </div>
+
+          <!-- Account Type -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Account Type
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('account_type')"
+              [(ngModel)]="selectedAccountDetail['account_type']" 
+              name="account_type"
+              (ngModelChange)="onFieldChange('account_type', $event)"
+              (blur)="onFieldBlur('account_type')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('account_type')">{{ getFieldError('account_type') }}</small>
+          </div>
+
+          <!-- Swift Code -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Swift Code
+            </label>
+            <input 
+              type="text" 
+              pInputText 
+              class="w-full" 
+              [class.border-red-500]="getFieldError('swift_code')"
+              [(ngModel)]="selectedAccountDetail['swift_code']" 
+              name="swift_code"
+              (ngModelChange)="onFieldChange('swift_code', $event)"
+              (blur)="onFieldBlur('swift_code')" />
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('swift_code')">{{ getFieldError('swift_code') }}</small>
+          </div>
+
+          <!-- Primary Account Selection -->
+          <div>
+            <label class="block mb-1 font-medium">
+              Primary Account
+            </label>
+            <p-dropdown 
+              [options]="primaryOptions" 
+              [(ngModel)]="selectedAccountDetail['is_primary']" 
+              name="is_primary"
+              placeholder="Select Primary Status"
+              optionLabel="label" 
+              optionValue="value"
+              class="w-full"
+              (ngModelChange)="onFieldChange('is_primary', $event)"
+              (onBlur)="onFieldBlur('is_primary')">
+            </p-dropdown>
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('is_primary')">{{ getFieldError('is_primary') }}</small>
+          </div>
+
+          <!-- Bank Address (with proper border styling) -->
+          <div class="col-span-2">
+            <label class="block mb-1 font-medium">
+              Bank Address
+            </label>
+            <textarea 
+              pInputTextarea 
+              class="w-full border border-gray-300 rounded-md p-2 focus:border-blue-500 focus:outline-none" 
+              [class.border-red-500]="getFieldError('bank_address')"
+              [(ngModel)]="selectedAccountDetail['bank_address']" 
+              name="bank_address"
+              rows="3"
+              placeholder="Enter bank address"
+              (ngModelChange)="onFieldChange('bank_address', $event)"
+              (blur)="onFieldBlur('bank_address')">
+            </textarea>
+            <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('bank_address')">{{ getFieldError('bank_address') }}</small>
+          </div>
+        </form>
+        
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeAccountDetailFormDialog()"></button>
+            <button pButton label="Save" class="p-button-primary" type="button" (click)="saveAccountDetail()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
       <!-- Document Viewer Dialog -->
       <p-dialog 
         [(visible)]="isDocumentViewerVisible" 
@@ -704,10 +952,108 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
           </div>
         </ng-template>
       </p-dialog>
+
+      <!-- Incharge List Dialog -->
+      <p-dialog 
+        header="Incharge Management" 
+        [(visible)]="displayInchargeListDialog" 
+        [modal]="true" 
+        [style]="{ width: '800px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Incharge Records</h3>
+            <button pButton label="Add Incharge" icon="pi pi-plus" class="p-button-primary" (click)="openInchargeFormDialog()"></button>
+          </div>
+          
+          <p-table [value]="inchargeRecords" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>From Date</th>
+                <th>To Date</th>
+                <th>Actions</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-incharge>
+              <tr>
+                <td>{{ incharge.incharge_name }}</td>
+                <td>{{ incharge.phone_number }}</td>
+                <td>{{ incharge.email }}</td>
+                <td>
+                  <span [class]="incharge.status === 'active' ? 'text-green-600 font-semibold' : 'text-red-600'">
+                    {{ incharge.status | titlecase }}
+                  </span>
+                </td>
+                <td>{{ incharge.from_date | date:'shortDate' }}</td>
+                <td>{{ incharge.to_date | date:'shortDate' }}</td>
+                <td>
+                  <div class="flex gap-1">
+                    <button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openInchargeFormDialog(incharge)" pTooltip="Edit"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="deleteIncharge(incharge)" pTooltip="Delete"></button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="7" class="text-center py-4">No incharge records found</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Close" class="p-button-secondary" (click)="closeInchargeListDialog()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Incharge Form Dialog -->
+      <p-dialog 
+        [header]="selectedIncharge?.id ? 'Edit Incharge' : 'Add Incharge'" 
+        [(visible)]="displayInchargeFormDialog" 
+        [modal]="true" 
+        [style]="{ width: '500px' }" 
+        [closable]="false">
+        <form class="space-y-4">
+          <div *ngIf="inchargeFormError" class="text-red-600 mb-2">{{ inchargeFormError }}</div>
+          
+          <ng-container *ngFor="let field of inchargeFields">
+            <div>
+              <label class="block mb-1 font-medium">
+                {{ field.label }}
+                <span *ngIf="field.required" class="text-red-600">*</span>
+              </label>
+              <input 
+                [type]="field.type" 
+                pInputText 
+                class="w-full" 
+                [ngModel]="getInchargeFieldValue(field.key)"
+                (ngModelChange)="setInchargeFieldValue(field.key, $event)"
+                [name]="field.key"
+                [disabled]="field.key === 'entity_type' || field.key === 'entity_code'" />
+            </div>
+          </ng-container>
+        </form>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeInchargeFormDialog()"></button>
+            <button pButton label="Save" class="p-button-primary" (click)="saveIncharge()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
     </div>
   `
 })
 export class CompanyManagementComponent implements OnInit {
+  primaryOptions = [
+    { label: 'No', value: false },
+    { label: 'Yes', value: true }
+  ];
   tabIndex = 0;
   companies: Company[] = [];
   branches: Branch[] = [];
@@ -731,7 +1077,13 @@ export class CompanyManagementComponent implements OnInit {
       .find(d => d.code === departmentCode);
     return department?.serviceTypes || [];
   }
+    getInchargeFieldValue(fieldKey: string): any {
+    return (this.selectedIncharge as any)[fieldKey];
+  }
 
+  setInchargeFieldValue(fieldKey: string, value: any): void {
+    (this.selectedIncharge as any)[fieldKey] = value;
+  }
   // Helper methods for disabled conditions
   isCompanyCodeDisabled(): boolean {
     return this.companies.some(c => c.code === this.selectedCompany?.code);
@@ -797,16 +1149,16 @@ export class CompanyManagementComponent implements OnInit {
   hasUnsavedChanges = false;
 
   companyFields = [
-    { key: 'code', label: 'Company Code', type: 'text', required: true },
-    { key: 'name', label: 'Company Name', type: 'text', required: true },
-    { key: 'name2', label: 'Company Name 2', type: 'text', required: false },
-    { key: 'gst', label: 'GST No.', type: 'text', required: true },
-    { key: 'phone', label: 'Phone', type: 'text', required: false },
-    { key: 'landline', label: 'Landline', type: 'text', required: false },
-    { key: 'email', label: 'Email', type: 'email', required: false },
-    { key: 'website', label: 'Website', type: 'text', required: false },
-    { key: 'address1', label: 'Address 1', type: 'text', required: false },
-    { key: 'address2', label: 'Address 2', type: 'text', required: false },
+    { key: 'code', label: 'Code', type: 'text', required: true },
+    { key: 'name', label: 'Name', type: 'text', required: true },
+    { key: 'gst', label: 'GST', type: 'text' },
+    { key: 'phone', label: 'Phone', type: 'text' },
+    { key: 'email', label: 'Email', type: 'email' },
+    { key: 'website', label: 'Website', type: 'text' },
+    { key: 'pan_number', label: 'PAN Number', type: 'text' },
+    { key: 'register_number', label: 'Register Number', type: 'text' },
+    { key: 'register_address', label: 'Register Address', type: 'text' },
+    { key: 'head_office_address', label: 'Head Office Address', type: 'text' }
   ];
 
   branchFields = [
@@ -880,6 +1232,48 @@ export class CompanyManagementComponent implements OnInit {
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
 
+  // Account detail properties
+  accountDetails: AccountDetail[] = [];
+  selectedAccountDetail: AccountDetail = {} as AccountDetail;
+  displayAccountDetailListDialog = false;
+  displayAccountDetailFormDialog = false;
+  accountDetailFormError = '';
+  currentEntityType = '';
+  currentEntityCode = '';
+
+  // Incharge management properties
+  inchargeRecords: Incharge[] = [];
+  selectedIncharge: Incharge = {} as Incharge;
+  displayInchargeListDialog = false;
+  displayInchargeFormDialog = false;
+  inchargeFormError = '';
+  currentInchargeEntityType = '';
+  currentInchargeEntityCode = '';
+
+  inchargeFields = [
+    { key: 'incharge_name', label: 'Incharge Name', type: 'text', required: true },
+    { key: 'phone_number', label: 'Phone Number', type: 'text', required: false },
+    { key: 'email', label: 'Email', type: 'email', required: false },
+    { key: 'status', label: 'Status', type: 'dropdown', required: true, options: [
+      { label: 'Active', value: 'active' },
+      { label: 'Inactive', value: 'inactive' }
+    ]},
+    { key: 'from_date', label: 'From Date', type: 'date', required: true },
+    { key: 'to_date', label: 'To Date', type: 'date', required: false }
+  ];
+
+  accountDetailFields = [
+    { key: 'beneficiary', label: 'Beneficiary', type: 'text', required: true },
+    { key: 'bank_name', label: 'Bank Name', type: 'text', required: true },
+    { key: 'bank_address', label: 'Bank Address', type: 'textarea' },
+    { key: 'account_number', label: 'Account Number', type: 'text', required: true },
+    { key: 'bank_branch_code', label: 'Bank Branch Code', type: 'text' },
+    { key: 'rtgs_neft_code', label: 'RTGS/NEFT Code', type: 'text' },
+    { key: 'account_type', label: 'Account Type', type: 'text' },
+    { key: 'swift_code', label: 'Swift Code', type: 'text' },
+  
+  ];
+
   constructor(
     private companyService: CompanyService,
     private branchService: BranchService,
@@ -892,7 +1286,9 @@ export class CompanyManagementComponent implements OnInit {
     private entityDocumentService: EntityDocumentService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private accountDetailsService: AccountDetailsService,
+    private inchargeService: InchargeService
   ) {}
 
   ngOnInit() {
@@ -941,28 +1337,6 @@ export class CompanyManagementComponent implements OnInit {
 
     return false;
   }
-
-  navigateToMapping() {
-    this.hasUnsavedChanges = this.checkForUnsavedChanges();
-    
-    if (this.hasUnsavedChanges) {
-      this.confirmationService.confirm({
-        message: 'Unsaved changes detected. Save the form before navigating to Number Series Mapping?',
-        header: 'Unsaved Changes',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Save Changes',
-        accept: () => {
-          // Save the form first, then navigate
-          this.saveCompanyAndNavigate();
-        },
-        rejectVisible: false ,
-      });
-    } else {
-      // No changes, navigate directly
-      this.router.navigate(['/settings/mapping']);
-    }
-  }
-
   navigateToTree() {
     this.router.navigate(['/settings/company_tree']);
   }
@@ -1291,12 +1665,20 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving department:', this.selectedDepartment);
 
+    // Ensure required fields are included for updates
+    const departmentData = {
+      ...this.selectedDepartment,
+      // Explicitly ensure these fields are present for updates
+      company_code: this.selectedDepartment.company_code,
+      branch_code: this.selectedDepartment.branch_code
+    };
+
     // Check if the code exists in the loaded departments for this branch
-    const branch = this.branches.find(b => b.code === this.selectedDepartment.branch_code);
-    const codeExists = branch && branch.departments && branch.departments.some(d => d.code === this.selectedDepartment.code);
+    const branch = this.branches.find(b => b.code === departmentData.branch_code);
+    const codeExists = branch && branch.departments && branch.departments.some(d => d.code === departmentData.code);
 
     if (!codeExists) {
-      this.departmentService.create(this.selectedDepartment).subscribe({
+      this.departmentService.create(departmentData).subscribe({
         next: async (created) => {
           // Save documents after department is created
           await this.saveDepartmentDocuments();
@@ -1309,8 +1691,8 @@ export class CompanyManagementComponent implements OnInit {
         }
       });
     } else {
-      console.log('Updating department with code:', this.selectedDepartment.code, 'Payload:', this.selectedDepartment);
-      this.departmentService.update(this.selectedDepartment.code, this.selectedDepartment).subscribe({
+      console.log('Updating department with code:', departmentData.code, 'Payload:', departmentData);
+      this.departmentService.update(departmentData.code, departmentData).subscribe({
         next: async () => {
           // Save documents after department is updated
           await this.saveDepartmentDocuments();
@@ -1362,31 +1744,41 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving service type:', this.selectedServiceType);
 
-    // Check if the code exists in the loaded service types for this department
-    const serviceTypes = this.getServiceTypesForDepartment(this.selectedServiceType.department_code);
-    const codeExists = serviceTypes.some(st => st.code === this.selectedServiceType.code);
+    // Ensure required fields are included for updates
+    const serviceTypeData = {
+      ...this.selectedServiceType,
+      // Explicitly ensure these fields are present for updates
+      company_code: this.selectedServiceType.company_code,
+      branch_code: this.selectedServiceType.branch_code,
+      department_code: this.selectedServiceType.department_code
+    };
 
-    if (!codeExists) {
-      this.serviceTypeService.create(this.selectedServiceType).subscribe({
-        next: (created) => {
-          this.loadServiceTypesForDepartments();
-          this.closeServiceTypeDialog();
-          this.serviceTypeFormError = '';
-        },
-        error: (err) => {
-          console.error('Error creating service type:', err);
-        }
-      });
-    } else {
-      console.log('Updating service type with code:', this.selectedServiceType.code, 'Payload:', this.selectedServiceType);
-      this.serviceTypeService.update(this.selectedServiceType.code, this.selectedServiceType).subscribe({
+    if (this.selectedServiceType.code && this.isServiceTypeCodeDisabled()) {
+      // Update existing service type
+      this.serviceTypeService.update(serviceTypeData.code, serviceTypeData).subscribe({
         next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Service type updated successfully!' });
           this.loadServiceTypesForDepartments();
           this.closeServiceTypeDialog();
           this.serviceTypeFormError = '';
         },
         error: (err) => {
           console.error('Error updating service type:', err);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update service type: ' + (err.error?.message || err.message) });
+        }
+      });
+    } else {
+      // Create new service type
+      this.serviceTypeService.create(serviceTypeData).subscribe({
+        next: (created) => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Service type created successfully!' });
+          this.loadServiceTypesForDepartments();
+          this.closeServiceTypeDialog();
+          this.serviceTypeFormError = '';
+        },
+        error: (err) => {
+          console.error('Error creating service type:', err);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to create service type: ' + (err.error?.message || err.message) });
         }
       });
     }
@@ -1533,6 +1925,11 @@ export class CompanyManagementComponent implements OnInit {
   getFieldError(field: string): string {
     // Only show error if field has been touched by user
     return this.touchedFields[field] ? (this.fieldErrors[field] || '') : '';
+  }
+
+  setFieldError(field: string, error: string) {
+    this.fieldErrors[field] = error;
+    this.touchedFields[field] = true; // Mark field as touched when setting error
   }
 
   clearFieldErrors() {
@@ -1872,6 +2269,157 @@ export class CompanyManagementComponent implements OnInit {
     this.pdfLoaded = false;
   }
 
+  // Account detail methods
+  openAccountDetailDialog(entityType: string, entityCode: string) {
+    this.currentEntityType = entityType;
+    this.currentEntityCode = entityCode;
+    this.loadAccountDetails(entityType, entityCode);
+    this.displayAccountDetailListDialog = true;
+  }
+
+  openAccountDetailFormDialog(entityType: string, entityCode: string, accountDetail?: AccountDetail) {
+    if (accountDetail) {
+      this.selectedAccountDetail = { ...accountDetail };
+      // Convert is_primary to boolean if it's coming from database as number/string
+      if (this.selectedAccountDetail.is_primary !== undefined) {
+        this.selectedAccountDetail.is_primary = Boolean(this.selectedAccountDetail.is_primary);
+      }
+    } else {
+      this.selectedAccountDetail = { 
+        entity_type: entityType, 
+        entity_code: entityCode,
+        is_primary: false // Set default value
+      } as AccountDetail;
+    }
+    
+    this.displayAccountDetailFormDialog = true;
+    this.accountDetailFormError = '';
+    this.clearFieldErrors();
+  }
+
+  closeAccountDetailListDialog() {
+    this.displayAccountDetailListDialog = false;
+  }
+
+  closeAccountDetailFormDialog() {
+    this.displayAccountDetailFormDialog = false;
+    this.selectedAccountDetail = {} as AccountDetail;
+    this.accountDetailFormError = '';
+    this.clearFieldErrors();
+  }
+
+  // Update the existing method to only handle both dialogs when needed
+  closeAccountDetailDialog() {
+    this.displayAccountDetailListDialog = false;
+    this.displayAccountDetailFormDialog = false;
+    this.selectedAccountDetail = {} as AccountDetail;
+    this.accountDetailFormError = '';
+    this.clearFieldErrors();
+  }
+
+  loadAccountDetails(entityType: string, entityCode: string) {
+    this.accountDetailsService.getByEntity(entityType, entityCode).subscribe({
+      next: (data: AccountDetail[]) => {
+        this.accountDetails = data;
+      },
+      error: (error) => {
+        console.error('Error loading account details:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load account details' });
+      }
+    });
+  }
+
+  saveAccountDetail() {
+    this.clearFieldErrors();
+    
+    // Validate required fields
+    const requiredFields = this.accountDetailFields.filter(f => f.required);
+    let hasErrors = false;
+    
+    for (const field of requiredFields) {
+      if (!this.selectedAccountDetail[field.key as keyof AccountDetail]) {
+        this.setFieldError(field.key, `${field.label} is required`);
+        hasErrors = true;
+      }
+    }
+    
+    if (hasErrors) {
+      this.accountDetailFormError = 'Please fill in all required fields';
+      return;
+    }
+    
+    const operation = this.selectedAccountDetail.id
+      ? this.accountDetailsService.update(this.selectedAccountDetail.id, this.selectedAccountDetail)
+      : this.accountDetailsService.create(this.selectedAccountDetail);
+    
+    operation.subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `Account detail ${this.selectedAccountDetail.id ? 'updated' : 'created'} successfully`
+        });
+        this.displayAccountDetailFormDialog = false;  // Close only the form dialog
+        this.loadAccountDetails(this.currentEntityType, this.currentEntityCode);
+      },
+      error: (error) => {
+        console.error('Error saving account detail:', error);
+        this.accountDetailFormError = 'Failed to save account detail';
+      }
+    });
+  }
+
+  deleteAccountDetail(accountDetail: AccountDetail) {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this account detail?',
+      accept: () => {
+        this.accountDetailsService.delete(accountDetail.id!).subscribe({
+          next: () => {
+            this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Account detail deleted successfully' });
+            this.loadAccountDetails(this.currentEntityType, this.currentEntityCode);
+          },
+          error: (error) => {
+            console.error('Error deleting account detail:', error);
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete account detail' });
+          }
+        });
+      }
+    });
+  }
+
+  onPrimaryChange(selectedAccount: AccountDetail) {
+    // Toggle the selected account's primary status
+    selectedAccount.is_primary = !selectedAccount.is_primary;
+    
+    if (selectedAccount.is_primary) {
+      // If this account is now primary, uncheck all other accounts
+      this.accountDetails.forEach(account => {
+        if (account.id !== selectedAccount.id) {
+          account.is_primary = false;
+        }
+      });
+    }
+    
+    // Update all accounts in the backend
+    this.accountDetails.forEach(account => {
+      if (account.id) {
+        this.accountDetailsService.update(account.id, account).subscribe({
+          next: () => {
+            console.log(`Account ${account.id} primary status updated to ${account.is_primary}`);
+          },
+          error: (error) => {
+            console.error('Error updating account primary status:', error);
+            this.messageService.add({ 
+              severity: 'error', 
+              summary: 'Error', 
+              detail: 'Failed to update primary account status' 
+            });
+          }
+        });
+      }
+    });
+  }
+
   // Document saving methods
   async saveCompanyDocuments() {
     if (!this.selectedCompany?.code) return;
@@ -1972,5 +2520,129 @@ export class CompanyManagementComponent implements OnInit {
     this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });
   }
 
+  openInchargeDialog(entityType: string, entityCode: string) {
+    this.currentInchargeEntityType = entityType;
+    this.currentInchargeEntityCode = entityCode;
+    this.loadInchargeRecords();
+    this.displayInchargeListDialog = true;
+  }
+
+  loadInchargeRecords() {
+    this.inchargeService.getByEntity(this.currentInchargeEntityType, this.currentInchargeEntityCode).subscribe({
+      next: (records) => {
+        this.inchargeRecords = records;
+      },
+      error: (error) => {
+        console.error('Error loading incharge records:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load incharge records' });
+      }
+    });
+  }
+
+  openInchargeFormDialog(incharge?: Incharge) {
+    if (incharge) {
+      this.selectedIncharge = { ...incharge };
+    } else {
+      this.selectedIncharge = {
+        entity_type: this.currentInchargeEntityType,
+        entity_code: this.currentInchargeEntityCode,
+        incharge_name: '',
+        phone_number: '',
+        email: '',
+        status: 'active',
+        from_date: new Date().toISOString().split('T')[0]
+      } as Incharge;
+    }
+    this.displayInchargeFormDialog = true;
+    this.inchargeFormError = '';
+  }
+
+  saveIncharge() {
+    this.inchargeFormError = '';
+    
+    // Validate required fields
+    const requiredFields = this.inchargeFields.filter(f => f.required);
+    const missing = requiredFields.filter(f => !this.selectedIncharge[f.key as keyof Incharge]);
+    if (missing.length > 0) {
+      this.inchargeFormError = `Please fill all required fields: ${missing.map(f => f.label).join(', ')}`;
+      return;
+    }
+
+    const operation = this.selectedIncharge.id ? 
+      this.inchargeService.update(this.selectedIncharge.id, this.selectedIncharge) :
+      this.inchargeService.create(this.selectedIncharge);
+
+    operation.subscribe({
+      next: (result) => {
+        this.messageService.add({ 
+          severity: 'success', 
+          summary: 'Success', 
+          detail: `Incharge ${this.selectedIncharge.id ? 'updated' : 'created'} successfully` 
+        });
+        this.displayInchargeFormDialog = false;
+        this.loadInchargeRecords();
+        this.updateInchargeNameField(result);
+      },
+      error: (error) => {
+        console.error('Error saving incharge:', error);
+        this.inchargeFormError = 'Failed to save incharge record';
+      }
+    });
+  }
+
+  deleteIncharge(incharge: Incharge) {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to delete incharge record for ${incharge.incharge_name}?`,
+      accept: () => {
+        if (incharge.id) {
+          this.inchargeService.delete(incharge.id).subscribe({
+            next: () => {
+              this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Incharge deleted successfully' });
+              this.loadInchargeRecords();
+            },
+            error: (error) => {
+              console.error('Error deleting incharge:', error);
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete incharge' });
+            }
+          });
+        }
+      }
+    });
+  }
+
+  updateInchargeNameField(activeIncharge: Incharge) {
+    if (activeIncharge.status === 'active') {
+      const inchargeDisplay = `${activeIncharge.incharge_name}${activeIncharge.phone_number ? ' - ' + activeIncharge.phone_number : ''}`;
+      
+      switch (this.currentInchargeEntityType) {
+        case 'company':
+          // Company doesn't have incharge_name field in the current structure
+          break;
+        case 'branch':
+          if (this.selectedBranch) {
+            this.selectedBranch.incharge_name = inchargeDisplay;
+          }
+          break;
+        case 'department':
+          if (this.selectedDepartment) {
+            this.selectedDepartment.incharge_name = inchargeDisplay;
+          }
+          break;
+        case 'service_type':
+          if (this.selectedServiceType) {
+            this.selectedServiceType.incharge_name = inchargeDisplay;
+          }
+          break;
+      }
+    }
+  }
+
+  closeInchargeListDialog() {
+    this.displayInchargeListDialog = false;
+  }
+
+  closeInchargeFormDialog() {
+    this.displayInchargeFormDialog = false;
+  }
 
 }

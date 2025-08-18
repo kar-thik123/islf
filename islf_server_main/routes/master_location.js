@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { logMasterEvent } = require('../log'); // Add this import
 const router = express.Router();
 
 // Get all master locations
@@ -124,5 +125,4 @@ router.delete('/:code', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete master location' });
   }
 });
-
-module.exports = router; 
+module.exports = router;

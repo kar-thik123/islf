@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, TitleCasePipe } from '@angular/common';
 import { TreeModule } from 'primeng/tree';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import { TreeNode } from 'primeng/api';
 import { Router } from '@angular/router';
 import { CompanyService, Company } from '../../../services/company.service';
@@ -13,7 +14,7 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
 @Component({
   selector: 'app-company-tree',
   standalone: true,
-  imports: [CommonModule, TreeModule, ButtonModule, ConfigDatePipe],
+  imports: [CommonModule, TreeModule, ButtonModule, DialogModule, ConfigDatePipe, TitleCasePipe],
   template: `
     <div class="md:w-full">
       <div class="card">
@@ -23,28 +24,23 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
         </div>
         
         <div class="mb-4">
-          <p class="text-gray-600">This tree shows the complete hierarchical structure of your organization.</p>
+          <p class="text-gray-600">This tree shows the complete hierarchical structure of your organization. Click on any node to view details.</p>
         </div>
 
-                 <div class="tree-container">
-           <p-tree 
-             [value]="treeData" 
-             (onNodeExpand)="onNodeExpand($event)"
-             (onNodeCollapse)="onNodeCollapse($event)">
-            
+        <div class="tree-container">
+          <p-tree 
+            [value]="treeData" 
+            (onNodeExpand)="onNodeExpand($event)"
+            (onNodeCollapse)="onNodeCollapse($event)">
+           
             <ng-template pTemplate="default" let-node>
-              <div class="flex items-center gap-2 p-2">
+              <div class="flex items-center gap-2 p-2 cursor-pointer" (click)="showDetailsDialog(node)">
                 <!-- Company Node -->
                 <div *ngIf="node.data.type === 'company'" class="flex items-center gap-2 w-full">
                   <i class="pi pi-building text-blue-600 text-lg"></i>
                   <div class="flex-1">
                     <div class="font-semibold text-blue-800">{{ node.data.name }}</div>
                     <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                    <div class="text-xs text-gray-500">{{ node.data.address1 }}<span *ngIf="node.data.address2">, {{ node.data.address2 }}</span></div>
-                  </div>
-                  <div class="text-xs text-gray-400">
-                    <div>GST: {{ node.data.gst }}</div>
-                    <div>Phone: {{ node.data.phone }}</div>
                   </div>
                 </div>
 
@@ -54,11 +50,6 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
                   <div class="flex-1">
                     <div class="font-semibold text-green-800">{{ node.data.name }}</div>
                     <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                    <div class="text-xs text-gray-500">Incharge: {{ node.data.incharge_name }}</div>
-                  </div>
-                  <div class="text-xs text-gray-400">
-                    <div>GST: {{ node.data.gst }}</div>
-                    <div>Status: {{ node.data.status }}</div>
                   </div>
                 </div>
 
@@ -68,11 +59,6 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
                   <div class="flex-1">
                     <div class="font-semibold text-orange-800">{{ node.data.name }}</div>
                     <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                    <div class="text-xs text-gray-500">Incharge: {{ node.data.incharge_name }}</div>
-                  </div>
-                  <div class="text-xs text-gray-400">
-                    <div>Status: {{ node.data.status }}</div>
-                    <div>Start: {{ node.data.start_date | configDate }}</div>
                   </div>
                 </div>
 
@@ -82,11 +68,6 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
                   <div class="flex-1">
                     <div class="font-semibold text-purple-800">{{ node.data.name }}</div>
                     <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                    <div class="text-xs text-gray-500">Incharge: {{ node.data.incharge_name }}</div>
-                  </div>
-                  <div class="text-xs text-gray-400">
-                    <div>Status: {{ node.data.status }}</div>
-                    <div>Start: {{ node.data.start_date | configDate }}</div>
                   </div>
                 </div>
               </div>
@@ -115,6 +96,142 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
         </div>
       </div>
     </div>
+
+    <!-- Details Dialog -->
+    <p-dialog 
+      [(visible)]="displayDialog" 
+      [header]="dialogTitle" 
+      [modal]="true" 
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      styleClass="p-fluid"
+      [style]="{width: '600px', maxWidth: '90vw'}">
+      
+      <div *ngIf="selectedNode">
+        <!-- Company Details Dialog -->
+        <div *ngIf="selectedNode.data.type === 'company'" class="space-y-4">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="pi pi-building text-blue-600 text-2xl"></i>
+            <h3 class="text-xl font-bold text-blue-800">{{ selectedNode.data.name }}</h3>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Code:</strong> <span class="ml-2">{{ selectedNode.data.code }}</span></div>
+              <div><strong class="text-gray-700">Name:</strong> <span class="ml-2">{{ selectedNode.data.name }}</span></div>
+              <div *ngIf="selectedNode.data.name2"><strong class="text-gray-700">Name 2:</strong> <span class="ml-2">{{ selectedNode.data.name2 }}</span></div>
+              <div><strong class="text-gray-700">GST:</strong> <span class="ml-2">{{ selectedNode.data.gst }}</span></div>
+              <div *ngIf="selectedNode.data.pan"><strong class="text-gray-700">PAN:</strong> <span class="ml-2">{{ selectedNode.data.pan }}</span></div>
+              <div><strong class="text-gray-700">Phone:</strong> <span class="ml-2">{{ selectedNode.data.phone }}</span></div>
+              <div *ngIf="selectedNode.data.landline"><strong class="text-gray-700">Landline:</strong> <span class="ml-2">{{ selectedNode.data.landline }}</span></div>
+            </div>
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Email:</strong> <span class="ml-2">{{ selectedNode.data.email }}</span></div>
+              <div *ngIf="selectedNode.data.website"><strong class="text-gray-700">Website:</strong> <span class="ml-2">{{ selectedNode.data.website }}</span></div>
+              <div *ngIf="selectedNode.data.status"><strong class="text-gray-700">Status:</strong> <span class="ml-2">{{ selectedNode.data.status }}</span></div>
+              <div *ngIf="selectedNode.data.start_date"><strong class="text-gray-700">Start Date:</strong> <span class="ml-2">{{ selectedNode.data.start_date | configDate }}</span></div>
+              <div *ngIf="selectedNode.data.end_date"><strong class="text-gray-700">End Date:</strong> <span class="ml-2">{{ selectedNode.data.end_date | configDate }}</span></div>
+            </div>
+          </div>
+          
+          <div class="mt-4 space-y-3">
+            <div *ngIf="selectedNode.data.address1">
+              <strong class="text-gray-700">Address:</strong> 
+              <div class="ml-2 mt-1">{{ selectedNode.data.address1 }}<span *ngIf="selectedNode.data.address2">, {{ selectedNode.data.address2 }}</span></div>
+            </div>
+            <div *ngIf="selectedNode.data.head_office_address">
+              <strong class="text-gray-700">Head Office:</strong> 
+              <div class="ml-2 mt-1">{{ selectedNode.data.head_office_address }}</div>
+            </div>
+            <div *ngIf="selectedNode.data.register_address">
+              <strong class="text-gray-700">Registered Address:</strong> 
+              <div class="ml-2 mt-1">{{ selectedNode.data.register_address }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Branch Details Dialog -->
+        <div *ngIf="selectedNode.data.type === 'branch'" class="space-y-4">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="pi pi-sitemap text-green-600 text-2xl"></i>
+            <h3 class="text-xl font-bold text-green-800">{{ selectedNode.data.name }}</h3>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Code:</strong> <span class="ml-2">{{ selectedNode.data.code }}</span></div>
+              <div><strong class="text-gray-700">Name:</strong> <span class="ml-2">{{ selectedNode.data.name }}</span></div>
+              <div><strong class="text-gray-700">Company:</strong> <span class="ml-2">{{ selectedNode.data.company_code }}</span></div>
+              <div *ngIf="selectedNode.data.incharge_name"><strong class="text-gray-700">Incharge:</strong> <span class="ml-2">{{ selectedNode.data.incharge_name }}</span></div>
+              <div *ngIf="selectedNode.data.gst"><strong class="text-gray-700">GST:</strong> <span class="ml-2">{{ selectedNode.data.gst }}</span></div>
+            </div>
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Status:</strong> <span class="ml-2">{{ selectedNode.data.status }}</span></div>
+              <div *ngIf="selectedNode.data.phone"><strong class="text-gray-700">Phone:</strong> <span class="ml-2">{{ selectedNode.data.phone }}</span></div>
+              <div *ngIf="selectedNode.data.email"><strong class="text-gray-700">Email:</strong> <span class="ml-2">{{ selectedNode.data.email }}</span></div>
+              <div *ngIf="selectedNode.data.start_date"><strong class="text-gray-700">Start Date:</strong> <span class="ml-2">{{ selectedNode.data.start_date | configDate }}</span></div>
+              <div *ngIf="selectedNode.data.end_date"><strong class="text-gray-700">End Date:</strong> <span class="ml-2">{{ selectedNode.data.end_date | configDate }}</span></div>
+            </div>
+          </div>
+          
+          <div class="mt-4" *ngIf="selectedNode.data.address1">
+            <strong class="text-gray-700">Address:</strong> 
+            <div class="ml-2 mt-1">{{ selectedNode.data.address1 }}<span *ngIf="selectedNode.data.address2">, {{ selectedNode.data.address2 }}</span></div>
+          </div>
+        </div>
+
+        <!-- Department Details Dialog -->
+        <div *ngIf="selectedNode.data.type === 'department'" class="space-y-4">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="pi pi-briefcase text-orange-600 text-2xl"></i>
+            <h3 class="text-xl font-bold text-orange-800">{{ selectedNode.data.name }}</h3>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Code:</strong> <span class="ml-2">{{ selectedNode.data.code }}</span></div>
+              <div><strong class="text-gray-700">Name:</strong> <span class="ml-2">{{ selectedNode.data.name }}</span></div>
+              <div><strong class="text-gray-700">Branch:</strong> <span class="ml-2">{{ selectedNode.data.branch_code }}</span></div>
+              <div *ngIf="selectedNode.data.incharge_name"><strong class="text-gray-700">Incharge:</strong> <span class="ml-2">{{ selectedNode.data.incharge_name }}</span></div>
+            </div>
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Status:</strong> <span class="ml-2">{{ selectedNode.data.status }}</span></div>
+              <div *ngIf="selectedNode.data.start_date"><strong class="text-gray-700">Start Date:</strong> <span class="ml-2">{{ selectedNode.data.start_date | configDate }}</span></div>
+              <div *ngIf="selectedNode.data.end_date"><strong class="text-gray-700">End Date:</strong> <span class="ml-2">{{ selectedNode.data.end_date | configDate }}</span></div>
+              <div *ngIf="selectedNode.data.description"><strong class="text-gray-700">Description:</strong> <span class="ml-2">{{ selectedNode.data.description }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Service Type Details Dialog -->
+        <div *ngIf="selectedNode.data.type === 'serviceType'" class="space-y-4">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="pi pi-cog text-purple-600 text-2xl"></i>
+            <h3 class="text-xl font-bold text-purple-800">{{ selectedNode.data.name }}</h3>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Code:</strong> <span class="ml-2">{{ selectedNode.data.code }}</span></div>
+              <div><strong class="text-gray-700">Name:</strong> <span class="ml-2">{{ selectedNode.data.name }}</span></div>
+              <div><strong class="text-gray-700">Department:</strong> <span class="ml-2">{{ selectedNode.data.department_code }}</span></div>
+              <div *ngIf="selectedNode.data.incharge_name"><strong class="text-gray-700">Incharge:</strong> <span class="ml-2">{{ selectedNode.data.incharge_name }}</span></div>
+            </div>
+            <div class="space-y-3">
+              <div><strong class="text-gray-700">Status:</strong> <span class="ml-2">{{ selectedNode.data.status }}</span></div>
+              <div *ngIf="selectedNode.data.start_date"><strong class="text-gray-700">Start Date:</strong> <span class="ml-2">{{ selectedNode.data.start_date | configDate }}</span></div>
+              <div *ngIf="selectedNode.data.end_date"><strong class="text-gray-700">End Date:</strong> <span class="ml-2">{{ selectedNode.data.end_date | configDate }}</span></div>
+              <div *ngIf="selectedNode.data.description"><strong class="text-gray-700">Description:</strong> <span class="ml-2">{{ selectedNode.data.description }}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <ng-template pTemplate="footer">
+        <button pButton type="button" label="Close" icon="pi pi-times" class="p-button-outlined" (click)="displayDialog = false"></button>
+      </ng-template>
+    </p-dialog>
   `,
   styles: [`
     .tree-container {
@@ -155,6 +272,9 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
 export class CompanyTreeComponent implements OnInit {
   treeData: TreeNode[] = [];
   expandedKeys: { [key: string]: boolean } = {};
+  selectedNode: TreeNode | null = null;
+  displayDialog: boolean = false;
+  dialogTitle: string = '';
   
   companiesCount = 0;
   branchesCount = 0;
@@ -281,4 +401,15 @@ export class CompanyTreeComponent implements OnInit {
   onNodeCollapse(event: any) {
     delete this.expandedKeys[event.node.key];
   }
-} 
+
+  // Add click handler method
+  onNodeSelect(node: TreeNode) {
+    this.selectedNode = node;
+  }
+
+  showDetailsDialog(node: TreeNode) {
+    this.selectedNode = node;
+    this.dialogTitle = `${node.data.type.charAt(0).toUpperCase() + node.data.type.slice(1)} Details - ${node.data.name}`;
+    this.displayDialog = true;
+  }
+}

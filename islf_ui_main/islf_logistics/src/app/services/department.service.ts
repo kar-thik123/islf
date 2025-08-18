@@ -43,10 +43,11 @@ export class DepartmentService {
   }
 
   update(code: string, department: Department): Observable<Department> {
-    return this.http.put<Department>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(department, this.contextService.getContext()));
+    // Don't use context payload for updates to preserve existing values
+    return this.http.put<Department>(`${this.apiUrl}/${code}`, department);
   }
 
   delete(code: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${code}`);
   }
-} 
+}

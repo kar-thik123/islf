@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
 
 // CREATE new vessel (with number series logic and manual/default check)
 router.post('/', async (req, res) => {
-  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active, companyCode, branchCode, departmentCode, ServiceTypeCode } = req.body;
+  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active, vessel_type, companyCode, branchCode, departmentCode, ServiceTypeCode } = req.body;
   try {
     // Extract year from date if year_build is a date object
     if (year_build) {
@@ -149,10 +149,10 @@ router.post('/', async (req, res) => {
     }
     // 4. Insert the new vessel
     const result = await pool.query(
-      `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active, company_code, branch_code, department_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active, vessel_type, company_code, branch_code, department_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [code, vessel_name, imo_number, flag, year_build, active, companyCode, branchCode, departmentCode]
+      [code, vessel_name, imo_number, flag, year_build, active, vessel_type, companyCode, branchCode, departmentCode]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -167,7 +167,7 @@ router.put('/:id', async (req, res) => {
   if (isNaN(id)) {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
-  let { code, vessel_name, imo_number, flag, year_build, active } = req.body;
+  let { code, vessel_name, imo_number, flag, year_build, active, vessel_type } = req.body;
   try {
     // Extract year from date if year_build is a date object
     if (year_build) {
@@ -195,10 +195,10 @@ router.put('/:id', async (req, res) => {
     
     const result = await pool.query(
       `UPDATE master_vessel
-       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6, company_code = $7, branch_code = $8, department_code = $9
-       WHERE id = $10
+       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6, vessel_type = $7, company_code = $8, branch_code = $9, department_code = $10
+       WHERE id = $11
        RETURNING *`,
-      [code, vessel_name, imo_number, flag, year_build, active, id]
+      [code, vessel_name, imo_number, flag, year_build, active, vessel_type, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vessel not found' });

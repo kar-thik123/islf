@@ -88,6 +88,7 @@ router.post('/', async (req, res) => {
         code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
         cleanFrom, cleanTo, cleanPartyType, cleanPartyName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate,company_code,branch_code,department_code
       ]
+      
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

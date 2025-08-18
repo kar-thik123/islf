@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
 
 // GET all master items
 router.get('/', async (req, res) => {
@@ -61,6 +62,15 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [item_type, code, name, hs_code, active,company_code,branch_code,department_code]
     );
+     // Log the CREATE action
+    await logMasterEvent({
+      username: req.user?.username || 'system',
+      action: 'CREATE',
+      master_type: 'master_item',
+      entity_code: code,
+      entity_name: name,
+      details: `Created master item: ${code} - ${name}`
+    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating master item:', err);
@@ -77,6 +87,11 @@ router.put('/:id', async (req, res) => {
 
   const { item_type, code, name, hs_code, active } = req.body;
   try {
+     // Get current record for logging
+    const currentResult = await pool.query('SELECT * FROM master_code WHERE code = $1', [req.params.code]);
+    if (currentResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const currentRecord = currentResult.rows[0];
+
     const result = await pool.query(
       `UPDATE master_item
        SET item_type = $1, code = $2, name = $3, hs_code = $4, active = $5
@@ -88,7 +103,16 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
-
+     // Log the UPDATE action
+    await logMasterEvent({
+      username: req.user?.username || 'system',
+      action: 'UPDATE',
+      master_type: 'master_code',
+      entity_code: req.params.code,
+      entity_name: description,
+      details: `Updated master code: ${req.params.code} - ${description}`
+    });
+    
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating master item:', err);

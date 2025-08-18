@@ -104,10 +104,13 @@ app.use('/api/gst_setup', gstSetupRouter);
 const tariffRouter = require('./routes/tariff');
 app.use('/api/tariff', tariffRouter);
 
+// Add account details route
+const accountDetailsRoutes = require('./routes/account_details');
+app.use('/api/account_details', accountDetailsRoutes);
 
-
-
-
+// Add this line with other route imports
+const inchargeRouter = require('./routes/incharge');
+app.use('/api/incharge', inchargeRouter);
 
 // DB connection check
 const pool = require('./db');

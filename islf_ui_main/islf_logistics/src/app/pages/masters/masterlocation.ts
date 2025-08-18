@@ -559,7 +559,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
   updateLocationTypes() {
     // Create location types array for tabs from master type options
     this.locationTypes = this.locationTypeOptions.map(type => ({
-      label: type.value.toUpperCase(),
+      label: type.value.charAt(0).toUpperCase() + type.value.slice(1).toLowerCase(),
       value: type.value
     }));
 

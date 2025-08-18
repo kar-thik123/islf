@@ -83,6 +83,12 @@ interface FlagOption {
             </th>
             <th>
               <div class="flex justify-between items-center">
+                Vessel Type
+                <p-columnFilter type="text" field="vessel_type" display="menu" placeholder="Search by type"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
                 IMO Number
                 <p-columnFilter type="text" field="imo_number" display="menu" placeholder="Search by IMO"></p-columnFilter>
               </div>
@@ -124,6 +130,7 @@ interface FlagOption {
           <tr>
             <td>{{ vessel.code }}</td>
             <td>{{ vessel.vessel_name }}</td>
+            <td>{{ vessel.vessel_type }}</td>
             <td>{{ vessel.imo_number }}</td>
             <td>{{ vessel.flag }}</td>
             <td>{{ vessel.year_build }}</td>
@@ -184,6 +191,16 @@ interface FlagOption {
                 [ngClass]="{'ng-invalid ng-dirty': getFieldError('vessel_name')}" 
               />
               <small *ngIf="getFieldError('vessel_name')" class="p-error">{{getFieldError('vessel_name')}}</small>
+            </div>
+            
+            <div class="grid-item">
+              <label for="vessel_type">Vessel Type</label>
+              <input 
+                id="vessel_type" 
+                pInputText 
+                [(ngModel)]="selectedVessel.vessel_type" 
+                placeholder="Enter vessel type" 
+              />
             </div>
             <div class="grid-item">
               <label for="imo_number">IMO Number</label>
@@ -512,6 +529,8 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
         vessel_name: '',
         imo_number: '',
         flag: '',
+        vessel_type: '',
+
         year_build: '',
         active: true,
         isNew: true
@@ -525,6 +544,8 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
         vessel_name: '',
         imo_number: '',
         flag: '',
+        vessel_type: '',
+
         year_build: '',
         active: true,
         isNew: true
@@ -547,9 +568,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
       case 'vessel_name':
         if (!value || (typeof value === 'string' && value.trim() === '')) return 'Vessel Name is required';
         break;
-      case 'flag':
-        if (!value || (typeof value === 'string' && value.trim() === '')) return 'Flag is required';
-        break;
+     
       case 'year_build':
         if (!value) return 'Year Build is required';
         break;
@@ -577,7 +596,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     // For code, only require it if it's a manual series
     const requiredFields = this.isManualSeries ?
       ['code', 'vessel_name', 'flag', 'year_build'] :
-      ['vessel_name', 'flag', 'year_build'];
+      ['vessel_name','year_build'];
       
     for (const field of requiredFields) {
       const error = this.validateField(field, this.selectedVessel[field as keyof MasterVessel]);
@@ -621,6 +640,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
       imo_number: this.selectedVessel.imo_number,
       flag: this.selectedVessel.flag,
       year_build: this.selectedVessel.year_build,
+      vessel_type: this.selectedVessel.vessel_type,
       active: this.selectedVessel.active,
       seriesCode: this.mappedVesselSeriesCode, // Always use mapped code
       companyCode: context.companyCode,

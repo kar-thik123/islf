@@ -13,6 +13,7 @@ export interface MasterVessel {
   flag: string;
   year_build: string;
   active: boolean;
+  vessel_type?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -52,4 +53,14 @@ export class MasterVesselService {
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
+}
+export interface MasterVessel {
+  id?: number;
+  code: string;
+  vessel_name: string;
+  imo_number: string;
+  flag: string;
+  year_build: string;
+  active: boolean;
+  vessel_type?: string;
 }
