@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ContextService, UserContext } from '../services/context.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-context-selector',
@@ -101,12 +102,15 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   selectedBranch?: string;
   selectedDepartment?: string;
   selectedServiceType?: string;
+
+  private subscriptions: Subscription[] = [];
  
   constructor(public contextService: ContextService) {}
  
   ngOnInit() {
     // Initialize context values if already set
     this.initializeContextValues();
+    this.setupAutoSelection();
   }
   
   ngOnChanges(changes: SimpleChanges) {
@@ -114,6 +118,46 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
     if (changes['visible'] && changes['visible'].currentValue === true) {
       this.initializeContextValues();
     }
+  }
+
+  ngOnDestroy() {
+    // Clean up subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+
+  setupAutoSelection() {
+    // Auto-select company if only one option
+    const companySub = this.contextService.companyOptions$.subscribe(options => {
+      if (options.length === 1 && !this.selectedCompany) {
+        this.selectedCompany = options[0].value;
+        this.onCompanyChange();
+      }
+    });
+
+    // Auto-select branch if only one option
+    const branchSub = this.contextService.branchOptions$.subscribe(options => {
+      if (options.length === 1 && !this.selectedBranch && this.selectedCompany) {
+        this.selectedBranch = options[0].value;
+        this.onBranchChange();
+      }
+    });
+
+    // Auto-select department if only one option
+    const departmentSub = this.contextService.departmentOptions$.subscribe(options => {
+      if (options.length === 1 && !this.selectedDepartment && this.selectedBranch) {
+        this.selectedDepartment = options[0].value;
+        this.onDepartmentChange();
+      }
+    });
+
+    // Auto-select service type if only one option
+    const serviceTypeSub = this.contextService.serviceTypeOptions$.subscribe(options => {
+      if (options.length === 1 && !this.selectedServiceType && this.selectedDepartment) {
+        this.selectedServiceType = options[0].value;
+      }
+    });
+
+    this.subscriptions.push(companySub, branchSub, departmentSub, serviceTypeSub);
   }
   
   initializeContextValues() {
@@ -158,16 +202,13 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   }
  
   canSave(): boolean {
-    return !!this.selectedCompany ;
+    return !!this.selectedCompany;
   }
  
   saveContext(): void {
     if (!this.selectedCompany) {
       return;
     }
-    
-    // ❌ Remove this line - it's causing the double emission
-    // this.contextService.clearContext();
     
     const ctx: UserContext = {
       companyCode: this.selectedCompany,
@@ -177,7 +218,6 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
     };
     console.log('Saving context in selector:', ctx);
     
-    // ✅ Just set the new context directly
     this.contextService.setContext(ctx);
     this.contextSet.emit(ctx);
     this.visible = false;

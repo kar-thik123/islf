@@ -86,9 +86,9 @@ import { RouterModule } from '@angular/router';
             >
                 <div class="mb-6">
                     <img
-                        src="assets/layout/images/logo.jpg"
+                        src="assets/layout/images/logo.png"
                         alt="logo"
-                        class="block mx-auto drop-shadow-2xl "
+                        class="block mx-auto drop-shadow-2xl w-40"
                     />
 
                     <div

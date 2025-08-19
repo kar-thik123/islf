@@ -1,8 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ContextPayloadService } from './context-payload.service';
-import { ContextService } from './context.service';
 
 export interface Department {
   code: string;
@@ -24,7 +22,7 @@ export interface Department {
 export class DepartmentService {
   private apiUrl = '/api/department';
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(private http: HttpClient) {}
 
   getAll(): Observable<Department[]> {
     return this.http.get<Department[]>(this.apiUrl);
@@ -39,11 +37,10 @@ export class DepartmentService {
   }
 
   create(department: Department): Observable<Department> {
-    return this.http.post<Department>(this.apiUrl, this.contextPayload.withContext(department, this.contextService.getContext()));
+    return this.http.post<Department>(this.apiUrl, department);
   }
 
   update(code: string, department: Department): Observable<Department> {
-    // Don't use context payload for updates to preserve existing values
     return this.http.put<Department>(`${this.apiUrl}/${code}`, department);
   }
 

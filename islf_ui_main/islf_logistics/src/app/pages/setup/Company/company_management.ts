@@ -91,7 +91,6 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                       <div><strong>Code:</strong> {{ branch.code }}</div>
                       <div><strong>GST:</strong> {{ branch.gst }}</div>
                       <div><strong>Address:</strong> {{ branch.address }}</div>
-                      <div><strong>Incharge From:</strong> {{ branch.incharge_from | configDate }}</div>
                       <div><strong>Status:</strong> {{ branch.status }}</div>
                       <div><strong>Start:</strong> {{ branch.start_date | configDate }}</div>
                       <div><strong>Close:</strong> {{ branch.close_date ? (branch.close_date | configDate) : '-' }}</div>
@@ -134,8 +133,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                         <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                           <div><strong>Code:</strong> {{dept.code }}</div>
-                          <div><strong>Incharge From:</strong> {{ dept.incharge_from | configDate }}</div>
-                          <div><strong>Status:</strong> {{ dept.status }}</div>
+                           <div><strong>Status:</strong> {{ dept.status }}</div>
                           <div><strong>Start:</strong> {{ dept.start_date | configDate }}</div>
                           <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | configDate) : '-' }}</div>
                           <div class="col-span-2"><strong>Remarks:</strong> {{ dept.remarks }}</div>
@@ -181,7 +179,6 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                        
                           <div class="grid grid-cols-2 gap-2 text-xs">
                             <div><strong>Code:</strong> {{ serviceType.code }}</div>
-                            <div><strong>Incharge From:</strong> {{ serviceType.incharge_from | configDate }}</div>
                             <div><strong>Status:</strong> {{ serviceType.status }}</div>
                             <div><strong>Start:</strong> {{ serviceType.start_date | configDate }}</div>
                             <div><strong>Close:</strong> {{ serviceType.close_date ? (serviceType.close_date | configDate) : '-' }}</div>
@@ -221,14 +218,6 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
               </div>
             </ng-container>
 
-            <!-- Incharge Button for Service Type (no account details needed) -->
-            <div class="col-span-2">
-              <hr class="w-full border-t border-gray-300 my-4" />
-              <div class="flex justify-start items-center">
-                <button pButton label="Incharge" icon="pi pi-user" class="p-button-outlined" (click)="openInchargeDialog('service_type', selectedServiceType.code)"></button>
-              </div>
-            </div>
-
             <!-- Logo upload -->
             <div class="col-span-2">
              <hr class="w-full border-t border-gray-300 my-4" />
@@ -261,7 +250,6 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <div class="col-span-2">
             <div class="flex justify-between items-center">
               <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined mr-2" (click)="openCompanyDocumentDialog()"></button>
-              <button pButton label="Incharge" icon="pi pi-user" class="p-button-outlined mr-2" (click)="openInchargeDialog('company', selectedCompany.code)"></button>
               <button pButton label="Account Details" icon="pi pi-credit-card" class="p-button-outlined mr-2" (click)="openAccountDetailDialog('company', selectedCompany.code)"></button>
             </div>
           </div>
@@ -285,7 +273,25 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   {{ field.label }}
                   <span *ngIf="field.required" class="text-red-600">*</span>
                 </label>
+                
+                <!-- Conditional rendering for dropdown fields -->
+                <p-dropdown 
+                  *ngIf="field.type === 'dropdown'"
+                  [options]="field.options" 
+                  [(ngModel)]="selectedBranch[field.key]" 
+                  [name]="field.key"
+                  placeholder="Select {{ field.label }}"
+                  optionLabel="label" 
+                  optionValue="value"
+                  class="w-full"
+                  [class.border-red-500]="getFieldError(field.key)"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (onBlur)="onFieldBlur(field.key)">
+                </p-dropdown>
+                
+                <!-- Regular input for non-dropdown fields -->
                 <input 
+                  *ngIf="field.type !== 'dropdown'"
                   [type]="field.type" 
                   pInputText 
                   class="w-full" 
@@ -294,7 +300,10 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   [name]="field.key"
                   [disabled]="(field.key === 'code' && isBranchCodeDisabled()) || (field.key === 'company_code' && isBranchCompanyCodeDisabled())"
                   (ngModelChange)="onFieldChange(field.key, $event)"
-                  (blur)="onFieldBlur(field.key)" />
+                  (blur)="onFieldBlur(field.key)"
+                  (click)="field.key === 'incharge_name' ? openInchargeDialog('branch', selectedBranch.code) : null"
+                  (focus)="field.key === 'incharge_name' ? openInchargeDialog('branch', selectedBranch.code) : null" />
+                
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
@@ -325,7 +334,25 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   {{ field.label }}
                   <span *ngIf="field.required" class="text-red-600">*</span>
                 </label>
+                
+                <!-- Conditional rendering for dropdown fields -->
+                <p-dropdown 
+                  *ngIf="field.type === 'dropdown'"
+                  [options]="field.options" 
+                  [(ngModel)]="selectedDepartment[field.key]" 
+                  [name]="field.key"
+                  placeholder="Select {{ field.label }}"
+                  optionLabel="label" 
+                  optionValue="value"
+                  class="w-full"
+                  [class.border-red-500]="getFieldError(field.key)"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (onBlur)="onFieldBlur(field.key)">
+                </p-dropdown>
+                
+                <!-- Regular input for non-dropdown fields -->
                 <input 
+                  *ngIf="field.type !== 'dropdown'"
                   [type]="field.type" 
                   pInputText 
                   class="w-full" 
@@ -334,7 +361,10 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   [name]="field.key"
                   [disabled]="(field.key === 'code' && isDepartmentCodeDisabled()) || (field.key === 'branch_code' && isDepartmentBranchCodeDisabled()) || (field.key === 'company_code' && isDepartmentCompanyCodeDisabled())"
                   (ngModelChange)="onFieldChange(field.key, $event)"
-                  (blur)="onFieldBlur(field.key)" />
+                  (blur)="onFieldBlur(field.key)"
+                  (click)="field.key === 'incharge_name' ? openInchargeDialog('department', selectedDepartment.code) : null"
+                  (focus)="field.key === 'incharge_name' ? openInchargeDialog('department', selectedDepartment.code) : null" />
+                
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
@@ -365,7 +395,25 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   {{ field.label }}
                   <span *ngIf="field.required" class="text-red-600">*</span>
                 </label>
+                
+                <!-- Conditional rendering for dropdown fields -->
+                <p-dropdown 
+                  *ngIf="field.type === 'dropdown'"
+                  [options]="field.options" 
+                  [(ngModel)]="selectedServiceType[field.key]" 
+                  [name]="field.key"
+                  placeholder="Select {{ field.label }}"
+                  optionLabel="label" 
+                  optionValue="value"
+                  class="w-full"
+                  [class.border-red-500]="getFieldError(field.key)"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (onBlur)="onFieldBlur(field.key)">
+                </p-dropdown>
+                
+                <!-- Regular input for non-dropdown fields -->
                 <input 
+                  *ngIf="field.type !== 'dropdown'"
                   [type]="field.type" 
                   pInputText 
                   class="w-full" 
@@ -374,7 +422,10 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   [name]="field.key"
                   [disabled]="(field.key === 'code' && isServiceTypeCodeDisabled()) || (field.key === 'department_code' && isServiceTypeDepartmentCodeDisabled()) || (field.key === 'branch_code' && isServiceTypeBranchCodeDisabled()) || (field.key === 'company_code' && isServiceTypeCompanyCodeDisabled())"
                   (ngModelChange)="onFieldChange(field.key, $event)"
-                  (blur)="onFieldBlur(field.key)" />
+                  (blur)="onFieldBlur(field.key)"
+                  (click)="field.key === 'incharge_name' ? openInchargeDialog('service_type', selectedServiceType.code) : null"
+                  (focus)="field.key === 'incharge_name' ? openInchargeDialog('service_type', selectedServiceType.code) : null" />
+                
                 <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError(field.key)">{{ getFieldError(field.key) }}</small>
               </div>
             </ng-container>
@@ -1028,7 +1079,23 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 {{ field.label }}
                 <span *ngIf="field.required" class="text-red-600">*</span>
               </label>
+              
+              <!-- Dropdown for dropdown type fields -->
+              <p-dropdown 
+                *ngIf="field.type === 'dropdown'"
+                [options]="field.options" 
+                class="w-full" 
+                [ngModel]="getInchargeFieldValue(field.key)"
+                (ngModelChange)="setInchargeFieldValue(field.key, $event)"
+                [name]="field.key"
+                optionLabel="label" 
+                optionValue="value" 
+                placeholder="Select {{ field.label }}">
+              </p-dropdown>
+              
+              <!-- Regular input for non-dropdown fields -->
               <input 
+                *ngIf="field.type !== 'dropdown'"
                 [type]="field.type" 
                 pInputText 
                 class="w-full" 
@@ -1161,6 +1228,11 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'head_office_address', label: 'Head Office Address', type: 'text' }
   ];
 
+  statusOptions = [
+    { label: 'Active', value: 'active' },
+    { label: 'Inactive', value: 'inactive' }
+  ];
+
   branchFields = [
     { key: 'company_code', label: 'Company Code', type: 'text', required: true },
     { key: 'code', label: 'Branch Code', type: 'text', required: true },
@@ -1169,8 +1241,8 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'address', label: 'Address', type: 'text', required: false },
     { key: 'gst', label: 'GST No.', type: 'text', required: true },
     { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
-    { key: 'incharge_from', label: 'Incharge From Date', type: 'date', required: false },
-    { key: 'status', label: 'Status', type: 'text', required: false },
+  
+    { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'start_date', label: 'Start Date', type: 'date', required: false },
     { key: 'close_date', label: 'Close Date', type: 'date', required: false },
     { key: 'remarks', label: 'Remarks', type: 'text', required: false },
@@ -1183,8 +1255,8 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'name', label: 'Department Name', type: 'text', required: true },
     { key: 'description', label: 'Description', type: 'text', required: false },
     { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
-    { key: 'incharge_from', label: 'Incharge From Date', type: 'date', required: false },
-    { key: 'status', label: 'Status', type: 'text', required: false },
+    
+    { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'start_date', label: 'Start Date', type: 'date', required: false },
     { key: 'close_date', label: 'Close Date', type: 'date', required: false },
     { key: 'remarks', label: 'Remarks', type: 'text', required: false },
@@ -1198,8 +1270,8 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'name', label: 'Service Type Name', type: 'text', required: true },
     { key: 'description', label: 'Description', type: 'text', required: false },
     { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
-    { key: 'incharge_from', label: 'Incharge From Date', type: 'date', required: false },
-    { key: 'status', label: 'Status', type: 'text', required: false },
+  
+    { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'start_date', label: 'Start Date', type: 'date', required: false },
     { key: 'close_date', label: 'Close Date', type: 'date', required: false },
     { key: 'remarks', label: 'Remarks', type: 'text', required: false },
@@ -1254,10 +1326,7 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'incharge_name', label: 'Incharge Name', type: 'text', required: true },
     { key: 'phone_number', label: 'Phone Number', type: 'text', required: false },
     { key: 'email', label: 'Email', type: 'email', required: false },
-    { key: 'status', label: 'Status', type: 'dropdown', required: true, options: [
-      { label: 'Active', value: 'active' },
-      { label: 'Inactive', value: 'inactive' }
-    ]},
+   { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'from_date', label: 'From Date', type: 'date', required: true },
     { key: 'to_date', label: 'To Date', type: 'date', required: false }
   ];

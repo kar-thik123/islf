@@ -23,6 +23,7 @@ import { ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
 import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
 import { MasterCodeService } from '../../../services/mastercode.service';
 import { MasterTypeService } from '../../../services/mastertype.service';
 import { EntityDocumentService, EntityDocument } from '../../../services/entity-document.service';
@@ -54,11 +55,13 @@ import { NumberSeriesRelationService } from '../../../services/number-series-rel
     ConfirmDialogModule,
     TableModule,
     DialogModule,
+    ToastModule,
   ],
   providers: [ConfirmationService],
   template: `
   
-  <div class="card p-6">
+  <p-toast></p-toast>
+<div class="card p-6">
   
     <h2 class="text-xl font-bold mb-6">{{ isEditMode ? 'Edit User' : 'Create User' }}</h2>
 

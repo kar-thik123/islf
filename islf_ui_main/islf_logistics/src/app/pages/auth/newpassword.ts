@@ -83,9 +83,9 @@ import { MessageService } from 'primeng/api';
         <div class="border border-surface-200 dark:border-surface-700 bg-white bg-surface-0 dark:bg-surface-900 rounded py-16 px-6 md:px-16 z-10">
         <div class="mb-6">
                     <img
-                        src="assets/layout/images/logo.jpg"
+                        src="assets/layout/images/logo.png"
                         alt="logo"
-                        class="block mx-auto drop-shadow-2xl "
+                        class="block mx-auto drop-shadow-2xl w-40 "
                     />
             <div class="mb-6">
                 <div class="text-surface-900 dark:text-surface-0 text-xl font-bold mb-2">New Password</div>
