@@ -28,7 +28,8 @@ import { CustomerComponent } from './customer';
 import { VendorComponent } from './vendor';
 import { MasterUOMComponent } from './masteruom';
 import { ConfigService } from '../../services/config.service';
-
+import { BasisService } from '@/services/basis.service';
+import { BasisComponent } from './basis';
 @Component({
   selector: 'app-tariff',
   standalone: true,
@@ -47,7 +48,8 @@ import { ConfigService } from '../../services/config.service';
     ContainerCodeComponent,
     CustomerComponent,
     VendorComponent,
-    MasterUOMComponent
+    MasterUOMComponent,
+    BasisComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -299,10 +301,10 @@ import { ConfigService } from '../../services/config.service';
       </ng-template>
     </p-dialog>
     
-    <!-- UOM (Basis) Dialog -->
+    <!-- Basis Dialog -->
     <p-dialog
-      header="Unit of Measure (Basis Only)"
-      [(visible)]="showUOMDialog"
+      header="Basis Master"
+      [(visible)]="showBasisDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
       [closable]="true"
@@ -310,7 +312,7 @@ import { ConfigService } from '../../services/config.service';
       [resizable]="false"
     >
       <ng-template pTemplate="content">
-        <master-uom></master-uom>
+        <basis-code></basis-code>
       </ng-template>
     </p-dialog>
   `,
@@ -420,7 +422,8 @@ export class TariffComponent implements OnInit, OnDestroy {
   showContainerDialog = false;
   showCustomerDialog = false;
   showVendorDialog = false;
-  showUOMDialog = false;
+  showBasisDialog = false;
+
 
   // Field validation states
   fieldErrors: { [key: string]: string } = {};
@@ -439,7 +442,9 @@ export class TariffComponent implements OnInit, OnDestroy {
     private customerService: CustomerService,
     private vendorService: VendorService,
     private configService: ConfigService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private basisService: BasisService
+
   ) {}
 
   // Validation methods
@@ -538,7 +543,7 @@ export class TariffComponent implements OnInit, OnDestroy {
       this.loadCargoTypeOptions(),
       this.loadTariffTypeOptions(),
       this.loadLocationOptions(),
-      this.loadbasisOptions(),
+      this.loadBasisOptions(),
       this.loadContainersOptions(),
       this.loadCurrencyOptions(),
       this.loadItemOptions(),
@@ -592,13 +597,12 @@ export class TariffComponent implements OnInit, OnDestroy {
       })
     );
   }
-  loadbasisOptions() {
-    return this.masterUOMService.getAll().pipe(
-      // @ts-ignore
-      tap((uoms: any[]) => {
-      this.basisOptions = (uoms || [])
-          .filter(u => u.uom_type === 'BASIS' && u.active)
-        .map(u => ({ label: u.code, value: u.code }));
+loadBasisOptions() {
+    return this.basisService.getBasis().pipe(
+      tap((basis: any[]) => {
+        this.basisOptions = (basis || [])
+          .filter(b => b.status === 'Active')
+          .map(b => ({ label: `${b.code} - ${b.description}`, value: b.code }));
       })
     );
   }
@@ -773,7 +777,7 @@ export class TariffComponent implements OnInit, OnDestroy {
       this.loadCargoTypeOptions(),
       this.loadTariffTypeOptions(),
       this.loadLocationOptions(),
-      this.loadbasisOptions(),
+      this.loadBasisOptions(),
       this.loadContainersOptions(),
       this.loadCurrencyOptions(),
       this.loadItemOptions(),
@@ -789,7 +793,7 @@ export class TariffComponent implements OnInit, OnDestroy {
       this.loadCargoTypeOptions(),
       this.loadTariffTypeOptions(),
       this.loadLocationOptions(),
-      this.loadbasisOptions(),
+      this.loadBasisOptions(),
       this.loadContainersOptions(),
       this.loadCurrencyOptions(),
       this.loadItemOptions(),
@@ -876,7 +880,8 @@ export class TariffComponent implements OnInit, OnDestroy {
     } else if (type === 'customer') {
       this.showCustomerDialog = true;
     } else if (type === 'basis') {
-      this.showUOMDialog = true;
+      this.showBasisDialog = true;
+
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }

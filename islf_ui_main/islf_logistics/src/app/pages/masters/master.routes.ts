@@ -11,6 +11,7 @@ import { CurrencyCodeComponent } from './currencycode';
 import { ContainerCodeComponent } from './containercode';   
 import { GstSetupComponent } from './gstsetup';
 import { TariffComponent } from './tariff';
+import { BasisComponent } from './basis';
 
 export default [
 
@@ -19,6 +20,7 @@ export default [
     { path: 'master_type', component: MasterTypeComponent, data: {breadcrumb: 'Masters   >>>   Master Type',title: 'Master_Type - ISLF' } },
     {path:'location', component: MasterLocationComponent, data: {breadcrumb: 'Masters   >>>   Location',title: 'Location - ISLF' } },
     {path:'uom',component:MasterUOMComponent, data: {breadcrumb: 'Masters   >>>   Unit of Measure',title: 'UOM - ISLF' } },
+    {path:'basis',component:BasisComponent, data: {breadcrumb: 'Masters   >>>   Basis',title: 'Basis - ISLF' } },
     {path:'master_item',component:MasterItemComponent, data: {breadcrumb: 'Masters   >>>   Master Item',title: 'Master_Item - ISLF' } },
     {path:'vessel',component:MasterVesselComponent, data:{breadcrumb: 'Masters   >>>   Vessel',title:'Vessel - ISLF'}},
     {path:'customer',component:CustomerComponent, data:{breadcrumb: 'Masters   >>>   Customer',title:'Customer - ISLF'}},

@@ -236,7 +236,8 @@ router.get('/config', async (req, res) => {
         numberSeriesFilter: config.validation_number_series_filter || '',
         numberSeriesRelationFilter: config.validation_number_series_relation_filter || '',
         userListFilter: config.validation_user_list_filter || '',
-        mappingFilter: config.validation_mapping_filter || '', // Add this line
+        mappingFilter: config.validation_mapping_filter || '',
+        basisFilter: config.validation_basis_filter || '',
       }
     };
     
@@ -381,7 +382,8 @@ router.post('/config', async (req, res) => {
       { key: 'validation_number_series_filter', value: config.validation?.numberSeriesFilter || '' },
       { key: 'validation_number_series_relation_filter', value: config.validation?.numberSeriesRelationFilter || '' },
       { key: 'validation_user_list_filter', value: config.validation?.userListFilter || '' },
-      { key: 'validation_mapping_filter', value: config.validation?.mappingFilter || '' }, // Add this line
+      { key: 'validation_mapping_filter', value: config.validation?.mappingFilter || '' }, 
+      { key: 'validation_basis_filter', value: config.validation?.basisFilter || '' }
     ];
     
     // Save all settings

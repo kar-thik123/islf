@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterModule } from '@angular/router';
 import { AppMenuitem } from './app.menuitem';
+import { last } from 'rxjs';
 
 @Component({
   selector: 'app-menu',
@@ -133,6 +134,11 @@ export class AppMenu {
                 label:'Unit of Measure',
                 icon:'fa-solid fa-scale-unbalanced',
                 routerLink : ['/master/uom']
+              },
+              {
+                label:'Basis',
+                icon:'fa-solid fa-scale-unbalanced',
+                routerLink : ['/master/basis']
               },
               {
                 label:'Master Item',

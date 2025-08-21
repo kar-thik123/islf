@@ -98,6 +98,9 @@ app.use('/api/currency_code', currencyCodeRouter);
 const containerCodeRouter = require('./routes/container_code');
 app.use('/api/container_code', containerCodeRouter);
 
+const basisRouter = require('./routes/basis');
+app.use('/api/basis', basisRouter);
+
 const gstSetupRouter = require('./routes/gst_setup');
 app.use('/api/gst_setup', gstSetupRouter);
 

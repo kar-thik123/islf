@@ -803,7 +803,16 @@ interface DocumentPaths {
                   class="w-full">
                   </p-dropdown>
                   </div>
-
+                   <div>
+                  <label class="block mb-2 font-medium">Basis:</label>  
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.basisFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Basis filter"
+                  class="w-full">
+                  </p-dropdown>
+                  </div>
                   <div>
                   <label class="block mb-2 font-medium">User List:</label>  
                   <p-dropdown
@@ -979,6 +988,7 @@ export class ITSetupComponent implements OnInit {
     numberSeriesRelationFilter:'',
     userListFilter:'',
     mappingFilter:'',
+    basisFilter:'',
 
 
 

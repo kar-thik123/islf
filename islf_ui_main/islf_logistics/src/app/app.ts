@@ -4,6 +4,7 @@ import { ToastModule } from 'primeng/toast';
 import { CommonModule } from '@angular/common';
 import { ContextService, UserContext } from './services/context.service';
 import { AuthService } from './services/auth.service';
+import { CompanyService } from './services/company.service';
 
 @Component({
   selector: 'app-root',
@@ -23,7 +24,8 @@ export class AppComponent {
   constructor(
     private contextService: ContextService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private companyService: CompanyService
   ) {}
 
   ngOnInit() {
@@ -53,9 +55,24 @@ export class AppComponent {
       url: this.router.url
     });
     
-    // After login, if context is not set, show the context selector
+    // After login, if context is not set, check if there are companies first
     if (isLoggedIn && !isPublicRoute && !isContextSet) {
-      this.contextService.showContextSelector();
+      // Check if there are any companies before showing context selector
+      this.companyService.getAll().subscribe({
+        next: (companies) => {
+          console.log('Company count check:', companies?.length || 0);
+          // Only show context selector if there are companies (company count >= 1)
+          if (companies && companies.length >= 1) {
+            this.contextService.showContextSelector();
+          } else {
+            console.log('No companies found, context dialog will not be shown');
+          }
+        },
+        error: (error) => {
+          console.error('Error checking companies:', error);
+          // On error, don't show context selector
+        }
+      });
     }
   }
 }
