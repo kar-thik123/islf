@@ -19,17 +19,24 @@ import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
 import { forkJoin, Subscription } from 'rxjs';
 import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import { CustomerService } from '@/services/customer.service';
+
 import { VendorService } from '@/services/vendor.service';
 import { ContextService } from '../../services/context.service';
 import { CurrencyCodeComponent } from './currencycode';
 import { ContainerCodeComponent } from './containercode';
-import { CustomerComponent } from './customer';
 import { VendorComponent } from './vendor';
 import { MasterUOMComponent } from './masteruom';
 import { ConfigService } from '../../services/config.service';
 import { BasisService } from '@/services/basis.service';
 import { BasisComponent } from './basis';
+import { CompanyManagementComponent } from '../setup/Company/company_management';
+import { CompanyService } from '@/services/company.service';
+import { DepartmentService } from '@/services/department.service';
+import { ServiceTypeService } from '@/services/servicetype.service';
+import { MappingService } from '@/services/mapping.service';
+import { NumberSeriesService } from '@/services/number-series.service';
+import { NumberSeriesRelationService } from '@/services/number-series-relation.service';
+
 @Component({
   selector: 'app-tariff',
   standalone: true,
@@ -46,7 +53,7 @@ import { BasisComponent } from './basis';
     CalendarModule,
     CurrencyCodeComponent,
     ContainerCodeComponent,
-    CustomerComponent,
+  
     VendorComponent,
     MasterUOMComponent,
     BasisComponent
@@ -65,7 +72,7 @@ import { BasisComponent } from './basis';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code','partyType', 'mode', 'shippingType', 'cargoType','unitOfMeasure', 'tariffType', 'itemName']"
+        [globalFilterFields]="['code','vendorType', 'mode', 'shippingType', 'cargoType','unitOfMeasure', 'tariffType', 'itemName']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -80,7 +87,7 @@ import { BasisComponent } from './basis';
         <ng-template pTemplate="header">
           <tr>
             <th>Code</th>
-            <th>Party Type</th>
+            <th>Vendor Type</th>
             <th>Mode</th>
             <th>Shipping Type</th>
             <th>Cargo Type</th>
@@ -93,7 +100,7 @@ import { BasisComponent } from './basis';
         <ng-template pTemplate="body" let-tariff>
           <tr>
             <td>{{ tariff.code }}</td>
-            <td>{{ tariff.partyType }}</td>
+            <td>{{ tariff.vendorType }}</td>
             <td>{{ tariff.mode }}</td>
             <td>{{ tariff.shippingType }}</td>
             <td>{{ tariff.cargoType }}</td>
@@ -126,33 +133,33 @@ import { BasisComponent } from './basis';
           <div class="grid-container">
             <div class="grid-item">
               <label>Code <span class="text-red-500">*</span></label>
-              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')"/>
+              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')" [disabled]="!isManualSeries && !selectedTariff.isEdit" [placeholder]="isManualSeries ? 'Enter tariff code' : mappedTariffSeriesCode || 'Auto-generated'"/>
               <small *ngIf="fieldErrors['code']" class="p-error">{{ fieldErrors['code'] }}</small>
             </div>
             <div class="grid-item">
               <label>Mode <span class="text-red-500">*</span></label>
-              <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode"></p-dropdown>
+              <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
             </div>
             <div class="grid-item">
               <label>Shipping Type</label>
-              <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select Shipping Type"></p-dropdown>
+              <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select Shipping Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
             </div>
             <div class="grid-item">
               <label>Cargo Type</label>
-              <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type"></p-dropdown>
+              <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
             </div>
             <div class="grid-item">
               <label>Tariff Type</label>
-              <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type"></p-dropdown>
+              <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
             </div>
             <div class="grid-item">
               <label>Basis</label>
               <div class="flex">
-                <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" (ngModelChange)="onFieldChange('basis', selectedTariff.basis)" [ngClass]="getFieldErrorClass('basis')" [ngStyle]="getFieldErrorStyle('basis')" placeholder="Select Basis" class="flex-1"></p-dropdown>
+                <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" (ngModelChange)="onFieldChange('basis', selectedTariff.basis)" [ngClass]="getFieldErrorClass('basis')" [ngStyle]="getFieldErrorStyle('basis')" placeholder="Select Basis" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
                 <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('basis')"></button>
               </div>
               <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
@@ -160,53 +167,61 @@ import { BasisComponent } from './basis';
             <div class="grid-item">
               <label>Container Type</label>
               <div class="flex">
-                <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select Container Type" class="flex-1"></p-dropdown>
+                <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select Container Type" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
                 <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('containerType')"></button>
               </div>
               <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
             </div>
             <div class="grid-item">
               <label>Item Name</label>
-              <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name"></p-dropdown>
+              <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['itemName']" class="p-error">{{ fieldErrors['itemName'] }}</small>
             </div>
             <div class="grid-item">
               <label>Currency</label>
               <div class="flex">
-                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1"></p-dropdown>
+                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
                 <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('currency')"></button>
               </div>
               <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
             </div>
             <div class="grid-item">
+              <label>Location Type From</label>
+              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeFrom" (ngModelChange)="onLocationTypeFromChange()" placeholder="Select Location Type From" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value"></p-dropdown>
+            </div>
+            <div class="grid-item">
+              <label>Location Type To</label>
+              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value"></p-dropdown>
+            </div>
+            <div class="grid-item">
               <label>From</label>
-              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')" placeholder="Select From Location"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="fromLocationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')" placeholder="Select From Location" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['from']" class="p-error">{{ fieldErrors['from'] }}</small>
             </div>
             <div class="grid-item">
               <label>To</label>
-              <p-dropdown appendTo="body" [options]="locationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')" placeholder="Select To Location"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="toLocationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')" placeholder="Select To Location" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['to']" class="p-error">{{ fieldErrors['to'] }}</small>
             </div>
             <div class="grid-item">
-              <label>Party Type</label>
-              <p-dropdown [options]="partyTypeOptions" [(ngModel)]="selectedTariff.partyType" (ngModelChange)="onPartyTypeChange()" placeholder="Select Party Type"></p-dropdown>
+              <label>Vendor Type</label>
+              <p-dropdown [options]="vendorTypeOptions" [(ngModel)]="selectedTariff.vendorType" (ngModelChange)="onVendorTypeChange()" placeholder="Select Vendor Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
             </div>
-            <div class="grid-item" *ngIf="selectedTariff.partyType">
-              <label>Party Name</label>
+            <div class="grid-item">
+              <label>Vendor Name</label>
               <div class="flex">
                 <p-dropdown 
-                  [options]="selectedTariff.partyType === 'Customer' ? customerOptions : vendorOptions" 
-                  [(ngModel)]="selectedTariff.partyName" 
-                  (ngModelChange)="onFieldChange('partyName', selectedTariff.partyName)" 
-                  [ngClass]="getFieldErrorClass('partyName')" 
-                  [ngStyle]="getFieldErrorStyle('partyName')" 
-                  placeholder="Select {{ selectedTariff.partyType }}" 
+                  [options]="vendorOptions" 
+                  [(ngModel)]="selectedTariff.vendorName" 
+                  (ngModelChange)="onFieldChange('vendorName', selectedTariff.vendorName)" 
+                  [ngClass]="getFieldErrorClass('vendorName')" 
+                  [ngStyle]="getFieldErrorStyle('vendorName')" 
+                  placeholder="Select Vendor" 
                   class="flex-1">
                 </p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('partyType')"></button>
+                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm ml-2" (click)="openMaster('vendor')"></button>
               </div>
-              <small *ngIf="fieldErrors['partyName']" class="p-error">{{ fieldErrors['partyName'] }}</small>
+              <small *ngIf="fieldErrors['vendorName']" class="p-error">{{ fieldErrors['vendorName'] }}</small>
             </div>
             <div class="grid-item">
               <label>Effective Date</label>
@@ -227,7 +242,7 @@ import { BasisComponent } from './basis';
             </div>
             <div class="grid-item">
               <label>Freight Charge Type</label>
-              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Freight Charge Type"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Freight Charge Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
             </div>
           
           </div>
@@ -243,7 +258,7 @@ import { BasisComponent } from './basis';
     
     <!-- Currency Code Dialog -->
     <p-dialog
-      header="Currency Codes"
+    
       [(visible)]="showCurrencyDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
@@ -258,7 +273,6 @@ import { BasisComponent } from './basis';
 
     <!-- Container Code Dialog -->
     <p-dialog
-      header="Container Codes"
       [(visible)]="showContainerDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
@@ -270,28 +284,13 @@ import { BasisComponent } from './basis';
         <container-code></container-code>
       </ng-template>
     </p-dialog>
-    
-    <!-- Customer Master Dialog -->
-    <p-dialog
-      header="Customer Master"
-      [(visible)]="showCustomerDialog"
-      [modal]="true"
-      [style]="{ width: '900px' }"
-      [closable]="true"
-      [draggable]="false"
-      [resizable]="false"
-    >
-      <ng-template pTemplate="content">
-        <customer-master></customer-master>
-      </ng-template>
-    </p-dialog>
-    
+     
     <!-- Vendor Master Dialog -->
     <p-dialog
-      header="Vendor Master"
+      
       [(visible)]="showVendorDialog"
       [modal]="true"
-      [style]="{ width: '900px' }"
+      [style]="{ width: '1200px' }"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
@@ -303,7 +302,6 @@ import { BasisComponent } from './basis';
     
     <!-- Basis Dialog -->
     <p-dialog
-      header="Basis Master"
       [(visible)]="showBasisDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
@@ -388,10 +386,7 @@ import { BasisComponent } from './basis';
 export class TariffComponent implements OnInit, OnDestroy {
   private contextSubscription: Subscription | undefined;
   tariffs: any[] = [];
-  modeOptions = [
-    { label: 'IMPORT', value: 'IMPORT' },
-    { label: 'EXPORT', value: 'EXPORT' }
-  ];
+  modeOptions: any[] = [];
   shippingTypeOptions: any[] = [];
   cargoTypeOptions: any[] = [];
   tariffTypeOptions: any[] = [];
@@ -400,17 +395,22 @@ export class TariffComponent implements OnInit, OnDestroy {
   itemNameOptions: any[] = [];
   currencyOptions: any[] = [];
   locationOptions: any[] = [];
+  locationTypeOptions: any[] = [];  // New property
+  fromLocationOptions: any[] = [];  // New property
+  toLocationOptions: any[] = [];    // New property
+  allLocations: any[] = [];         // New property to store all locations
   containerCodeOptions: any[] = [];
   currencyCodeOptions: any[] = [];
   itemCodeOptions: any[] = [];
   uomOptions: any[]=[];
   
-  partyTypeOptions = [
-    { label: 'Customer', value: 'Customer' },
-    { label: 'Vendor', value: 'Vendor' }
-  ];
-  customerOptions: any[] = [];
+  // Number series properties
+  isManualSeries: boolean = true;
+  mappedTariffSeriesCode: string = '';
+  
+  vendorTypeOptions: any[] = [];
   vendorOptions: any[] = [];
+  allVendors: any[] = []; // Add this property to store all vendors
   freightChargeTypeOptions = [
     { label: 'Default', value: 'Default' },
     { label: 'Sell Freight Rate', value: 'Sell Freight Rate' },
@@ -420,7 +420,6 @@ export class TariffComponent implements OnInit, OnDestroy {
   selectedTariff: any = null;
   showCurrencyDialog = false;
   showContainerDialog = false;
-  showCustomerDialog = false;
   showVendorDialog = false;
   showBasisDialog = false;
 
@@ -439,18 +438,25 @@ export class TariffComponent implements OnInit, OnDestroy {
     private containerCodeService: ContainerCodeService,
     private masterItemService: MasterItemService,
     private currencyCodeService: CurrencyCodeService,
-    private customerService: CustomerService,
     private vendorService: VendorService,
     private configService: ConfigService,
     private contextService: ContextService,
-    private basisService: BasisService
-
-  ) {}
+    private basisService: BasisService,
+    private departmentService: DepartmentService,
+    private serviceTypeService: ServiceTypeService,
+    private mappingService: MappingService,
+    private numberSeriesService: NumberSeriesService,
+    private numberSeriesRelationService: NumberSeriesRelationService
+  ) {} // Added missing closing parenthesis
 
   // Validation methods
   validateField(fieldName: string, value: any): string {
     switch (fieldName) {
       case 'code':
+        // Skip validation if auto-generation is enabled (not manual series)
+        if (!this.isManualSeries) {
+          return '';
+        }
         if (!value || value.toString().trim() === '') {
           return 'Code is required';
         }
@@ -491,10 +497,119 @@ export class TariffComponent implements OnInit, OnDestroy {
     }
     this.updateFormValidity();
   }
+    onLocationTypeFromChange() {
+    // Clear the from location when location type changes
+    if (this.selectedTariff) {
+      this.selectedTariff.from = '';
+      this.fieldErrors['from'] = '';
+      
+      // Filter from locations based on selected location type
+      this.filterFromLocations();
+    }
+  }
 
+  onLocationTypeToChange() {
+    // Clear the to location when location type changes
+    if (this.selectedTariff) {
+      this.selectedTariff.to = '';
+      this.fieldErrors['to'] = '';
+      
+      // Filter to locations based on selected location type
+      this.filterToLocations();
+    }
+  }
+
+  filterFromLocations() {
+    console.log('Filtering from locations for type:', this.selectedTariff?.locationTypeFrom);
+    console.log('All locations:', this.allLocations.length);
+    
+    if (this.selectedTariff?.locationTypeFrom) {
+      // Debug: Log all location types to see what's available
+      const availableTypes = [...new Set(this.allLocations.map(l => l.type))];
+      console.log('Available location types in data:', availableTypes);
+      
+      const filteredLocations = this.allLocations.filter(l => {
+        console.log(`Comparing location type '${l.type}' with selected '${this.selectedTariff.locationTypeFrom}'`);
+        return l.type === this.selectedTariff.locationTypeFrom;
+      });
+      console.log('Filtered from locations:', filteredLocations.length);
+      
+      // If no exact match, try case-insensitive comparison
+      if (filteredLocations.length === 0) {
+        const caseInsensitiveFiltered = this.allLocations.filter(l => 
+          l.type?.toLowerCase() === this.selectedTariff.locationTypeFrom?.toLowerCase()
+        );
+        console.log('Case-insensitive filtered locations:', caseInsensitiveFiltered.length);
+        
+        this.fromLocationOptions = caseInsensitiveFiltered.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      } else {
+        this.fromLocationOptions = filteredLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      }
+    } else {
+      // If no location type selected, show all locations formatted as CODE - NAME
+      this.fromLocationOptions = this.allLocations.map(l => ({
+        label: `${l.code} - ${l.name}`,
+        value: l.code
+      }));
+    }
+    console.log('From location options:', this.fromLocationOptions.length);
+  }
+
+  filterToLocations() {
+    console.log('Filtering to locations for type:', this.selectedTariff?.locationTypeTo);
+    console.log('All locations:', this.allLocations.length);
+    
+    if (this.selectedTariff?.locationTypeTo) {
+      // Debug: Log all location types to see what's available
+      const availableTypes = [...new Set(this.allLocations.map(l => l.type))];
+      console.log('Available location types in data:', availableTypes);
+      
+      const filteredLocations = this.allLocations.filter(l => {
+        console.log(`Comparing location type '${l.type}' with selected '${this.selectedTariff.locationTypeTo}'`);
+        return l.type === this.selectedTariff.locationTypeTo;
+      });
+      console.log('Filtered to locations:', filteredLocations.length);
+      
+      // If no exact match, try case-insensitive comparison
+      if (filteredLocations.length === 0) {
+        const caseInsensitiveFiltered = this.allLocations.filter(l => 
+          l.type?.toLowerCase() === this.selectedTariff.locationTypeTo?.toLowerCase()
+        );
+        console.log('Case-insensitive filtered locations:', caseInsensitiveFiltered.length);
+        
+        this.toLocationOptions = caseInsensitiveFiltered.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      } else {
+        this.toLocationOptions = filteredLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      }
+    } else {
+      // If no location type selected, show all locations formatted as CODE - NAME
+      this.toLocationOptions = this.allLocations.map(l => ({
+        label: `${l.code} - ${l.name}`,
+        value: l.code
+      }));
+    }
+    console.log('To location options:', this.toLocationOptions.length);
+  }
   updateFormValidity() {
     // Only code and mode are required fields
-    const requiredFields = ['code', 'mode'];
+    const requiredFields = ['mode']; // Remove 'code' from here
+    
+    // Add code validation only if manual series is enabled
+    if (this.isManualSeries) {
+      requiredFields.push('code');
+    }
 
     this.isFormValid = requiredFields.every(field => 
       !this.fieldErrors[field] && 
@@ -538,30 +653,83 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   private loadAllData() {
-    forkJoin([
-      this.loadShippingTypeOptions(),
-      this.loadCargoTypeOptions(),
-      this.loadTariffTypeOptions(),
-      this.loadLocationOptions(),
-      this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
-      this.loadItemOptions(),
-      this.loadCustomerOptions(),
-      this.loadVendorOptions()
-    ]).subscribe(() => {
-      this.refreshList();
+    forkJoin({
+      modes: this.loadModeOptions(),
+      shippingTypes: this.loadShippingTypeOptions(),
+      cargoTypes: this.loadCargoTypeOptions(),
+      tariffTypes: this.loadTariffTypeOptions(),
+      locations: this.loadLocationOptions(),
+      locationTypes: this.loadLocationTypeOptions(),
+      basis: this.loadBasisOptions(),
+      containers: this.loadContainersOptions(),
+      currencies: this.loadCurrencyOptions(),
+      items: this.loadItemOptions(),
+      vendorTypes: this.loadVendorTypeOptions(),
+      vendors: this.loadVendorOptions()
+    }).subscribe({
+      next: () => {
+        this.refreshList();
+        this.loadMappedTariffSeriesCode();
+      },
+      error: (error) => {
+        console.error('Error loading data:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master data' });
+      }
     });
   }
 
-  // Update all loadXOptions to return observables for forkJoin
+  // Updated method to load unique department names (mode options) with case-insensitive deduplication
+  loadModeOptions() {
+    return this.departmentService.getAll().pipe(
+      tap((departments: any[]) => {
+        console.log('Departments loaded:', departments); // Debug log
+        
+        // Get unique department names with case-insensitive deduplication
+        const uniqueNames = new Map<string, string>();
+        (departments || [])
+          .filter(d => !d.status || d.status === 'Active' || d.status === 'active' || d.status === '' || d.status === null)
+          .forEach(d => {
+            if (d.name && d.name.trim()) {
+              const lowerName = d.name.trim().toLowerCase();
+              if (!uniqueNames.has(lowerName)) {
+                uniqueNames.set(lowerName, d.name.trim());
+              }
+            }
+          });
+        
+        this.modeOptions = Array.from(uniqueNames.values())
+          .map(name => ({ label: name, value: name }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Mode options:', this.modeOptions); // Debug log
+      })
+    );
+  }
+
+  // Updated method to load unique service type values with case-insensitive deduplication
   loadShippingTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
-      // @ts-ignore
-      tap((types: any[]) => {
-      this.shippingTypeOptions = (types || [])
-        .filter(t => t.key === 'SHIP_TYPE' && t.status === 'Active')
-        .map(t => ({ label: t.value, value: t.value }));
+    return this.serviceTypeService.getAll().pipe(
+      tap((serviceTypes: any[]) => {
+        console.log('Service types loaded:', serviceTypes); // Debug log
+        
+        // Get unique service type names with case-insensitive deduplication
+        const uniqueNames = new Map<string, string>();
+        (serviceTypes || [])
+          .filter(st => st.status === 'active') // Changed from 'Active' to 'active'
+          .forEach(st => {
+            if (st.name && st.name.trim()) {
+              const lowerName = st.name.trim().toLowerCase();
+              if (!uniqueNames.has(lowerName)) {
+                uniqueNames.set(lowerName, st.name.trim());
+              }
+            }
+          });
+        
+        this.shippingTypeOptions = Array.from(uniqueNames.values())
+          .map(name => ({ label: name, value: name }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Shipping type options:', this.shippingTypeOptions); // Debug log
       })
     );
   }
@@ -585,15 +753,47 @@ export class TariffComponent implements OnInit, OnDestroy {
       })
     );
   }
+  loadLocationTypeOptions() {
+    return this.masterTypeService.getAll().pipe(
+      tap((types: any[]) => {
+        this.locationTypeOptions = types
+          .filter(t => t.key === 'LOCATION' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        
+        // Debug: Log the location type options
+        console.log('Location type options:', this.locationTypeOptions);
+      })
+    );
+  }
+
   loadLocationOptions() {
     return this.masterLocationService.getAll().pipe(
-      // @ts-ignore
       tap((locations: any[]) => {
-      const uniqueCities = Array.from(new Set((locations || [])
-        .filter(l => l.active && l.city)
-        .map(l => l.city.trim())
-        .filter(Boolean)));
-      this.locationOptions = uniqueCities.map(city => ({ label: city, value: city }));
+        this.allLocations = locations.filter(l => l.active);
+        console.log('Loaded all locations:', this.allLocations.length);
+        
+        // Debug: Log the first few locations to see their structure
+        if (this.allLocations.length > 0) {
+          console.log('Sample location data:', this.allLocations.slice(0, 3));
+          console.log('Available location types in data:', [...new Set(this.allLocations.map(l => l.type))]);
+        }
+        
+        // Keep the existing logic for backward compatibility
+        const uniqueCities = Array.from(new Set((locations || [])
+          .filter(l => l.active && l.city)
+          .map(l => l.city.trim())
+          .filter(Boolean)));
+        this.locationOptions = uniqueCities.map(city => ({ label: city, value: city }));
+        
+        // Initialize filtered location options with all locations formatted as CODE - NAME
+        this.fromLocationOptions = this.allLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+        this.toLocationOptions = this.allLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
       })
     );
   }
@@ -636,24 +836,31 @@ loadBasisOptions() {
       })
     );
   }
-  loadCustomerOptions() {
-    return this.customerService.getAll().pipe(
-      tap((customers: any[]) => {
-        this.customerOptions = (customers || [])
-          .map(c => ({ label: `${c.customer_no} - ${c.name}`, value: c.customer_no }));
+  
+  loadVendorTypeOptions() {
+    return this.masterTypeService.getAll().pipe(
+      tap((types: any[]) => {
+        this.vendorTypeOptions = (types || [])
+          .filter(t => t.key === 'VENDOR' && t.status === 'Active')
+          .map(t => ({ label: t.value, value: t.value }));
+        console.log('Vendor type options loaded:', this.vendorTypeOptions);
       })
     );
   }
+
   loadVendorOptions() {
     return this.vendorService.getAll().pipe(
       tap((vendors: any[]) => {
-       
-        this.vendorOptions = (vendors || [])
+        // Store all vendors for filtering
+        this.allVendors = vendors || [];
+        
+        // Initially show all vendors
+        this.vendorOptions = this.allVendors
           .map(v => ({
             label: `${v.vendor_no} - ${v.name}`,
-            value: v.vendor_no
+            value: v.vendor_no,
+            vendorType: v.type // Include vendor type for filtering
           }));
-       
       })
     );
   }
@@ -674,25 +881,27 @@ loadBasisOptions() {
       next: (data) => {
         console.log('Tariff data loaded successfully:', data.length, 'records');
         this.tariffs = data.map((tariff: any) => ({
-          ...tariff,
-          shippingType: tariff.shipping_type,
-          cargoType: tariff.cargo_type,
-          containerType: tariff.container_type,
-          itemName: tariff.item_name,
-          from: tariff.from_location,
-          to: tariff.to_location,
-          partyType: tariff.party_type,
-          partyName: tariff.party_name,
-          tariffType: tariff.tariff_type,
-          basis: tariff.basis,
-          currency: tariff.currency,
-          charges: tariff.charges,
-          mode: tariff.mode,
-          effectiveDate: tariff.effective_date,
-          periodStartDate: tariff.period_start_date,
-          periodEndDate: tariff.period_end_date,
-          freightChargeType: tariff.freight_charge_type,
-          // ...add any other mappings as needed
+        ...tariff,
+        shippingType: tariff.shipping_type,
+        cargoType: tariff.cargo_type,
+        containerType: tariff.container_type,
+        itemName: tariff.item_name,
+        from: tariff.from_location,
+        to: tariff.to_location,
+        vendorType: tariff.vendor_type,
+        vendorName: tariff.vendor_name,
+        locationTypeFrom: tariff.location_type_from,
+        locationTypeTo: tariff.location_type_to,
+        tariffType: tariff.tariff_type,
+        basis: tariff.basis,
+        currency: tariff.currency,
+        charges: tariff.charges,
+        mode: tariff.mode,
+        effectiveDate: tariff.effective_date,
+        periodStartDate: tariff.period_start_date,
+        periodEndDate: tariff.period_end_date,
+        freightChargeType: tariff.freight_charge_type,
+        // ...add any other mappings as needed
         }));
       },
       error: (error) => {
@@ -703,6 +912,71 @@ loadBasisOptions() {
           detail: 'Failed to load tariff data'
         });
         this.tariffs = [];
+      }
+    });
+  }
+
+  loadMappedTariffSeriesCode() {
+    const context = this.contextService.getContext();
+    console.log('Loading tariff series code for context:', context);
+    
+    // Use context-based mapping with NumberSeriesRelation
+    this.mappingService.findMappingByContext(
+      'tariffCode',
+      context.companyCode || '',
+      context.branchCode || '',
+      context.departmentCode || '',
+      context.serviceType || undefined
+    ).subscribe({
+      next: (contextMapping: any) => {
+        console.log('Tariff mapping relation response:', contextMapping);
+        this.mappedTariffSeriesCode = contextMapping.mapping;
+        if (this.mappedTariffSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList: any[]) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedTariffSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('Tariff series code mapped:', this.mappedTariffSeriesCode, 'Manual:', this.isManualSeries);
+            },
+            error: (error: any) => {
+              console.error('Error loading number series:', error);
+              this.isManualSeries = true;
+            }
+          });
+        } else {
+          this.isManualSeries = true;
+          console.log('No tariff series code mapping found for context');
+        }
+      },
+      error: (error: any) => {
+        console.error('Error loading tariff mapping relation:', error);
+        // Fallback to generic mapping if context-based mapping fails
+        console.log('Falling back to generic mapping method');
+        this.mappingService.getMapping().subscribe({
+          next: (mapping: any) => {
+            console.log('Fallback mapping response:', mapping);
+            this.mappedTariffSeriesCode = mapping.tariffCode || '';
+            if (this.mappedTariffSeriesCode) {
+              this.numberSeriesService.getAll().subscribe({
+                next: (seriesList: any[]) => {
+                  const found = seriesList.find((s: any) => s.code === this.mappedTariffSeriesCode);
+                  this.isManualSeries = !!(found && found.is_manual);
+                  console.log('Tariff series code mapped (fallback):', this.mappedTariffSeriesCode, 'Manual:', this.isManualSeries);
+                },
+                error: (error: any) => {
+                  console.error('Error loading number series (fallback):', error);
+                  this.isManualSeries = true; // Default to manual if error
+                }
+              });
+            } else {
+              this.isManualSeries = true; // Default to manual if no mapping
+            }
+          },
+          error: (error: any) => {
+            console.error('Error loading fallback mapping:', error);
+            this.isManualSeries = true; // Default to manual if error
+          }
+        });
       }
     });
   }
@@ -762,17 +1036,37 @@ loadBasisOptions() {
     
     // Existing addRow logic
     this.selectedTariff = {
-      id: null,
-      code: '',
+      code: this.isManualSeries ? '' : (this.mappedTariffSeriesCode || ''),
       mode: '',
-      // ... other fields
+      shippingType: '',
+      cargoType: '',
+      tariffType: '',
+      basis: '',
+      containerType: '',
+      itemName: '',
+      currency: '',
+      locationTypeFrom: '',
+      locationTypeTo: '',
+      from: '',
+      to: '',
+      vendorType: '',
+      vendorName: '',
+      charges: 0,
+      freightChargeType: '',
+      effectiveDate: '',
+      periodStartDate: '',
+      periodEndDate: '',
       isNew: true
     };
     this.isDialogVisible = true;
     this.fieldErrors = {};
     
+    // Load mapped tariff series code for automatic generation
+    this.loadMappedTariffSeriesCode();
+    
     // Load options using forkJoin
     forkJoin([
+      this.loadModeOptions(),
       this.loadShippingTypeOptions(),
       this.loadCargoTypeOptions(),
       this.loadTariffTypeOptions(),
@@ -781,14 +1075,35 @@ loadBasisOptions() {
       this.loadContainersOptions(),
       this.loadCurrencyOptions(),
       this.loadItemOptions(),
-      this.loadCustomerOptions(),
+      this.loadVendorTypeOptions(),
       this.loadVendorOptions()
     ]).subscribe();
   }
 
   editRow(tariff: any) {
-    // Wait for all options to be loaded before opening dialog
+    this.selectedTariff = { ...tariff, isNew: false, isEdit: true };
+    
+    // Convert date strings to Date objects for the calendar components
+    if (this.selectedTariff.effectiveDate) {
+      this.selectedTariff.effectiveDate = new Date(this.selectedTariff.effectiveDate);
+    }
+    if (this.selectedTariff.periodStartDate) {
+      this.selectedTariff.periodStartDate = new Date(this.selectedTariff.periodStartDate);
+    }
+    if (this.selectedTariff.periodEndDate) {
+      this.selectedTariff.periodEndDate = new Date(this.selectedTariff.periodEndDate);
+    }
+    
+    // Filter locations based on existing location types
+    this.filterFromLocations();
+    this.filterToLocations();
+    
+    this.isDialogVisible = true;
+    this.fieldErrors = {};
+    
+    // Load options for edit mode
     forkJoin([
+      this.loadModeOptions(),
       this.loadShippingTypeOptions(),
       this.loadCargoTypeOptions(),
       this.loadTariffTypeOptions(),
@@ -797,16 +1112,8 @@ loadBasisOptions() {
       this.loadContainersOptions(),
       this.loadCurrencyOptions(),
       this.loadItemOptions(),
-      this.loadCustomerOptions(),
       this.loadVendorOptions()
-    ]).subscribe(() => {
-      console.log('TARIFF:', tariff);
-      console.log('cargoTypeOptions:', this.cargoTypeOptions);
-    this.selectedTariff = { ...tariff, isNew: false };
-    this.fieldErrors = {};
-    this.updateFormValidity();
-    this.isDialogVisible = true;
-    });
+    ]).subscribe();
   }
 
   saveRow() {
@@ -854,34 +1161,41 @@ loadBasisOptions() {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
 
-  onPartyTypeChange() {
-    if (this.selectedTariff.partyType === 'Customer') {
-      this.selectedTariff.partyName = '';
-    } else if (this.selectedTariff.partyType === 'Vendor') {
-      this.selectedTariff.partyName = '';
-    }
-    // Clear party name error and update validation
-    delete this.fieldErrors['partyName'];
+  onVendorTypeChange() {
+    // Clear vendor name when vendor type changes
+    this.selectedTariff.vendorName = '';
+    // Clear vendor name error and update validation
+    delete this.fieldErrors['vendorName'];
     this.updateFormValidity();
+    
+    // Filter vendors based on selected vendor type
+    if (this.selectedTariff.vendorType) {
+      this.vendorOptions = this.allVendors
+        .filter(vendor => vendor.type === this.selectedTariff.vendorType)
+        .map(v => ({
+          label: `${v.vendor_no} - ${v.name}`,
+          value: v.vendor_no,
+          vendorType: v.type
+        }));
+    } else {
+      // If no vendor type selected, show all vendors
+      this.vendorOptions = this.allVendors
+        .map(v => ({
+          label: `${v.vendor_no} - ${v.name}`,
+          value: v.vendor_no,
+          vendorType: v.type
+        }));
+    }
   }
   openMaster(type: string) {
     if (type === 'currency') {
       this.showCurrencyDialog = true;
     } else if (type === 'containerType') {
       this.showContainerDialog = true;
-    } else if (type === 'partyType') {
-      if (this.selectedTariff?.partyType === 'Customer') {
-        this.showCustomerDialog = true;
-      } else if (this.selectedTariff?.partyType === 'Vendor') {
-        this.showVendorDialog = true;
-      }
-    } else if (type === 'carrier') {
+    } else if (type === 'vendor') {
       this.showVendorDialog = true;
-    } else if (type === 'customer') {
-      this.showCustomerDialog = true;
     } else if (type === 'basis') {
       this.showBasisDialog = true;
-
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }

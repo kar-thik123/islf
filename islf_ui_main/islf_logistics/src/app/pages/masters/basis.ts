@@ -366,6 +366,20 @@ export class BasisComponent implements OnInit, OnDestroy {
   }
 
   isBasisValid(basisItem: any): boolean {
+    // For existing basis, check if basic required fields are present
+    if (!basisItem.isNew && basisItem.code && basisItem.description) {
+      const errors = this.fieldErrors[basisItem.code || 'new'];
+      if (!errors) {
+        // No validation errors recorded, check basic field requirements
+        return basisItem.code.toString().trim() !== '' && 
+               basisItem.description.toString().trim() !== '';
+      }
+      // If errors exist, check them
+      const hasCodeError = errors['code'];
+      const hasDescriptionError = errors['description'];
+      return !hasCodeError && !hasDescriptionError;
+    }
+
     const errors = this.fieldErrors[basisItem.code || 'new'];
     if (!errors) return false;
     

@@ -15,10 +15,12 @@ export interface Tariff {
   containerType: string;
   itemName: string;
   currency: string;
+  locationTypeFrom: string;  // New field
+  locationTypeTo: string;    // New field
   from: string;
   to: string;
-  partyType: string;
-  partyName: string;
+  vendorType: string;
+  vendorName: string;
   charges: number;
   freightChargeType: string;
   effectiveDate: string;

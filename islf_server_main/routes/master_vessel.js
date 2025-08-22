@@ -195,8 +195,8 @@ router.put('/:id', async (req, res) => {
     
     const result = await pool.query(
       `UPDATE master_vessel
-       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6, vessel_type = $7, company_code = $8, branch_code = $9, department_code = $10
-       WHERE id = $11
+       SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6, vessel_type = $7
+       WHERE id = $8
        RETURNING *`,
       [code, vessel_name, imo_number, flag, year_build, active, vessel_type, id]
     );

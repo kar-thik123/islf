@@ -215,6 +215,7 @@ interface FlagOption {
               <label for="flag">Flag</label>
               <p-dropdown
                 id="flag"
+                appendTo="body"
                 [options]="flagOptions"
                 [(ngModel)]="selectedVessel.flag"
                 optionLabel="label"
@@ -231,6 +232,7 @@ interface FlagOption {
               <label for="year_build">Year Build</label>
               <p-calendar
                 id="year_build"
+                appendTo="body"
                 [(ngModel)]="selectedVessel.year_build"
                 view="year"
                 dateFormat="yy"
@@ -248,6 +250,7 @@ interface FlagOption {
               <p-dropdown
                 id="active"
                 [options]="activeOptions"
+                appendTo="body"
                 [(ngModel)]="selectedVessel.active"
                 optionLabel="label"
                 optionValue="value"

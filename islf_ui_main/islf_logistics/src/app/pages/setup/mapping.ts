@@ -248,7 +248,8 @@ export class mappingComponent implements OnInit, OnDestroy {
     jobcardNo: null,
     branchNo: null,
     departmentNo: null,
-    vesselCode: null
+    vesselCode: null,
+    tariffCode: null
   };
 
   numberSeriesList = signal<NumberSeries[]>([]);
@@ -265,8 +266,8 @@ export class mappingComponent implements OnInit, OnDestroy {
     { label: 'CR No Series', value: 'crNo' },
     { label: 'Booking No Series', value: 'bookingNo' },
     { label: 'Enquiry No Series', value: 'enquiryNo' },
-    { label: 'Source No Series', value: 'sourceNo' }
-
+    { label: 'Source No Series', value: 'sourceNo' },
+    { label: 'Tariff Code No Series', value: 'tariffCode' }
   ];
 
   // Replace signals with plain properties for form fields
@@ -609,7 +610,8 @@ export class mappingComponent implements OnInit, OnDestroy {
       jobcardNo: null,
       branchNo: null,
       departmentNo: null,
-      vesselCode: null
+      vesselCode: null,
+      tariffCode: null
     };
     this.messageService.add({
       severity: 'info',

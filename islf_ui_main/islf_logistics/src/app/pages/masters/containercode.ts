@@ -297,6 +297,21 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
   }
 
   isContainerValid(container: any): boolean {
+    // For existing containers, check if basic required fields are present
+    if (!container.isNew && container.code && container.description) {
+      const errors = this.fieldErrors[container.code || 'new'];
+      if (!errors) {
+        // No validation errors recorded, check basic field requirements
+        return container.code.toString().trim() !== '' && 
+               container.description.toString().trim() !== '';
+      }
+      // If errors exist, check them
+      const hasCodeError = errors['code'];
+      const hasDescriptionError = errors['description'];
+      return !hasCodeError && !hasDescriptionError;
+    }
+    
+    // For new containers, require validation to have been run
     const errors = this.fieldErrors[container.code || 'new'];
     if (!errors) return false;
     

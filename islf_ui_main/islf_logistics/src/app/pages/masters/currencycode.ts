@@ -356,6 +356,20 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   }
 
   isCurrencyValid(currency: any): boolean {
+       // For existing currency, check if basic required fields are present
+    if (!currency.isNew && currency.code && currency.description) {
+      const errors = this.fieldErrors[currency.code || 'new'];
+      if (!errors) {
+        // No validation errors recorded, check basic field requirements
+        return currency.code.toString().trim() !== '' && 
+               currency.description.toString().trim() !== '';
+      }
+      // If errors exist, check them
+      const hasCodeError = errors['code'];
+      const hasDescriptionError = errors['description'];
+      return !hasCodeError && !hasDescriptionError;
+    }
+    
     const errors = this.fieldErrors[currency.code || 'new'];
     if (!errors) return false;
     

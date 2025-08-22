@@ -6,7 +6,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
-import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { CalendarModule } from 'primeng/calendar';
 import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
@@ -28,7 +27,6 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     ButtonModule,
     DropdownModule,
     ToastModule,
-    DialogModule,
     CalendarModule
   ],
   template: `
@@ -45,7 +43,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['uom_type', 'code', 'description', 'start_day', 'end_day', 'working_days']"
+        [globalFilterFields]="['uom_type', 'code', 'description', 'active']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -78,24 +76,6 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                 <p-columnFilter type="text" field="description" display="menu" placeholder="Search by description"></p-columnFilter>
               </div>
             </th>
-          <!-- <th>
-              <div class="flex justify-between items-center">
-                Start Day
-                <p-columnFilter type="text" field="start_day" display="menu" placeholder="Search by start day"></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
-                End Day
-                <p-columnFilter type="text" field="end_day" display="menu" placeholder="Search by end day"></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
-                Working Days
-                <p-columnFilter type="text" field="working_days" display="menu" placeholder="Search by working days"></p-columnFilter>
-              </div>
-            </th>-->
             <th>
               <div class="flex justify-between items-center">
                 Active
@@ -118,28 +98,97 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
           </tr>
         </ng-template>
 
-        <ng-template pTemplate="body" let-uom>
+        <ng-template pTemplate="body" let-uom let-rowIndex="rowIndex">
           <tr>
-            <td>{{ uom.uom_type }}</td>
-            <td>{{ uom.code }}</td>
-            <td>{{ uom.description }}</td>
-            <!--<td>{{ uom.start_day }}</td>
-            <td>{{ uom.end_day }}</td>
-            <td>{{ uom.working_days }}</td>-->
-            <td> 
-            <span
-              class="text-sm font-semibold px-3 py-1 rounded-full"
-              [ngClass]="{
-                'text-green-700 bg-green-100': uom.active,
-                'text-red-700 bg-red-100': !uom.active
-              }"
-            >
-              {{ uom.active ? 'Active' : 'Inactive' }}
-            </span>
-          </td>
-
             <td>
-              <button pButton type="button" icon="pi pi-pencil" (click)="editRow(uom)" class="p-button-sm"></button>
+              <ng-container *ngIf="uom.isNew || uom.isEditing; else typeText">
+                <div class="flex flex-col">
+                  <p-dropdown
+                    [options]="uomTypeOptions"
+                    [(ngModel)]="uom.uom_type"
+                    optionLabel="value"
+                    optionValue="value"
+                    placeholder="Select Type"
+                    [filter]="true"
+                    (ngModelChange)="onFieldChange(uom, 'uom_type', uom.uom_type)"
+                    [ngClass]="getFieldErrorClass(uom, 'uom_type')"
+                    appendTo="body"
+                  ></p-dropdown>
+                  <small *ngIf="getFieldError(uom, 'uom_type')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(uom, 'uom_type') }}</small>
+                </div>
+              </ng-container>
+              <ng-template #typeText>{{ uom.uom_type }}</ng-template>
+            </td>
+            <td>
+              <ng-container *ngIf="uom.isNew || uom.isEditing; else codeText">
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="uom.code" (ngModelChange)="onFieldChange(uom, 'code', uom.code)" [ngClass]="getFieldErrorClass(uom, 'code')" [ngStyle]="getFieldErrorStyle(uom, 'code')" [disabled]="!uom.isNew" />
+                  <small *ngIf="getFieldError(uom, 'code')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(uom, 'code') }}</small>
+                </div>
+              </ng-container>
+              <ng-template #codeText>{{ uom.code }}</ng-template>
+            </td>
+            <td>
+              <ng-container *ngIf="uom.isNew || uom.isEditing; else descText">
+                <div class="flex flex-col">
+                  <input pInputText [(ngModel)]="uom.description" (ngModelChange)="onFieldChange(uom, 'description', uom.description)" [ngClass]="getFieldErrorClass(uom, 'description')" [ngStyle]="getFieldErrorStyle(uom, 'description')" />
+                  <small *ngIf="getFieldError(uom, 'description')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(uom, 'description') }}</small>
+                </div>
+              </ng-container>
+              <ng-template #descText>{{ uom.description }}</ng-template>
+            </td>
+            <td>
+              <ng-container *ngIf="uom.isEditing || uom.isNew; else statusText">
+                <p-dropdown
+                  [options]="activeOptions"
+                  [(ngModel)]="uom.active"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Status"
+                  appendTo="body"
+                ></p-dropdown>
+              </ng-container>
+              <ng-template #statusText>
+                <span
+                  class="text-sm font-semibold px-3 py-1 rounded-full"
+                  [ngClass]="{
+                    'text-green-700 bg-green-100': uom.active,
+                    'text-red-700 bg-red-100': !uom.active
+                  }"
+                >
+                  {{ uom.active ? 'Active' : 'Inactive' }}
+                </span>
+              </ng-template>
+            </td>
+            <td>
+              <div class="flex items-center space-x-[8px]">
+                <button
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-sm"
+                  (click)="editRow(uom)"
+                  title="Edit"
+                  *ngIf="!uom.isEditing && !uom.isNew"
+                ></button>
+                <button
+                  pButton
+                  icon="pi pi-check"
+                  class="p-button-sm"
+                  (click)="saveRow(uom)"
+                  title="Save"
+                  [disabled]="!isUOMValid(uom)"
+                  *ngIf="uom.isEditing || uom.isNew"
+                ></button>
+                <button
+                  *ngIf="uom.isNew"
+                  pButton
+                  icon="pi pi-trash"
+                  class="p-button-sm"
+                  severity="danger"
+                  (click)="deleteRow(uom)"
+                  title="Delete"
+                ></button>
+              </div>
             </td>
           </tr>
         </ng-template>
@@ -148,121 +197,19 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         </ng-template>
       </p-table>
     </div>
-
-    <p-dialog
-      header="{{ selectedUOM?.isNew ? 'Add' : 'Edit' }} UOM"
-      [(visible)]="isDialogVisible"
-      [modal]="true"
-      [style]="{ width: '750px' }"
-      [closable]="false"
-      [draggable]="false"
-      [resizable]="false"
-      (onHide)="hideDialog()"
-    >
-      <ng-template pTemplate="content">
-        <div *ngIf="selectedUOM" class="p-fluid form-grid dialog-body-padding">
-          <div class="grid-container">
-            <div class="grid-item">
-              <label for="uom_type">UOM Type</label>
-              <p-dropdown
-                id="uom_type"
-                appendTo="body"
-                [options]="uomTypeOptions"
-                [(ngModel)]="selectedUOM.uom_type"
-                optionLabel="value"
-                optionValue="value"
-                placeholder="Select Type"
-                [filter]="true"
-                [disabled]="!selectedUOM.isNew"
-              ></p-dropdown>
-            </div>
-            <div class="grid-item">
-              <label for="code">Code</label>
-              <input id="code" pInputText [(ngModel)]="selectedUOM.code" [disabled]="!selectedUOM.isNew" />
-            </div>
-              <div class="grid-item full-width">
-              <label for="description">Description</label>
-              <input id="description" pInputText [(ngModel)]="selectedUOM.description" />
-            </div>
-         <!--   <div class="grid-item">
-            <label for="start_day">Start Day</label>
-            <p-calendar
-              appendTo="body"
-              id="start_day"
-              [(ngModel)]="selectedUOM.start_day"
-              dateFormat="yy-mm-dd"
-              (onSelect)="calculateWorkingDays()"
-              showIcon="true"
-            ></p-calendar>
-          </div>
-           <div class="grid-item">
-            <label for="end_day">End Day</label>
-            <p-calendar
-              id="end_day"
-              appendTo="body"
-              [(ngModel)]="selectedUOM.end_day"
-              dateFormat="yy-mm-dd"
-              (onSelect)="calculateWorkingDays()"
-              showIcon="true"
-            ></p-calendar>
-          </div>
-        
-            <div class="grid-item">
-            <label for="working_days">Working Days</label>
-            <input id="working_days" pInputText [(ngModel)]="selectedUOM.working_days" disabled />
-          </div>
-          -->
-            <div class="grid-item">
-              <label for="active">Status</label>
-              <p-dropdown
-                appendTo="body"
-                id="active"
-                [options]="activeOptions"
-                [(ngModel)]="selectedUOM.active"
-                optionLabel="label"
-                optionValue="value"
-              ></p-dropdown>
-            </div>
-          </div>
-        </div>
-      </ng-template>
-      <ng-template pTemplate="footer">
-        <div class="flex justify-content-end gap-2 px-3 pb-2">
-          <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedUOM?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
-        </div>
-      </ng-template>
-    </p-dialog>
   `,
-  styles: [`
-    .grid-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-    }
-    .grid-item {
-      display: flex;
-      flex-direction: column;
-    }
-    .full-width {
-      grid-column: span 2;
-    }
-    label {
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
-  `]
+  styles: []
 })
 export class MasterUOMComponent implements OnInit, OnDestroy {
-  uoms: MasterUOM[] = [];
+  uoms: (MasterUOM & { isNew?: boolean; isEditing?: boolean })[] = [];
   uomTypeOptions: any[] = [];
   activeOptions = [
     { label: 'Active', value: true },
     { label: 'Inactive', value: false }
-  ];                                                                                                                                      
+  ];
 
-  isDialogVisible = false;
-  selectedUOM: (MasterUOM & { isNew?: boolean }) | null = null;
+  // Field validation states
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
   private contextSubscription: Subscription | undefined;
 
   constructor(
@@ -295,13 +242,14 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     }
   }
 
-  onGlobalFilter(event: Event, table: any) {
-    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
-  }
-
   refreshList() {
-    this.masterUOMService.getAll().subscribe(data => {
-      this.uoms = data;
+    this.masterUOMService.getAll().subscribe({
+      next: (data) => {
+        this.uoms = data.map(uom => ({ ...uom, isEditing: false, isNew: false }));
+      },
+      error: () => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load UOMs' });
+      }
     });
   }
 
@@ -362,100 +310,167 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
       }
     }
     
-    this.selectedUOM = {
+    // If validation passes or no validation required, proceed with adding row
+    const newRow = {
+      id: undefined,
       uom_type: '',
       code: '',
       description: '',
-        // start_day: '',
-        // end_day: '',
-        // working_days: '',
       active: true,
-      isNew: true,
+      isEditing: true,
+      isNew: true
     };
-    this.isDialogVisible = true;
+    this.uoms = [newRow, ...this.uoms];
   }
 
-  editRow(uom: MasterUOM) {
-    this.selectedUOM = { ...uom, isNew: false };
-    this.isDialogVisible = true;
+  editRow(uom: any) {
+    // Close any other editing rows
+    this.uoms.forEach(u => u.isEditing = false);
+    uom.isEditing = true;
+    uom.isNew = false;
   }
 
-  saveRow() {
-    if (!this.selectedUOM) return;
-  
-    // Format dates before sending
-    const formattedUOM = {
-      ...this.selectedUOM,
-      // start_day: this.formatDate(this.selectedUOM.start_day),
-      // end_day: this.formatDate(this.selectedUOM.end_day)
-    };
-  
-    if (this.selectedUOM.isNew) {
-      this.masterUOMService.create(formattedUOM).subscribe({
+  saveRow(uom: any) {
+    if (!this.isUOMValid(uom)) {
+      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Please fix the validation errors before saving.' });
+      return;
+    }
+
+    if (uom.isNew) {
+      this.masterUOMService.create(uom).subscribe({
         next: () => {
           this.messageService.add({ severity: 'success', summary: 'Success', detail: 'UOM created' });
           this.refreshList();
-          this.hideDialog();
         },
         error: () =>
           this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to create UOM' })
       });
     } else {
-      if (!this.selectedUOM.id) {
+      if (!uom.id) {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Missing UOM ID for update' });
         return;
       }
-  
-      this.masterUOMService.update(this.selectedUOM.id, formattedUOM).subscribe({
+
+      this.masterUOMService.update(uom.id, uom).subscribe({
         next: () => {
           this.messageService.add({ severity: 'success', summary: 'Success', detail: 'UOM updated' });
           this.refreshList();
-          this.hideDialog();
         },
         error: () =>
           this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update UOM' })
       });
     }
   }
-  
-  hideDialog() {
-    this.isDialogVisible = false;
-    this.selectedUOM = null;
+
+  deleteRow(uom: any) {
+    if (uom.id && !uom.isNew) {
+      this.masterUOMService.delete(uom.id).subscribe({
+        next: () => {
+          this.uoms = this.uoms.filter(u => u !== uom);
+          this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'UOM deleted' });
+          this.refreshList();
+        },
+        error: () => {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Delete failed' });
+        }
+      });
+    } else {
+      this.uoms = this.uoms.filter(u => u !== uom);
+    }
   }
-  formatDate(date: Date | string): string {
-    if (!date) return '';
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = ('0' + (d.getMonth() + 1)).slice(-2);
-    const day = ('0' + d.getDate()).slice(-2);
-    return `${year}-${month}-${day}`;
+
+  // Field validation methods
+  onFieldChange(uom: any, fieldName: string, value: any) {
+    this.validateField(uom, fieldName, value);
   }
-  
-  // calculateWorkingDays() {
-  //   if (!this.selectedUOM?.start_day || !this.selectedUOM?.end_day) {
-  //     this.selectedUOM!.working_days = '';
-  //     return;
-  //   }
-  
-  //   const start = new Date(this.selectedUOM.start_day);
-  //   const end = new Date(this.selectedUOM.end_day);
-  
-  //   if (end >= start) {
-  //     const diffTime = Math.abs(end.getTime() - start.getTime());
-  //     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Include both days
-  //     this.selectedUOM!.working_days = diffDays.toString();
-  //   } else {
-  //     this.messageService.add({
-  //       severity: 'warn',
-  //       summary: 'Invalid Dates',
-  //       detail: 'End date must be after start date'
-  //     });
-  //     this.selectedUOM!.working_days = '';
-  //   }
-  // }
+
+  validateField(uom: any, fieldName: string, value: any) {
+    const uomKey = this.getUOMKey(uom);
+    
+    if (!this.fieldErrors[uomKey]) {
+      this.fieldErrors[uomKey] = {};
+    }
+
+    // Clear previous error
+    delete this.fieldErrors[uomKey][fieldName];
+
+    // Validate required fields
+    if (['uom_type', 'code', 'description'].includes(fieldName)) {
+      if (!value || value.toString().trim() === '') {
+        this.fieldErrors[uomKey][fieldName] = `${this.getFieldLabel(fieldName)} is required`;
+        return;
+      }
+    }
+
+    // Additional validation for code (no spaces, special characters)
+    if (fieldName === 'code' && value) {
+      if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+        this.fieldErrors[uomKey][fieldName] = 'Code can only contain letters, numbers, hyphens, and underscores';
+        return;
+      }
+    }
+  }
+
+  getFieldLabel(fieldName: string): string {
+    const labels: { [key: string]: string } = {
+      'uom_type': 'UOM Type',
+      'code': 'Code',
+      'description': 'Description'
+    };
+    return labels[fieldName] || fieldName;
+  }
+
+  getUOMKey(uom: any): string {
+    return uom.id ? uom.id.toString() : `new_${this.uoms.indexOf(uom)}`;
+  }
+
+  getFieldError(uom: any, fieldName: string): string | null {
+    const uomKey = this.getUOMKey(uom);
+    return this.fieldErrors[uomKey]?.[fieldName] || null;
+  }
+
+  getFieldErrorClass(uom: any, fieldName: string): string {
+    return this.getFieldError(uom, fieldName) ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(uom: any, fieldName: string): any {
+    return this.getFieldError(uom, fieldName) ? { 'border-color': '#e24c4c' } : {};
+  }
+
+  isUOMValid(uom: any): boolean {
+        // For existing containers, check if basic required fields are present
+    if (!uom.isNew &&  uom.type && uom.code && uom.description) {
+      const errors = this.fieldErrors[uom.code || 'new'];
+      if (!errors) {
+        // No validation errors recorded, check basic field requirements
+        return uom.uom_type.toString().trim() !== '' && 
+               uom.code.toString().trim() !== '' &&
+               uom.description.toString().trim() !== '';
+      }
+      // If errors exist, check them
+      const hasUOMTypeError = errors['uom_type'];
+      const hasCodeError = errors['code'];
+      const hasDescriptionError = errors['description'];
+      return !hasUOMTypeError && !hasCodeError && !hasDescriptionError;
+    }
+    const uomKey = this.getUOMKey(uom);
+    const errors = this.fieldErrors[uomKey];
+    
+    // Check if there are any validation errors
+    if (errors && Object.keys(errors).length > 0) {
+      return false;
+    }
+    
+    // Check required fields
+    return !!(uom.uom_type && uom.code && uom.description);
+  }
 
   clear(table: any) {
     table.clear();
   }
-  
+
+  onGlobalFilter(event: Event, table: any) {
+    const value = (event.target as HTMLInputElement).value;
+    table.filterGlobal(value, 'contains');
+  }
 }

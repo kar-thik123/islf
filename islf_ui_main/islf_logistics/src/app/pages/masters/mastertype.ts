@@ -290,6 +290,20 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
   }
 
   isTypeValid(type: any): boolean {
+    // For existing type, check if basic required fields are present
+    if (!type.isNew && type.key && type.value) {
+      const errors = this.fieldErrors[type.id || 'new'];
+      if (!errors) {
+        // No validation errors recorded, check basic field requirements
+        return type.key.toString().trim() !== '' && 
+               type.value.toString().trim() !== '';
+      }
+      // If errors exist, check them
+      const hasKeyError = errors['key'];
+      const hasValueError = errors['value'];
+      return !hasKeyError && !hasValueError;
+    }
+    
     const errors = this.fieldErrors[type.id || 'new'];
     if (!errors) return false;
     

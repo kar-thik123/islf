@@ -53,8 +53,8 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const {
     code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
-    from, to, partyType, partyName, charges, freightChargeType, effectiveDate, periodStartDate, periodEndDate,company_code,branch_code,department_code
-
+    locationTypeFrom, locationTypeTo, from, to, vendorType, vendorName, charges, freightChargeType, 
+    effectiveDate, periodStartDate, periodEndDate, company_code, branch_code, department_code
   } = req.body;
   
   // Convert empty strings to null for optional fields
@@ -67,28 +67,103 @@ router.post('/', async (req, res) => {
   const cleanCurrency = currency === '' ? null : currency;
   const cleanFrom = from === '' ? null : from;
   const cleanTo = to === '' ? null : to;
-  const cleanPartyType = partyType === '' ? null : partyType;
-  const cleanPartyName = partyName === '' ? null : partyName;
+  const cleanVendorType = vendorType === '' ? null : vendorType;
+  const cleanVendorName = vendorName === '' ? null : vendorName;
   const cleanCharges = charges === '' || charges === null ? null : parseFloat(charges);
   const cleanFreightChargeType = freightChargeType === '' ? null : freightChargeType;
   const cleanEffectiveDate = effectiveDate === '' ? null : effectiveDate;
   const cleanPeriodStartDate = periodStartDate === '' ? null : periodStartDate;
   const cleanPeriodEndDate = periodEndDate === '' ? null : periodEndDate;
+  const cleanLocationTypeFrom = locationTypeFrom === '' ? null : locationTypeFrom;
+  const cleanLocationTypeTo = locationTypeTo === '' ? null : locationTypeTo;
   
   try {
+    let finalCode = code;
+    let seriesCode;
+
+    // Automatic series code lookup using context (same as user.js)
+    if ((!code || code === '') && company_code && branch_code && department_code) {
+      // Look up the mapping for tariffCode
+      const mappingRes = await pool.query(
+        `SELECT mapping FROM mapping_relations
+         WHERE code_type = $1
+         AND company_code = $2
+         AND branch_code = $3
+         AND department_code = $4
+         ORDER BY id DESC
+         LIMIT 1`,
+        ['tariffCode', company_code, branch_code, department_code]
+      );
+      
+      console.log('TARIFF MAPPING RESULT:', mappingRes.rows);
+      if (mappingRes.rows.length > 0) {
+        seriesCode = mappingRes.rows[0].mapping;
+        console.log('TARIFF SERIES CODE FROM MAPPING:', seriesCode);
+      }
+    }
+
+    // Generate tariff code if series code found
+    if (seriesCode) {
+      const seriesResult = await pool.query(
+        'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
+        [seriesCode]
+      );
+      
+      console.log('TARIFF NUMBER SERIES RESULT:', seriesResult.rows);
+      if (seriesResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Number series not found' });
+      }
+      
+      const series = seriesResult.rows[0];
+      if (!series.is_manual) {
+        // Generate automatic tariff code
+        const relResult = await pool.query(
+          'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1',
+          [seriesCode]
+        );
+        
+        console.log('TARIFF NUMBER RELATION RESULT:', relResult.rows);
+        if (relResult.rows.length === 0) {
+          return res.status(400).json({ error: 'Number series relation not found' });
+        }
+        
+        const rel = relResult.rows[0];
+        let nextNo;
+        if (rel.last_no_used === 0) {
+          nextNo = Number(rel.starting_no);
+        } else {
+          nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+        }
+        
+        finalCode = `${rel.prefix || ''}${nextNo}`;
+        console.log('Generated tariff code:', finalCode);
+        
+        // Update the last_no_used
+        await pool.query(
+          'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+          [nextNo, rel.id]
+        );
+      }
+    } else if (!code || code === '') {
+      // Fallback if no series found
+      finalCode = 'TAR-' + Date.now();
+    }
+    
     const result = await pool.query(
       `INSERT INTO tariff (
         code, mode, shipping_type, cargo_type, tariff_type, basis, container_type, item_name, currency,
-        from_location, to_location, party_type, party_name, charges, freight_charge_type, effective_date, period_start_date, period_end_date,company_code,branch_code,department_code
-
+        location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, 
+        charges, freight_charge_type, effective_date, period_start_date, period_end_date, 
+        company_code, branch_code, department_code
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19 , $20 , $21
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
       ) RETURNING *`,
       [
-        code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
-        cleanFrom, cleanTo, cleanPartyType, cleanPartyName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate,company_code,branch_code,department_code
+        finalCode, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
+        cleanContainerType, cleanItemName, cleanCurrency, cleanLocationTypeFrom, cleanLocationTypeTo,
+        cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, 
+        cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, company_code, branch_code, department_code
       ]
-      
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -105,7 +180,8 @@ router.put('/:id', async (req, res) => {
   }
   const {
     code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
-    from, to, partyType, partyName, charges, freightChargeType, effectiveDate, periodStartDate, periodEndDate
+    locationTypeFrom, locationTypeTo, from, to, vendorType, vendorName, charges, freightChargeType, 
+    effectiveDate, periodStartDate, periodEndDate
   } = req.body;
   
   // Convert empty strings to null for optional fields
@@ -116,10 +192,12 @@ router.put('/:id', async (req, res) => {
   const cleanContainerType = containerType === '' ? null : containerType;
   const cleanItemName = itemName === '' ? null : itemName;
   const cleanCurrency = currency === '' ? null : currency;
+  const cleanLocationTypeFrom = locationTypeFrom === '' ? null : locationTypeFrom;
+  const cleanLocationTypeTo = locationTypeTo === '' ? null : locationTypeTo;
   const cleanFrom = from === '' ? null : from;
   const cleanTo = to === '' ? null : to;
-  const cleanPartyType = partyType === '' ? null : partyType;
-  const cleanPartyName = partyName === '' ? null : partyName;
+  const cleanVendorType = vendorType === '' ? null : vendorType;
+  const cleanVendorName = vendorName === '' ? null : vendorName;
   const cleanCharges = charges === '' || charges === null ? null : parseFloat(charges);
   const cleanFreightChargeType = freightChargeType === '' ? null : freightChargeType;
   const cleanEffectiveDate = effectiveDate === '' ? null : effectiveDate;
@@ -130,11 +208,11 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE tariff SET
         code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
-        from_location = $10, to_location = $11, party_type = $12, party_name = $13, charges = $14, freight_charge_type = $15, effective_date = $16, period_start_date = $17, period_end_date = $18
-      WHERE id = $19 RETURNING *`,
+        location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20
+      WHERE id = $21 RETURNING *`,
       [
         code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
-        cleanFrom, cleanTo, cleanPartyType, cleanPartyName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, id
+        cleanLocationTypeFrom, cleanLocationTypeTo, cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, id
       ]
     );
     if (result.rows.length === 0) {
