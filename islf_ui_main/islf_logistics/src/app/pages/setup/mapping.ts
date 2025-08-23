@@ -131,14 +131,16 @@ interface NumberSeries {
             <td>{{ row.department }}</td>
             <td>{{ row.serviceType }}</td>
             <td>
-              <button pButton icon="pi pi-pencil" class="p-button-text" (click)="editMappingRelation(i)"></button>
-              <button pButton icon="pi pi-trash" class="p-button-text p-button-danger" (click)="deleteMappingRelation(i)"></button>
+             <div class="flex items-center space-x-[8px]">
+              <button pButton icon="pi pi-pencil" class="p-button-sm" (click)="editMappingRelation(i)"></button>
+              <button pButton icon="pi pi-trash" class="p-button-sm p-button-danger" (click)="deleteMappingRelation(i)"></button>
+             </div>
             </td>
           </tr>
         </ng-template>
-        <ng-template pTemplate="footer">
-          <div class="flex justify-between items-center w-full">
-            <span>Total Relations: {{ mappingRelations.length }}</span>
+       <ng-template pTemplate="paginatorleft" let-state>
+          <div class="text-sm text-gray-600">
+            Total Relations: {{ state.totalRecords }}
           </div>
         </ng-template>
       </p-table>

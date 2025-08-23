@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -19,7 +19,7 @@ import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
 import { forkJoin, Subscription } from 'rxjs';
 import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
-
+import * as XLSX from 'xlsx';
 import { VendorService } from '@/services/vendor.service';
 import { ContextService } from '../../services/context.service';
 import { CurrencyCodeComponent } from './currencycode';
@@ -77,7 +77,11 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Create Tariff" icon="pi pi-plus" (click)="addRow()"></button>
+            <div class="flex gap-2">
+              <button pButton type="button" label="Create Tariff" icon="pi pi-plus" (click)="addRow()"></button>
+              <button pButton type="button" label="Import" icon="pi pi-download"  (click)="importData()"></button>
+              <button pButton type="button" label="Export" icon="pi pi-upload" (click)="exportData()"></button>
+            </div>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -98,7 +102,7 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-tariff>
-          <tr>
+          <tr [ngClass]="{'mandatory-row': tariff.isMandatory}">
             <td>{{ tariff.code }}</td>
             <td>{{ tariff.vendorType }}</td>
             <td>{{ tariff.mode }}</td>
@@ -118,6 +122,9 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
       </p-table>
     </div>
     
+    <!-- Hidden file input for import -->
+    <input #fileInput type="file" accept=".csv,.xlsx,.xls" style="display: none" (change)="onFileSelected($event)" />
+    
     <p-dialog
       header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Tariff"
       [(visible)]="isDialogVisible"
@@ -133,16 +140,16 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
           <div class="grid-container">
             <div class="grid-item">
               <label>Code <span class="text-red-500">*</span></label>
-              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')" [disabled]="!isManualSeries && !selectedTariff.isEdit" [placeholder]="isManualSeries ? 'Enter tariff code' : mappedTariffSeriesCode || 'Auto-generated'"/>
+              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')" [disabled]="!isManualSeries || !selectedTariff.isNew" [placeholder]="isManualSeries ? 'Enter tariff code' : mappedTariffSeriesCode || 'Auto-generated'"/>
               <small *ngIf="fieldErrors['code']" class="p-error">{{ fieldErrors['code'] }}</small>
             </div>
             <div class="grid-item">
-              <label>Mode <span class="text-red-500">*</span></label>
+              <label>Department(Mode ) <span class="text-red-500">*</span></label>
               <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
             </div>
             <div class="grid-item">
-              <label>Shipping Type</label>
+              <label>Service Type(Shipping Type)</label>
               <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select Shipping Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
             </div>
@@ -189,14 +196,14 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
               <label>Location Type From</label>
               <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeFrom" (ngModelChange)="onLocationTypeFromChange()" placeholder="Select Location Type From" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value"></p-dropdown>
             </div>
-            <div class="grid-item">
-              <label>Location Type To</label>
-              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value"></p-dropdown>
-            </div>
-            <div class="grid-item">
+             <div class="grid-item">
               <label>From</label>
               <p-dropdown appendTo="body" [options]="fromLocationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')" placeholder="Select From Location" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
               <small *ngIf="fieldErrors['from']" class="p-error">{{ fieldErrors['from'] }}</small>
+            </div>
+            <div class="grid-item">
+              <label>Location Type To</label>
+              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value"></p-dropdown>
             </div>
             <div class="grid-item">
               <label>To</label>
@@ -243,6 +250,10 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
             <div class="grid-item">
               <label>Freight Charge Type</label>
               <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Freight Charge Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+            </div>
+            <div class="grid-item">
+              <label>Mandatory</label>
+              <p-dropdown [options]="mandatoryOptions" [(ngModel)]="selectedTariff.isMandatory" placeholder="Select" [showClear]="false" appendTo="body"></p-dropdown>
             </div>
           
           </div>
@@ -320,6 +331,14 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
       grid-template-columns: repeat(3, 1fr);
       gap: 1.5rem;
       padding: 1rem;
+    }
+    
+    .mandatory-row {
+      background-color: #fef3c7 !important; /* Light yellow background */
+    }
+    
+    .mandatory-row:hover {
+      background-color: #fde68a !important; /* Slightly darker on hover */
     }
     
     .grid-item {
@@ -405,7 +424,7 @@ export class TariffComponent implements OnInit, OnDestroy {
   uomOptions: any[]=[];
   
   // Number series properties
-  isManualSeries: boolean = true;
+  isManualSeries: boolean = false;
   mappedTariffSeriesCode: string = '';
   
   vendorTypeOptions: any[] = [];
@@ -422,6 +441,11 @@ export class TariffComponent implements OnInit, OnDestroy {
   showContainerDialog = false;
   showVendorDialog = false;
   showBasisDialog = false;
+    mandatoryOptions = [
+    { label: 'Yes', value: true },
+    { label: 'No', value: false }
+  ];
+// ... existing code ...
 
 
   // Field validation states
@@ -636,6 +660,7 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadAllData();
+    this.loadMappedTariffSeriesCode();
 
     // Subscribe to context changes to reload data
     this.contextSubscription = this.contextService.context$.pipe(
@@ -872,11 +897,6 @@ loadBasisOptions() {
   }
 
   refreshList() {
-    console.log('Refreshing tariff list - starting refreshList method');
-    
-    // ❌ Remove context validation block
-    
-    // Proceed with fetching data
     this.tariffService.getAll().subscribe({
       next: (data) => {
         console.log('Tariff data loaded successfully:', data.length, 'records');
@@ -901,6 +921,7 @@ loadBasisOptions() {
         periodStartDate: tariff.period_start_date,
         periodEndDate: tariff.period_end_date,
         freightChargeType: tariff.freight_charge_type,
+        isMandatory: tariff.is_mandatory
         // ...add any other mappings as needed
         }));
       },
@@ -1120,6 +1141,11 @@ loadBasisOptions() {
     if (!this.selectedTariff || !this.isFormValid) return;
     const payload: any = { ...this.selectedTariff };
 
+    // For automatic series, ensure code is empty so backend generates it
+    if (!this.isManualSeries) {
+      payload.code = '';
+    }
+
     if (this.selectedTariff.isNew) {
       this.tariffService.create(payload).subscribe({
         next: (created) => {
@@ -1198,6 +1224,284 @@ loadBasisOptions() {
       this.showBasisDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
+    }
+  }
+
+  importData() {
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+
+  onFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (fileExtension === 'csv') {
+      this.processCsvData(file);
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      this.processExcelData(file);
+    } else {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Invalid File',
+        detail: 'Please select a CSV or Excel file'
+      });
+    }
+
+    // Reset file input
+    event.target.value = '';
+  }
+
+  processCsvData(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const csv = e.target?.result as string;
+      const lines = csv.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          data.push(row);
+        }
+      }
+      
+      this.processImportedData(data);
+    };
+    reader.readAsText(file);
+  }
+
+  processExcelData(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arrayBuffer = new Uint8Array(e.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      if (jsonData.length === 0) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Empty File',
+          detail: 'The selected file is empty'
+        });
+        return;
+      }
+      
+      const headers = jsonData[0] as string[];
+      const processedData = [];
+      
+      for (let i = 1; i < jsonData.length; i++) {
+        const row: any = {};
+        const values = jsonData[i] as any[];
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        processedData.push(row);
+      }
+      
+      this.processImportedData(processedData);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  processImportedData(data: any[]) {
+    let successCount = 0;
+    let errorCount = 0;
+    let duplicateCount = 0;
+    let validationErrorCount = 0;
+    let otherErrorCount = 0;
+    
+    data.forEach((row, index) => {
+      try {
+        // Map imported data to tariff object - let backend handle code generation
+        const tariff: any = {
+          // Only include code if it's provided in the import file for manual series
+          // Backend will determine if series is manual/default and handle accordingly
+          ...(row['code'] || row['Code'] ? { code: row['code'] || row['Code'] } : {}),
+          mode: row['mode'] || row['Mode'] || '',
+          shippingType: row['shippingType'] || row['Shipping Type'] || '',
+          cargoType: row['cargoType'] || row['Cargo Type'] || '',
+          tariffType: row['tariffType'] || row['Tariff Type'] || '',
+          basis: row['basis'] || row['Basis'] || '',
+          containerType: row['containerType'] || row['Container Type'] || '',
+          itemName: row['itemName'] || row['Item Name'] || '',
+          currency: row['currency'] || row['Currency'] || '',
+          locationTypeFrom: row['locationTypeFrom'] || row['Location Type From'] || '',
+          from: row['from'] || row['From'] || '',
+          locationTypeTo: row['locationTypeTo'] || row['Location Type To'] || '',
+          to: row['to'] || row['To'] || '',
+          vendorType: row['vendorType'] || row['Vendor Type'] || '',
+          vendorName: row['vendorName'] || row['Vendor Name'] || '',
+          effectiveDate: row['effectiveDate'] || row['Effective Date'] || null,
+          periodStartDate: row['periodStartDate'] || row['Period Start Date'] || null,
+          periodEndDate: row['periodEndDate'] || row['Period End Date'] || null,
+          charges: row['charges'] || row['Charges'] || 0,
+          freightChargeType: row['freightChargeType'] || row['Freight Charge Type'] || '',
+          isMandatory: row['isMandatory'] || row['Mandatory'] === 'Yes' || row['Mandatory'] === true || false
+        };
+        
+        // Validate required fields
+        if (!tariff.mode) {
+          throw new Error(`Row ${index + 2}: Mode is required`);
+        }
+        
+        // Create the tariff - backend will handle:
+        // 1. Context-based mapping lookup
+        // 2. Number series relation checking
+        // 3. Automatic vs manual series determination
+        // 4. Code generation and relation updates
+        this.tariffService.create(tariff).subscribe({
+          next: () => {
+            successCount++;
+            if (successCount + errorCount === data.length) {
+              this.showImportResults(successCount, errorCount, duplicateCount, validationErrorCount, otherErrorCount);
+              this.refreshList();
+            }
+          },
+          error: (error) => {
+            console.error(`Error importing row ${index + 2}:`, error);
+            errorCount++;
+            
+            // Categorize the error type
+            if (error.error && error.error.error === 'Duplicate tariff found') {
+              duplicateCount++;
+            } else if (error.status === 400) {
+              validationErrorCount++;
+            } else {
+              otherErrorCount++;
+            }
+            
+            if (successCount + errorCount === data.length) {
+              this.showImportResults(successCount, errorCount, duplicateCount, validationErrorCount, otherErrorCount);
+              this.refreshList();
+            }
+          }
+        });
+      } catch (error) {
+        console.error(`Error processing row ${index + 2}:`, error);
+        errorCount++;
+        validationErrorCount++;
+        if (successCount + errorCount === data.length) {
+          this.showImportResults(successCount, errorCount, duplicateCount, validationErrorCount, otherErrorCount);
+          this.refreshList();
+        }
+      }
+    });
+  }
+
+  showImportResults(successCount: number, errorCount: number, duplicateCount: number = 0, validationErrorCount: number = 0, otherErrorCount: number = 0) {
+    if (errorCount === 0) {
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Import Successful',
+        detail: `Successfully imported ${successCount} tariff(s)`
+      });
+    } else {
+      let errorDetails = [];
+      
+      if (duplicateCount > 0) {
+        errorDetails.push(`${duplicateCount} duplicate record(s)`);
+      }
+      if (validationErrorCount > 0) {
+        errorDetails.push(`${validationErrorCount} validation error(s)`);
+      }
+      if (otherErrorCount > 0) {
+        errorDetails.push(`${otherErrorCount} other error(s)`);
+      }
+      
+      const detailMessage = successCount > 0 
+        ? `Imported ${successCount} tariff(s). Failed: ${errorDetails.join(', ')}`
+        : `Import failed: ${errorDetails.join(', ')}`;
+      
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Import Completed with Errors',
+        detail: detailMessage
+      });
+    }
+  }
+
+  exportData() {
+    if (this.tariffs.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'No Data',
+        detail: 'No tariffs to export'
+      });
+      return;
+    }
+
+    // Prepare data for export (excluding code field)
+    const exportData = this.tariffs.map(tariff => ({
+      'Mode': tariff.mode || '',
+      'Shipping Type': tariff.shippingType || '',
+      'Cargo Type': tariff.cargoType || '',
+      'Tariff Type': tariff.tariffType || '',
+      'Basis': tariff.basis || '',
+      'Container Type': tariff.containerType || '',
+      'Item Name': tariff.itemName || '',
+      'Currency': tariff.currency || '',
+      'Location Type From': tariff.locationTypeFrom || '',
+      'From': tariff.from || '',
+      'Location Type To': tariff.locationTypeTo || '',
+      'To': tariff.to || '',
+      'Vendor Type': tariff.vendorType || '',
+      'Vendor Name': tariff.vendorName || '',
+      'Effective Date': tariff.effectiveDate || '',
+      'Period Start Date': tariff.periodStartDate || '',
+      'Period End Date': tariff.periodEndDate || '',
+      'Charges': tariff.charges || 0,
+      'Freight Charge Type': tariff.freightChargeType || '',
+      'Mandatory': tariff.isMandatory ? 'Yes' : 'No'
+    }));
+
+    this.exportToCsv(exportData, 'tariffs');
+  }
+
+  exportToCsv(data: any[], filename: string) {
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          // Escape commas and quotes in values
+          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Export Successful',
+        detail: `Exported ${data.length} tariff(s) to CSV`
+      });
     }
   }
 }

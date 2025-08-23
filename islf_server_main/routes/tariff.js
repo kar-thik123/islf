@@ -54,7 +54,7 @@ router.post('/', async (req, res) => {
   const {
     code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
     locationTypeFrom, locationTypeTo, from, to, vendorType, vendorName, charges, freightChargeType, 
-    effectiveDate, periodStartDate, periodEndDate, company_code, branch_code, department_code
+    effectiveDate, periodStartDate, periodEndDate, isMandatory, company_code, branch_code, department_code
   } = req.body;
   
   // Convert empty strings to null for optional fields
@@ -78,22 +78,83 @@ router.post('/', async (req, res) => {
   const cleanLocationTypeTo = locationTypeTo === '' ? null : locationTypeTo;
   
   try {
+    // **ADD DUPLICATE CHECKING HERE**
+    // Check for duplicate tariff based on key business fields
+    const duplicateCheckQuery = `
+      SELECT id, code FROM tariff 
+      WHERE mode = $1 
+        AND (shipping_type = $2 OR (shipping_type IS NULL AND $2 IS NULL))
+        AND (cargo_type = $3 OR (cargo_type IS NULL AND $3 IS NULL))
+        AND (tariff_type = $4 OR (tariff_type IS NULL AND $4 IS NULL))
+        AND (basis = $5 OR (basis IS NULL AND $5 IS NULL))
+        AND (container_type = $6 OR (container_type IS NULL AND $6 IS NULL))
+        AND (item_name = $7 OR (item_name IS NULL AND $7 IS NULL))
+        AND (currency = $8 OR (currency IS NULL AND $8 IS NULL))
+        AND (location_type_from = $9 OR (location_type_from IS NULL AND $9 IS NULL))
+        AND (from_location = $10 OR (from_location IS NULL AND $10 IS NULL))
+        AND (location_type_to = $11 OR (location_type_to IS NULL AND $11 IS NULL))
+        AND (to_location = $12 OR (to_location IS NULL AND $12 IS NULL))
+        AND (vendor_type = $13 OR (vendor_type IS NULL AND $13 IS NULL))
+        AND (vendor_name = $14 OR (vendor_name IS NULL AND $14 IS NULL))
+        AND (effective_date = $15 OR (effective_date IS NULL AND $15 IS NULL))
+        AND (period_start_date = $16 OR (period_start_date IS NULL AND $16 IS NULL))
+        AND (period_end_date = $17 OR (period_end_date IS NULL AND $17 IS NULL))
+        AND (charges = $18 OR (charges IS NULL AND $18 IS NULL))
+        AND (freight_charge_type = $19 OR (freight_charge_type IS NULL AND $19 IS NULL))
+        AND (is_mandatory = $20 OR (is_mandatory IS NULL AND $20 IS NULL))
+        AND company_code = $21
+        AND (branch_code = $22 OR (branch_code IS NULL AND $22 IS NULL))
+        AND (department_code = $23 OR (department_code IS NULL AND $23 IS NULL))
+      LIMIT 1
+    `;
+    
+    const duplicateResult = await pool.query(duplicateCheckQuery, [
+      mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
+      cleanContainerType, cleanItemName, cleanCurrency, cleanLocationTypeFrom, cleanFrom,
+      cleanLocationTypeTo, cleanTo, cleanVendorType, cleanVendorName, cleanEffectiveDate,
+      cleanPeriodStartDate, cleanPeriodEndDate, cleanCharges, cleanFreightChargeType,
+      isMandatory || false, company_code, branch_code, department_code
+    ]);
+    
+    if (duplicateResult.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'Duplicate tariff found', 
+        message: `A tariff with the same combination of fields already exists (Code: ${duplicateResult.rows[0].code})`,
+        duplicateCode: duplicateResult.rows[0].code
+      });
+    }
+    
     let finalCode = code;
     let seriesCode;
 
-    // Automatic series code lookup using context (same as user.js)
-    if ((!code || code === '') && company_code && branch_code && department_code) {
-      // Look up the mapping for tariffCode
-      const mappingRes = await pool.query(
-        `SELECT mapping FROM mapping_relations
-         WHERE code_type = $1
-         AND company_code = $2
-         AND branch_code = $3
-         AND department_code = $4
-         ORDER BY id DESC
-         LIMIT 1`,
-        ['tariffCode', company_code, branch_code, department_code]
-      );
+    // Automatic series code lookup using context
+    if ((!code || code === '') && company_code) {
+      // Build dynamic query based on available context
+      let whereConditions = ['code_type = $1', 'company_code = $2'];
+      let queryParams = ['tariffCode', company_code];
+      let paramIndex = 3;
+      
+      if (branch_code) {
+        whereConditions.push(`branch_code = $${paramIndex}`);
+        queryParams.push(branch_code);
+        paramIndex++;
+      } else {
+        whereConditions.push('(branch_code IS NULL OR branch_code = \'\')'); 
+      }
+      
+      if (department_code) {
+        whereConditions.push(`department_code = $${paramIndex}`);
+        queryParams.push(department_code);
+      } else {
+        whereConditions.push('(department_code IS NULL OR department_code = \'\')'); 
+      }
+      
+      const mappingQuery = `SELECT mapping FROM mapping_relations
+                       WHERE ${whereConditions.join(' AND ')}
+                       ORDER BY id DESC
+                       LIMIT 1`;
+      
+      const mappingRes = await pool.query(mappingQuery, queryParams);
       
       console.log('TARIFF MAPPING RESULT:', mappingRes.rows);
       if (mappingRes.rows.length > 0) {
@@ -104,45 +165,61 @@ router.post('/', async (req, res) => {
 
     // Generate tariff code if series code found
     if (seriesCode) {
-      const seriesResult = await pool.query(
-        'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
-        [seriesCode]
-      );
-      
-      console.log('TARIFF NUMBER SERIES RESULT:', seriesResult.rows);
-      if (seriesResult.rows.length === 0) {
-        return res.status(400).json({ error: 'Number series not found' });
-      }
-      
-      const series = seriesResult.rows[0];
-      if (!series.is_manual) {
-        // Generate automatic tariff code
-        const relResult = await pool.query(
-          'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1',
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        const seriesResult = await client.query(
+          'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
           [seriesCode]
         );
         
-        console.log('TARIFF NUMBER RELATION RESULT:', relResult.rows);
-        if (relResult.rows.length === 0) {
-          return res.status(400).json({ error: 'Number series relation not found' });
+        console.log('TARIFF NUMBER SERIES RESULT:', seriesResult.rows);
+        if (seriesResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          client.release();
+          return res.status(400).json({ error: 'Number series not found' });
         }
         
-        const rel = relResult.rows[0];
-        let nextNo;
-        if (rel.last_no_used === 0) {
-          nextNo = Number(rel.starting_no);
-        } else {
-          nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+        const series = seriesResult.rows[0];
+        if (!series.is_manual) {
+          // Generate automatic tariff code with row locking
+          const relResult = await client.query(
+            'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
+            [seriesCode]
+          );
+          
+          console.log('TARIFF NUMBER RELATION RESULT:', relResult.rows);
+          if (relResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(400).json({ error: 'Number series relation not found' });
+          }
+          
+          const rel = relResult.rows[0];
+          let nextNo;
+          if (rel.last_no_used === 0) {
+            nextNo = Number(rel.starting_no);
+          } else {
+            nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+          }
+          
+          finalCode = `${rel.prefix || ''}${nextNo}`;
+          console.log('Generated tariff code:', finalCode);
+          
+          // Update the last_no_used within the same transaction
+          await client.query(
+            'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+            [nextNo, rel.id]
+          );
         }
         
-        finalCode = `${rel.prefix || ''}${nextNo}`;
-        console.log('Generated tariff code:', finalCode);
-        
-        // Update the last_no_used
-        await pool.query(
-          'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
-          [nextNo, rel.id]
-        );
+        await client.query('COMMIT');
+        client.release();
+      } catch (error) {
+        await client.query('ROLLBACK');
+        client.release();
+        throw error;
       }
     } else if (!code || code === '') {
       // Fallback if no series found
@@ -153,16 +230,16 @@ router.post('/', async (req, res) => {
       `INSERT INTO tariff (
         code, mode, shipping_type, cargo_type, tariff_type, basis, container_type, item_name, currency,
         location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, 
-        charges, freight_charge_type, effective_date, period_start_date, period_end_date, 
+        charges, freight_charge_type, effective_date, period_start_date, period_end_date, is_mandatory,
         company_code, branch_code, department_code
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
       ) RETURNING *`,
       [
         finalCode, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
         cleanContainerType, cleanItemName, cleanCurrency, cleanLocationTypeFrom, cleanLocationTypeTo,
         cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, 
-        cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, company_code, branch_code, department_code
+        cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, isMandatory || false, company_code, branch_code, department_code
       ]
     );
     res.status(201).json(result.rows[0]);
@@ -181,7 +258,7 @@ router.put('/:id', async (req, res) => {
   const {
     code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
     locationTypeFrom, locationTypeTo, from, to, vendorType, vendorName, charges, freightChargeType, 
-    effectiveDate, periodStartDate, periodEndDate
+    effectiveDate, periodStartDate, periodEndDate, isMandatory
   } = req.body;
   
   // Convert empty strings to null for optional fields
@@ -208,11 +285,11 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE tariff SET
         code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
-        location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20
-      WHERE id = $21 RETURNING *`,
+        location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20, is_mandatory = $21
+      WHERE id = $22 RETURNING *`,
       [
         code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
-        cleanLocationTypeFrom, cleanLocationTypeTo, cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, id
+        cleanLocationTypeFrom, cleanLocationTypeTo, cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, isMandatory || false, id
       ]
     );
     if (result.rows.length === 0) {

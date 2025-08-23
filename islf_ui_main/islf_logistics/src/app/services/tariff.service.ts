@@ -15,8 +15,8 @@ export interface Tariff {
   containerType: string;
   itemName: string;
   currency: string;
-  locationTypeFrom: string;  // New field
-  locationTypeTo: string;    // New field
+  locationTypeFrom: string;
+  locationTypeTo: string;
   from: string;
   to: string;
   vendorType: string;
@@ -26,6 +26,7 @@ export interface Tariff {
   effectiveDate: string;
   periodStartDate: string;
   periodEndDate: string;
+  isMandatory: boolean;  // New field for accounting purposes
 }
 
 @Injectable({ providedIn: 'root' })
