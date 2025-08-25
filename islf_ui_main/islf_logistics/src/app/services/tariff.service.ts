@@ -26,7 +26,8 @@ export interface Tariff {
   effectiveDate: string;
   periodStartDate: string;
   periodEndDate: string;
-  isMandatory: boolean;  // New field for accounting purposes
+  isMandatory: boolean;
+    // New field for accounting purposes
 }
 
 @Injectable({ providedIn: 'root' })

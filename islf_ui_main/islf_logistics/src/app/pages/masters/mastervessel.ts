@@ -55,7 +55,7 @@ interface FlagOption {
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code', 'vessel_name', 'imo_number', 'flag', 'year_build']"
+        [globalFilterFields]="['code', 'vessel_name', 'imo_number', 'flag', 'year_build', 'status']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -108,7 +108,7 @@ interface FlagOption {
             <th>
               <div class="flex justify-between items-center">
                 Status
-                <p-columnFilter field="active" matchMode="equals" display="menu">
+                <p-columnFilter field="status" matchMode="equals" display="menu">
                   <ng-template #filter let-value let-filter="filterCallback">
                     <p-dropdown
                       [ngModel]="value"
@@ -142,7 +142,7 @@ interface FlagOption {
                   'text-red-700 bg-red-100': !vessel.active
                 }"
               >
-                {{ vessel.active ? 'Active' : 'Inactive' }}
+                {{ vessel.status }}
               </span>
             </td>
 
@@ -288,8 +288,8 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   vessels: MasterVessel[] = [];
   flagOptions: FlagOption[] = [];
   activeOptions = [
-    { label: 'Active', value: true },
-    { label: 'Inactive', value: false }
+    { label: 'Active', value: 'Active' },
+    { label: 'Inactive', value: 'Inactive' }
   ];
   mappedVesselSeriesCode: string | null = null;
   isManualSeries: boolean = false;
@@ -442,23 +442,19 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
 
   refreshList(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Get the Validation settings
-      const config = this.configService.getConfig();
-      const vesselFilter = config?.validation?.vesselFilter || '';
-      
-      // Determine if we should filter by context based on validation settings
-      const filterByContext = !!vesselFilter;
-      
-      this.masterVesselService.getAll(filterByContext).subscribe({
+      this.masterVesselService.getAll().subscribe({
         next: (data) => {
-          this.vessels = data;
-          console.log(`Loaded ${data.length} vessels`);
+          this.vessels = data.map(vessel => ({
+            ...vessel,
+            status: vessel.active ? 'Active' : 'Inactive'
+          }));
+          console.log('Vessels loaded:', this.vessels.length);
           resolve();
         },
-        error: (err) => {
-          console.error('Failed to load vessels:', err);
+        error: (error) => {
+          console.error('Error loading vessels:', error);
           this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load vessels' });
-          reject(err);
+          reject(error);
         }
       });
     });
