@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class ForgotPasswordService {
-  private apiUrl = environment.apiUrl + '/api/password';
+  private apiUrl =`${environment.apiUrl}/api/password`;
 
   constructor(private http: HttpClient) {}
 

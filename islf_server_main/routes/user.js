@@ -6,64 +6,21 @@ const router = express.Router();
 // Create user
 router.post('/', async (req, res) => {
   const {
-    fullName,
-    employeeId,
-    email,
-    phoneNumber,
-    gender,
-    dateOfBirth,
-    branch,
-    department,
-    designation,
-    reportingManager,
-    username,
-    password,
-    role,
-    status,
-    joiningDate,
-    employmentType,
-    vehicleAssigned,
-    shiftTiming,
-    bio,
-    avatar,
-    permission,
-    company_code,
-    branch_code,
-    department_code
+    fullName, employeeId, email, phoneNumber, gender, dateOfBirth, branch, department, designation, reportingManager,
+    username, password, role, status, joiningDate, employmentType, vehicleAssigned, shiftTiming, bio, avatar, permission,
+    company_code, branch_code, department_code
   } = req.body;
-
-  // Debug: log received permission
-  console.log('Received permission (POST):', permission);
-  // Convert empty string dates to null
-  const safeDateOfBirth = dateOfBirth === "" ? null : dateOfBirth;
-  const safeJoiningDate = joiningDate === "" ? null : joiningDate;
-
-  if (!username || !password || !email) {
-    return res.status(400).json({ message: 'Username, password, and email are required' });
-  }
 
   try {
     let finalEmployeeId = employeeId;
     let seriesCode;
 
-    // Automatic series code lookup using context (same as customer.js)
+    // IT setup aware number series lookup
     if ((!employeeId || employeeId === '') && company_code && branch_code && department_code) {
-      // Look up the mapping for employeeCode
-      const mappingRes = await pool.query(
-        `SELECT mapping FROM mapping_relations
-         WHERE code_type = $1
-         AND company_code = $2
-         AND branch_code = $3
-         AND department_code = $4
-         ORDER BY id DESC
-         LIMIT 1`,
-        ['employeeCode', company_code, branch_code, department_code]
-      );
-      
-      console.log('MAPPING RESULT:', mappingRes.rows);
-      if (mappingRes.rows.length > 0) {
-        seriesCode = mappingRes.rows[0].mapping;
-        console.log('SERIES CODE FROM MAPPING:', seriesCode);
+      const mapping = await findMappingByContext('employeeCode', company_code, branch_code, department_code);
+      if (mapping) {
+        seriesCode = mapping.mapping;
+        console.log('Found series code via IT setup validation:', seriesCode);
       }
     }
 
@@ -74,7 +31,6 @@ router.post('/', async (req, res) => {
         [seriesCode]
       );
       
-      console.log('NUMBER SERIES RESULT:', seriesResult.rows);
       if (seriesResult.rows.length === 0) {
         return res.status(400).json({ error: 'Number series not found' });
       }
@@ -87,7 +43,6 @@ router.post('/', async (req, res) => {
           [seriesCode]
         );
         
-        console.log('NUMBER RELATION RESULT:', relResult.rows);
         if (relResult.rows.length === 0) {
           return res.status(400).json({ error: 'Number series relation not found' });
         }

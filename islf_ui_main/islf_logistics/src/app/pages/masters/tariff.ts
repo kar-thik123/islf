@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -594,8 +594,9 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     private serviceTypeService: ServiceTypeService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
-    private numberSeriesRelationService: NumberSeriesRelationService
-  ) {} // Added missing closing parenthesis
+    private numberSeriesRelationService: NumberSeriesRelationService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   // Validation methods
   validateField(fieldName: string, value: any): string {
@@ -788,6 +789,8 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   }
 
   ngOnInit() {
+    console.log('TariffComponent ngOnInit - Initial load');
+    // Load data immediately
     this.loadAllData();
     this.loadMappedTariffSeriesCode();
 
@@ -795,8 +798,26 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300),
       distinctUntilChanged()
-    ).subscribe(() => {
-      this.loadAllData();
+    ).subscribe((context) => {
+      console.log('🔄 Context changed in TariffComponent:', {
+        previous: this.contextService.getContext(),
+        new: context,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Increased delay to ensure context is fully propagated
+      setTimeout(() => {
+        console.log('⏰ Starting data reload after context change...');
+        const currentContext = this.contextService.getContext();
+        console.log('📊 Current context during reload:', currentContext);
+        
+        this.loadAllData();
+        this.loadMappedTariffSeriesCode();
+        
+        // Force change detection to update the UI
+        this.cdr.detectChanges();
+        console.log('✅ Data reload and change detection completed');
+      }, 500); // Increased from 100ms to 500ms
     });
   }
 
@@ -807,6 +828,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   }
 
   private loadAllData() {
+    console.log('Loading all tariff master data...');
     forkJoin({
       modes: this.loadModeOptions(),
       shippingTypes: this.loadShippingTypeOptions(),
@@ -822,6 +844,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       vendors: this.loadVendorOptions()
     }).subscribe({
       next: () => {
+        console.log('All master data loaded, now loading tariff list...');
         this.refreshList();
         this.loadMappedTariffSeriesCode();
       },
@@ -834,9 +857,16 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
 
   // Updated method to load unique department names (mode options) with case-insensitive deduplication
   loadModeOptions() {
-    return this.departmentService.getAll().pipe(
+    const context = this.contextService.getContext();
+    
+    // Use context-aware method instead of getAll()
+    const departmentObservable = context.branchCode 
+      ? this.departmentService.getByBranch(context.branchCode)
+      : this.departmentService.getAll();
+    
+    return departmentObservable.pipe(
       tap((departments: any[]) => {
-        console.log('Departments loaded:', departments); // Debug log
+        console.log('Departments loaded for context:', context, departments);
         
         // Get unique department names with case-insensitive deduplication
         const uniqueNames = new Map<string, string>();
@@ -855,21 +885,28 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
           .map(name => ({ label: name, value: name }))
           .sort((a, b) => a.label.localeCompare(b.label));
         
-        console.log('Mode options:', this.modeOptions); // Debug log
+        console.log('Mode options:', this.modeOptions);
       })
     );
   }
 
   // Updated method to load unique service type values with case-insensitive deduplication
   loadShippingTypeOptions() {
-    return this.serviceTypeService.getAll().pipe(
+    const context = this.contextService.getContext();
+    
+    // Use context-aware method instead of getAll()
+    const serviceTypeObservable = context.departmentCode 
+      ? this.serviceTypeService.getByDepartment(context.departmentCode)
+      : this.serviceTypeService.getAll();
+    
+    return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
-        console.log('Service types loaded:', serviceTypes); // Debug log
+        console.log('Service types loaded for context:', context, serviceTypes);
         
         // Get unique service type names with case-insensitive deduplication
         const uniqueNames = new Map<string, string>();
         (serviceTypes || [])
-          .filter(st => st.status === 'active') // Changed from 'Active' to 'active'
+          .filter(st => st.status === 'active')
           .forEach(st => {
             if (st.name && st.name.trim()) {
               const lowerName = st.name.trim().toLowerCase();
@@ -883,7 +920,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
           .map(name => ({ label: name, value: name }))
           .sort((a, b) => a.label.localeCompare(b.label));
         
-        console.log('Shipping type options:', this.shippingTypeOptions); // Debug log
+        console.log('Shipping type options:', this.shippingTypeOptions);
       })
     );
   }
@@ -1026,9 +1063,17 @@ loadBasisOptions() {
   }
 
   refreshList() {
+    const context = this.contextService.getContext();
+    console.log('🔄 Refreshing tariff list with context:', context);
+    
     this.tariffService.getAll().subscribe({
       next: (data) => {
-        console.log('Tariff data loaded successfully:', data.length, 'records');
+        console.log('📊 Tariff data loaded successfully:', {
+          recordCount: data.length,
+          context: context,
+          sampleData: data.slice(0, 2) // Show first 2 records for debugging
+        });
+        
         this.tariffs = data.map((tariff: any) => {
           const mappedTariff = {
             ...tariff,
@@ -1057,9 +1102,14 @@ loadBasisOptions() {
           mappedTariff.status = this.getTariffStatus(mappedTariff);
           return mappedTariff;
         });
+        
+        console.log('✅ Tariff data processing completed, final count:', this.tariffs.length);
+        
+        // Force change detection after data update
+        this.cdr.detectChanges();
       },
       error: (error) => {
-        console.error('Error loading tariff data:', error);
+        console.error('❌ Error loading tariff data:', error);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -1255,21 +1305,33 @@ loadBasisOptions() {
     this.isDialogVisible = true;
     this.fieldErrors = {};
     
-    // Load options for edit mode
+    // Force immediate change detection to show dialog quickly
+    this.cdr.detectChanges();
+    
+    // Load essential options first (mode and shipping type are required)
     forkJoin([
       this.loadModeOptions(),
-      this.loadShippingTypeOptions(),
-      this.loadCargoTypeOptions(),
-      this.loadTariffTypeOptions(),
-      this.loadLocationOptions(),
-      this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
-      this.loadItemOptions(),
-      this.loadVendorOptions()
+      this.loadShippingTypeOptions()
     ]).subscribe(() => {
-      // Update form validity after all options are loaded
       this.updateFormValidity();
+      this.cdr.detectChanges();
+      
+      // Load remaining options in background after dialog is visible
+      setTimeout(() => {
+        forkJoin([
+          this.loadCargoTypeOptions(),
+          this.loadTariffTypeOptions(),
+          this.loadLocationOptions(),
+          this.loadBasisOptions(),
+          this.loadContainersOptions(),
+          this.loadCurrencyOptions(),
+          this.loadItemOptions(),
+          this.loadVendorOptions()
+        ]).subscribe(() => {
+          this.updateFormValidity();
+          this.cdr.detectChanges();
+        });
+      }, 0);
     });
   }
 

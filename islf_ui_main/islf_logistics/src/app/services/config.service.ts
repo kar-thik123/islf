@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { tap, switchMap } from 'rxjs/operators';
 import { ContextService } from './context.service';
+import { environment } from '../../environments/environment'; // Add this line
 
 export interface SystemConfig {
   maxCompanies: number;
@@ -275,18 +276,23 @@ export class ConfigService {
 
   // Load configuration from backend
   loadConfig(): Observable<AppConfig> {
-    // Get current context to include in the request
     let contextParams = '';
+    
     try {
-      // Try to get ContextService from injector, but handle circular dependency
       const contextService = this.injector.get(ContextService, null);
       if (contextService) {
         const context = contextService.getContext();
-        if (context && context.companyCode) {
+        if (context && (context.companyCode || context.branchCode || context.departmentCode)) {
           const params = new URLSearchParams();
-          if (context.companyCode) params.append('company_code', context.companyCode);
-          if (context.branchCode) params.append('branch_code', context.branchCode);
-          if (context.departmentCode) params.append('department_code', context.departmentCode);
+          if (context.companyCode) {
+            params.append('companyCode', context.companyCode);
+          }
+          if (context.branchCode) {
+            params.append('branchCode', context.branchCode);
+          }
+          if (context.departmentCode) {
+            params.append('departmentCode', context.departmentCode);
+          }
           contextParams = params.toString() ? '?' + params.toString() : '';
         }
       }
@@ -295,7 +301,7 @@ export class ConfigService {
       console.log('Could not get context for config loading:', error);
     }
     
-    return this.http.get<AppConfig>(`/api/settings/config${contextParams}`).pipe(
+    return this.http.get<AppConfig>(`${environment.apiUrl}/api/settings/config${contextParams}`).pipe(
       tap(config => {
         this.configSubject.next(config);
         this.applyConfig(config);
@@ -305,7 +311,7 @@ export class ConfigService {
 
   // Save configuration to backend
   saveConfig(config: AppConfig): Observable<any> {
-    return this.http.post('/api/settings/config', config).pipe(
+    return this.http.post(`${environment.apiUrl}/api/settings/config`, config).pipe(
       tap(() => {
         this.configSubject.next(config);
         this.applyConfig(config);

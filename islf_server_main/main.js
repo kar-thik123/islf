@@ -43,7 +43,7 @@ app.use('/api/number_relation', numberRelationRouter);
 const departmentRouter = require('./routes/department');
 app.use('/api/department', departmentRouter);
 const serviceTypesRouter = require('./routes/service_types');
-app.use('/api/service-types', serviceTypesRouter);
+app.use('/api/service_types', serviceTypesRouter); // Fixed: was /api/service-types
 const companyRouter = require('./routes/company');
 app.use('/api/company', companyRouter);
 const branchRouter = require('./routes/branch');

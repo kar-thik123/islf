@@ -711,9 +711,9 @@ export class CustomerComponent implements OnInit, OnDestroy {
     this.loadDocumentTypeOptions();
     
     // Subscribe to context changes and reload data when context changes
-    this.contextSubscription = this.contextService.context$.subscribe(() => {
+    this.contextSubscription = this.contextService.context$.subscribe(async () => {
       console.log('Context changed in CustomerComponent, reloading data...');
-      this.refreshList();
+      await this.refreshList();
       this.loadMappedCustomerSeriesCode();
       this.loadDocumentUploadPath();
     });
@@ -751,20 +751,24 @@ export class CustomerComponent implements OnInit, OnDestroy {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
 
-  refreshList() {
-    this.customerService.getAll().subscribe({
-      next: (data) => {
-        this.customers = data;
-        this.billToCustomerOptions = data.map(c => ({
-          label: `${c.customer_no} - ${c.name}`,
-          value: `${c.customer_no} - ${c.name}`
-        }));
-        console.log('Customers loaded:', this.customers.length);
-      },
-      error: (error) => {
-        console.error('Error loading customers:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customers' });
-      }
+  refreshList(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.customerService.getAll().subscribe({
+        next: (data) => {
+          this.customers = data;
+          this.billToCustomerOptions = data.map(c => ({
+            label: `${c.customer_no} - ${c.name}`,
+            value: `${c.customer_no} - ${c.name}`
+          }));
+          console.log('Customers loaded:', this.customers.length);
+          resolve();
+        },
+        error: (error) => {
+          console.error('Error loading customers:', error);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customers' });
+          reject(error);
+        }
+      });
     });
   }
 
@@ -1170,6 +1174,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
       if (savedCustomer && savedCustomer.customer_no && savedCustomer.name) {
         this.selectedCustomer!.bill_to_customer_name = `${savedCustomer.customer_no} - ${savedCustomer.name}`;
       }
+      
       const msg = this.selectedCustomer?.isNew ? 'Customer created' : 'Customer updated';
       this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
 
@@ -1178,7 +1183,13 @@ export class CustomerComponent implements OnInit, OnDestroy {
         await this.saveDocuments(savedCustomer);
       }
 
-      this.refreshList();
+      // Wait for the refresh to complete before hiding the dialog
+      await new Promise<void>((resolve, reject) => {
+        this.refreshList();
+        // Give a small delay to ensure the refresh completes
+        setTimeout(() => resolve(), 100);
+      });
+      
       this.hideDialog();
     } catch (error) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });

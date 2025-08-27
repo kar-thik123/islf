@@ -2,13 +2,55 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
+// Add this function at the top after the requires
+async function findMappingByContext(code_type, company_code, branch_code, department_code, service_type_code) {
+  try {
+    console.log('Finding mapping with context:', { code_type, company_code, branch_code, department_code, service_type_code });
+    
+    // First try IT setup aware lookup
+    const itSetupResult = await pool.query(
+      `SELECT ms.mapping 
+       FROM mapping_relations ms
+       JOIN it_setup its ON (its.company_code = ms.company_code AND its.branch_code = ms.branch_code AND its.department_code = ms.department_code)
+       WHERE ms.code_type = $1 AND ms.company_code = $2 AND ms.branch_code = $3 AND ms.department_code = $4
+       AND its.active = true
+       ORDER BY ms.id DESC LIMIT 1`,
+      [code_type, company_code, branch_code, department_code]
+    );
+    
+    if (itSetupResult.rows.length > 0) {
+      console.log('Found mapping via IT setup:', itSetupResult.rows[0]);
+      return itSetupResult.rows[0];
+    }
+    
+    // Fallback to direct mapping lookup
+    const directResult = await pool.query(
+      `SELECT mapping FROM mapping_relations 
+       WHERE code_type = $1 AND company_code = $2 AND branch_code = $3 AND department_code = $4 
+       ORDER BY id DESC LIMIT 1`,
+      [code_type, company_code, branch_code, department_code]
+    );
+    
+    if (directResult.rows.length > 0) {
+      console.log('Found mapping via direct lookup:', directResult.rows[0]);
+      return directResult.rows[0];
+    }
+    
+    console.log('No mapping found for context');
+    return null;
+  } catch (err) {
+    console.error('Error finding mapping by context:', err);
+    return null;
+  }
+}
+
 // GET all vessels with optional context filtering
 router.get('/', async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode, serviceTypeCode } = req.query;
+    const { company_code, branch_code, department_code, service_type_code } = req.query;
     
     // If context parameters are provided, filter vessels by their context
-    if (companyCode || branchCode || departmentCode || serviceTypeCode) {
+    if (company_code || branch_code || department_code || service_type_code) {
       // Filter vessels by their stored context values
       let query = `
         SELECT *
@@ -19,28 +61,29 @@ router.get('/', async (req, res) => {
       const params = [];
       let paramIndex = 1;
       
-      if (companyCode) {
+      // Current filtering logic - requires exact matches
+      if (company_code) {
         query += ` AND company_code = $${paramIndex}`;
-        params.push(companyCode);
+        params.push(company_code);
         paramIndex++;
       }
       
-      if (branchCode) {
+      if (branch_code) {
         query += ` AND branch_code = $${paramIndex}`;
-        params.push(branchCode);
+        params.push(branch_code);
         paramIndex++;
       }
       
-      if (departmentCode) {
+      if (department_code) {
         query += ` AND department_code = $${paramIndex}`;
-        params.push(departmentCode);
+        params.push(department_code);
         paramIndex++;
       }
       
       // Note: service_type_code column doesn't exist in master_vessel table
-      // if (serviceTypeCode) {
+      // if (service_type_code) {
       //   query += ` AND service_type_code = $${paramIndex}`;
-      //   params.push(serviceTypeCode);
+      //   params.push(service_type_code);
       //   paramIndex++;
       // }
       
@@ -59,30 +102,38 @@ router.get('/', async (req, res) => {
   }
 });
 
-// CREATE new vessel (with number series logic and manual/default check)
+// CREATE new vessel (with IT setup aware number series logic)
 router.post('/', async (req, res) => {
-  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active, vessel_type, companyCode, branchCode, departmentCode, ServiceTypeCode } = req.body;
+  let { seriesCode, code, vessel_name, imo_number, flag, year_build, active, vessel_type, company_code, branch_code, department_code, Service_type_code } = req.body;
+  
   try {
     // Extract year from date if year_build is a date object
     if (year_build) {
       if (typeof year_build === 'string' && (year_build.includes('T') || year_build.includes('-'))) {
-        // Handle both ISO date strings and date-only strings
         year_build = new Date(year_build).getFullYear().toString();
       } else if (year_build instanceof Date) {
-        // Handle Date objects
         year_build = year_build.getFullYear().toString();
       }
-      console.log('Processed year_build:', year_build);
     }
     
-    console.log('Vessel creation - Context values:', { companyCode, branchCode, departmentCode, seriesCode });
+    console.log('Vessel creation - Context values:', { company_code, branch_code, department_code, seriesCode });
+    
+    // IT setup aware number series lookup
+    if (!seriesCode && company_code && branch_code && department_code) {
+      console.log('Looking up mapping for vessel code with IT setup validation...');
+      const mapping = await findMappingByContext('vesselCode', company_code, branch_code, department_code, Service_type_code);
+      if (mapping) {
+        seriesCode = mapping.mapping;
+        console.log('Found series code via IT setup validation:', seriesCode);
+      }
+    }
     
     // Relation-based number series lookup
-    if (!seriesCode && companyCode && branchCode && departmentCode) {
+    if (!seriesCode && company_code && branch_code && department_code) {
       console.log('Looking up mapping for vessel code...');
       const mappingRes = await pool.query(
         `SELECT mapping FROM mapping_relations WHERE code_type = 'vesselCode' AND company_code = $1 AND branch_code = $2 AND department_code = $3 LIMIT 1`,
-        [companyCode, branchCode, departmentCode]
+        [company_code, branch_code, department_code]
       );
       console.log('Mapping result:', mappingRes.rows);
       if (mappingRes.rows.length > 0) {
@@ -90,7 +141,8 @@ router.post('/', async (req, res) => {
         console.log('Found series code:', seriesCode);
       }
     }
-    if (seriesCode && companyCode && branchCode && departmentCode) {
+    
+    if (seriesCode && company_code && branch_code && department_code) {
       console.log('Processing number series with code:', seriesCode);
       // 1. Get the number series for the selected code
       const seriesResult = await pool.query(
@@ -134,7 +186,7 @@ router.post('/', async (req, res) => {
         );
       }
     } else {
-      console.log('Falling back to timestamp code. Conditions not met:', { seriesCode, companyCode, branchCode, departmentCode, code });
+      console.log('Falling back to timestamp code. Conditions not met:', { seriesCode, company_code, branch_code, department_code, code });
       if (!code || code === 'AUTO') {
         // Fallback: generate code as VESSEL-<timestamp>
         code = 'VESSEL-' + Date.now();
@@ -152,7 +204,7 @@ router.post('/', async (req, res) => {
       `INSERT INTO master_vessel (code, vessel_name, imo_number, flag, year_build, active, vessel_type, company_code, branch_code, department_code)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [code, vessel_name, imo_number, flag, year_build, active, vessel_type, companyCode, branchCode, departmentCode]
+      [code, vessel_name, imo_number, flag, year_build, active, vessel_type, company_code, branch_code, department_code]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

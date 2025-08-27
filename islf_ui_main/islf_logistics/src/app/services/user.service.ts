@@ -4,12 +4,13 @@ import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { ConfigService } from './config.service';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = '/api/user';
+  private apiUrl = `${environment.apiUrl}/api/user`;
 
   constructor(
     private http: HttpClient, 

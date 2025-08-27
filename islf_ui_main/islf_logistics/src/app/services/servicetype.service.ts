@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface ServiceType {
   id?: number;
@@ -25,7 +26,7 @@ export interface ServiceType {
   providedIn: 'root'
 })
 export class ServiceTypeService {
-  private apiUrl = '/api/service-types';
+    private apiUrl = `${environment.apiUrl}/api/service_types`; // Fixed: was /api/number_series
 
   constructor(private http: HttpClient) { }
 

@@ -255,15 +255,13 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
               [(ngModel)]="selectedRow.endingDate"
               dateFormat="yy-mm-dd"
               showIcon="true"
-              [showTime]="true"
-              hourFormat="24"
               [keepInvalid]="false"
               (onInput)="onEndingDateInput($event)"
             ></p-calendar>
             <!-- Warning for past/current ending date -->
             <div *ngIf="selectedRow.endingDate && isEndingDateInvalid()" class="mt-1 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
               <i class="pi pi-exclamation-triangle mr-1"></i>
-              Warning: This ending date is in the past or present. Please set a future date and time.
+              Warning: This ending date is in the past or present. Please set a future date.
             </div>
           </div>
           <div class="grid-item">

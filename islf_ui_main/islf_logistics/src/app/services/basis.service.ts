@@ -1,61 +1,78 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { BaseMasterService } from './base-master.service';
-import { ConfigService } from './config.service';
-import { ContextService } from './context.service';
 import { ContextPayloadService } from './context-payload.service';
+import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
+
+export interface Basis {
+  id?: number;
+  code: string;
+  description: string;
+  status: string;
+}
 
 @Injectable({ providedIn: 'root' })
-export class BasisService extends BaseMasterService<any> {
-  protected apiUrl = `${environment.apiUrl}/api/basis`;
+export class BasisService {
+  private apiUrl = `${environment.apiUrl}/api/basis`;
 
   constructor(
-    protected override http: HttpClient,
-    protected override contextPayload: ContextPayloadService,
-    protected override contextService: ContextService,
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
+    private contextService: ContextService,
     private configService: ConfigService
-  ) {
-    super(http, contextPayload, contextService);
-  }
+  ) {}
 
-  // Override getAll to implement conditional context filtering
-  override getAll(): Observable<any[]> {
+  getAll(): Observable<Basis[]> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const basisFilter = config?.validation?.basisFilter || '';
     
     let params: any = {};
     
-    // Only send context parameters based on the validation/filter settings
+    // Only send context parameters based on the IT setup validation/filter settings
     if (basisFilter.includes('C') && context.companyCode) {
-      params.companyCode = context.companyCode;
+      params.company_code = context.companyCode;
     }
     if (basisFilter.includes('B') && context.branchCode) {
-      params.branchCode = context.branchCode;
+      params.branch_code = context.branchCode;
     }
     if (basisFilter.includes('D') && context.departmentCode) {
-      params.departmentCode = context.departmentCode;
+      params.department_code = context.departmentCode;
     }
     
-    return this.http.get<any[]>(this.apiUrl, { params });
+    return this.http.get<Basis[]>(this.apiUrl, { params });
+  }
+
+  create(data: Partial<Basis>): Observable<Basis> {
+    const context = this.contextService.getContext();
+    return this.http.post<Basis>(this.apiUrl, this.contextPayload.withContext(data, context));
+  }
+
+  update(id: number, data: Partial<Basis>): Observable<Basis> {
+    const context = this.contextService.getContext();
+    return this.http.put<Basis>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, context));
+  }
+
+  delete(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
   // Backward compatibility methods
-  getBasis() {
+  getBasis(): Observable<Basis[]> {
     return this.getAll();
   }
 
-  createBasis(data: any) {
+  createBasis(data: any): Observable<Basis> {
     return this.create(data);
   }
 
-  updateBasis(id: string, data: any) {
-    return this.update(id, data);
+  updateBasis(id: string, data: any): Observable<Basis> {
+    return this.update(Number(id), data);
   }
 
-  deleteBasis(id: string) {
-    return this.delete(id);
+  deleteBasis(id: string): Observable<any> {
+    return this.delete(Number(id));
   }
 }

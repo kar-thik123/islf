@@ -470,14 +470,14 @@ export class TariffViewComponent implements OnInit, OnDestroy {
 
   filterTariffs() {
     let filteredTariffs = this.allTariffs;
-
+  
     // Filter by service type (shipping type)
     if (this.selectedServiceType) {
       filteredTariffs = filteredTariffs.filter(tariff => 
         tariff.shippingType === this.selectedServiceType
       );
     }
-
+  
     // Filter by vendor - check both vendor_name and vendor code
     if (this.selectedVendor) {
       filteredTariffs = filteredTariffs.filter(tariff => 
@@ -486,16 +486,27 @@ export class TariffViewComponent implements OnInit, OnDestroy {
         tariff.party_name === this.selectedVendor
       );
     }
-
-    // Separate into unit tariffs and from-to tariffs
-    this.unitTariffs = filteredTariffs.filter(tariff => 
-      tariff.basis && tariff.basis.trim() !== ''
-    );
-
-    this.fromToTariffs = filteredTariffs.filter(tariff => 
-      tariff.from && tariff.from.trim() !== '' && 
-      tariff.to && tariff.to.trim() !== ''
-    );
+  
+    // Updated logic for separating tariffs:
+    // Unit Tariff: Either from OR to (but not both) AND basis required
+    this.unitTariffs = filteredTariffs.filter(tariff => {
+      const hasFrom = tariff.from && tariff.from.trim() !== '';
+      const hasTo = tariff.to && tariff.to.trim() !== '';
+      const hasBasis = tariff.basis && tariff.basis.trim() !== '';
+      
+      // Either from OR to (but not both) AND basis must be present
+      return ((hasFrom && !hasTo) || (!hasFrom && hasTo)) && hasBasis;
+    });
+  
+    // From-To Tariff: Both from AND to AND basis
+    this.fromToTariffs = filteredTariffs.filter(tariff => {
+      const hasFrom = tariff.from && tariff.from.trim() !== '';
+      const hasTo = tariff.to && tariff.to.trim() !== '';
+      const hasBasis = tariff.basis && tariff.basis.trim() !== '';
+      
+      // Must have both from AND to AND basis
+      return hasFrom && hasTo && hasBasis;
+    });
   }
 
   getTariffStatus(tariff: { periodEndDate?: string | Date }): string {

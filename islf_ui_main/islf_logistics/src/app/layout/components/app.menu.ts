@@ -169,7 +169,21 @@ export class AppMenu {
           },
         ],
       },
-      
+      {
+       items: [
+          {
+            label: 'Search',
+            icon: 'fa-solid fa-search',
+            items: [
+              {
+                label:'Tariff',
+                icon:'fa-solid fa-percent',
+                routerLink : ['/master/tariff_view']
+              }
+            ]
+          }
+        ]
+      }
     ];
   }
 }

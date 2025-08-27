@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
-import { ConfigService } from './config.service'; // Add this
+import { ConfigService, ValidationConfig } from './config.service'; // Import ValidationConfig
 
 export interface Mapping {
   customerCode: string | null;
@@ -95,14 +95,33 @@ export class MappingService {
     return this.http.delete(`${this.apiUrl}/relations/${id}`);
   }
 
-  // Find mapping relation based on context
+  // Find mapping relation based on context with IT setup validation
   findMappingByContext(codeType: string, companyCode?: string, branchCode?: string, departmentCode?: string, serviceTypeCode?: string): Observable<any> {
-    let params = `codeType=${codeType}`;
-    if (companyCode) params += `&companyCode=${companyCode}`;
-    if (branchCode) params += `&branchCode=${branchCode}`;
-    if (departmentCode) params += `&departmentCode=${departmentCode}`;
-    if (serviceTypeCode) params += `&serviceTypeCode=${serviceTypeCode}`;
+    // Get IT setup configuration
+    const config = this.configService.getConfig();
+    const filterKey = `${codeType.toLowerCase().replace('code', '')}Filter`;
+    const filter = (config?.validation as any)?.[filterKey] || '';
     
+    console.log(`IT Setup filter for ${codeType}:`, filter);
+    
+    // Build parameters based on IT setup validation
+    let params = `codeType=${codeType}`;
+    
+    // Only include context parameters that are required by IT setup
+    if (filter.includes('C') && companyCode) {
+      params += `&companyCode=${companyCode}`;
+    }
+    if (filter.includes('B') && branchCode) {
+      params += `&branchCode=${branchCode}`;
+    }
+    if (filter.includes('D') && departmentCode) {
+      params += `&departmentCode=${departmentCode}`;
+    }
+    if (filter.includes('ST') && serviceTypeCode) {
+      params += `&serviceTypeCode=${serviceTypeCode}`;
+    }
+    
+    console.log('Mapping lookup params:', params);
     return this.http.get<any>(`${this.apiUrl}/find?${params}`);
   }
 }

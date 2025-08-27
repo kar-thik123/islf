@@ -109,8 +109,11 @@ export class AppTopbar implements OnInit {
     }
     
     onContextSet(context: any) {
-        // Context has been set, hide the dialog
+        // Save the context to the ContextService
+        this.contextService.setContext(context);
+        // Hide the dialog
         this.contextService.hideContextSelector();
+        console.log('Context set in topbar:', context);
     }
     
     onContextDialogVisibilityChange(visible: boolean) {

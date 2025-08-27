@@ -145,31 +145,41 @@ interface NumberSeries {
         </ng-template>
       </p-table>
       <p-dialog header="Mapping Relation" [(visible)]="showMappingDialog" [modal]="true" [closable]="true" [dismissableMask]="true" [style]="{width: '40vw'}">
+        <!-- Helpful note about mapping functionality -->
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p class="text-sm text-blue-800">
+            <i class="pi pi-info-circle mr-2"></i>
+            <strong>Note:</strong> This mapping relation links number series to specific organizational contexts (Company, Branch, Department, Service Type). 
+            Select a code type and its corresponding number series relation, then specify the organizational scope where this mapping should apply.
+            <br><strong>Purpose:</strong> This ensures that different parts of your organization can use different number series for the same document types, providing better organization and control.
+          </p>
+        </div>
+        
         <div class="p-fluid grid">
           <!-- Code Type, Mapping, Company, Branch, Department, Service Type dropdowns here (reuse previous form) -->
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="codeType">Code Type</label>
-            <p-dropdown [options]="codeTypes" [(ngModel)]="selectedCodeType" optionLabel="label" optionValue="value" placeholder="Select Code Type"></p-dropdown>
+            <p-dropdown [options]="codeTypes" [(ngModel)]="selectedCodeType" optionLabel="label" optionValue="value" placeholder="Select Code Type" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
           </div>
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="mapping">Mapping (No Series Relation)</label>
-            <p-dropdown [options]="mappingOptions" [(ngModel)]="selectedMapping" optionLabel="label" optionValue="value" placeholder="Select Mapping"></p-dropdown>
+            <p-dropdown [options]="mappingOptions" [(ngModel)]="selectedMapping" optionLabel="label" optionValue="value" placeholder="Select Mapping" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
           </div>
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="company">Company</label>
-            <p-dropdown [options]="companyOptions" [(ngModel)]="selectedCompany" optionLabel="name" optionValue="code" placeholder="Select Company" (onChange)="onCompanyChange()"></p-dropdown>
+            <p-dropdown [options]="companyOptions" [(ngModel)]="selectedCompany" optionLabel="name" optionValue="code" placeholder="Select Company" (onChange)="onCompanyChange()" [filter]="true" filterBy="name" [showClear]="true"></p-dropdown>
           </div>
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="branch">Branch</label>
-            <p-dropdown [options]="branchOptions" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="code" placeholder="Select Branch" (onChange)="onBranchChange()"></p-dropdown>
+            <p-dropdown [options]="branchOptions" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="code" placeholder="Select Branch" (onChange)="onBranchChange()" [filter]="true" filterBy="name" [showClear]="true"></p-dropdown>
           </div>
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="department">Department</label>
-            <p-dropdown [options]="departmentOptions" [(ngModel)]="selectedDepartment" optionLabel="name" optionValue="code" placeholder="Select Department" (onChange)="onDepartmentChange()"></p-dropdown>
+            <p-dropdown [options]="departmentOptions" [(ngModel)]="selectedDepartment" optionLabel="name" optionValue="code" placeholder="Select Department" (onChange)="onDepartmentChange()" [filter]="true" filterBy="name" [showClear]="true"></p-dropdown>
           </div>
           <div class="field col-12 md:col-6 lg:col-4">
             <label for="serviceType">Service Type</label>
-            <p-dropdown [options]="serviceTypeOptions" [(ngModel)]="selectedServiceType" optionLabel="name" optionValue="code" placeholder="Select Service Type"></p-dropdown>
+            <p-dropdown [options]="serviceTypeOptions" [(ngModel)]="selectedServiceType" optionLabel="name" optionValue="code" placeholder="Select Service Type" [filter]="true" filterBy="name" [showClear]="true"></p-dropdown>
           </div>
         </div>
         <div class="flex justify-content-end gap-2 mt-4">

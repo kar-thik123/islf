@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 export interface MasterVessel {
   id?: number;
@@ -20,26 +21,33 @@ export interface MasterVessel {
 export class MasterVesselService {
   private apiUrl = `${environment.apiUrl}/api/master_vessel`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient, 
+    private contextPayload: ContextPayloadService, 
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) {}
 
-  getAll(filterByContext: boolean = false): Observable<MasterVessel[]> {
-    let url = this.apiUrl;
+  getAll(): Observable<MasterVessel[]> {
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const vesselFilter = config?.validation?.vesselFilter || '';
     
-    if (filterByContext) {
-      const context = this.contextService.getContext();
-      const params = new URLSearchParams();
-      
-      if (context.companyCode) params.append('companyCode', context.companyCode);
-      if (context.branchCode) params.append('branchCode', context.branchCode);
-      if (context.departmentCode) params.append('departmentCode', context.departmentCode);
-      if (context.serviceType) params.append('serviceTypeCode', context.serviceType);
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
+    let params: any = {};
+    
+    // Only send context parameters based on IT setup validation settings
+    if (vesselFilter.includes('C') && context.companyCode) {
+      params.company_code = context.companyCode;
     }
+    if (vesselFilter.includes('B') && context.branchCode) {
+      params.branch_code = context.branchCode;
+    }
+    if (vesselFilter.includes('D') && context.departmentCode) {
+      params.department_code = context.departmentCode;
+    }
+    // Note: Service Type not applicable for vessels
     
-    return this.http.get<MasterVessel[]>(url);
+    return this.http.get<MasterVessel[]>(this.apiUrl, { params });
   }
 
   create(data: MasterVessel): Observable<MasterVessel> {

@@ -196,25 +196,84 @@ router.delete('/relations/:id', async (req, res) => {
 });
 
 // FLEXIBLE mapping lookup (partial match allowed)
+// ... existing code ...
+
+// FLEXIBLE mapping lookup with IT setup validation
 router.get('/find', async (req, res) => {
   const { codeType, companyCode, branchCode, departmentCode, serviceTypeCode } = req.query;
+  
   try {
-    // Build dynamic WHERE clause for partial matching
+    // Get IT setup configuration for this code type
+    const configResult = await pool.query(
+      "SELECT value FROM settings WHERE key = $1",
+      [`validation_${codeType.toLowerCase().replace('code', '')}_filter`]
+    );
+    
+    const filter = configResult.rows[0]?.value || '';
+    console.log(`IT Setup filter for ${codeType}:`, filter);
+    
+    // Build context parameters based on IT setup validation
+    let contextParams = { codeType };
     let whereClauses = ['code_type = $1'];
     let params = [codeType];
     let idx = 2;
-    if (companyCode) { whereClauses.push(`company_code = $${idx++}`); params.push(companyCode); }
-    if (branchCode) { whereClauses.push(`branch_code = $${idx++}`); params.push(branchCode); }
-    if (departmentCode) { whereClauses.push(`department_code = $${idx++}`); params.push(departmentCode); }
-    if (serviceTypeCode) { whereClauses.push(`service_type_code = $${idx++}`); params.push(serviceTypeCode); }
+    
+    // Only include context parameters that are required by IT setup
+    if (filter.includes('C') && companyCode) {
+      contextParams.companyCode = companyCode;
+      whereClauses.push(`(company_code = $${idx} OR company_code IS NULL)`);
+      params.push(companyCode);
+      idx++;
+    }
+    
+    if (filter.includes('B') && branchCode) {
+      contextParams.branchCode = branchCode;
+      whereClauses.push(`(branch_code = $${idx} OR branch_code IS NULL)`);
+      params.push(branchCode);
+      idx++;
+    }
+    
+    if (filter.includes('D') && departmentCode) {
+      contextParams.departmentCode = departmentCode;
+      whereClauses.push(`(department_code = $${idx} OR department_code IS NULL)`);
+      params.push(departmentCode);
+      idx++;
+    }
+    
+    if (filter.includes('ST') && serviceTypeCode) {
+      contextParams.serviceTypeCode = serviceTypeCode;
+      whereClauses.push(`(service_type_code = $${idx} OR service_type_code IS NULL)`);
+      params.push(serviceTypeCode);
+      idx++;
+    }
+    
     const where = whereClauses.join(' AND ');
+    
+    // Order by specificity: exact matches first, then wildcards
+    const orderBy = `
+      ORDER BY 
+        CASE WHEN company_code IS NOT NULL THEN 1 ELSE 0 END DESC,
+        CASE WHEN branch_code IS NOT NULL THEN 1 ELSE 0 END DESC,
+        CASE WHEN department_code IS NOT NULL THEN 1 ELSE 0 END DESC,
+        CASE WHEN service_type_code IS NOT NULL THEN 1 ELSE 0 END DESC,
+        id DESC
+      LIMIT 1
+    `;
+    
     const result = await pool.query(
-      `SELECT * FROM mapping_relations WHERE ${where} ORDER BY id DESC LIMIT 1`,
+      `SELECT * FROM mapping_relations WHERE ${where} ${orderBy}`,
       params
     );
+    
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'No mapping found' });
+      return res.status(404).json({ 
+        error: 'No mapping found',
+        context: contextParams,
+        filter: filter
+      });
     }
+    
+    console.log('Found mapping:', result.rows[0]);
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error finding mapping:', err);

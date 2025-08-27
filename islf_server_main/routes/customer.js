@@ -46,20 +46,21 @@ router.get('/', async (req, res) => {
 
 // CREATE new customer (with number series logic and manual/default check)
 router.post('/', async (req, res) => {
+  // UPDATE the POST route parameter extraction
   let {
     seriesCode, customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
     bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-    companyCode, branchCode,departmentCode,servicetypeCode// <-- expect these in the request
+    company_code, branch_code, department_code, service_type_code // <-- Use snake_case
   } = req.body;
   // Debug: log the request body
   console.log('REQ BODY:', req.body);
   try {
     // Relation-based number series lookup
     // This approach handles null values in mapping_relations as wildcards
-    if (!seriesCode && companyCode && branchCode && departmentCode) {
+    if (!seriesCode && company_code && branch_code && department_code) {
       // First try to find exact match including service_type_code
       let mappingRes;
-      if (servicetypeCode) {
+      if (service_type_code) {
         mappingRes = await pool.query(
           `SELECT mapping FROM mapping_relations
            WHERE code_type = $1
@@ -69,7 +70,7 @@ router.post('/', async (req, res) => {
            AND (service_type_code = $5 OR service_type_code IS NULL)
            ORDER BY CASE WHEN service_type_code IS NULL THEN 1 ELSE 0 END, id DESC
            LIMIT 1`,
-          ['customerCode', companyCode, branchCode, departmentCode, servicetypeCode]
+          ['customerCode', company_code, branch_code, department_code, service_type_code]
         );
       } else {
         mappingRes = await pool.query(
@@ -81,7 +82,7 @@ router.post('/', async (req, res) => {
            AND service_type_code IS NULL
            ORDER BY id DESC
            LIMIT 1`,
-          ['customerCode', companyCode, branchCode, departmentCode]
+          ['customerCode', company_code, branch_code, department_code]
         );
       }
       
@@ -142,6 +143,7 @@ router.post('/', async (req, res) => {
     } else if (!customer_no || customer_no === 'AUTO') {
       customer_no = 'CUS-' + Date.now();
     }
+    // Update the INSERT statement parameters
     const result = await pool.query(
       `INSERT INTO customer (
         customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
@@ -153,7 +155,7 @@ router.post('/', async (req, res) => {
       [
         customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
         bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
-        companyCode, branchCode, departmentCode,servicetypeCode
+        company_code, branch_code, department_code, service_type_code // <-- Use snake_case variables
       ]
     );
     
@@ -248,4 +250,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

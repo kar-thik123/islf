@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { environment } from '../../environments/environment';
 
 export interface Tariff {
   id?: number;
@@ -32,7 +33,7 @@ export interface Tariff {
 
 @Injectable({ providedIn: 'root' })
 export class TariffService {
-  private baseUrl = '/api/tariff';
+  private baseUrl = `${environment.apiUrl}/api/tariff`;
 
   constructor(
     private http: HttpClient, 

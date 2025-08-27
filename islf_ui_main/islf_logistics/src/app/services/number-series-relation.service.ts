@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { ConfigService } from './config.service';
+import { environment } from '../../environments/environment';
 
 export interface NumberSeriesRelation {
   id: number;
@@ -38,8 +39,8 @@ export interface NumberSeriesRelationPayload {
 
 @Injectable({ providedIn: 'root' })
 export class NumberSeriesRelationService {
-  private apiUrl = '/api/number_relation';
-  private numberSeriesApiUrl = '/api/number_series';
+  private apiUrl = `${environment.apiUrl}/api/number_relation`;
+  private numberSeriesApiUrl = `${environment.apiUrl}/api/number_series`; // Fix: Use full URL
 
   constructor(
     private http: HttpClient, 
@@ -116,9 +117,29 @@ export class NumberSeriesRelationService {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
-  // For dropdown: get all number series codes
+  // For dropdown: get all number series codes with context filtering
   getNumberSeriesCodes(): Observable<{ label: string, value: string }[]> {
-    return this.http.get<any[]>(this.numberSeriesApiUrl).pipe(
+    // Get filter configuration and context
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.numberSeriesFilter || '';
+    const context = this.contextService.getContext();
+    
+    let params = new HttpParams();
+    
+    // Add context parameters based on filter configuration
+    if (filter) {
+      if (filter.includes('C') && context.companyCode) {
+        params = params.set('companyCode', context.companyCode);
+      }
+      if (filter.includes('B') && context.branchCode) {
+        params = params.set('branchCode', context.branchCode);
+      }
+      if (filter.includes('D') && context.departmentCode) {
+        params = params.set('departmentCode', context.departmentCode);
+      }
+    }
+    
+    return this.http.get<any[]>(this.numberSeriesApiUrl, { params }).pipe(
       map(series => series.map(s => ({ label: s.code, value: s.code })))
     );
   }

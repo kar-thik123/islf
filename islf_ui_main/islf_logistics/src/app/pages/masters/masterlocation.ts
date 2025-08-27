@@ -15,6 +15,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
 import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators'; // Add this import
 import { Country, State, City } from 'country-state-city/lib';
 
 
@@ -341,10 +342,27 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
       this.updateLocationTypes();
     });
 
-    // Subscribe to context changes to reload data
+    // Subscribe to context changes to reload data - Updated with debouncing and proper refresh
     this.contextSubscription.add(
-      this.contextService.context$.subscribe(() => {
-        this.refreshList();
+      this.contextService.context$.pipe(
+        debounceTime(300), // Wait 300ms after the last context change
+        distinctUntilChanged() // Only emit when context actually changes
+      ).subscribe(() => {
+        console.log('Context changed in MasterLocationComponent, reloading data...');
+        // Clear existing data first
+        this.locations = [];
+        
+        // Reload master type data for tabs
+        this.masterTypeService.getAll().subscribe((types: any[]) => {
+          this.locationTypeOptions = types.filter(t => t.key === 'LOCATION' && t.status === 'Active');
+          console.log('Reloaded location type options from master type:', this.locationTypeOptions);
+          this.updateLocationTypes();
+        });
+        
+        // Add small delay to ensure context propagation
+        setTimeout(() => {
+          this.refreshList();
+        }, 100);
       })
     );
   }
@@ -361,7 +379,8 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     console.log('Refreshing master locations list');
     
     try {
-      // ❌ Remove context validation block
+      // Clear existing locations to ensure fresh data
+      this.locations = [];
       
       this.masterLocationService.getAll().subscribe({
         next: (locations) => {
