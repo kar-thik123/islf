@@ -21,6 +21,7 @@ import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
 import { Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -711,7 +712,10 @@ export class CustomerComponent implements OnInit, OnDestroy {
     this.loadDocumentTypeOptions();
     
     // Subscribe to context changes and reload data when context changes
-    this.contextSubscription = this.contextService.context$.subscribe(async () => {
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300), // Wait 300ms after the last context change
+      distinctUntilChanged() // Only emit when context actually changes
+    ).subscribe(async () => {
       console.log('Context changed in CustomerComponent, reloading data...');
       await this.refreshList();
       this.loadMappedCustomerSeriesCode();

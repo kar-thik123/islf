@@ -182,7 +182,21 @@ router.post('/', async (req, res) => {
         }
         
         const series = seriesResult.rows[0];
-        if (!series.is_manual) {
+        if (series.is_manual) {
+          // Manual: require code from user
+          if (!finalCode || finalCode.trim() === '') {
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(400).json({ error: 'Manual code entry required for this series' });
+          }
+          // Check for duplicate code
+          const exists = await client.query('SELECT 1 FROM tariff WHERE code = $1', [finalCode]);
+          if (exists.rows.length > 0) {
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(400).json({ error: 'Tariff code already exists' });
+          }
+        } else {
           // Generate automatic tariff code with row locking
           const relResult = await client.query(
             'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',

@@ -66,9 +66,9 @@ router.post('/', async (req, res) => {
     await logMasterEvent({
       username: req.user?.username || 'system',
       action: 'CREATE',
-      master_type: 'master_item',
-      entity_code: code,
-      entity_name: name,
+      masterType: 'master_item',  // Changed from master_type to masterType
+      recordId: result.rows[0].id,  // Added recordId
+      recordName: name,  // Changed from entity_name to recordName
       details: `Created master item: ${code} - ${name}`
     });
     res.status(201).json(result.rows[0]);

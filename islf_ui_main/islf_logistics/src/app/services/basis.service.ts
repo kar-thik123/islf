@@ -33,13 +33,13 @@ export class BasisService {
     
     // Only send context parameters based on the IT setup validation/filter settings
     if (basisFilter.includes('C') && context.companyCode) {
-      params.company_code = context.companyCode;
+      params.companyCode = context.companyCode;  // Changed from company_code
     }
     if (basisFilter.includes('B') && context.branchCode) {
-      params.branch_code = context.branchCode;
+      params.branchCode = context.branchCode;    // Changed from branch_code
     }
     if (basisFilter.includes('D') && context.departmentCode) {
-      params.department_code = context.departmentCode;
+      params.departmentCode = context.departmentCode;  // Changed from department_code
     }
     
     return this.http.get<Basis[]>(this.apiUrl, { params });

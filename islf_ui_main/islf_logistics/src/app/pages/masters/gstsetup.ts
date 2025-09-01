@@ -205,7 +205,7 @@ export class GstSetupComponent implements OnInit, OnDestroy {
       // Load GST locations for dropdowns
       this.masterLocationService.getAll().subscribe({
         next: (locations) => {
-          const gstLocations = locations.filter(l => l.type === 'GST_LOCATION' && l.active);
+          const gstLocations = locations.filter(l => l.type === 'GST' && l.active);
           this.locationOptions = gstLocations.map(l => ({
             label: `${l.gst_state_code} - ${l.name}`,
             value: `${l.gst_state_code} - ${l.name}`

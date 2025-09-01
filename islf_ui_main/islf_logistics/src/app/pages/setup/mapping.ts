@@ -8,7 +8,7 @@ import { ToolbarModule } from 'primeng/toolbar';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { InputTextModule } from 'primeng/inputtext';
 import { AppLayout } from '@/layout/components/app.layout';
 import { NumberSeriesComponent } from './numberseries';
@@ -22,6 +22,7 @@ import { ServiceTypeService, ServiceType } from '@/services/servicetype.service'
 import { DialogModule } from 'primeng/dialog';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
@@ -50,10 +51,12 @@ interface NumberSeries {
     IconFieldModule,
     InputIconModule,
     DialogModule,
+    ConfirmDialogModule,
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     
     <div class="card mt-4">
       <div class="font-semibold text-xl mb-4">Number Series Relation Mappings</div>
@@ -311,8 +314,9 @@ export class mappingComponent implements OnInit, OnDestroy {
     private branchService: BranchService,
     private departmentService: DepartmentService,
     private serviceTypeService: ServiceTypeService,
-    private configService: ConfigService, // Add this
-    private contextService: ContextService // Add this
+    private configService: ConfigService, 
+    private contextService: ContextService ,
+    private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit() {
@@ -566,41 +570,113 @@ export class mappingComponent implements OnInit, OnDestroy {
 
   editMappingRelation(index: number) {
     const rel = this.mappingRelations[index];
+    this.editingIndex = index;
+    
+    // Set the basic fields that work with values
     this.selectedCodeType = rel.codeType;
     this.selectedMapping = rel.mapping;
-    // Note: The backend returns display names, but we need to find the codes
-    // For now, we'll use the display names as codes (this should be improved)
-    this.selectedCompany = rel.company;
-    this.selectedBranch = rel.branch;
-    this.selectedDepartment = rel.department;
-    this.selectedServiceType = rel.serviceType;
-    this.editingIndex = index;
+    
+    // Load all dropdown options first, then find and set the codes
+    this.loadMappingOptions();
+    this.loadCompanies();
+    
+    // Load companies and find the matching code
+    this.companyService.getAll().subscribe(companies => {
+      this.companyOptions = companies;
+      const matchingCompany = companies.find(c => c.name === rel.company);
+      this.selectedCompany = matchingCompany ? matchingCompany.code : null;
+      
+      // After setting company, load branches
+      if (this.selectedCompany) {
+        this.branchService.getAll().subscribe(branches => {
+          this.branchOptions = branches.filter(b => b.company_code === this.selectedCompany);
+          const matchingBranch = this.branchOptions.find(b => b.name === rel.branch);
+          this.selectedBranch = matchingBranch ? matchingBranch.code : null;
+          
+          // After setting branch, load departments
+          if (this.selectedBranch) {
+            this.departmentService.getAll().subscribe(departments => {
+              this.departmentOptions = departments.filter(d => d.branch_code === this.selectedBranch);
+              const matchingDepartment = this.departmentOptions.find(d => d.name === rel.department);
+              this.selectedDepartment = matchingDepartment ? matchingDepartment.code : null;
+              
+              // After setting department, load service types
+              if (this.selectedDepartment) {
+                this.serviceTypeService.getAll().subscribe(serviceTypes => {
+                  this.serviceTypeOptions = serviceTypes.filter(st => st.department_code === this.selectedDepartment);
+                  const matchingServiceType = this.serviceTypeOptions.find(st => st.name === rel.serviceType);
+                  this.selectedServiceType = matchingServiceType ? matchingServiceType.code : null;
+                });
+              } else {
+                // If no department, still try to find service type
+                this.serviceTypeService.getAll().subscribe(serviceTypes => {
+                  this.serviceTypeOptions = serviceTypes;
+                  const matchingServiceType = this.serviceTypeOptions.find(st => st.name === rel.serviceType);
+                  this.selectedServiceType = matchingServiceType ? matchingServiceType.code : null;
+                });
+              }
+            });
+          } else {
+            // If no branch, reset dependent dropdowns but still try to find department and service type
+            this.departmentOptions = [];
+            this.selectedDepartment = null;
+            this.serviceTypeOptions = [];
+            this.selectedServiceType = null;
+          }
+        });
+      } else {
+        // If no company, reset all dependent dropdowns
+        this.branchOptions = [];
+        this.selectedBranch = null;
+        this.departmentOptions = [];
+        this.selectedDepartment = null;
+        this.serviceTypeOptions = [];
+        this.selectedServiceType = null;
+      }
+    });
+    
     this.showMappingDialog = true;
   }
+deleteMappingRelation(index: number) {
+  const relation = this.mappingRelations[index];
 
-  deleteMappingRelation(index: number) {
-    const relation = this.mappingRelations[index];
-    if (relation.id) {
-      this.mappingService.deleteMappingRelation(relation.id).subscribe({
-        next: () => {
-          this.loadMappingRelations();
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Deleted',
-            detail: 'Mapping relation deleted successfully'
-          });
-        },
-        error: (error) => {
-          console.error('Error deleting mapping relation:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to delete mapping relation'
-          });
-        }
-      });
+  this.confirmationService.confirm({
+    message: 'Are you sure you want to delete this mapping relation?',
+    header: 'Confirm Deletion',
+    icon: 'pi pi-exclamation-triangle',
+    accept: () => {
+      if (relation.id) {
+        this.mappingService.deleteMappingRelation(relation.id).subscribe({
+          next: () => {
+            this.loadMappingRelations();
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Deleted',
+              detail: 'Mapping relation deleted successfully'
+            });
+          },
+          error: (error) => {
+            console.error('Error deleting mapping relation:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to delete mapping relation'
+            });
+          }
+        });
+      } else {
+        // if the relation is only on client side (not saved in DB yet)
+        this.mappingRelations.splice(index, 1);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Deleted',
+          detail: 'Mapping relation removed locally'
+        });
+      }
     }
-  }
+  });
+}
+
 
   resetMappingForm() {
     this.selectedCodeType = null;

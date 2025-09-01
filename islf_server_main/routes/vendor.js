@@ -147,21 +147,48 @@ router.post('/', async (req, res) => {
           return res.status(400).json({ error: 'Vendor No already exists' });
         }
       } else {
-        // Not manual: generate code using relation
-        const relResult = await pool.query(
-          'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1',
-          [seriesCode]
-        );
-        if (relResult.rows.length === 0) {
-          return res.status(400).json({ error: 'Number series relation not found' });
+        // Not manual: generate code using relation with transaction safety
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          const relResult = await client.query(
+            'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
+            [seriesCode]
+          );
+          
+          if (relResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(400).json({ error: 'Number series relation not found' });
+          }
+          
+          const rel = relResult.rows[0];
+          let nextNo;
+          if (rel.last_no_used === 0) {
+            // If this is the first use, start with starting_no
+            nextNo = Number(rel.starting_no);
+          } else {
+            // Otherwise, increment from last_no_used
+            nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
+          }
+          
+          vendor_no = `${rel.prefix || ''}${nextNo}`;
+          console.log('Generated vendor code:', vendor_no);
+          
+          // Update the last_no_used within the same transaction
+          await client.query(
+            'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+            [nextNo, rel.id]
+          );
+          
+          await client.query('COMMIT');
+          client.release();
+        } catch (error) {
+          await client.query('ROLLBACK');
+          client.release();
+          throw error;
         }
-        const rel = relResult.rows[0];
-        const nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
-        vendor_no = `${rel.prefix || ''}${nextNo}`;
-        await pool.query(
-          'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
-          [nextNo, rel.id]
-        );
       }
     } else if (!vendor_no || vendor_no === 'AUTO') {
       vendor_no = 'VENDOR-' + Date.now();
