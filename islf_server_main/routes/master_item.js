@@ -37,7 +37,48 @@ router.get('/', async (req, res) => {
         paramIndex++;
       }
       
-      query += ` ORDER BY code ASC`;
+      query += ` ORDER BY code ASC`;router.get('/', async (req, res) => {
+  try {
+    const { companyCode, branchCode, departmentCode } = req.query;
+
+    let query = `
+      SELECT *
+      FROM master_item
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    // Hierarchical filtering
+    if (companyCode) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(companyCode);
+      paramIndex++;
+
+      if (branchCode) {
+        query += ` AND branch_code = $${paramIndex}`;
+        params.push(branchCode);
+        paramIndex++;
+
+        if (departmentCode) {
+          query += ` AND department_code = $${paramIndex}`;
+          params.push(departmentCode);
+          paramIndex++;
+        }
+      }
+    }
+
+    query += ` ORDER BY code ASC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching master items:', err);
+    res.status(500).json({ error: 'Failed to fetch master items' });
+  }
+});
+
       const result = await pool.query(query, params);
       res.json(result.rows);
     } else {

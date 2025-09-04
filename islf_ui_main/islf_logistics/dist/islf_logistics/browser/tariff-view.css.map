@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/pages/masters/tariff-view.ts"],
+  "sourcesContent": ["\n    .status-expired {\n      color: #dc2626;\n      font-weight: 600;\n      padding: 2px 8px;\n      border-radius: 4px;\n      background-color: #fee2e2;\n    }\n\n    .status-active {\n      color: #059669;\n      font-weight: 600;\n      padding: 2px 8px;\n      border-radius: 4px;\n      background-color: #d1fae5;\n    }\n\n    .status-default {\n      color: #6b7280;\n      font-weight: 600;\n      padding: 2px 8px;\n      border-radius: 4px;\n      background-color: #f3f4f6;\n    }\n\n    .p-button-text {\n      color: #6366f1;\n    }\n\n    .p-button-text:hover {\n      background-color: #e0e7ff;\n    }\n  "],
+  "mappings": ";AACI,CAAA;AACE,SAAA;AACA,eAAA;AACA,WAAA,IAAA;AACA,iBAAA;AACA,oBAAA;;AAGF,CAAA;AACE,SAAA;AACA,eAAA;AACA,WAAA,IAAA;AACA,iBAAA;AACA,oBAAA;;AAGF,CAAA;AACE,SAAA;AACA,eAAA;AACA,WAAA,IAAA;AACA,iBAAA;AACA,oBAAA;;AAGF,CAAA;AACE,SAAA;;AAGF,CAJA,aAIA;AACE,oBAAA;;",
+  "names": []
+}

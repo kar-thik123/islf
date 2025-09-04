@@ -13,6 +13,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { VendorService, Vendor, VendorContact } from '../../services/vendor.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
+import { MasterTypeComponent } from './mastertype';
+import { MasterLocationComponent } from './masterlocation';
 import { MasterLocationService, MasterLocation } from '../../services/master-location.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { EntityDocumentService, EntityDocument } from '../../services/entity-document.service';
@@ -51,7 +53,9 @@ function toTitleCase(str: string): string {
     DropdownModule,
     ToastModule,
     DialogModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    MasterTypeComponent,
+    MasterLocationComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -228,7 +232,10 @@ function toTitleCase(str: string): string {
             </div>
             <div class="grid-item">
               <label for="type">Vendor Type <span class="text-red-500">*</span></label>
-              <p-dropdown id="type" [options]="vendorTypeOptions" [(ngModel)]="selectedVendor.type" optionLabel="label" optionValue="value" placeholder="Select Vendor Type" (onChange)="onFieldChange('type', $event.value)" (onBlur)="onFieldBlur('type')" required></p-dropdown>
+              <div class="flex align-items-center gap-2">
+              <p-dropdown id="type" [options]="vendorTypeOptions" [(ngModel)]="selectedVendor.type" optionLabel="label" optionValue="value" placeholder="Select Vendor Type" (onChange)="onFieldChange('type', $event.value)" (onBlur)="onFieldBlur('type')" required class="flex-1"></p-dropdown>
+                <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('vendorType')" [loading]="masterDialogLoading['vendorType']" title="Open Vendor Type Master"></button>
+              </div>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('type')">{{ getFieldError('type') }}</small>
             </div>
             <div class="grid-item">
@@ -260,17 +267,26 @@ function toTitleCase(str: string): string {
            
             <div class="grid-item">
               <label for="country">Country <span class="text-red-500">*</span></label>
-              <p-dropdown id="country" [options]="countryOptions" [(ngModel)]="selectedVendor.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange(); onFieldChange('country', $event.value)" (onBlur)="onFieldBlur('country')" required></p-dropdown>
+               <div class="flex gap-1">
+              <p-dropdown id="country" [options]="countryOptions" [(ngModel)]="selectedVendor.country" optionLabel="label" optionValue="value" placeholder="Select Country" [filter]="true" (onChange)="onCountryChange(); onFieldChange('country', $event.value)" (onBlur)="onFieldBlur('country')" required class="flex-1"></p-dropdown>
+              <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('state')" style="height: 2.5rem;"></button>
+              </div>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('country')">{{ getFieldError('country') }}</small>
             </div>
             <div class="grid-item">
               <label for="state">State / Province <span class="text-red-500">*</span></label>
-              <p-dropdown id="state" [options]="stateOptions" [(ngModel)]="selectedVendor.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange(); onFieldChange('state', $event.value)" (onBlur)="onFieldBlur('state')" required></p-dropdown>
+              <div class="flex gap-1">
+              <p-dropdown id="state" [options]="stateOptions" [(ngModel)]="selectedVendor.state" optionLabel="label" optionValue="value" placeholder="Select State" [filter]="true" (onChange)="onStateChange(); onFieldChange('state', $event.value)" (onBlur)="onFieldBlur('state')" required class="flex-1"></p-dropdown>
+              <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('state')" style="height: 2.5rem;"></button>
+              </div>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('state')">{{ getFieldError('state') }}</small>
             </div>
             <div class="grid-item">
               <label for="city">City / Town <span class="text-red-500">*</span></label>
-              <p-dropdown id="city" [options]="cityOptions" [(ngModel)]="selectedVendor.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true" (onChange)="onFieldChange('city', $event.value)" (onBlur)="onFieldBlur('city')" required></p-dropdown>
+              <div class="flex gap-1">
+              <p-dropdown id="city" [options]="cityOptions" [(ngModel)]="selectedVendor.city" optionLabel="label" optionValue="value" placeholder="Select City" [filter]="true" (onChange)="onFieldChange('city', $event.value)" (onBlur)="onFieldBlur('city')" required class="flex-1"></p-dropdown>
+              <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('state')" style="height: 2.5rem;"></button>
+              </div>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('city')">{{ getFieldError('city') }}</small>
             </div>
             <div class="grid-item">
@@ -301,7 +317,10 @@ function toTitleCase(str: string): string {
             
             <div class="grid-item">
               <label>Place of Supply</label>
-              <p-dropdown [options]="placeOfSupplyOptions" [(ngModel)]="selectedVendor.place_of_supply" optionLabel="label" optionValue="value" placeholder="Select Place of Supply"></p-dropdown>
+              <div class="flex gap-1">
+              <p-dropdown [options]="placeOfSupplyOptions" [(ngModel)]="selectedVendor.place_of_supply" optionLabel="label" optionValue="value" placeholder="Select Place of Supply" class="flex-1"></p-dropdown>
+              <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('state')" style="height: 2.5rem;"></button>
+              </div>
             </div>
             <div class="grid-item">
               <label>PAN No.</label>
@@ -365,7 +384,10 @@ function toTitleCase(str: string): string {
               <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
                 <tr>
                   <td>
-                    <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
+                    <div class="flex gap-1">
+                    <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type" class="flex-1"></p-dropdown>
+                    <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('documentType')" style="height: 2.5rem;"></button>
+                    </div>
                   </td>
                   <td>
                     <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
@@ -577,6 +599,44 @@ function toTitleCase(str: string): string {
         </div>
       </ng-template>
     </p-dialog>
+      <!-- Master Type Dialog -->
+    <p-dialog
+      header="Vendor Type Master"
+      [(visible)]="masterDialogVisible['vendorType']"
+      [modal]="true"
+      [style]="{ width: '80vw', height: '80vh' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('vendorType')">
+      <master-type [filterByKey]="'VENDOR'"></master-type>
+    </p-dialog>
+
+    <!-- Master Location Dialog -->
+    <p-dialog
+      header="Location Master"
+      [(visible)]="masterDialogVisible['state']"
+      [modal]="true"
+      [style]="{ width: '80vw', height: '80vh' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('state')">
+      <master-location></master-location>
+    </p-dialog>
+
+    <!-- Document Type Master Dialog -->
+    <p-dialog
+      header="Document Type Master"
+      [(visible)]="masterDialogVisible['documentType']"
+      [modal]="true"
+      [style]="{ width: '80vw', height: '80vh' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('documentType')">
+      <master-type [filterByKey]="'VEN_DOC_TYPE'"></master-type>
+    </p-dialog>
   `,
   styles: [`
     .grid-container {
@@ -677,6 +737,17 @@ export class VendorComponent implements OnInit, OnDestroy {
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
   private contextSubscription: Subscription | null = null;
+    // Master dialog properties
+  masterDialogVisible: { [key: string]: boolean } = {
+    vendorType: false,
+    state: false,
+    documentType: false
+  };
+  masterDialogLoading: { [key: string]: boolean } = {
+    vendorType: false,
+    state: false,
+    documentType: false
+  };
 
   // Account Details Methods
   loadAccountDetails(entityType: string, entityCode: string) {
@@ -1239,7 +1310,7 @@ export class VendorComponent implements OnInit, OnDestroy {
         this.stateOptions = [];
         this.cityOptions = [];
         // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
-        const gstLocations = this.allLocations.filter(l => l.type === 'GST_LOCATION');
+        const gstLocations = this.allLocations.filter(l => l.type === 'GST');
         this.placeOfSupplyOptions = uniqueCaseInsensitive(gstLocations.map(l => `${l.gst_state_code}-${l.name}`))
           .map(val => ({ label: val, value: val }));
         console.log('Locations loaded:', this.allLocations.length);
@@ -1682,4 +1753,45 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.loadVendorDocuments(vendor.vendor_no);
   }
 
+ // Master dialog methods
+  openMaster(masterType: string) {
+    this.masterDialogVisible[masterType] = true;
+  }
+
+  closeMasterDialog(masterType: string) {
+    this.masterDialogVisible[masterType] = false;
+    if (masterType === 'vendorType') {
+      this.loadVendorTypeOptions();
+    } else if (masterType === 'state') {
+      this.loadStateOptions();
+    } else if (masterType === 'documentType') {
+      this.loadDocumentTypeOptions();
+    }
+  }
+
+  private loadVendorTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (data: any[]) => {
+        this.vendorTypeOptions = data
+          .filter((item: any) => item.key === 'VENDOR')
+          .map((item: any) => ({ label: item.value, value: item.value }));
+      },
+      error: (error: any) => {
+        console.error('Error loading customer type options:', error);
+      }
+    });
+  }
+
+  private loadStateOptions() {
+    this.masterLocationService.getAll().subscribe({
+      next: (data: any[]) => {
+        this.stateOptions = data
+          .filter((item: any) => item.type === 'STATE')
+          .map((item: any) => ({ label: item.name, value: item.name }));
+      },
+      error: (error: any) => {
+        console.error('Error loading state options:', error);
+      }
+    });
+  }
 }

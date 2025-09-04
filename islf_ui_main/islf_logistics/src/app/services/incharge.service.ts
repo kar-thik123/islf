@@ -15,6 +15,11 @@ export interface Incharge {
   to_date?: string;
   created_at?: string;
   updated_at?: string;
+  din_pan?: string;
+  designation?: string;
+  appointment_date?: string;
+  cessation_date?: string;
+  signatory?: string;
 }
 
 @Injectable({

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/pages/setup/Company/company-tree.ts"],
+  "sourcesContent": ["\n    .tree-container {\n      border: 1px solid #e5e7eb;\n      border-radius: 0.5rem;\n      padding: 1rem;\n      background: white;\n    }\n    \n    :host ::ng-deep .p-tree {\n      border: none;\n      background: transparent;\n    }\n    \n    :host ::ng-deep .p-tree .p-tree-container {\n      padding: 0;\n    }\n    \n    :host ::ng-deep .p-tree .p-treenode {\n      padding: 0;\n    }\n    \n    :host ::ng-deep .p-tree .p-treenode-content {\n      padding: 0;\n      border-radius: 0.375rem;\n      margin: 0.125rem 0;\n    }\n    \n    :host ::ng-deep .p-tree .p-treenode-content:hover {\n      background-color: #f3f4f6;\n    }\n    \n    :host ::ng-deep .p-tree .p-treenode-content.p-highlight {\n      background-color: #dbeafe;\n    }\n  "],
+  "mappings": ";AACI,CAAA;AACE,UAAA,IAAA,MAAA;AACA,iBAAA;AACA,WAAA;AACA,cAAA;;AAGF,MAAA,UAAA,CAAA;AACE,UAAA;AACA,cAAA;;AAGF,MAAA,UAAA,CALA,OAKA,CAAA;AACE,WAAA;;AAGF,MAAA,UAAA,CATA,OASA,CAAA;AACE,WAAA;;AAGF,MAAA,UAAA,CAbA,OAaA,CAAA;AACE,WAAA;AACA,iBAAA;AACA,UAAA,SAAA;;AAGF,MAAA,UAAA,CAnBA,OAmBA,CANA,kBAMA;AACE,oBAAA;;AAGF,MAAA,UAAA,CAvBA,OAuBA,CAVA,kBAUA,CAAA;AACE,oBAAA;;",
+  "names": []
+}

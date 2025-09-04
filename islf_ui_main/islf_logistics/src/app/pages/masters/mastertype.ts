@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -6,6 +6,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
+import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { MasterCodeService } from '../../services/mastercode.service';
 import { MasterTypeService } from '../../services/mastertype.service';
@@ -13,6 +14,7 @@ import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCodeComponent } from './mastercode';
 
 @Component({
   selector: 'master-type',
@@ -25,7 +27,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     InputTextModule,
     ButtonModule,
     DropdownModule,
-    ToastModule
+    ToastModule,
+    DialogModule,
+    MasterCodeComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -101,21 +105,32 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             <td>
               <ng-container *ngIf="type.isNew; else keyText">
                 <div class="flex flex-col">
-                  <p-dropdown
-                    [options]="masterCodeOptions"
-                    [(ngModel)]="type.key"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select Key"
-                    appendTo="body"
-                    [filter]="true"
-                    filterBy="label"
-                    (onChange)="onFieldChange(type, 'key', $event.value)"
-                    [ngClass]="getFieldErrorClass(type, 'key')"
-                    [ngStyle]="getFieldErrorStyle(type, 'key')"
-                    styleClass="w-full"
-              
-                  ></p-dropdown>
+                  <div class="flex gap-2">
+                    <p-dropdown
+                      [options]="masterCodeOptions"
+                      [(ngModel)]="type.key"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Select Key"
+                      appendTo="body"
+                      [filter]="true"
+                      filterBy="label"
+                      [disabled]="!!(filterByKey && filterByKey.trim() !== '')"
+                      (onChange)="onFieldChange(type, 'key', $event.value)"
+                      [ngClass]="getFieldErrorClass(type, 'key')"
+                      [ngStyle]="getFieldErrorStyle(type, 'key')"
+                      class="flex-1"
+                    ></p-dropdown>
+                    <button 
+                      pButton 
+                      type="button" 
+                      icon="pi pi-ellipsis-h" 
+                      class="p-button-sm" 
+                      [loading]="masterDialogLoading['masterCode']" 
+                      (click)="openMaster('masterCode')"
+                      title="Open Master Code"
+                    ></button>
+                  </div>
                   <small *ngIf="getFieldError(type, 'key')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(type, 'key') }}</small>
                 </div>
               </ng-container>
@@ -204,10 +219,24 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         </ng-template>
       </p-table>
     </div>
+    
+    <!-- Master Code Dialog -->
+    <p-dialog 
+      header="Master Code" 
+      [(visible)]="masterDialogVisible['masterCode']" 
+      [modal]="true" 
+      [style]="{width: '80vw', height: '80vh'}" 
+      [draggable]="false" 
+      [resizable]="false"
+      (onHide)="closeMasterDialog('masterCode')"
+    >
+      <master-code></master-code>
+    </p-dialog>
   `,
   styles: [],
 })
 export class MasterTypeComponent implements OnInit, OnDestroy {
+  @Input() filterByKey: string = ''; // Filter types by specific key
   types: any[] = [];
   activeTypes: any[] = [];
   masterCodeOptions: any[] = [];
@@ -219,6 +248,14 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
 
   // Field validation states
   fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+
+  // Master dialog states
+  masterDialogVisible: { [key: string]: boolean } = {
+    masterCode: false
+  };
+  masterDialogLoading: { [key: string]: boolean } = {
+    masterCode: false
+  };
 
   constructor(
     private masterCodeService: MasterCodeService,
@@ -348,7 +385,15 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       
       this.masterTypeService.getAll().subscribe({
         next: (types) => {
-          this.types = (types || []).map((t: any) => ({
+          let filteredTypes = types || [];
+          
+          // Filter by key if filterByKey is provided
+          if (this.filterByKey && this.filterByKey.trim() !== '') {
+            filteredTypes = filteredTypes.filter((t: any) => t.key === this.filterByKey);
+            console.log(`Filtered master types by key '${this.filterByKey}':`, filteredTypes.length);
+          }
+          
+          this.types = filteredTypes.map((t: any) => ({
             ...t,
             isEditing: false,
             isNew: false
@@ -416,7 +461,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
-      key: null,
+      key: this.filterByKey && this.filterByKey.trim() !== '' ? this.filterByKey : null,
       value: '',
       description: '',
       status: 'Active',
@@ -500,5 +545,35 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
 
   getActiveTypes() {
     return this.activeTypes;
+  }
+
+  // Master dialog methods
+  openMaster(masterType: string) {
+    this.masterDialogVisible[masterType] = true;
+  }
+
+  closeMasterDialog(masterType: string) {
+    this.masterDialogVisible[masterType] = false;
+    // Refresh master code options when dialog closes
+    if (masterType === 'masterCode') {
+      this.loadMasterCodeOptions();
+    }
+  }
+
+  private loadMasterCodeOptions() {
+    this.masterCodeService.getMasters().subscribe({
+      next: (codes: any[]) => {
+        this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
+        console.log('Master code options refreshed:', this.masterCodeOptions.length);
+      },
+      error: (error) => {
+        console.error('Error loading master code options:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to refresh master code options' 
+        });
+      }
+    });
   }
 }

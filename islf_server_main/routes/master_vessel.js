@@ -79,46 +79,46 @@ async function findMappingByContext(code_type, company_code, branch_code, depart
 router.get('/', async (req, res) => {
   try {
     const { company_code, branch_code, department_code, service_type_code } = req.query;
-    
-    // If context parameters are provided, filter vessels by their context
-    if (company_code || branch_code || department_code || service_type_code) {
-      let query = `
-        SELECT *
-        FROM master_vessel
-        WHERE 1=1
-      `;
-      
-      const params = [];
-      let paramIndex = 1;
-      
-      // Current filtering logic - requires exact matches
-      if (company_code) {
-        query += ` AND company_code = $${paramIndex}`;
-        params.push(company_code);
-        paramIndex++;
-      }
-      
+
+    let query = `
+      SELECT *
+      FROM master_vessel
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    // Hierarchical filtering
+    if (company_code) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(company_code);
+      paramIndex++;
+
       if (branch_code) {
         query += ` AND branch_code = $${paramIndex}`;
         params.push(branch_code);
         paramIndex++;
+
+        if (department_code) {
+          query += ` AND department_code = $${paramIndex}`;
+          params.push(department_code);
+          paramIndex++;
+        }
       }
-      
-      if (department_code) {
-        query += ` AND department_code = $${paramIndex}`;
-        params.push(department_code);
-        paramIndex++;
-      }
-      
-      query += ` ORDER BY id ASC`;
-      
-      const result = await pool.query(query, params);
-      res.json(result.rows);
-    } else {
-      // If no context parameters, return all vessels
-      const result = await pool.query('SELECT * FROM master_vessel ORDER BY id ASC');
-      res.json(result.rows);
     }
+
+    // Service type filter (independent)
+    if (service_type_code) {
+      query += ` AND service_type_code = $${paramIndex}`;
+      params.push(service_type_code);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY id ASC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (err) {
     console.error('Error fetching vessels:', err);
     res.status(500).json({ error: 'Failed to fetch vessels' });

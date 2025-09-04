@@ -39,11 +39,11 @@ router.get('/:code', async (req, res) => {
 
 // Create department
 router.post('/', async (req, res) => {
-  const { code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks } = req.body;
+  const { code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst = null } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO departments (code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-      [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks]
+      'INSERT INTO departments (code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+      [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst]
     );
     
     // Log the setup event
@@ -66,11 +66,11 @@ router.post('/', async (req, res) => {
 
 // Update department
 router.put('/:code', async (req, res) => {
-  const { company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks } = req.body;
+  const { company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst = null } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE departments SET company_code = $1, branch_code = $2, name = $3, description = $4, incharge_name = $5, incharge_from = $6, status = $7, start_date = $8, close_date = $9, remarks = $10 WHERE code = $11 RETURNING *',
-      [company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, req.params.code]
+      'UPDATE departments SET company_code = $1, branch_code = $2, name = $3, description = $4, incharge_name = $5, incharge_from = $6, status = $7, start_date = $8, close_date = $9, remarks = $10, gst = $11 WHERE code = $12 RETURNING *',
+      [company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     
@@ -116,4 +116,4 @@ router.delete('/:code', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

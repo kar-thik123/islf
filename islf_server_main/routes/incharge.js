@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const { entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date } = req.body;
+    const { entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory } = req.body;
     
     // If creating an active incharge, deactivate existing active ones
     if (status === 'active') {
@@ -50,8 +50,8 @@ router.post('/', async (req, res) => {
     }
     
     const result = await client.query(
-      'INSERT INTO incharge (entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date]
+      'INSERT INTO incharge (entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9,$10,$11,$12,$13) RETURNING *',
+      [entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory]
     );
     
     await client.query('COMMIT');
@@ -76,6 +76,25 @@ router.post('/', async (req, res) => {
     client.release();
   }
 });
+router.get('/directors-partners/:entityCode', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { entityCode } = req.params;
+    
+    const result = await client.query(
+      `SELECT * FROM incharge 
+       WHERE entity_type = 'directors_partners' AND entity_code = $1 
+       ORDER BY appointment_date DESC, created_at DESC`,
+      [entityCode]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching directors-partners:', err);
+    res.status(500).json({ error: 'Failed to fetch directors-partners' });
+  } finally {
+    client.release();
+  }
+});
 
 // Update incharge record
 router.put('/:id', async (req, res) => {
@@ -83,7 +102,7 @@ router.put('/:id', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const { incharge_name, phone_number, email, status, from_date, to_date } = req.body;
+    const { incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory } = req.body;
     const { id } = req.params;
     
     // Get current record
@@ -104,8 +123,8 @@ router.put('/:id', async (req, res) => {
     }
     
     const result = await client.query(
-      'UPDATE incharge SET incharge_name = $1, phone_number = $2, email = $3, status = $4, from_date = $5, to_date = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *',
-      [incharge_name, phone_number, email, status, from_date, to_date, id]
+      'UPDATE incharge SET incharge_name = $1, phone_number = $2, email = $3, status = $4, from_date = $5, to_date = $6, din_pan = $7, designation = $8, appointment_date = $9, cessation_date = $10, signatory = $11, updated_at = CURRENT_TIMESTAMP WHERE id = $12 RETURNING *',
+      [incharge_name, phone_number, email, status, from_date, to_date, din_pan, designation, appointment_date, cessation_date, signatory, id]
     );
     
     await client.query('COMMIT');

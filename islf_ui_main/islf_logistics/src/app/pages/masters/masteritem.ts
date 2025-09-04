@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -14,6 +14,7 @@ import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
+import { MasterTypeComponent } from './mastertype';
 
 interface ItemTypeOption {
   key: string;
@@ -33,7 +34,8 @@ interface ItemTypeOption {
     ButtonModule,
     DropdownModule,
     ToastModule,
-    DialogModule
+    DialogModule,
+    MasterTypeComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -153,17 +155,28 @@ interface ItemTypeOption {
           <div class="grid-container">
             <div class="grid-item">
               <label for="item_type "> Item Type <span class="text-red-500">*</span></label>
-              <p-dropdown
-                id="item_type"
-                [options]="itemTypeOptions"
-                [(ngModel)]="selectedItem.item_type"
-                optionLabel="value"
-                optionValue="value"
-                placeholder="Select Item Type"
-                [filter]="true"
-                [disabled]="!selectedItem.isNew"
-                (onChange)="onFieldChange('item_type', $event.value)"
-              ></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown
+                  id="item_type"
+                  [options]="itemTypeOptions"
+                  [(ngModel)]="selectedItem.item_type"
+                  optionLabel="value"
+                  optionValue="value"
+                  placeholder="Select Item Type"
+                  [filter]="true"
+                  (onChange)="onFieldChange('item_type', $event.value)"
+                  class="flex-1"
+                ></p-dropdown>
+                <button 
+                  pButton 
+                  type="button" 
+                  icon="pi pi-ellipsis-h" 
+                  class="p-button-sm" 
+                  [loading]="masterDialogLoading['itemType']" 
+                  (click)="openMaster('itemType')"
+                  title="Open Item Type Master"
+                ></button>
+              </div>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('item_type')">{{ getFieldError('item_type') }}</small>
             </div>
             <div class="grid-item">
@@ -201,6 +214,23 @@ interface ItemTypeOption {
         </div>
       </ng-template>
     </p-dialog>
+
+    <!-- Item Type Master Dialog -->
+    <p-dialog
+      header="Item Type Master (ITEM_TYPE only)"
+      [(visible)]="showItemTypeDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('itemType')"
+    >
+      <ng-template pTemplate="content">
+        <master-type [filterByKey]="'ITEM_TYPE'"></master-type>
+      </ng-template>
+    </p-dialog>
   `,
   styles: [`
     .grid-container {
@@ -229,6 +259,8 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   isDialogVisible = false;
   selectedItem: (MasterItem & { isNew?: boolean }) | null = null;
   fieldErrors: { [key: string]: string } = {};
+  showItemTypeDialog = false;
+  masterDialogLoading: { [key: string]: boolean } = {};
   private contextSubscription: Subscription | undefined;
 
   constructor(
@@ -236,14 +268,13 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
     this.refreshList();
-    this.masterTypeService.getAll().subscribe((types: ItemTypeOption[]) => {
-      this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
-    });
+    this.loadItemTypeOptions();
     
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
@@ -411,5 +442,65 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
   clear(table: any) {
     table.clear();
+  }
+
+  openMaster(type: string) {
+    // Prevent multiple clicks and show loading state
+    if (this.masterDialogLoading[type]) {
+      return;
+    }
+    
+    this.masterDialogLoading[type] = true;
+    
+    // Open dialog immediately for better user experience
+    if (type === 'itemType') {
+      this.showItemTypeDialog = true;
+    } else {
+      this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
+    }
+    
+    // Reset loading state immediately since dialog is now open
+    this.masterDialogLoading[type] = false;
+    this.cdr.detectChanges();
+  }
+
+  closeMasterDialog(type: string) {
+    console.log(`Closing master dialog: ${type}`);
+    
+    // Reset the appropriate dialog visibility
+    switch (type) {
+      case 'itemType':
+        this.showItemTypeDialog = false;
+        // Refresh item type options when dialog closes
+        this.loadItemTypeOptions();
+        break;
+      default:
+        console.warn(`Unknown master dialog type: ${type}`);
+    }
+    
+    // Reset loading state if it exists
+    if (this.masterDialogLoading[type]) {
+      this.masterDialogLoading[type] = false;
+    }
+    
+    // Force change detection to ensure UI updates
+    this.cdr.detectChanges();
+  }
+
+  private loadItemTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: ItemTypeOption[]) => {
+        this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
+        console.log('Item type options refreshed:', this.itemTypeOptions.length);
+      },
+      error: (error) => {
+        console.error('Error loading item type options:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to refresh item type options' 
+        });
+      }
+    });
   }
 }

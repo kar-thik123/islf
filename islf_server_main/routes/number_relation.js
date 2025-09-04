@@ -6,33 +6,37 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
-    let query = 'SELECT * FROM number_relation';
+
+    let query = `
+      SELECT *
+      FROM number_relation
+      WHERE 1=1
+    `;
+
     const queryParams = [];
-    const conditions = [];
-    
-    // Add context-based filtering
+    let paramIndex = 1;
+
+    // Hierarchical filtering
     if (companyCode) {
-      conditions.push(`company_code = $${queryParams.length + 1}`);
+      query += ` AND company_code = $${paramIndex}`;
       queryParams.push(companyCode);
+      paramIndex++;
+
+      if (branchCode) {
+        query += ` AND branch_code = $${paramIndex}`;
+        queryParams.push(branchCode);
+        paramIndex++;
+
+        if (departmentCode) {
+          query += ` AND department_code = $${paramIndex}`;
+          queryParams.push(departmentCode);
+          paramIndex++;
+        }
+      }
     }
-    
-    if (branchCode) {
-      conditions.push(`branch_code = $${queryParams.length + 1}`);
-      queryParams.push(branchCode);
-    }
-    
-    if (departmentCode) {
-      conditions.push(`department_code = $${queryParams.length + 1}`);
-      queryParams.push(departmentCode);
-    }
-    
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-    
-    query += ' ORDER BY id DESC';
-    
+
+    query += ` ORDER BY id DESC`;
+
     const result = await pool.query(query, queryParams);
     res.json(result.rows);
   } catch (err) {
@@ -40,6 +44,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch number series relations' });
   }
 });
+
 
 // Get number series relation by id
 router.get('/:id', async (req, res) => {

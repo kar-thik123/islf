@@ -288,31 +288,36 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
-    let query = `SELECT id, full_name, employee_id, designation, joining_date, status, bio, permission FROM users`;
-    let queryParams = [];
-    let whereConditions = [];
-    
-    // Add context-based filtering
+
+    let query = `
+      SELECT id, full_name, employee_id, designation, joining_date, status, bio, permission
+      FROM users
+      WHERE 1=1
+    `;
+
+    const queryParams = [];
+    let paramIndex = 1;
+
     if (companyCode) {
-      whereConditions.push(`company_code = $${queryParams.length + 1}`);
+      query += ` AND company_code = $${paramIndex}`;
       queryParams.push(companyCode);
+      paramIndex++;
+
+      if (branchCode) {
+        query += ` AND branch_code = $${paramIndex}`;
+        queryParams.push(branchCode);
+        paramIndex++;
+
+        if (departmentCode) {
+          query += ` AND department_code = $${paramIndex}`;
+          queryParams.push(departmentCode);
+          paramIndex++;
+        }
+      }
     }
-    
-    if (branchCode) {
-      whereConditions.push(`branch_code = $${queryParams.length + 1}`);
-      queryParams.push(branchCode);
-    }
-    
-    if (departmentCode) {
-      whereConditions.push(`department_code = $${queryParams.length + 1}`);
-      queryParams.push(departmentCode);
-    }
-    
-    if (whereConditions.length > 0) {
-      query += ` WHERE ${whereConditions.join(' AND ')}`;
-    }
-    
+
+    query += ` ORDER BY id ASC`;
+
     const result = await pool.query(query, queryParams);
     const users = result.rows.map(user => ({
       id: user.id,
@@ -330,6 +335,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: 'Database error', error: err });
   }
 });
+
 
 // Get user by ID
 router.get('/:id', async (req, res) => {

@@ -233,7 +233,11 @@ import { CheckboxModule } from 'primeng/checkbox';
                   filterBy="label"
                   class="flex-1">
                 </p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('vendor')"></button>
+                <button pButton 
+                  [icon]="masterDialogLoading['vendor'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['vendor']"
+                  (click)="openMaster('vendor')"></button>
               </div>
               <small *ngIf="fieldErrors['vendorName']" class="p-error">{{ fieldErrors['vendorName'] }}</small>
             </div>
@@ -266,7 +270,11 @@ import { CheckboxModule } from 'primeng/checkbox';
               <label class="block font-semibold mb-1">Container Type</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select Container Type" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('containerType')"></button>
+                <button pButton 
+                  [icon]="masterDialogLoading['containerType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['containerType']"
+                  (click)="openMaster('containerType')"></button>
               </div>
               <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
             </div>
@@ -279,7 +287,11 @@ import { CheckboxModule } from 'primeng/checkbox';
               <label class="block font-semibold mb-1">Basis</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="basisOptions" [(ngModel)]="selectedTariff.basis" (ngModelChange)="onFieldChange('basis', selectedTariff.basis)" [ngClass]="getFieldErrorClass('basis')" [ngStyle]="getFieldErrorStyle('basis')" placeholder="Select Basis" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('basis')"></button>
+                <button pButton 
+                  [icon]="masterDialogLoading['basis'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['basis']"
+                  (click)="openMaster('basis')"></button>
               </div>
               <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
             </div>
@@ -287,7 +299,11 @@ import { CheckboxModule } from 'primeng/checkbox';
               <label class="block font-semibold mb-1">Currency</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
-                <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('currency')"></button>
+                <button pButton 
+                  [icon]="masterDialogLoading['currency'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['currency']"
+                  (click)="openMaster('currency')"></button>
               </div>
               <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
             </div>
@@ -307,7 +323,7 @@ import { CheckboxModule } from 'primeng/checkbox';
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Location Type To</label>
-              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value" class="w-full"></p-dropdown>
+              <p-dropdown appendTo="body" [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value" class="w-full"></p-dropdown>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">To</label>
@@ -364,13 +380,15 @@ import { CheckboxModule } from 'primeng/checkbox';
     
     <!-- Currency Code Dialog -->
     <p-dialog
-    
+      header="Currency Code Master"
       [(visible)]="showCurrencyDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
+      [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
+      (onHide)="closeMasterDialog('currency')"
     >
       <ng-template pTemplate="content">
         <currency-code></currency-code>
@@ -379,12 +397,15 @@ import { CheckboxModule } from 'primeng/checkbox';
 
     <!-- Container Code Dialog -->
     <p-dialog
+      header="Container Code Master"
       [(visible)]="showContainerDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
+      [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
+      (onHide)="closeMasterDialog('container')"
     >
       <ng-template pTemplate="content">
         <container-code></container-code>
@@ -393,13 +414,15 @@ import { CheckboxModule } from 'primeng/checkbox';
      
     <!-- Vendor Master Dialog -->
     <p-dialog
-      
+      header="Vendor Master"
       [(visible)]="showVendorDialog"
       [modal]="true"
       [style]="{ width: '1200px' }"
+      [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
+      (onHide)="closeMasterDialog('vendor')"
     >
       <ng-template pTemplate="content">
         <vendor-master></vendor-master>
@@ -408,12 +431,15 @@ import { CheckboxModule } from 'primeng/checkbox';
     
     <!-- Basis Dialog -->
     <p-dialog
+      header="Basis Code Master"
       [(visible)]="showBasisDialog"
       [modal]="true"
       [style]="{ width: '900px' }"
+      [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
+      (onHide)="closeMasterDialog('basis')"
     >
       <ng-template pTemplate="content">
         <basis-code></basis-code>
@@ -561,10 +587,12 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   ];
   isDialogVisible = false;
   selectedTariff: any = null;
+  originalTariffData: any = null; // Backup of original data for cancel functionality
   showCurrencyDialog = false;
   showContainerDialog = false;
   showVendorDialog = false;
   showBasisDialog = false;
+  masterDialogLoading: { [key: string]: boolean } = {};
     mandatoryOptions = [
     { label: 'Yes', value: true },
     { label: 'No', value: false }
@@ -1265,8 +1293,14 @@ loadBasisOptions() {
     this.isDialogVisible = true;
     this.fieldErrors = {};
     
+    // Initialize masterDialogLoading state for ellipsis buttons
+    this.masterDialogLoading = {};
+    
     // Load mapped tariff series code for automatic generation
     this.loadMappedTariffSeriesCode();
+    
+    // Force immediate change detection to show dialog quickly
+    this.cdr.detectChanges();
     
     // Load options using forkJoin
     forkJoin([
@@ -1281,10 +1315,68 @@ loadBasisOptions() {
       this.loadItemOptions(),
       this.loadVendorTypeOptions(),
       this.loadVendorOptions()
-    ]).subscribe();
+    ]).subscribe(() => {
+      this.updateFormValidity();
+      this.cdr.detectChanges();
+    });
   }
 
   editRow(tariff: any) {
+    console.log('Edit Tariff button clicked - starting editRow method');
+    
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const tariffFilter = config?.validation?.tariffFilter || '';
+    
+    console.log('Tariff filter:', tariffFilter);
+    
+    // Check if we need to validate context
+    if (tariffFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+      
+      console.log('Current context:', context);
+      
+      // Check if the required context is set based on the filter
+      if (tariffFilter.includes('C') && !context.companyCode) {
+        console.log('Company context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Company before editing a tariff.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+      
+      if (tariffFilter.includes('B') && !context.branchCode) {
+        console.log('Branch context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Branch before editing a tariff.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+      
+      if (tariffFilter.includes('D') && !context.departmentCode) {
+        console.log('Department context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Department before editing a tariff.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+
+    console.log('Context validation passed - proceeding with edit tariff');
+    
+    // Store original data for cancel functionality
+    this.originalTariffData = JSON.parse(JSON.stringify(tariff));
+    
     this.selectedTariff = { ...tariff, isNew: false, isEdit: true };
     
     // Convert date strings to Date objects for the calendar components
@@ -1305,39 +1397,37 @@ loadBasisOptions() {
     this.isDialogVisible = true;
     this.fieldErrors = {};
     
+    // Initialize masterDialogLoading state for ellipsis buttons
+    this.masterDialogLoading = {};
+    
     // Force immediate change detection to show dialog quickly
     this.cdr.detectChanges();
     
-    // Load essential options first (mode and shipping type are required)
+    // Load all options using forkJoin for consistent performance with addRow
     forkJoin([
       this.loadModeOptions(),
-      this.loadShippingTypeOptions()
+      this.loadShippingTypeOptions(),
+      this.loadCargoTypeOptions(),
+      this.loadTariffTypeOptions(),
+      this.loadLocationOptions(),
+      this.loadBasisOptions(),
+      this.loadContainersOptions(),
+      this.loadCurrencyOptions(),
+      this.loadItemOptions(),
+      this.loadVendorTypeOptions(),
+      this.loadVendorOptions()
     ]).subscribe(() => {
       this.updateFormValidity();
       this.cdr.detectChanges();
-      
-      // Load remaining options in background after dialog is visible
-      setTimeout(() => {
-        forkJoin([
-          this.loadCargoTypeOptions(),
-          this.loadTariffTypeOptions(),
-          this.loadLocationOptions(),
-          this.loadBasisOptions(),
-          this.loadContainersOptions(),
-          this.loadCurrencyOptions(),
-          this.loadItemOptions(),
-          this.loadVendorOptions()
-        ]).subscribe(() => {
-          this.updateFormValidity();
-          this.cdr.detectChanges();
-        });
-      }, 0);
     });
   }
 
   saveRow() {
     if (!this.selectedTariff || !this.isFormValid) return;
     const payload: any = { ...this.selectedTariff };
+    
+    // Clear original data backup since we're saving changes
+    this.originalTariffData = null;
 
     // For automatic series, ensure code is empty so backend generates it (only for new records)
     if (!this.isManualSeries && this.selectedTariff.isNew) {
@@ -1373,8 +1463,22 @@ loadBasisOptions() {
   }
 
   hideDialog() {
+    // If we were editing and have original data, restore it to the tariffs array
+    if (this.selectedTariff && this.selectedTariff.isEdit && this.originalTariffData) {
+      const index = this.tariffs.findIndex(t => t.id === this.originalTariffData.id);
+      if (index !== -1) {
+        this.tariffs[index] = { ...this.originalTariffData };
+      }
+    }
+    
     this.isDialogVisible = false;
     this.selectedTariff = null;
+    this.originalTariffData = null;
+    // Clear form errors and reset form validity
+    this.fieldErrors = {};
+    this.isFormValid = false;
+    // Force change detection to ensure UI updates
+    this.cdr.detectChanges();
   }
 
   clear(table: any) {
@@ -1415,6 +1519,14 @@ loadBasisOptions() {
   }
   
   openMaster(type: string) {
+    // Prevent multiple clicks and show loading state
+    if (this.masterDialogLoading[type]) {
+      return;
+    }
+    
+    this.masterDialogLoading[type] = true;
+    
+    // Open dialog immediately for better user experience
     if (type === 'currency') {
       this.showCurrencyDialog = true;
     } else if (type === 'containerType') {
@@ -1426,6 +1538,40 @@ loadBasisOptions() {
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
+    
+    // Reset loading state immediately since dialog is now open
+    this.masterDialogLoading[type] = false;
+    this.cdr.detectChanges();
+  }
+
+  closeMasterDialog(type: string) {
+    console.log(`Closing master dialog: ${type}`);
+    
+    // Reset the appropriate dialog visibility
+    switch (type) {
+      case 'currency':
+        this.showCurrencyDialog = false;
+        break;
+      case 'container':
+        this.showContainerDialog = false;
+        break;
+      case 'vendor':
+        this.showVendorDialog = false;
+        break;
+      case 'basis':
+        this.showBasisDialog = false;
+        break;
+      default:
+        console.warn(`Unknown master dialog type: ${type}`);
+    }
+    
+    // Reset loading state if it exists
+    if (this.masterDialogLoading[type]) {
+      this.masterDialogLoading[type] = false;
+    }
+    
+    // Force change detection to ensure UI updates
+    this.cdr.detectChanges();
   }
 
   importData() {

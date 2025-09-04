@@ -6,6 +6,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
+import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { CalendarModule } from 'primeng/calendar';
 import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
@@ -14,6 +15,7 @@ import { ContextService } from '../../services/context.service';
 import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterTypeComponent } from './mastertype';
 
 @Component({
   selector: 'master-uom',
@@ -27,7 +29,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     ButtonModule,
     DropdownModule,
     ToastModule,
-    CalendarModule
+    DialogModule,
+    CalendarModule,
+    MasterTypeComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -103,17 +107,29 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             <td>
               <ng-container *ngIf="uom.isNew || uom.isEditing; else typeText">
                 <div class="flex flex-col">
-                  <p-dropdown
-                    [options]="uomTypeOptions"
-                    [(ngModel)]="uom.uom_type"
-                    optionLabel="value"
-                    optionValue="value"
-                    placeholder="Select Type"
-                    [filter]="true"
-                    (ngModelChange)="onFieldChange(uom, 'uom_type', uom.uom_type)"
-                    [ngClass]="getFieldErrorClass(uom, 'uom_type')"
-                    appendTo="body"
-                  ></p-dropdown>
+                  <div class="flex gap-2">
+                    <p-dropdown
+                      [options]="uomTypeOptions"
+                      [(ngModel)]="uom.uom_type"
+                      optionLabel="value"
+                      optionValue="value"
+                      placeholder="Select Type"
+                      [filter]="true"
+                      (ngModelChange)="onFieldChange(uom, 'uom_type', uom.uom_type)"
+                      [ngClass]="getFieldErrorClass(uom, 'uom_type')"
+                      appendTo="body"
+                      class="flex-1"
+                    ></p-dropdown>
+                    <button 
+                      pButton 
+                      type="button" 
+                      icon="pi pi-ellipsis-h" 
+                      class="p-button-sm" 
+                      [loading]="masterDialogLoading['uomType']" 
+                      (click)="openMaster('uomType')"
+                      title="Open UOM Type Master"
+                    ></button>
+                  </div>
                   <small *ngIf="getFieldError(uom, 'uom_type')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(uom, 'uom_type') }}</small>
                 </div>
               </ng-container>
@@ -197,6 +213,23 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         </ng-template>
       </p-table>
     </div>
+
+    <!-- UOM Type Master Dialog -->
+    <p-dialog
+      header="UOM Type Master (UOM only)"
+      [(visible)]="showUomTypeDialog"
+      [modal]="true"
+      [style]="{ width: '900px' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('uomType')"
+    >
+      <ng-template pTemplate="content">
+        <master-type [filterByKey]="'UOM'"></master-type>
+      </ng-template>
+    </p-dialog>
   `,
   styles: []
 })
@@ -209,7 +242,9 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   ];
 
   // Field validation states
-  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+   fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+   showUomTypeDialog = false;
+   masterDialogLoading: { [key: string]: boolean } = {};
   private contextSubscription: Subscription | undefined;
 
   constructor(
@@ -222,9 +257,8 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.refreshList();
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
-      this.uomTypeOptions = types.filter(t => t.key === 'UOM' && t.status === 'Active');
-    });
+    // Load UOM types for dropdown
+    this.loadUomTypeOptions();
     
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
@@ -472,5 +506,61 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   onGlobalFilter(event: Event, table: any) {
     const value = (event.target as HTMLInputElement).value;
     table.filterGlobal(value, 'contains');
+  }
+
+  openMaster(type: string) {
+    // Prevent multiple clicks and show loading state
+    if (this.masterDialogLoading[type]) {
+      return;
+    }
+    
+    this.masterDialogLoading[type] = true;
+    
+    // Open dialog immediately for better user experience
+    if (type === 'uomType') {
+      this.showUomTypeDialog = true;
+    } else {
+      this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
+    }
+    
+    // Reset loading state immediately since dialog is now open
+    this.masterDialogLoading[type] = false;
+  }
+
+  closeMasterDialog(type: string) {
+    console.log(`Closing master dialog: ${type}`);
+    
+    // Reset the appropriate dialog visibility
+    switch (type) {
+      case 'uomType':
+        this.showUomTypeDialog = false;
+        // Refresh UOM type options when dialog closes
+        this.loadUomTypeOptions();
+        break;
+      default:
+        console.warn(`Unknown master dialog type: ${type}`);
+    }
+    
+    // Reset loading state if it exists
+    if (this.masterDialogLoading[type]) {
+      this.masterDialogLoading[type] = false;
+    }
+  }
+
+  private loadUomTypeOptions() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
+        this.uomTypeOptions = types.filter(t => t.key === 'UOM' && t.status === 'Active');
+        console.log('UOM type options refreshed:', this.uomTypeOptions.length);
+      },
+      error: (error) => {
+        console.error('Error loading UOM type options:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to refresh UOM type options' 
+        });
+      }
+    });
   }
 }

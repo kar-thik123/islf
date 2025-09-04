@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/pages/setup/numberseriesrelation.ts"],
+  "sourcesContent": ["\n    .grid-container {\n      display: grid;\n      grid-template-columns: repeat(3, 1fr);\n      gap: 1.5rem;\n    }\n    .grid-item {\n      display: flex;\n      flex-direction: column;\n    }\n    .full-width {\n      grid-column: span 3;\n    }\n    label {\n      margin-bottom: 0.25rem;\n      font-weight: 500;\n    }\n    input, p-calendar {\n      width: 100%;\n    }\n  "],
+  "mappings": ";AACI,CAAA;AACE,WAAA;AACA,yBAAA,OAAA,CAAA,EAAA;AACA,OAAA;;AAEF,CAAA;AACE,WAAA;AACA,kBAAA;;AAEF,CAAA;AACE,eAAA,KAAA;;AAEF;AACE,iBAAA;AACA,eAAA;;AAEF;AAAA;AACE,SAAA;;",
+  "names": []
+}

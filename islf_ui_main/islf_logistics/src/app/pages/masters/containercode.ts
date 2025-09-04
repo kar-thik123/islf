@@ -324,6 +324,7 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
   }
 
   addRow() {
+    console.log('=== CONTAINER ADD ROW CLICKED ===');
     console.log('Add Container button clicked - starting addRow method');
     
     // Get the validation settings

@@ -8,7 +8,6 @@ import { InputIcon } from 'primeng/inputicon';
 import { FormsModule } from '@angular/forms';
 import { DropdownModule } from 'primeng/dropdown';
 import { Router } from '@angular/router';
-import { UserCreateComponent } from './usercreate';
 import { UserService } from '../../../services/user.service';
 import { ConfigService } from '../../../services/config.service';
 import { ContextService } from '../../../services/context.service';
@@ -28,7 +27,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     InputIcon,
     FormsModule,
     DropdownModule,
-    UserCreateComponent
+
   ],
   template: `
     <div class="card">

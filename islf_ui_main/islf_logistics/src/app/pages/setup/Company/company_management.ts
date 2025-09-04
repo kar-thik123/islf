@@ -111,32 +111,42 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <div *ngFor="let branch of getBranchesForCompany(company.code)" class="mb-8">
                   <div class="w-full border rounded-xl shadow bg-green-50 p-4 mb-2">
                     <div class="flex justify-between items-center">
-                      <div>
-                        <div class="font-bold text-lg">{{ branch.name }}</div>
-                        <div class="text-xs text-gray-500">Incharge: {{ branch.incharge_name }}</div>
+                      <div class="flex items-center gap-2">
+                        <button pButton 
+                                [icon]="isBranchExpanded(branch.code) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" 
+                                class="p-button-text p-button-sm" 
+                                (click)="toggleBranchExpansion(branch.code); $event.stopPropagation()"
+                                pTooltip="Toggle Departments">
+                        </button>
+                        <div>
+                          <div class="font-bold text-lg">{{ branch.name }}</div>
+                          <div class="text-xs text-gray-500">Incharge: {{ branch.incharge_name }}</div>
+                        </div>
                       </div>
                       <button pButton icon="pi pi-plus" label="Add Department" class="p-button-sm p-button-success" (click)="openDepartmentDialog(branch)"></button>
                     </div>
                   </div>
-                   <h3 class="text-xl font-semibold mt-6 mb-6  ml-[2px]">Departments</h3>
-                  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <div *ngFor="let dept of branch.departments" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openDepartmentDialog(branch, dept); $event.stopPropagation()">
-                    <div class="branch-header">
-                      <div class="col-span-full flex justify-between items-center w-full">
-                        <div class="text-lg font-bold uppercase">{{ dept.name }}</div>
-                        <div class="text-sm font-medium">Incharge: {{ dept.incharge_name }}</div>
-                      </div>
-                    </div>
-
-
-                      <div class="p-4">
-                        <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                          <div><strong>Code:</strong> {{dept.code }}</div>
-                           <div><strong>Status:</strong> {{ dept.status }}</div>
-                          <div><strong>Start:</strong> {{ dept.start_date | configDate }}</div>
-                          <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | configDate) : '-' }}</div>
-                          <div class="col-span-2"><strong>Remarks:</strong> {{ dept.remarks }}</div>
+                  
+                  <!-- Departments Section - Expandable -->
+                  <div *ngIf="isBranchExpanded(branch.code)">
+                    <h3 class="text-xl font-semibold mt-6 mb-6 ml-[2px]">Departments</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      <div *ngFor="let dept of branch.departments" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openDepartmentDialog(branch, dept); $event.stopPropagation()">
+                        <div class="branch-header">
+                          <div class="col-span-full flex justify-between items-center w-full">
+                            <div class="text-lg font-bold uppercase">{{ dept.name }}</div>
+                            <div class="text-sm font-medium">Incharge: {{ dept.incharge_name }}</div>
+                          </div>
+                        </div>
+                        <div class="p-4">
+                          <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
+                          <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div><strong>Code:</strong> {{dept.code }}</div>
+                             <div><strong>Status:</strong> {{ dept.status }}</div>
+                            <div><strong>Start:</strong> {{ dept.start_date | configDate }}</div>
+                            <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | configDate) : '-' }}</div>
+                            <div class="col-span-2"><strong>Remarks:</strong> {{ dept.remarks }}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -153,36 +163,61 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 </div>
                 <div *ngFor="let branch of getBranchesForCompany(company.code)" class="mb-8">
                   <div class="w-full border rounded-xl shadow bg-green-50 p-4 mb-2">
-                    <div class="font-bold text-lg">{{ branch.name }}</div>
-                    <div class="text-xs text-gray-500">Incharge: {{ branch.incharge_name }}</div>
-                  </div>
-                  <div *ngFor="let dept of branch.departments" class="mb-6">
-                    <div class="w-full border rounded-xl shadow bg-yellow-50 p-4 mb-2">
-                      <div class="flex justify-between items-center">
-                        <div>
-                          <div class="font-bold text-lg">{{ dept.name }}</div>
-                          <div class="text-xs text-gray-500">Incharge: {{ dept.incharge_name }}</div>
-                        </div>
-                        <button pButton icon="pi pi-plus" label="Add Service Type" class="p-button-sm p-button-success" (click)="openServiceTypeDialog(dept)"></button>
+                    <div class="flex items-center gap-2">
+                      <button pButton 
+                              [icon]="isBranchExpanded(branch.code) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" 
+                              class="p-button-text p-button-sm" 
+                              (click)="toggleBranchExpansion(branch.code); $event.stopPropagation()"
+                              pTooltip="Toggle Departments">
+                      </button>
+                      <div>
+                        <div class="font-bold text-lg">{{ branch.name }}</div>
+                        <div class="text-xs text-gray-500">Incharge: {{ branch.incharge_name }}</div>
                       </div>
                     </div>
-                    <h3 class="text-xl font-semibold mt-6 mb-6 ml-[2px]">Service Types</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                      <div *ngFor="let serviceType of dept.serviceTypes" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openServiceTypeDialog(dept, serviceType); $event.stopPropagation()">
-                        <div class="branch-header">
-                          <div class="col-span-full flex justify-between items-center w-full">
-                            <div class="text-lg font-bold uppercase">{{ serviceType.name }}</div>
-                            <div class="text-sm font-medium">Incharge: {{ serviceType.incharge_name }}</div>
+                  </div>
+                  
+                  <!-- Departments Section - Expandable -->
+                  <div *ngIf="isBranchExpanded(branch.code)">
+                    <div *ngFor="let dept of branch.departments" class="mb-6">
+                      <div class="w-full border rounded-xl shadow bg-yellow-50 p-4 mb-2">
+                        <div class="flex justify-between items-center">
+                          <div class="flex items-center gap-2">
+                            <button pButton 
+                                    [icon]="isDepartmentExpanded(dept.code) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" 
+                                    class="p-button-text p-button-sm" 
+                                    (click)="toggleDepartmentExpansion(dept.code); $event.stopPropagation()"
+                                    pTooltip="Toggle Service Types">
+                            </button>
+                            <div>
+                              <div class="font-bold text-lg">{{ dept.name }}</div>
+                              <div class="text-xs text-gray-500">Incharge: {{ dept.incharge_name }}</div>
+                            </div>
                           </div>
+                          <button pButton icon="pi pi-plus" label="Add Service Type" class="p-button-sm p-button-success" (click)="openServiceTypeDialog(dept)"></button>
                         </div>
-                        <div class="p-4">
-                       
-                          <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div><strong>Code:</strong> {{ serviceType.code }}</div>
-                            <div><strong>Status:</strong> {{ serviceType.status }}</div>
-                            <div><strong>Start:</strong> {{ serviceType.start_date | configDate }}</div>
-                            <div><strong>Close:</strong> {{ serviceType.close_date ? (serviceType.close_date | configDate) : '-' }}</div>
-                            <div class="col-span-2"><strong>Remarks:</strong> {{ serviceType.remarks }}</div>
+                      </div>
+                      
+                      <!-- Service Types Section - Expandable -->
+                      <div *ngIf="isDepartmentExpanded(dept.code)">
+                        <h3 class="text-xl font-semibold mt-6 mb-6 ml-[2px]">Service Types</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                          <div *ngFor="let serviceType of dept.serviceTypes" class="bg-white border rounded-xl shadow hover:shadow-md transition-all cursor-pointer" (click)="openServiceTypeDialog(dept, serviceType); $event.stopPropagation()">
+                            <div class="branch-header">
+                              <div class="col-span-full flex justify-between items-center w-full">
+                                <div class="text-lg font-bold uppercase">{{ serviceType.name }}</div>
+                                <div class="text-sm font-medium">Incharge: {{ serviceType.incharge_name }}</div>
+                              </div>
+                            </div>
+                            <div class="p-4">
+                              <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div><strong>Code:</strong> {{ serviceType.code }}</div>
+                                <div><strong>Status:</strong> {{ serviceType.status }}</div>
+                                <div><strong>Start:</strong> {{ serviceType.start_date | configDate }}</div>
+                                <div><strong>Close:</strong> {{ serviceType.close_date ? (serviceType.close_date | configDate) : '-' }}</div>
+                                <div class="col-span-2"><strong>Remarks:</strong> {{ serviceType.remarks }}</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -246,10 +281,12 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
             </div>
           </div>
 
+
           <!-- Document Upload Button -->
           <div class="col-span-2">
             <div class="flex justify-between items-center">
               <button pButton label="Upload Documents" icon="pi pi-upload" class="p-button-outlined mr-2" (click)="openCompanyDocumentDialog()"></button>
+               <button pButton label="Manage Directors/Partners" icon="pi pi-users" class="p-button-outlined p-button-sm" type="button" (click)="openDirectorsPartnersListDialog()"></button>
               <button pButton label="Account Details" icon="pi pi-credit-card" class="p-button-outlined mr-2" (click)="openAccountDetailDialog('company', selectedCompany.code)"></button>
             </div>
           </div>
@@ -298,7 +335,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedBranch[field.key]" 
                   [name]="field.key"
-                  [disabled]="(field.key === 'code' && isBranchCodeDisabled()) || (field.key === 'company_code' && isBranchCompanyCodeDisabled())"
+                  [disabled]="(field.key === 'code' && isBranchCodeDisabled()) || (field.key === 'company_code' && isBranchCompanyCodeDisabled()) || (field.disabled === true)"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)"
                   (click)="field.key === 'incharge_name' ? openInchargeDialog('branch', selectedBranch.code) : null"
@@ -691,7 +728,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>{{ account.account_type }}</td>
                 <td>{{ account.bank_branch_code }}</td>
                 <td>{{ account.rtgs_neft_code }}</td>
-                <td>{{ account.swift_code }}</td>
+                <td>{{ account.swift_code }}</td> 
                 <td>
                   <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode, account)"></button>
                   <button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger" (click)="deleteAccountDetail(account)"></button>
@@ -1113,6 +1150,116 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           </div>
         </ng-template>
       </p-dialog>
+
+      <!-- Directors/Partners List Dialog -->
+      <p-dialog 
+        header="Directors / Partners Management" 
+        [(visible)]="displayDirectorsPartnersListDialog" 
+        [modal]="true" 
+        [style]="{ width: '900px' }" 
+        [closable]="false">
+        <div class="space-y-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Directors / Partners Records</h3>
+            <button pButton label="Add Director/Partner" icon="pi pi-plus" class="p-button-primary" (click)="openDirectorPartnerFormDialog()"></button>
+          </div>
+          
+          <p-table [value]="directorsPartners" [showGridlines]="true" [responsiveLayout]="'scroll'">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>DIN/PAN</th>
+                <th>Name</th>
+                <th>Designation</th>
+                <th>Date of Appointment</th>
+                <th>Cessation Date</th>
+                <th>Signatory</th>
+                <th>Actions</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-director>
+              <tr>
+                <td>{{ director.din_pan }}</td>
+                <td>{{ director.incharge_name }}</td>
+                <td>{{ director.designation }}</td>
+                <td>{{ director.appointment_date | date:'shortDate' }}</td>
+                <td>{{ director.cessation_date ? (director.cessation_date | date:'shortDate') : '-' }}</td>
+                <td>
+                  <span [class]="director.signatory ? 'text-green-600 font-semibold' : 'text-gray-600'">
+                    {{ director.signatory ? 'Yes' : 'No' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="flex gap-1">
+                    <button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openDirectorPartnerFormDialog(director)" pTooltip="Edit"></button>
+                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="deleteDirectorPartner(director)" pTooltip="Delete"></button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="7" class="text-center py-4">No directors/partners records found</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Close" class="p-button-secondary" (click)="closeDirectorsPartnersListDialog()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Director/Partner Form Dialog -->
+      <p-dialog 
+        [header]="selectedDirectorPartner?.id ? 'Edit Director/Partner' : 'Add Director/Partner'" 
+        [(visible)]="displayDirectorPartnerFormDialog" 
+        [modal]="true" 
+        [style]="{ width: '500px' }" 
+        [closable]="false">
+        <form class="space-y-4">
+          <div *ngIf="directorPartnerFormError" class="text-red-600 mb-2">{{ directorPartnerFormError }}</div>
+          
+          <ng-container *ngFor="let field of directorsPartnersFields">
+            <div>
+              <label class="block mb-1 font-medium">
+                {{ field.label }}
+                <span *ngIf="field.required" class="text-red-600">*</span>
+              </label>
+              
+              <!-- Dropdown for dropdown type fields -->
+              <p-dropdown 
+                *ngIf="field.type === 'dropdown'"
+                [options]="field.options" 
+                appendTo="body"
+                class="w-full" 
+                [ngModel]="getDirectorPartnerFieldValue(field.key)"
+                (ngModelChange)="setDirectorPartnerFieldValue(field.key, $event)"
+                [name]="field.key"
+                optionLabel="label" 
+                optionValue="value" 
+                placeholder="Select {{ field.label }}">
+              </p-dropdown>
+              
+              <!-- Regular input for non-dropdown fields -->
+              <input 
+                *ngIf="field.type !== 'dropdown'"
+                [type]="field.type" 
+                pInputText 
+                class="w-full" 
+                [ngModel]="getDirectorPartnerFieldValue(field.key)"
+                (ngModelChange)="setDirectorPartnerFieldValue(field.key, $event)"
+                [name]="field.key" />
+            </div>
+          </ng-container>
+        </form>
+        <ng-template pTemplate="footer">
+          <div class="text-right">
+            <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeDirectorPartnerFormDialog()"></button>
+            <button pButton label="Save" class="p-button-primary" (click)="saveDirectorPartner()"></button>
+          </div>
+        </ng-template>
+      </p-dialog>
     </div>
   `
 })
@@ -1125,6 +1272,10 @@ export class CompanyManagementComponent implements OnInit {
   companies: Company[] = [];
   branches: Branch[] = [];
   
+  // Add expand/collapse state tracking
+  expandedBranches: { [key: string]: boolean } = {};
+  expandedDepartments: { [key: string]: boolean } = {};
+  expandedServiceTypes: { [key: string]: boolean } = {};
 
   // Add this method to filter branches by company code
   getBranchesForCompany(companyCode: string): Branch[] {
@@ -1143,6 +1294,32 @@ export class CompanyManagementComponent implements OnInit {
       .flatMap(b => b.departments || [])
       .find(d => d.code === departmentCode);
     return department?.serviceTypes || [];
+  }
+
+  // Add toggle methods for expand/collapse
+  toggleBranchExpansion(branchCode: string): void {
+    this.expandedBranches[branchCode] = !this.expandedBranches[branchCode];
+  }
+
+  toggleDepartmentExpansion(departmentCode: string): void {
+    this.expandedDepartments[departmentCode] = !this.expandedDepartments[departmentCode];
+  }
+
+  toggleServiceTypeExpansion(serviceTypeCode: string): void {
+    this.expandedServiceTypes[serviceTypeCode] = !this.expandedServiceTypes[serviceTypeCode];
+  }
+
+  // Check if sections are expanded
+  isBranchExpanded(branchCode: string): boolean {
+    return this.expandedBranches[branchCode] || false;
+  }
+
+  isDepartmentExpanded(departmentCode: string): boolean {
+    return this.expandedDepartments[departmentCode] || false;
+  }
+
+  isServiceTypeExpanded(serviceTypeCode: string): boolean {
+    return this.expandedServiceTypes[serviceTypeCode] || false;
   }
     getInchargeFieldValue(fieldKey: string): any {
     return (this.selectedIncharge as any)[fieldKey];
@@ -1218,11 +1395,12 @@ export class CompanyManagementComponent implements OnInit {
   companyFields = [
     { key: 'code', label: 'Code', type: 'text', required: true },
     { key: 'name', label: 'Name', type: 'text', required: true },
+    { key: 'pan_number', label: 'PAN Number', type: 'text', required: true },
     { key: 'gst', label: 'GST', type: 'text' },
     { key: 'phone', label: 'Phone', type: 'text' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'website', label: 'Website', type: 'text' },
-    { key: 'pan_number', label: 'PAN Number', type: 'text' },
+    { key: 'company_type', label: 'Company Type', type: 'text' },
     { key: 'register_number', label: 'Register Number', type: 'text' },
     { key: 'register_address', label: 'Register Address', type: 'text' },
     { key: 'head_office_address', label: 'Head Office Address', type: 'text' }
@@ -1239,9 +1417,9 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'name', label: 'Branch Name', type: 'text', required: true },
     { key: 'description', label: 'Description', type: 'text', required: false },
     { key: 'address', label: 'Address', type: 'text', required: false },
-    { key: 'gst', label: 'GST No.', type: 'text', required: true },
+    { key: 'pan_number', label: 'PAN Number', type: 'text', required: false, disabled: true },
+    { key: 'gst', label: 'GST No.', type: 'text', required: false },
     { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
-  
     { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'start_date', label: 'Start Date', type: 'date', required: false },
     { key: 'close_date', label: 'Close Date', type: 'date', required: false },
@@ -1253,9 +1431,10 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'branch_code', label: 'Branch Code', type: 'text', required: true },
     { key: 'code', label: 'Department Code', type: 'text', required: true },
     { key: 'name', label: 'Department Name', type: 'text', required: true },
+    { key: 'pan_number', label: 'PAN Number', type: 'text', required: false, disabled: true },
+    { key: 'gst', label: 'GST No.', type: 'text', required: false },
     { key: 'description', label: 'Description', type: 'text', required: false },
     { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
-    
     { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'start_date', label: 'Start Date', type: 'date', required: false },
     { key: 'close_date', label: 'Close Date', type: 'date', required: false },
@@ -1319,6 +1498,13 @@ export class CompanyManagementComponent implements OnInit {
   displayInchargeListDialog = false;
   displayInchargeFormDialog = false;
   inchargeFormError = '';
+
+  // Directors/Partners management properties
+  directorsPartners: any[] = [];
+  selectedDirectorPartner: any = {};
+  displayDirectorsPartnersListDialog = false;
+  displayDirectorPartnerFormDialog = false;
+  directorPartnerFormError = '';
   currentInchargeEntityType = '';
   currentInchargeEntityCode = '';
 
@@ -1329,6 +1515,15 @@ export class CompanyManagementComponent implements OnInit {
    { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'from_date', label: 'From Date', type: 'date', required: true },
     { key: 'to_date', label: 'To Date', type: 'date', required: false }
+  ];
+
+  directorsPartnersFields = [
+    { key: 'din_pan', label: 'DIN/PAN', type: 'text', required: true },
+    { key: 'name', label: 'Name', type: 'text', required: true },
+    { key: 'designation', label: 'Designation', type: 'text', required: true },
+    { key: 'date_of_appointment', label: 'Date of Appointment', type: 'date', required: true },
+    { key: 'cessation_date', label: 'Cessation Date', type: 'date', required: false },
+    { key: 'signatory', label: 'Signatory', type: 'dropdown', required: false, options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] }
   ];
 
   accountDetailFields = [
@@ -1518,11 +1713,31 @@ export class CompanyManagementComponent implements OnInit {
             department.serviceTypes.push(serviceType);
           }
         });
+        
+        // Initialize expanded state for sections with data
+        this.initializeExpandedState();
       },
       error: (error) => {
         console.error('Error loading service types:', error);
       }
     });
+  }
+
+  // Initialize expanded state for sections with data
+  initializeExpandedState() {
+    // Expand first branch by default if it has departments
+    if (this.branches.length > 0) {
+      const firstBranch = this.branches[0];
+      if (firstBranch.departments && firstBranch.departments.length > 0) {
+        this.expandedBranches[firstBranch.code] = true;
+        
+        // Expand first department by default if it has service types
+        const firstDepartment = firstBranch.departments[0];
+        if (firstDepartment.serviceTypes && firstDepartment.serviceTypes.length > 0) {
+          this.expandedDepartments[firstDepartment.code] = true;
+        }
+      }
+    }
   }
 
   openCompanyDialog(data: Company | null = null) {
@@ -1619,6 +1834,14 @@ export class CompanyManagementComponent implements OnInit {
   openBranchDialog(branch: Branch | null = null) {
     this.selectedBranch = branch ? { ...branch } : { company_code: this.companies[0]?.code || '' } as Branch;
     
+    // Populate PAN number from company data
+    if (this.selectedBranch.company_code) {
+      const company = this.companies.find(c => c.code === this.selectedBranch.company_code);
+      if (company) {
+        this.selectedBranch['pan_number'] = company.pan_number;
+      }
+    }
+    
     // Format date fields for HTML date inputs
     if (branch) {
       this.formatDateFields(this.selectedBranch, this.branchFields);
@@ -1657,11 +1880,15 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving branch:', this.selectedBranch);
 
+    // Create a copy of selectedBranch without the PAN number field for saving
+     const branchToSave = { ...this.selectedBranch };
+    delete branchToSave['pan_number'];
+
     // Check if the code exists in the loaded branches
-    const codeExists = this.branches.some(b => b.code === this.selectedBranch.code);
+    const codeExists = this.branches.some(b => b.code === branchToSave.code);
 
     if (!codeExists) {
-      this.branchService.create(this.selectedBranch).subscribe({
+      this.branchService.create(branchToSave).subscribe({
         next: async (created) => {
           // Save documents after branch is created
           await this.saveBranchDocuments();
@@ -1674,8 +1901,8 @@ export class CompanyManagementComponent implements OnInit {
         }
       });
     } else {
-      console.log('Updating branch with code:', this.selectedBranch.code, 'Payload:', this.selectedBranch);
-      this.branchService.update(this.selectedBranch.code, this.selectedBranch).subscribe({
+      console.log('Updating branch with code:', branchToSave.code, 'Payload:', branchToSave);
+      this.branchService.update(branchToSave.code, branchToSave).subscribe({
         next: async () => {
           // Save documents after branch is updated
           await this.saveBranchDocuments();
@@ -1695,6 +1922,14 @@ export class CompanyManagementComponent implements OnInit {
     this.selectedDepartment = department
       ? { ...department }
       : { company_code: branch.company_code, branch_code: branch.code } as Department;
+    
+    // Populate PAN number from company data (same as branch)
+    if (branch.company_code) {
+      const company = this.companies.find(c => c.code === branch.company_code);
+      if (company) {
+        this.selectedDepartment['pan_number'] = company.pan_number;
+      }
+    }
     
     // Format date fields for HTML date inputs
     if (department) {
@@ -1734,13 +1969,13 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving department:', this.selectedDepartment);
 
-    // Ensure required fields are included for updates
-    const departmentData = {
-      ...this.selectedDepartment,
-      // Explicitly ensure these fields are present for updates
-      company_code: this.selectedDepartment.company_code,
-      branch_code: this.selectedDepartment.branch_code
-    };
+    // Create a copy of selectedDepartment without the PAN number field for saving (same as branch)
+    const departmentData = { ...this.selectedDepartment };
+    delete departmentData['pan_number'];
+    
+    // Explicitly ensure these fields are present for updates
+    departmentData.company_code = this.selectedDepartment.company_code;
+    departmentData.branch_code = this.selectedDepartment.branch_code;
 
     // Check if the code exists in the loaded departments for this branch
     const branch = this.branches.find(b => b.code === departmentData.branch_code);
@@ -1854,7 +2089,23 @@ export class CompanyManagementComponent implements OnInit {
   }
 
   openBranchDialogForCompany(company: Company) {
-    this.selectedBranch = { company_code: company.code } as Branch;
+    this.selectedBranch = {
+      company_code: company.code,
+      code: '',
+      name: '',
+      description: '',
+      address: '',
+      gst: '',
+      incharge_name: '',
+      status: '',
+      start_date: '',
+      close_date: '',
+      remarks: ''
+    } as Branch;
+    
+    // Set PAN number from company
+    this.selectedBranch['pan_number'] = company.pan_number;
+    
     this.displayBranchDialog = true;
     this.clearFieldErrors();
   }
@@ -1936,9 +2187,6 @@ export class CompanyManagementComponent implements OnInit {
         break;
       case 'name':
         if (!value || value.trim() === '') return 'Name is required';
-        break;
-      case 'gst':
-        if (!value || value.trim() === '') return 'GST No. is required';
         break;
       case 'email':
         if (value && value.trim() !== '') {
@@ -2714,4 +2962,142 @@ export class CompanyManagementComponent implements OnInit {
     this.displayInchargeFormDialog = false;
   }
 
+  // Directors/Partners helper methods
+  getDirectorPartnerFieldValue(fieldKey: string): any {
+    return (this.selectedDirectorPartner as any)[fieldKey];
+  }
+
+  setDirectorPartnerFieldValue(fieldKey: string, value: any): void {
+    (this.selectedDirectorPartner as any)[fieldKey] = value;
+  }
+
+  // Directors/Partners dialog methods
+  openDirectorsPartnersListDialog(): void {
+    this.loadDirectorsPartners();
+    this.displayDirectorsPartnersListDialog = true;
+  }
+
+  closeDirectorsPartnersListDialog(): void {
+    this.displayDirectorsPartnersListDialog = false;
+  }
+
+  openDirectorPartnerFormDialog(directorPartner?: any): void {
+    if (directorPartner) {
+      // Map database fields to frontend fields for editing
+      this.selectedDirectorPartner = {
+        ...directorPartner,
+        name: directorPartner.incharge_name, // Map backend field to frontend field
+        date_of_appointment: directorPartner.appointment_date, // Map backend field to frontend field
+      };
+    } else {
+      // New record initialization
+      this.selectedDirectorPartner = {
+        entity_type: 'directors_partners',
+        entity_code: this.selectedCompany?.code || '',
+        status: 'active',
+        from_date: new Date().toISOString().split('T')[0]
+      };
+    }
+    this.directorPartnerFormError = '';
+    this.displayDirectorPartnerFormDialog = true;
+  }
+
+  closeDirectorPartnerFormDialog(): void {
+    this.displayDirectorPartnerFormDialog = false;
+    this.selectedDirectorPartner = {};
+    this.directorPartnerFormError = '';
+  }
+
+  saveDirectorPartner(): void {
+    // Validate required fields
+    for (const field of this.directorsPartnersFields) {
+      if (field.required && !this.selectedDirectorPartner[field.key]) {
+        this.directorPartnerFormError = `${field.label} is required`;
+        return;
+      }
+    }
+
+    // Map frontend fields to backend expected fields
+    const directorPartnerData = {
+      ...this.selectedDirectorPartner,
+      entity_type: 'directors_partners', // Set correct entity type
+      entity_code: this.selectedCompany?.code || '',
+      incharge_name: this.selectedDirectorPartner.name, // Map 'name' to 'incharge_name'
+      appointment_date: this.selectedDirectorPartner.date_of_appointment, // Map field name
+      status: this.selectedDirectorPartner.status || 'active', // Add required status field
+      from_date: this.selectedDirectorPartner.from_date || new Date().toISOString().split('T')[0] // Add required from_date field
+    };
+
+    // Remove the frontend 'name' field to avoid confusion
+    delete directorPartnerData.name;
+    delete directorPartnerData.date_of_appointment;
+
+    if (this.selectedDirectorPartner.id) {
+      // Update existing director/partner
+      this.inchargeService.update(this.selectedDirectorPartner.id, directorPartnerData).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Director/Partner updated successfully' });
+          this.loadDirectorsPartners();
+          this.closeDirectorPartnerFormDialog();
+        },
+        error: (error) => {
+          this.directorPartnerFormError = error.error?.message || 'Error updating director/partner';
+        }
+      });
+    } else {
+      // Create new director/partner
+      this.inchargeService.create(directorPartnerData).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Director/Partner added successfully' });
+          this.loadDirectorsPartners();
+          this.closeDirectorPartnerFormDialog();
+        },
+        error: (error) => {
+          this.directorPartnerFormError = error.error?.message || 'Error adding director/partner';
+        }
+      });
+    }
+  }
+
+  deleteDirectorPartner(directorPartner: any): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to delete director/partner ${directorPartner.name}?`,
+      header: 'Confirm Delete',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.inchargeService.delete(directorPartner.id).subscribe({
+          next: () => {
+            this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Director/Partner deleted successfully' });
+            this.loadDirectorsPartners();
+          },
+          error: (error) => {
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error deleting director/partner' });
+          }
+        });
+      }
+    });
+  }
+
+  loadDirectorsPartners(): void {
+    const companyCode = this.selectedCompany?.code;
+    console.log('Loading directors/partners for company:', companyCode);
+    
+    // Fix: Use 'directors_partners' as entity_type instead of 'company'
+    this.inchargeService.getByEntity('directors_partners', companyCode).subscribe({
+      next: (records) => {
+        console.log('Raw API response:', records);
+        console.log('Number of records received:', records.length);
+        
+        // No need to filter since API already returns directors_partners records
+        this.directorsPartners = records;
+      },
+      error: (error) => {
+        console.error('Error loading directors/partners:', error);
+        this.directorsPartners = [];
+      }
+    });
+  }
+
 }
+
+

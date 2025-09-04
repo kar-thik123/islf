@@ -28,11 +28,11 @@ router.get('/:code', async (req, res) => {
 
 // Create company
 router.post('/', async (req, res) => {
-  const { code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo } = req.body;
+  const { code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
-      [code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo]
+      'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14) RETURNING *',
+      [code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type]
     );
     
     // Log the setup event
@@ -55,15 +55,15 @@ router.post('/', async (req, res) => {
 
 // Update company
 router.put('/:code', async (req, res) => {
-  const { name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo } = req.body;
+  const { name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type } = req.body;
   try {
     const oldResult = await pool.query('SELECT * FROM companies WHERE code = $1', [req.params.code]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const oldCompany = oldResult.rows[0];
     
     const result = await pool.query(
-      'UPDATE companies SET name = $1, name2 = $2, gst = $3, phone = $4, landline = $5, email = $6, website = $7, pan_number = $8, register_number = $9, register_address = $10, head_office_address = $11, logo = $12 WHERE code = $13 RETURNING *',
-      [name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo, req.params.code]
+      'UPDATE companies SET name = $1, name2 = $2, gst = $3, phone = $4, landline = $5, email = $6, website = $7, pan_number = $8, register_number = $9, register_address = $10, head_office_address = $11, logo = $12,company_type = $13 WHERE code = $14 RETURNING *',
+      [name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const changedFields = [];

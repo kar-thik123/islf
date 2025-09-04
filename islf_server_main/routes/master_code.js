@@ -5,48 +5,46 @@ const router = express.Router();
 // Get all master codes
 router.get('/', async (req, res) => {
   try {
-     const { companyCode, branchCode, departmentCode } = req.query;
-    
-    // If context parameters are provided, filter by their context
-    if (companyCode || branchCode || departmentCode) {
-      let query = `
-        SELECT *
-        FROM master_code
-        WHERE 1=1
-      `;
-      
-      const params = [];
-      let paramIndex = 1;
-      
-      if (companyCode) {
-        query += ` AND company_code = $${paramIndex}`;
-        params.push(companyCode);
-        paramIndex++;
-      }
-      
+    const { companyCode, branchCode, departmentCode } = req.query;
+
+    let query = `
+      SELECT *
+      FROM master_code
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    // Hierarchical filtering
+    if (companyCode) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(companyCode);
+      paramIndex++;
+
       if (branchCode) {
         query += ` AND branch_code = $${paramIndex}`;
         params.push(branchCode);
         paramIndex++;
+
+        if (departmentCode) {
+          query += ` AND department_code = $${paramIndex}`;
+          params.push(departmentCode);
+          paramIndex++;
+        }
       }
-      
-      if (departmentCode) {
-        query += ` AND department_code = $${paramIndex}`;
-        params.push(departmentCode);
-        paramIndex++;
-      }
-      
-      query += ` ORDER BY code ASC`;
-      const result = await pool.query(query, params);
-      res.json(result.rows);
-    } else {
-      const result = await pool.query('SELECT * FROM master_code ORDER BY code DESC');
-      res.json(result.rows);
     }
+
+    query += ` ORDER BY code ASC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (err) {
+    console.error('Error fetching master codes:', err);
     res.status(500).json({ error: 'Failed to fetch master codes' });
   }
 });
+
 
 // Get master code by code
 router.get('/:code', async (req, res) => {

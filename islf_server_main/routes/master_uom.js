@@ -6,46 +6,39 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
-    // If context parameters are provided, filter UOMs by their context
-    if (companyCode || branchCode || departmentCode) {
-      // Filter UOMs by their stored context values
-      let query = `
-        SELECT *
-        FROM master_uom
-        WHERE 1=1
-      `;
-      
-      const params = [];
-      let paramIndex = 1;
-      
-      if (companyCode) {
-        query += ` AND company_code = $${paramIndex}`;
-        params.push(companyCode);
-        paramIndex++;
-      }
-      
+
+    let query = `
+      SELECT *
+      FROM master_uom
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    // Hierarchical filtering
+    if (companyCode) {
+      query += ` AND company_code = $${paramIndex}`;
+      params.push(companyCode);
+      paramIndex++;
+
       if (branchCode) {
         query += ` AND branch_code = $${paramIndex}`;
         params.push(branchCode);
         paramIndex++;
+
+        if (departmentCode) {
+          query += ` AND department_code = $${paramIndex}`;
+          params.push(departmentCode);
+          paramIndex++;
+        }
       }
-      
-      if (departmentCode) {
-        query += ` AND department_code = $${paramIndex}`;
-        params.push(departmentCode);
-        paramIndex++;
-      }
-      
-      query += ` ORDER BY code ASC`;
-      
-      const result = await pool.query(query, params);
-      res.json(result.rows);
-    } else {
-      // If no context filtering, return all UOMs
-      const result = await pool.query('SELECT * FROM master_uom ORDER BY code ASC');
-      res.json(result.rows);
     }
+
+    query += ` ORDER BY code ASC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (err) {
     console.error('Error fetching master UOMs:', err);
     res.status(500).json({ error: 'Failed to fetch master UOMs' });

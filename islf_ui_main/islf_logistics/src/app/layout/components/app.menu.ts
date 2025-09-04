@@ -100,6 +100,16 @@ export class AppMenu {
             label: 'Masters',
             icon: 'fa-solid fa-brain',
             items: [
+               {
+                label: 'Master Code',
+                icon: 'fa-solid fa-code',
+                routerLink: ['/master/master_code'],
+              },
+              {
+                label: 'Master Type',
+                icon: 'fa-solid fa-sliders-h',
+                routerLink: ['/master/master_type'],
+              },
               {
                 label:'Customer',
                 icon:'fa-solid fa-people-roof',
@@ -110,16 +120,7 @@ export class AppMenu {
                 icon:'fa-solid fa-building',
                 routerLink : ['/master/vendor']
               },
-              {
-                label: 'Master Code',
-                icon: 'fa-solid fa-code',
-                routerLink: ['/master/master_code'],
-              },
-              {
-                label: 'Master Type',
-                icon: 'fa-solid fa-sliders-h',
-                routerLink: ['/master/master_type'],
-              },
+             
               {
                 label:'Location',
                 icon:'fa-solid fa-location-dot',

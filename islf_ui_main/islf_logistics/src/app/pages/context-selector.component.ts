@@ -18,7 +18,7 @@ import { Subscription } from 'rxjs';
       [modal]="true"
       [closable]="false"
       [dismissableMask]="false"
-      [style]="{ width: '400px' }"
+      [style]="{ width: 'auto', minWidth: '300px', maxWidth: '90vw' }"
       (onHide)="onDialogHide()"
     >
       <div class="p-fluid p-3 space-y-3">

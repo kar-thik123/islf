@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/pages/masters/mastervessel.ts"],
+  "sourcesContent": ["\n    .grid-container {\n      display: grid;\n      grid-template-columns: repeat(2, 1fr);\n      gap: 1.5rem;\n    }\n    .grid-item {\n      display: flex;\n      flex-direction: column;\n    }\n    label {\n      margin-bottom: 0.5rem;\n      font-weight: 500;\n    }\n  "],
+  "mappings": ";AACI,CAAA;AACE,WAAA;AACA,yBAAA,OAAA,CAAA,EAAA;AACA,OAAA;;AAEF,CAAA;AACE,WAAA;AACA,kBAAA;;AAEF;AACE,iBAAA;AACA,eAAA;;",
+  "names": []
+}

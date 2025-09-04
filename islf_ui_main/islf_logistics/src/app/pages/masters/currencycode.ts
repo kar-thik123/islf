@@ -241,6 +241,7 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   }
 
   addRow() {
+    console.log('=== CURRENCY ADD ROW CLICKED ===');
     console.log('Add Currency button clicked - starting addRow method');
     
     // Get the validation settings

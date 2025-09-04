@@ -6,36 +6,46 @@ const router = express.Router();
 // GET all customers with optional context-based filtering
 router.get('/', async (req, res) => {
   try {
-    const { company_code, branch_code, department_code , service_type_code } = req.query;
-    let query = 'SELECT * FROM customer';
-    let params = [];
+    const { company_code, branch_code, department_code, service_type_code } = req.query;
+    console.log("Query params:", req.query);
+
+    let query = `
+      SELECT *
+      FROM customer
+      WHERE 1=1
+    `;
+
+    const params = [];
     let paramIndex = 1;
-    
-    // Build WHERE clause based on provided context parameters
-    const whereConditions = [];
+
+    // Hierarchical filtering
     if (company_code) {
-      whereConditions.push(`company_code = $${paramIndex++}`);
+      query += ` AND company_code = $${paramIndex}`;
       params.push(company_code);
+      paramIndex++;
+
+      if (branch_code) {
+        query += ` AND branch_code = $${paramIndex}`;
+        params.push(branch_code);
+        paramIndex++;
+
+        if (department_code) {
+          query += ` AND department_code = $${paramIndex}`;
+          params.push(department_code);
+          paramIndex++;
+        }
+      }
     }
-    if (branch_code) {
-      whereConditions.push(`branch_code = $${paramIndex++}`);
-      params.push(branch_code);
-    }
-    if (department_code) {
-      whereConditions.push(`department_code = $${paramIndex++}`);
-      params.push(department_code);
-    }
-    if(service_type_code) { 
-      whereConditions.push(`service_type_code = $${paramIndex++}`);
+
+    // Service type is independent → apply if provided
+    if (service_type_code) {
+      query += ` AND service_type_code = $${paramIndex}`;
       params.push(service_type_code);
+      paramIndex++;
     }
-    
-    if (whereConditions.length > 0) {
-      query += ' WHERE ' + whereConditions.join(' AND ');
-    }
-    
-    query += ' ORDER BY id ASC';
-    
+
+    query += ` ORDER BY id ASC`;
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -43,6 +53,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch customers' });
   }
 });
+
 
 // CREATE new customer (with number series logic and manual/default check)
 router.post('/', async (req, res) => {

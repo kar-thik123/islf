@@ -235,6 +235,7 @@ export class BasisComponent implements OnInit, OnDestroy {
 
   // Update the addRow method to match containercode pattern
   addRow() {
+    console.log('=== BASIS ADD ROW CLICKED ===');
     console.log('Add Basis button clicked - starting addRow method');
     
     // Get the validation settings

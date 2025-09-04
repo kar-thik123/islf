@@ -17,6 +17,8 @@ export interface Company {
   register_number?: string;
   register_address?: string;
   head_office_address?: string;
+  company_type?:string;
+  directors_partners?: string;
   [key: string]: any;
 }
 
