@@ -14,6 +14,8 @@ import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterLocationComponent } from './masterlocation';
+import { DialogModule } from 'primeng/dialog';
 
 interface GstRule {
   id?: number;
@@ -37,7 +39,9 @@ interface GstRule {
     InputTextModule,
     DropdownModule,
     CheckboxModule,
-    ToastModule
+    ToastModule,
+    MasterLocationComponent,
+    DialogModule
   ],
   providers: [MessageService],
   template: `
@@ -77,40 +81,46 @@ interface GstRule {
           <tr>
             <td>
               <ng-container *ngIf="rule.isEditing; else fromText">
-                <div class="flex flex-col">
-                  <p-dropdown
-                    [options]="locationOptions"
-                    [(ngModel)]="rule.from"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select From"
-                    appendTo="body"
-                    [filter]="true"
-                    (onChange)="onFieldChange(rule, 'from', rule.from)"
-                    [ngClass]="getFieldErrorClass(rule, 'from')"
-                    [ngStyle]="getFieldErrorStyle(rule, 'from')"
-                  ></p-dropdown>
-                  <small *ngIf="getFieldError(rule, 'from')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(rule, 'from') }}</small>
+                <div class="flex gap-2 items-start">
+                  <div class="flex flex-col flex-1">
+                    <p-dropdown
+                      [options]="locationOptions"
+                      [(ngModel)]="rule.from"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Select From"
+                      appendTo="body"
+                      [filter]="true"
+                      (onChange)="onFieldChange(rule, 'from', rule.from)"
+                      [ngClass]="getFieldErrorClass(rule, 'from')"
+                      [ngStyle]="getFieldErrorStyle(rule, 'from')"
+                    ></p-dropdown>
+                    <small *ngIf="getFieldError(rule, 'from')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(rule, 'from') }}</small>
+                  </div>
+                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMasterLocationDialog()"></button>
                 </div>
               </ng-container>
               <ng-template #fromText>{{ rule.from }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="rule.isEditing; else toText">
-                <div class="flex flex-col">
-                  <p-dropdown
-                    [options]="locationOptions"
-                    [(ngModel)]="rule.to"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select To"
-                    appendTo="body"
-                    [filter]="true"
-                    (onChange)="onFieldChange(rule, 'to', rule.to)"
-                    [ngClass]="getFieldErrorClass(rule, 'to')"
-                    [ngStyle]="getFieldErrorStyle(rule, 'to')"
-                  ></p-dropdown>
-                  <small *ngIf="getFieldError(rule, 'to')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(rule, 'to') }}</small>
+                <div class="flex gap-2 items-start">
+                  <div class="flex flex-col flex-1">
+                    <p-dropdown
+                      [options]="locationOptions"
+                      [(ngModel)]="rule.to"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Select To"
+                      appendTo="body"
+                      [filter]="true"
+                      (onChange)="onFieldChange(rule, 'to', rule.to)"
+                      [ngClass]="getFieldErrorClass(rule, 'to')"
+                      [ngStyle]="getFieldErrorStyle(rule, 'to')"
+                    ></p-dropdown>
+                    <small *ngIf="getFieldError(rule, 'to')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(rule, 'to') }}</small>
+                  </div>
+                  <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMasterLocationDialog()"></button>
                 </div>
               </ng-container>
               <ng-template #toText>{{ rule.to }}</ng-template>
@@ -140,6 +150,24 @@ interface GstRule {
         </ng-template>
       </p-table>
     </div>
+
+    <!-- Master Location Dialog -->
+    <p-dialog
+      header="Location Master"
+      [(visible)]="showMasterLocationDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterLocationDialog()"
+    >
+      <ng-template pTemplate="content">
+        <master-location></master-location>
+      </ng-template>
+    </p-dialog>
   `
 })
 export class GstSetupComponent implements OnInit, OnDestroy {
@@ -148,6 +176,7 @@ export class GstSetupComponent implements OnInit, OnDestroy {
   fieldErrors: { [key: string]: { [field: string]: string } } = {};
   private contextSubscription: Subscription | undefined;
   @ViewChild('dt') dt!: Table;
+  showMasterLocationDialog = false;
 
   constructor(
     private messageService: MessageService,
@@ -203,25 +232,7 @@ export class GstSetupComponent implements OnInit, OnDestroy {
       });
       
       // Load GST locations for dropdowns
-      this.masterLocationService.getAll().subscribe({
-        next: (locations) => {
-          const gstLocations = locations.filter(l => l.type === 'GST' && l.active);
-          this.locationOptions = gstLocations.map(l => ({
-            label: `${l.gst_state_code} - ${l.name}`,
-            value: `${l.gst_state_code} - ${l.name}`
-          }));
-          console.log('GST locations loaded successfully:', this.locationOptions.length);
-        },
-        error: (error) => {
-          console.error('Error loading GST locations:', error);
-          this.messageService.add({ 
-            severity: 'error', 
-            summary: 'Error', 
-            detail: 'Failed to load GST locations' 
-          });
-          this.locationOptions = [];
-        }
-      });
+      this.loadLocationDropdownOptions();
     } catch (error) {
       console.error('Error in refreshList:', error);
     }
@@ -438,5 +449,37 @@ export class GstSetupComponent implements OnInit, OnDestroy {
        !this.getFieldError(rule, 'from') &&
        !this.getFieldError(rule, 'to');
 
+  }
+
+  openMasterLocationDialog() {
+    this.showMasterLocationDialog = true;
+  }
+
+  closeMasterLocationDialog() {
+    this.showMasterLocationDialog = false;
+    // Reload GST locations so newly added entries appear in dropdowns
+    this.loadLocationDropdownOptions();
+  }
+
+  private loadLocationDropdownOptions() {
+    this.masterLocationService.getAll().subscribe({
+      next: (locations) => {
+        const gstLocations = (locations || []).filter(l => l.type === 'GST' && l.active);
+        this.locationOptions = gstLocations.map(l => ({
+          label: `${l.gst_state_code} - ${l.name}`,
+          value: `${l.gst_state_code} - ${l.name}`
+        }));
+        console.log('GST locations loaded successfully:', this.locationOptions.length);
+      },
+      error: (error) => {
+        console.error('Error loading GST locations:', error);
+        this.messageService.add({ 
+          severity: 'error', 
+          summary: 'Error', 
+          detail: 'Failed to load GST locations' 
+        });
+        this.locationOptions = [];
+      }
+    });
   }
 }

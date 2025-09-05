@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
@@ -29,6 +30,9 @@ import { MasterUOMComponent } from './masteruom';
 import { ConfigService } from '../../services/config.service';
 import { BasisService } from '@/services/basis.service';
 import { BasisComponent } from './basis';
+import { MasterTypeComponent } from './mastertype';
+import { MasterLocationComponent } from './masterlocation';
+import { MasterItemComponent } from './masteritem';
 import { CompanyManagementComponent } from '../setup/Company/company_management';
 import { CompanyService } from '@/services/company.service';
 import { DepartmentService } from '@/services/department.service';
@@ -57,7 +61,10 @@ import { CheckboxModule } from 'primeng/checkbox';
     CheckboxModule,
     VendorComponent,
     MasterUOMComponent,
-    BasisComponent
+    BasisComponent,
+    MasterTypeComponent,
+    MasterLocationComponent,
+    MasterItemComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -215,7 +222,14 @@ import { CheckboxModule } from 'primeng/checkbox';
             </div>
             <div class="col-span-12 md:col-span-4">
               <label class="block font-semibold mb-1">Vendor Type</label>
-              <p-dropdown [options]="vendorTypeOptions" [(ngModel)]="selectedTariff.vendorType" (ngModelChange)="onVendorTypeChange()" placeholder="Select Vendor Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown [options]="vendorTypeOptions" [(ngModel)]="selectedTariff.vendorType" (ngModelChange)="onVendorTypeChange()" placeholder="Select Vendor Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['vendorType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['vendorType']"
+                  (click)="openMaster('vendorType')"></button>
+              </div>
             </div>
             <div class="col-span-12 md:col-span-4">
               <label class="block font-semibold mb-1">Vendor Name</label>
@@ -258,12 +272,26 @@ import { CheckboxModule } from 'primeng/checkbox';
             
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Cargo Type</label>
-              <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown [options]="cargoTypeOptions" [(ngModel)]="selectedTariff.cargoType" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['cargoType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['cargoType']"
+                  (click)="openMaster('cargoType')"></button>
+              </div>
               <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Tariff Type</label>
-              <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['tariffType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['tariffType']"
+                  (click)="openMaster('tariffType')"></button>
+              </div>
               <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
@@ -280,7 +308,14 @@ import { CheckboxModule } from 'primeng/checkbox';
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Item Name</label>
-              <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['itemName'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['itemName']"
+                  (click)="openMaster('itemName')"></button>
+              </div>
               <small *ngIf="fieldErrors['itemName']" class="p-error">{{ fieldErrors['itemName'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
@@ -314,20 +349,48 @@ import { CheckboxModule } from 'primeng/checkbox';
           <div class="grid grid-cols-12 gap-4 mb-6">
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Location Type From</label>
-              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeFrom" (ngModelChange)="onLocationTypeFromChange()" placeholder="Select Location Type From" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeFrom" (ngModelChange)="onLocationTypeFromChange()" placeholder="Select Location Type From" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['locationTypeFrom'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['locationTypeFrom']"
+                  (click)="openMaster('locationTypeFrom')"></button>
+              </div>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">From</label>
-              <p-dropdown appendTo="body" [options]="fromLocationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')" placeholder="Select From Location" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown appendTo="body" [options]="fromLocationOptions" [(ngModel)]="selectedTariff.from" (ngModelChange)="onFieldChange('from', selectedTariff.from)" [ngClass]="getFieldErrorClass('from')" [ngStyle]="getFieldErrorStyle('from')" placeholder="Select From Location" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['from'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['from']"
+                  (click)="openMaster('from')"></button>
+              </div>
               <small *ngIf="fieldErrors['from']" class="p-error">{{ fieldErrors['from'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Location Type To</label>
-              <p-dropdown appendTo="body" [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown appendTo="body" [options]="locationTypeOptions" [(ngModel)]="selectedTariff.locationTypeTo" (ngModelChange)="onLocationTypeToChange()" placeholder="Select Location Type To" [filter]="true" filterBy="label" [showClear]="true" optionLabel="label" optionValue="value" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['locationTypeTo'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['locationTypeTo']"
+                  (click)="openMaster('locationTypeTo')"></button>
+              </div>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">To</label>
-              <p-dropdown appendTo="body" [options]="toLocationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')" placeholder="Select To Location" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <div class="flex gap-2">
+                <p-dropdown appendTo="body" [options]="toLocationOptions" [(ngModel)]="selectedTariff.to" (ngModelChange)="onFieldChange('to', selectedTariff.to)" [ngClass]="getFieldErrorClass('to')" [ngStyle]="getFieldErrorStyle('to')" placeholder="Select To Location" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['to'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['to']"
+                  (click)="openMaster('to')"></button>
+              </div>
               <small *ngIf="fieldErrors['to']" class="p-error">{{ fieldErrors['to'] }}</small>
             </div>
           </div>
@@ -383,7 +446,8 @@ import { CheckboxModule } from 'primeng/checkbox';
       header="Currency Code Master"
       [(visible)]="showCurrencyDialog"
       [modal]="true"
-      [style]="{ width: '900px' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
@@ -400,7 +464,8 @@ import { CheckboxModule } from 'primeng/checkbox';
       header="Container Code Master"
       [(visible)]="showContainerDialog"
       [modal]="true"
-      [style]="{ width: '900px' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
@@ -417,7 +482,8 @@ import { CheckboxModule } from 'primeng/checkbox';
       header="Vendor Master"
       [(visible)]="showVendorDialog"
       [modal]="true"
-      [style]="{ width: '1200px' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
@@ -434,7 +500,8 @@ import { CheckboxModule } from 'primeng/checkbox';
       header="Basis Code Master"
       [(visible)]="showBasisDialog"
       [modal]="true"
-      [style]="{ width: '900px' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [baseZIndex]="10000"
       [closable]="true"
       [draggable]="false"
@@ -443,6 +510,60 @@ import { CheckboxModule } from 'primeng/checkbox';
     >
       <ng-template pTemplate="content">
         <basis-code></basis-code>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Master Type Dialog -->
+    <p-dialog
+      [header]="getMasterTypeDialogHeader()"
+      [(visible)]="showMasterTypeDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('masterType')"
+    >
+      <ng-template pTemplate="content">
+        <master-type [filterByKey]="masterTypeFilter"></master-type>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Master Item Dialog -->
+    <p-dialog
+      header="Item Master"
+      [(visible)]="showMasterItemDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('masterItem')"
+    >
+      <ng-template pTemplate="content">
+        <master-item></master-item>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Master Location Dialog -->
+    <p-dialog
+      header="Location Master"
+      [(visible)]="showMasterLocationDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('masterLocation')"
+    >
+      <ng-template pTemplate="content">
+        <master-location></master-location>
       </ng-template>
     </p-dialog>
   `,
@@ -592,6 +713,10 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   showContainerDialog = false;
   showVendorDialog = false;
   showBasisDialog = false;
+  showMasterTypeDialog = false;
+  showMasterItemDialog = false;
+  showMasterLocationDialog = false;
+  masterTypeFilter = '';
   masterDialogLoading: { [key: string]: boolean } = {};
     mandatoryOptions = [
     { label: 'Yes', value: true },
@@ -623,7 +748,8 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private numberSeriesRelationService: NumberSeriesRelationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router
   ) {}
 
   // Validation methods
@@ -1535,6 +1661,22 @@ loadBasisOptions() {
       this.showVendorDialog = true;
     } else if (type === 'basis') {
       this.showBasisDialog = true;
+    } else if (type === 'vendorType') {
+      this.masterTypeFilter = 'VENDOR';
+      this.showMasterTypeDialog = true;
+    } else if (type === 'cargoType') {
+      this.masterTypeFilter = 'CARGO_TYPE';
+      this.showMasterTypeDialog = true;
+    } else if (type === 'tariffType') {
+      this.masterTypeFilter = 'TARIFF_TYPE';
+      this.showMasterTypeDialog = true;
+    } else if (type === 'itemName') {
+      this.showMasterItemDialog = true;
+    } else if (type === 'locationTypeFrom' || type === 'locationTypeTo') {
+      this.masterTypeFilter = 'LOCATION';
+      this.showMasterTypeDialog = true;
+    } else if (type === 'from' || type === 'to') {
+      this.showMasterLocationDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -1551,15 +1693,69 @@ loadBasisOptions() {
     switch (type) {
       case 'currency':
         this.showCurrencyDialog = false;
+        this.loadCurrencyOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
         break;
       case 'container':
         this.showContainerDialog = false;
+        this.loadContainersOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
         break;
       case 'vendor':
         this.showVendorDialog = false;
+        this.loadVendorOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
         break;
       case 'basis':
         this.showBasisDialog = false;
+        this.loadBasisOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      case 'masterType':
+        this.showMasterTypeDialog = false;
+        // Reload the specific master type options that were edited
+        const editedType = this.masterTypeFilter;
+        if (editedType === 'VENDOR') {
+          this.loadVendorTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
+        } else if (editedType === 'CARGO_TYPE') {
+          this.loadCargoTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
+        } else if (editedType === 'TARIFF_TYPE') {
+          this.loadTariffTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
+        } else if (editedType === 'LOCATION') {
+          this.loadLocationTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
+        }
+        this.masterTypeFilter = '';
+        break;
+      case 'masterItem':
+        this.showMasterItemDialog = false;
+        this.loadItemOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      case 'masterLocation':
+        this.showMasterLocationDialog = false;
+        // Reload locations so newly added entries appear in From/To dropdowns
+        this.loadLocationOptions().subscribe({
+          next: () => {
+            // Re-apply filters based on current selection
+            this.filterFromLocations();
+            this.filterToLocations();
+            this.cdr.detectChanges();
+          },
+          error: () => {
+            // Even on error, attempt to refresh UI
+            this.cdr.detectChanges();
+          }
+        });
         break;
       default:
         console.warn(`Unknown master dialog type: ${type}`);
@@ -1572,6 +1768,21 @@ loadBasisOptions() {
     
     // Force change detection to ensure UI updates
     this.cdr.detectChanges();
+  }
+
+  getMasterTypeDialogHeader(): string {
+    switch (this.masterTypeFilter) {
+      case 'VENDOR':
+        return 'Vendor Type Master';
+      case 'CARGO_TYPE':
+        return 'Cargo Type Master';
+      case 'TARIFF_TYPE':
+        return 'Tariff Type Master';
+      case 'LOCATION':
+        return 'Location Type Master';
+      default:
+        return 'Master Type';
+    }
   }
 
   importData() {

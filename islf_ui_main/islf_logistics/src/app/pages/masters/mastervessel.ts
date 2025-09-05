@@ -9,7 +9,6 @@ import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { CalendarModule } from 'primeng/calendar';
 import { MessageService } from 'primeng/api';
-
 import { MasterVesselService, MasterVessel } from '../../services/master-vessel.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { MappingService } from '@/services/mapping.service';
@@ -17,6 +16,7 @@ import { MasterLocationService } from '@/services/master-location.service';
 import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
+import { MasterLocationComponent } from './masterlocation';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 interface FlagOption {
@@ -37,7 +37,8 @@ interface FlagOption {
     DropdownModule,
     ToastModule,
     DialogModule,
-    CalendarModule
+    CalendarModule,
+    MasterLocationComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -213,18 +214,22 @@ interface FlagOption {
             </div>
             <div class="grid-item">
               <label for="flag">Flag</label>
-              <p-dropdown
-                id="flag"
-                appendTo="body"
-                [options]="flagOptions"
-                [(ngModel)]="selectedVessel.flag"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select Flag"
-                [filter]="true"
-                (onChange)="onFieldChange('flag', selectedVessel.flag)"
-                [ngClass]="{'ng-invalid ng-dirty': getFieldError('flag')}"
-              ></p-dropdown>
+              <div class="flex gap-1">
+                <p-dropdown
+                  id="flag"
+                  appendTo="body"
+                  [options]="flagOptions"
+                  [(ngModel)]="selectedVessel.flag"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Flag"
+                  [filter]="true"
+                  (onChange)="onFieldChange('flag', selectedVessel.flag)"
+                  [ngClass]="{'ng-invalid ng-dirty': getFieldError('flag')}"
+                  class="flex-1"
+                ></p-dropdown>
+                <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('country')" style="height: 2.5rem;"></button>
+              </div>
               <small *ngIf="getFieldError('flag')" class="p-error">{{getFieldError('flag')}}</small>
             </div>
            
@@ -267,6 +272,20 @@ interface FlagOption {
         </div>
       </ng-template>
     </p-dialog>
+
+    <!-- Master Location Dialog -->
+    <p-dialog
+      header="Location Master"
+      [(visible)]="masterDialogVisible['country']"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('country')">
+      <master-location></master-location>
+    </p-dialog>
   `,
   styles: [`
     .grid-container {
@@ -301,6 +320,11 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   touchedFields: { [key: string]: boolean } = {};
   private contextSubscription: Subscription | undefined;
 
+  // Master dialog properties
+  masterDialogVisible: { [key: string]: boolean } = {
+    country: false
+  };
+
   constructor(
     private masterVesselService: MasterVesselService,
     private mappingService: MappingService,
@@ -331,18 +355,40 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadFlagOptions() {
-    this.masterLocationService.getAll().subscribe(locations => {
-      // Extract unique countries from locations
-      const countries = [...new Set(locations.map(loc => loc.country).filter(country => country))];
-      
-      // Convert to flag options format
-      this.flagOptions = countries.map(country => ({
-        label: country,
+loadFlagOptions() {
+  this.masterLocationService.getAll().subscribe({
+    next: (locations) => {
+      // Step 1: Filter valid country values
+      const countries = locations
+        .map(loc => loc.country?.trim())
+        .filter(country => !!country); // remove null/empty
+
+      // Step 2: Deduplicate case-insensitively
+      const uniqueCountries = Array.from(
+        new Map(
+          countries.map(c => [c.toLowerCase(), c]) // key = lowercase, value = original
+        ).values()
+      );
+
+      // Step 3: Sort case-insensitively
+      uniqueCountries.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      // Step 4: Format options (title case or original)
+      this.flagOptions = uniqueCountries.map(country => ({
+        label: country.charAt(0).toUpperCase() + country.slice(1).toLowerCase(),
         value: country
-      })).sort((a, b) => a.label.localeCompare(b.label));
-    });
-  }
+      }));
+
+      console.log('Flag options loaded:', this.flagOptions.length, 'countries found');
+    },
+    error: (error) => {
+      console.error('Error loading flag options:', error);
+      this.flagOptions = [];
+    }
+  });
+}
+
+
 
   loadMappedVesselSeriesCode(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -683,5 +729,17 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
 
   clear(table: any) {
     table.clear();
+  }
+
+  // Master dialog methods
+  openMaster(masterType: string) {
+    this.masterDialogVisible[masterType] = true;
+  }
+
+  closeMasterDialog(masterType: string) {
+    this.masterDialogVisible[masterType] = false;
+    if (masterType === 'country') {
+      this.loadFlagOptions();
+    }
   }
 }

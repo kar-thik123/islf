@@ -604,7 +604,8 @@ function toTitleCase(str: string): string {
       header="Vendor Type Master"
       [(visible)]="masterDialogVisible['vendorType']"
       [modal]="true"
-      [style]="{ width: '80vw', height: '80vh' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
@@ -617,7 +618,8 @@ function toTitleCase(str: string): string {
       header="Location Master"
       [(visible)]="masterDialogVisible['state']"
       [modal]="true"
-      [style]="{ width: '80vw', height: '80vh' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
@@ -630,7 +632,8 @@ function toTitleCase(str: string): string {
       header="Document Type Master"
       [(visible)]="masterDialogVisible['documentType']"
       [modal]="true"
-      [style]="{ width: '80vw', height: '80vh' }"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
@@ -1547,16 +1550,8 @@ export class VendorComponent implements OnInit, OnDestroy {
 
   downloadDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
-    console.log('=== FRONTEND DOWNLOAD REQUEST ===');
-    console.log('Document ID:', doc.id);
-    console.log('Document:', doc);
-    
-    this.entityDocumentService.download(doc.id).subscribe({
-      next: (blob: any) => {
-        console.log('Download successful, blob size:', blob.size);
-        console.log('Blob type:', blob.type);
-        
+      this.entityDocumentService.download(doc.id).subscribe({
+      next: (blob: any) => {  
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -1582,10 +1577,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   viewDocument(doc: EntityDocument) {
     if (!doc.id) return;
     
-    console.log('=== FRONTEND VIEW REQUEST ===');
-    console.log('Document ID:', doc.id);
-    console.log('Document:', doc);
-    
+  
     this.selectedDocument = doc;
     this.isDocumentViewerVisible = true;
     this.pdfLoaded = false;

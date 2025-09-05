@@ -117,6 +117,8 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
     // Re-initialize context values when visibility changes
     if (changes['visible'] && changes['visible'].currentValue === true) {
       this.initializeContextValues();
+      // Reload all options when dialog opens to show newly added values
+      this.reloadAllOptions();
     }
   }
 
@@ -226,5 +228,10 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   
   onDialogHide() {
     this.visibleChange.emit(false);
+  }
+
+  private reloadAllOptions() {
+    // Reload all context options to show newly added values
+    this.contextService.loadOptions();
   }
 }
