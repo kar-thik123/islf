@@ -3,72 +3,6 @@ const pool = require('../db');
 const { logMasterEvent } = require('../log');
 const router = express.Router();
 
-// Helper function to find mapping with IT setup validation
-async function findMappingByContext(codeType, company_code, branch_code, department_code, service_type_code) {
-  try {
-    // Get IT setup configuration for this code type
-    const configResult = await pool.query(
-      "SELECT value FROM settings WHERE key = $1",
-      [`validation_${codeType.toLowerCase().replace('code', '')}_filter`]
-    );
-    
-    const filter = configResult.rows[0]?.value || '';
-    console.log(`IT Setup filter for ${codeType}:`, filter);
-    
-    // Build context parameters based on IT setup validation
-    let whereClauses = ['code_type = $1'];
-    let params = [codeType];
-    let idx = 2;
-    
-    // Only include context parameters that are required by IT setup
-    if (filter.includes('C') && company_code) {
-      whereClauses.push(`(company_code = $${idx} OR company_code IS NULL)`);
-      params.push(company_code);
-      idx++;
-    }
-    
-    if (filter.includes('B') && branch_code) {
-      whereClauses.push(`(branch_code = $${idx} OR branch_code IS NULL)`);
-      params.push(branch_code);
-      idx++;
-    }
-    
-    if (filter.includes('D') && department_code) {
-      whereClauses.push(`(department_code = $${idx} OR department_code IS NULL)`);
-      params.push(department_code);
-      idx++;
-    }
-    
-    if (filter.includes('ST') && service_type_code) {
-      whereClauses.push(`(service_type_code = $${idx} OR service_type_code IS NULL)`);
-      params.push(service_type_code);
-      idx++;
-    }
-    
-    const where = whereClauses.join(' AND ');
-    
-    // Order by specificity: exact matches first, then wildcards
-    const orderBy = `
-      ORDER BY 
-        CASE WHEN company_code IS NOT NULL THEN 1 ELSE 0 END DESC,
-        CASE WHEN branch_code IS NOT NULL THEN 1 ELSE 0 END DESC,
-        CASE WHEN department_code IS NOT NULL THEN 1 ELSE 0 END DESC,
-        CASE WHEN service_type_code IS NOT NULL THEN 1 ELSE 0 END DESC,
-        id DESC
-      LIMIT 1
-    `;
-    
-    const result = await pool.query(
-      `SELECT * FROM mapping_relations WHERE ${where} ${orderBy}`,
-      params
-    );
-    
-    return result.rows[0] || null;
-  } catch (err) {
-    console.error('Error finding mapping:', err);
-    return null;
-  }
-}
 
 // GET all vendors with optional context-based filtering
 router.get('/', async (req, res) => {
@@ -120,28 +54,64 @@ router.get('/', async (req, res) => {
   }
 });
 
-// CREATE new vendor (with IT setup aware number series logic)
+// CREATE new vendor (with number series logic and manual/default check)
 router.post('/', async (req, res) => {
   let {
     seriesCode, vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
     bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-    company_code, branch_code, department_code, service_type_code // <-- expect these in the request
+    company_code, branch_code, department_code, service_type_code // <-- Use snake_case
   } = req.body;
-  
+  // Debug: log the request body
+  console.log('REQ BODY:', req.body);
+
   try {
-    // IT setup aware number series lookup
+    // Relation-based number series lookup
+    // This approach handles null values in mapping_relations as wildcards
     if (!seriesCode && company_code && branch_code && department_code) {
-      const mapping = await findMappingByContext('vendorCode', company_code, branch_code, department_code, service_type_code);
-      if (mapping) {
-        seriesCode = mapping.mapping;
-        console.log('Found series code via IT setup validation:', seriesCode);
+      // First try to find exact match including service_type_code
+      let mappingRes;
+      if (service_type_code) {
+        mappingRes = await pool.query(
+          `SELECT mapping FROM mapping_relations
+           WHERE code_type = $1
+           AND company_code = $2
+           AND branch_code = $3
+           AND department_code = $4
+           AND (service_type_code = $5 OR service_type_code IS NULL)
+           ORDER BY CASE WHEN service_type_code IS NULL THEN 1 ELSE 0 END, id DESC
+           LIMIT 1`,
+          ['vendorCode', company_code, branch_code, department_code, service_type_code]
+        );
+      } else {
+        mappingRes = await pool.query(
+          `SELECT mapping FROM mapping_relations
+           WHERE code_type = $1
+           AND company_code = $2
+           AND branch_code = $3
+           AND department_code = $4
+           AND service_type_code IS NULL
+           ORDER BY id DESC
+           LIMIT 1`,
+          ['vendorCode', company_code, branch_code, department_code]
+        );
+      }
+      
+      // Debug: log mapping result
+      console.log('MAPPING RESULT:', mappingRes.rows);
+      if (mappingRes.rows.length > 0) {
+        seriesCode = mappingRes.rows[0].mapping;
+        // Debug: log series code from mapping
+        console.log('SERIES CODE FROM MAPPING:', seriesCode);
       }
     }
+
     if (seriesCode) {
       const seriesResult = await pool.query(
         'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
         [seriesCode]
       );
+      // Debug: log number series result
+      console.log('NUMBER SERIES RESULT:', seriesResult.rows);
       if (seriesResult.rows.length === 0) {
         return res.status(400).json({ error: 'Number series not found' });
       }
@@ -200,8 +170,10 @@ router.post('/', async (req, res) => {
         }
       }
     } else if (!vendor_no || vendor_no === 'AUTO') {
-      vendor_no = 'VENDOR-' + Date.now();
+      vendor_no = 'VEN-' + Date.now();
     }
+
+    // Update the INSERT statement parameters
     const result = await pool.query(
       `INSERT INTO vendor (
         vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
@@ -209,12 +181,11 @@ router.post('/', async (req, res) => {
         company_code, branch_code, department_code, service_type_code
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22
-      ) RETURNING *`,
+        $19, $20, $21, $22 ) RETURNING *`,
       [
         vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
         bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
-        company_code, branch_code, department_code, service_type_code
+        company_code, branch_code, department_code, service_type_code // <-- Use snake_case variables
       ]
     );
     
@@ -227,7 +198,7 @@ router.post('/', async (req, res) => {
       recordName: name,
       details: `Vendor created: ${name} (${vendor_no})`
     });
-    
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating vendor:', err);
