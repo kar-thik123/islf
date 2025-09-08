@@ -93,12 +93,15 @@ import { DividerModule } from 'primeng/divider';
           
           <ng-template pTemplate="header">
             <tr>
-              <th style="width: 3rem"></th>
               <th>Code</th>
               <th>Mode</th>
+              <th>Basis</th>
+              <th>From Location Type</th>
+              <th>From Location</th>
+              <th>To Location Type</th>
+              <th>To Location</th>
               <th>Cargo Type</th>
               <th>Tariff Type</th>
-              <th>Basis</th>
               <th>Item Name</th>
               <th>Currency</th>
               <th>Charges</th>
@@ -109,61 +112,24 @@ import { DividerModule } from 'primeng/divider';
           
           <ng-template pTemplate="body" let-tariff let-expanded="expanded">
             <tr>
-              <td>
-                <button 
-                  type="button" 
-                  pButton 
-                  pRipple 
-                  [pRowToggler]="tariff" 
-                  class="p-button-text p-button-rounded p-button-plain" 
-                  [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'">
-                </button>
-              </td>
               <td>{{ tariff.code }}</td>
+              <td>{{ tariff.basis }}</td>
+              <td>{{ tariff.from }}</td>
+              <td>{{ tariff.to }}</td>
+              <td>{{ tariff.locationTypeFrom }}</td>
+              <td>{{ tariff.locationTypeTo }}</td>
               <td>{{ tariff.mode }}</td>
               <td>{{ tariff.cargoType }}</td>
               <td>{{ tariff.tariffType }}</td>
-              <td>{{ tariff.basis }}</td>
               <td>{{ tariff.itemName }}</td>
               <td>{{ tariff.currency }}</td>
-              <td>{{ tariff.charges | currency:'USD':'symbol':'1.2-2' }}</td>
+              <td>{{ tariff.charges | currency:'INR':'symbol':'1.2-2' }}</td>
               <td>
                 <span [class]="getStatusClass(tariff.status)">{{ tariff.status }}</span>
               </td>
               <td>{{ tariff.effectiveDate | date:'shortDate' }}</td>
             </tr>
-          </ng-template>
-          
-          <ng-template pTemplate="rowexpansion" let-tariff>
-            <tr>
-              <td colspan="11">
-                <div class="p-4 bg-gray-50">
-                  <h4 class="font-semibold mb-3">Tariff Details</h4>
-                  <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Container Type:</strong> {{ tariff.containerType || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Freight Charge Type:</strong> {{ tariff.freightChargeType || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Mandatory:</strong> {{ tariff.isMandatory ? 'Yes' : 'No' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Period Start:</strong> {{ tariff.periodStartDate | date:'shortDate' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Period End:</strong> {{ tariff.periodEndDate | date:'shortDate' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Vendor Type:</strong> {{ tariff.vendorType || 'N/A' }}
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </ng-template>
-          
+          </ng-template>        
           <ng-template pTemplate="emptymessage">
             <tr>
               <td colspan="11" class="text-center p-4">
@@ -189,14 +155,17 @@ import { DividerModule } from 'primeng/divider';
           [expandedRowKeys]="expandedRowsFromTo">
           
           <ng-template pTemplate="header">
-            <tr>
-              <th style="width: 3rem"></th>
+           <tr>
               <th>Code</th>
               <th>Mode</th>
+              <th>Basis</th>
+              <th>From Location Type</th>
               <th>From Location</th>
+              <th>To Location Type</th>
               <th>To Location</th>
-              <th>Location Type From</th>
-              <th>Location Type To</th>
+              <th>Cargo Type</th>
+              <th>Tariff Type</th>
+              <th>Item Name</th>
               <th>Currency</th>
               <th>Charges</th>
               <th>Status</th>
@@ -206,67 +175,22 @@ import { DividerModule } from 'primeng/divider';
           
           <ng-template pTemplate="body" let-tariff let-expanded="expanded">
             <tr>
-              <td>
-                <button 
-                  type="button" 
-                  pButton 
-                  pRipple 
-                  [pRowToggler]="tariff" 
-                  class="p-button-text p-button-rounded p-button-plain" 
-                  [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'">
-                </button>
-              </td>
               <td>{{ tariff.code }}</td>
-              <td>{{ tariff.mode }}</td>
+              <td>{{ tariff.basis }}</td>
               <td>{{ tariff.from }}</td>
               <td>{{ tariff.to }}</td>
               <td>{{ tariff.locationTypeFrom }}</td>
               <td>{{ tariff.locationTypeTo }}</td>
+              <td>{{ tariff.mode }}</td>
+              <td>{{ tariff.cargoType }}</td>
+              <td>{{ tariff.tariffType }}</td>
+              <td>{{ tariff.itemName }}</td>
               <td>{{ tariff.currency }}</td>
-              <td>{{ tariff.charges | currency:'USD':'symbol':'1.2-2' }}</td>
+              <td>{{ tariff.charges | currency:'INR':'symbol':'1.2-2' }}</td>
               <td>
                 <span [class]="getStatusClass(tariff.status)">{{ tariff.status }}</span>
               </td>
               <td>{{ tariff.effectiveDate | date:'shortDate' }}</td>
-            </tr>
-          </ng-template>
-          
-          <ng-template pTemplate="rowexpansion" let-tariff>
-            <tr>
-              <td colspan="11">
-                <div class="p-4 bg-gray-50">
-                  <h4 class="font-semibold mb-3">Tariff Details</h4>
-                  <div class="grid grid-cols-12 gap-4">
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Cargo Type:</strong> {{ tariff.cargoType || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Tariff Type:</strong> {{ tariff.tariffType || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Container Type:</strong> {{ tariff.containerType || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Item Name:</strong> {{ tariff.itemName || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Freight Charge Type:</strong> {{ tariff.freightChargeType || 'N/A' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Mandatory:</strong> {{ tariff.isMandatory ? 'Yes' : 'No' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Period Start:</strong> {{ tariff.periodStartDate | date:'shortDate' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Period End:</strong> {{ tariff.periodEndDate | date:'shortDate' }}
-                    </div>
-                    <div class="col-span-12 md:col-span-4">
-                      <strong>Vendor Type:</strong> {{ tariff.vendorType || 'N/A' }}
-                    </div>
-                  </div>
-                </div>
-              </td>
             </tr>
           </ng-template>
           
@@ -288,13 +212,7 @@ import { DividerModule } from 'primeng/divider';
         <p class="text-gray-500">No tariffs match the selected criteria. Please try different filters.</p>
       </div>
 
-      <!-- Initial State Message -->
-      <div *ngIf="!selectedServiceType && !selectedVendor" 
-           class="text-center p-8 bg-blue-50 rounded-lg">
-        <i class="pi pi-filter text-4xl text-blue-400 mb-4"></i>
-        <h3 class="text-lg font-semibold text-blue-600 mb-2">Select Filters</h3>
-        <p class="text-blue-500">Please select a service type and/or vendor to view related tariffs.</p>
-      </div>
+     
     </div>
   `,
   styles: [`

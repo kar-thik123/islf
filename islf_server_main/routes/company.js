@@ -94,7 +94,7 @@ router.put('/:code', async (req, res) => {
       
       const valuesAreEqual = newValue === oldValue;
       if (!valuesAreEqual) {
-      changedFields.push(`${field}: "${oldValue}" → "${newValue}"`);
+      changedFields.push(`${field}: " Old:${oldValue}" → "New:${newValue}\"`);
     }
   }
     const details = changedFields.length > 0

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -263,7 +263,8 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   // Validation methods
@@ -469,9 +470,18 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       isEditing: true,
       isNew: true
     };
+    
+    // Add the new row to both types and activeTypes arrays
     this.types = [newRow, ...this.types];
+    this.activeTypes = [newRow, ...this.activeTypes];
+    
     // Clear field errors for new row
     this.fieldErrors['new'] = {};
+    
+    // Force change detection to update the UI
+    setTimeout(() => {
+      this.cdr.detectChanges();
+    }, 0);
     
     console.log('New master type row added successfully');
   }
@@ -484,7 +494,10 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
         next: (created) => {
           Object.assign(type, created, { isNew: false, isEditing: false });
           this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Type saved successfully' });
-          this.refreshList();
+          // Force a complete refresh to ensure the UI is updated
+          setTimeout(() => {
+            this.refreshList();
+          }, 100);
         },
         error: () => {
           this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Save failed' });

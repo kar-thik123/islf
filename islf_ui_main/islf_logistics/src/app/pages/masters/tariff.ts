@@ -41,6 +41,8 @@ import { MappingService } from '@/services/mapping.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { NumberSeriesRelationService } from '@/services/number-series-relation.service';
 import { CheckboxModule } from 'primeng/checkbox';
+import { InputSwitchModule } from 'primeng/inputswitch';
+
 
 @Component({
   selector: 'app-tariff',
@@ -64,7 +66,8 @@ import { CheckboxModule } from 'primeng/checkbox';
     BasisComponent,
     MasterTypeComponent,
     MasterLocationComponent,
-    MasterItemComponent
+    MasterItemComponent,
+    InputSwitchModule
   ],
   template: `
     <p-toast></p-toast>
@@ -201,14 +204,16 @@ import { CheckboxModule } from 'primeng/checkbox';
     <input #fileInput type="file" accept=".csv,.xlsx,.xls" style="display: none" (change)="onFileSelected($event)" />
     
     <p-dialog
-      header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Tariff"
-      [(visible)]="isDialogVisible"
-      [modal]="true"
-      [style]="{ width: '1500px' }"
-      [closable]="false"
-      [draggable]="false"
-      [resizable]="false"
-      (onHide)="hideDialog()"
+    header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Tariff"
+    [(visible)]="isDialogVisible"
+    [modal]="true"
+    [closable]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [closeOnEscape]="true"
+    [style]="{ width: '100%', maxWidth: '1500px', height: 'auto' }"
+    [contentStyle]="{ overflow: 'visible' }"
+    (onHide)="hideDialog()"
     >
       <ng-template pTemplate="content">
         <div *ngIf="selectedTariff" class="p-fluid form-sections dialog-body-padding">
@@ -406,8 +411,8 @@ import { CheckboxModule } from 'primeng/checkbox';
               <small *ngIf="fieldErrors['charges']" class="p-error">{{ fieldErrors['charges'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-2">
-              <label class="block font-semibold mb-1">Freight Charge Type</label>
-              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Freight Charge Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <label class="block font-semibold mb-1">Charge Type</label>
+              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Charge Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
             </div>
            
             <div class="col-span-12 md:col-span-2">
@@ -422,14 +427,14 @@ import { CheckboxModule } from 'primeng/checkbox';
               <label class="block font-semibold mb-1">Period End Date</label>
               <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full"></p-calendar>
             </div>
-            <div class="col-span-12 md:col-span-2 flex items-center">
-            <p-checkbox 
-                [(ngModel)]="selectedTariff.isMandatory" 
-                binary="true" 
-                inputId="mandatory">
-            </p-checkbox>   
-            <label for="mandatory" class="font-semibold">Mandatory</label>
+            <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
+            <p-inputSwitch 
+              [(ngModel)]="selectedTariff.isMandatory" 
+              inputId="mandatory">
+            </p-inputSwitch>
+            <label for="mandatory" class="ml-2 font-semibold">Mandatory</label>
           </div>
+
           </div>
         </div>
       </ng-template>
@@ -453,6 +458,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('currency')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <currency-code></currency-code>
@@ -471,6 +477,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('container')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <container-code></container-code>
@@ -489,6 +496,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('vendor')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <vendor-master></vendor-master>
@@ -507,6 +515,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('basis')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <basis-code></basis-code>
@@ -525,6 +534,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('masterType')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <master-type [filterByKey]="masterTypeFilter"></master-type>
@@ -543,6 +553,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('masterItem')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <master-item></master-item>
@@ -561,15 +572,16 @@ import { CheckboxModule } from 'primeng/checkbox';
       [draggable]="false"
       [resizable]="false"
       (onHide)="closeMasterDialog('masterLocation')"
+      [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <master-location></master-location>
       </ng-template>
     </p-dialog>
   `,
-  styles: [`
+ styles: [`
     .form-sections {
-      padding: 1.5rem;
+      padding: 1rem;
     }
 
     .section-header {
@@ -579,6 +591,16 @@ import { CheckboxModule } from 'primeng/checkbox';
       margin-bottom: 0.5rem;
       padding-bottom: 0.5rem;
       border-bottom: 2px solid #e5e7eb;
+    }
+
+    /* Fix: remove gap for the first section header */
+    .section-header:first-of-type {
+      margin-top: 0;
+    }
+
+    /* Fix: reduce default dialog padding */
+    ::ng-deep .p-dialog .p-dialog-content {
+      padding-top: 0.5rem !important;
     }
 
     .text-red-500 {
@@ -601,16 +623,13 @@ import { CheckboxModule } from 'primeng/checkbox';
     }
 
     .mandatory-row {
-      background-color: #fef3c7 !important;
+      background-color:rgb(200, 199, 254) !important;
     }
 
     .mandatory-row:hover {
-      background-color: #fde68a !important;
+      background-color:rgb(159, 158, 251) !important;
     }
-
- 
-
-    .status-expired {
+        .status-expired {
       color: #dc2626;
       font-weight: 600;
       padding: 2px 8px;
@@ -633,7 +652,7 @@ import { CheckboxModule } from 'primeng/checkbox';
       border-radius: 4px;
       background-color: #f3f4f6;
     }
-  `]
+`]
 })
 export class TariffComponent implements OnInit, OnDestroy {
   private contextSubscription: Subscription | undefined;
@@ -703,8 +722,8 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   allVendors: any[] = []; // Add this property to store all vendors
   freightChargeTypeOptions = [
     { label: 'Default', value: 'Default' },
-    { label: 'Sell Freight Rate', value: 'Sell Freight Rate' },
-    { label: 'Buy Freight Rate', value: 'Buy Freight Rate' }
+    { label: 'Sell  Rate', value: 'Sell  Rate' },
+    { label: 'Buy  Rate', value: 'Buy  Rate' }
   ];
   isDialogVisible = false;
   selectedTariff: any = null;
@@ -1730,9 +1749,13 @@ loadBasisOptions() {
         } else if (editedType === 'TARIFF_TYPE') {
           this.loadTariffTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
         } else if (editedType === 'LOCATION') {
-          this.loadLocationTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
-        }
-        this.masterTypeFilter = '';
+            this.loadLocationTypeOptions().subscribe({ next: () => this.cdr.detectChanges(), error: () => this.cdr.detectChanges() });
+          }
+          // Force a refresh of the master type component to ensure new rows are displayed
+          setTimeout(() => {
+            this.masterTypeFilter = '';
+            this.cdr.detectChanges();
+          }, 100);
         break;
       case 'masterItem':
         this.showMasterItemDialog = false;
