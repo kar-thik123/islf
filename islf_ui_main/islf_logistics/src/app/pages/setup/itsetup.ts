@@ -72,13 +72,13 @@ interface DocumentPaths {
                   <label class="block mb-2 font-medium">Session Timeout (minutes)</label>
                   <p-inputNumber 
                     [(ngModel)]="systemSettings.sessionTimeout" 
-                    [min]="15" 
+                    [min]="1" 
                     [max]="480"
                     class="w-full"
                     placeholder="Session timeout in minutes">
                   </p-inputNumber>
                 </div>
-                <div>
+                <div> 
                   <label class="block mb-2 font-medium">Default Language</label>
                   <p-dropdown 
                     [(ngModel)]="systemSettings.defaultLanguage"

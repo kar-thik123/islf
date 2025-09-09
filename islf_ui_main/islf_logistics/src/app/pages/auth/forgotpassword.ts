@@ -103,7 +103,7 @@ import { MessageService } from 'primeng/api';
                     >
                 </div>
                 <div class="flex flex-col">
-                    <p-iconfield class="w-full mb-6">
+                    <p-iconfield class="w-full mb-2 ">
                         <p-inputicon class="pi pi-envelope" />
                         <input
                             id="identifier"
@@ -114,6 +114,9 @@ import { MessageService } from 'primeng/api';
                             [(ngModel)]="identifier"
                         />
                     </p-iconfield>
+                    <small class="text-red-500 mb-2" *ngIf="showIdentifierError">
+                        Enter a valid email or phone number.
+                    </small>
 
                     <div class="flex flex-wrap gap-2 justify-between">
                         <button
@@ -147,6 +150,16 @@ export class ForgotPassword {
     messageService = inject(MessageService);
 
     isDarkTheme = computed(() => this.LayoutService.isDarkTheme());
+    
+    get showIdentifierError() {
+        return this.identifier !== '' && !this.isValidIdentifier(this.identifier);
+    }
+        isValidIdentifier(value: string): boolean {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const phoneRegex = /^[0-9]{10}$/;
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        return emailRegex.test(value) || phoneRegex.test(value) || usernameRegex.test(value);
+    }
 
     onSubmit() {
         const mailOrPhone = this.identifier?.trim();

@@ -102,7 +102,7 @@ import { RouterModule } from '@angular/router';
                     >
                 </div>
                 <div class="flex flex-col">
-                    <p-iconfield class="w-full mb-6">
+                    <p-iconfield class="w-full mb-2">
                         <p-inputicon class="pi pi-envelope" />
                         <input
                             id="identifier"
@@ -111,10 +111,14 @@ import { RouterModule } from '@angular/router';
                             class="w-full md:w-[25rem]"
                             placeholder="Username, Email, or Phone"
                             [(ngModel)]="identifier"
+                            
                         />
                     </p-iconfield>
-
-                    <p-iconfield class="w-full mb-6">
+                    <small class="text-red-500" *ngIf="showIdentifierError">
+                        Enter a valid email, username, or phone number.
+                    </small>
+                    
+                    <p-iconfield class="w-full mb-2 mt-6">
                         <p-inputicon class="pi pi-lock" />
                         <input
                             id="password"
@@ -123,8 +127,12 @@ import { RouterModule } from '@angular/router';
                             class="w-full md:w-[25rem]"
                             placeholder="Password"
                             [(ngModel)]="password"
+                            
                         />
                     </p-iconfield>
+                    <small class="text-red-500 mb-2" *ngIf="showPasswordError">
+                        Password must be at least 6 characters.
+                    </small>
 
                     <div class="mb-6 flex flex-wrap gap-4">
                         <div class="flex items-center">
@@ -175,11 +183,47 @@ export class Login {
 
     isDarkTheme = computed(() => this.LayoutService.isDarkTheme());
 
+   // Field level validation
+
+    get showIdentifierError() {
+        return this.identifier !== '' && !this.isValidIdentifier(this.identifier);
+    }
+
+    get showPasswordError() {
+        return this.password !== '' && this.password.length < 6;
+    }
+
+    isValidIdentifier(value: string): boolean {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const phoneRegex = /^[0-9]{10}$/;
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        return emailRegex.test(value) || phoneRegex.test(value) || usernameRegex.test(value);
+    }
+
     onLogin() {
         // this.errorMessage = '';
         if (!this.identifier || !this.password) {
             // this.errorMessage = 'Identifier and password are required.';
             this.messageService.add({severity: 'error', summary: 'Validation Error', detail: 'Identifier and password are required.', life: 5000});
+            return;
+        }
+            if (!this.isValidIdentifier(this.identifier)) {
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Validation Error',
+                detail: 'Please enter a valid email, username, or phone number.',
+                life: 5000
+            });
+            return;
+        }
+
+        if (this.password.length < 6) {
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Validation Error',
+                detail: 'Password must be at least 6 characters long.',
+                life: 5000
+            });
             return;
         }
         this.loginService.login(this.identifier, this.password).subscribe({

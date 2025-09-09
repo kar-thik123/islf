@@ -1,5 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
-import { RouterModule, ActivatedRoute } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { LayoutService } from '../../layout/service/layout.service';
 import { AppConfigurator } from '../../layout/components/app.configurator';
@@ -31,7 +31,9 @@ import { MessageService } from 'primeng/api';
     ],
     providers: [ToastService],
     standalone: true,
-    template: ` <svg
+    template: `
+    <p-toast></p-toast>
+     <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1600 800"
             class="fixed left-0 top-0 min-h-screen min-w-screen"
@@ -92,7 +94,7 @@ import { MessageService } from 'primeng/api';
                 <span class="text-surface-600 dark:text-surface-200 font-medium">Enter your new password</span>
             </div>
                 <div class="flex flex-col">
-                    <p-iconfield class="w-full mb-6">
+                    <p-iconfield class="w-full mb-2">
                         <p-inputicon class="pi pi-lock z-20" />
                         <p-password
                             id="password"
@@ -102,10 +104,12 @@ import { MessageService } from 'primeng/api';
                             inputStyleClass="w-full md:w-25rem "
                             [toggleMask]="true"
                             [(ngModel)]="password"
+                            (blur)="onPasswordBlur()"
                         ></p-password>
                     </p-iconfield>
+                    <small class="text-red-500 mb-4" *ngIf="passwordTouched && passwordRequired">Password is required.</small>
 
-                    <p-iconfield class="w-full mb-6">
+                    <p-iconfield class="w-full mb-2">
                         <p-inputicon class="pi pi-lock z-20" />
                         <p-password
                             id="repeatPassword"
@@ -116,8 +120,12 @@ import { MessageService } from 'primeng/api';
                             [toggleMask]="true"
                             [feedback]="false"
                             [(ngModel)]="repeatPassword"
+                            (blur)="onRepeatPasswordBlur()"
                         ></p-password>
                     </p-iconfield>
+                    <small class="text-red-500 mb-2" *ngIf="repeatTouched && repeatRequired">Repeat password is required.</small>
+                    <small class="text-red-500 mb-2" *ngIf="repeatTouched && passwordsMismatch">Passwords do not match.</small>
+                    <small class="text-red-500 mb-2" *ngIf="sameAsOldError">New password must be different from current password.</small>
 
                     <!-- Removed error and message UI -->
 
@@ -148,12 +156,16 @@ export class NewPassword {
     LayoutService = inject(LayoutService);
     newPasswordService = inject(NewPasswordService);
     route = inject(ActivatedRoute);
+    router = inject(Router);
     password: string = '';
     repeatPassword: string = '';
     token: string = '';
     // message: string = '';
     // error: string = '';
     messageService = inject(MessageService);
+    passwordTouched: boolean = false;
+    repeatTouched: boolean = false;
+    sameAsOldError: boolean = false;
 
     isDarkTheme = computed(() => this.LayoutService.isDarkTheme());
 
@@ -163,16 +175,31 @@ export class NewPassword {
         });
     }
 
+    get passwordRequired(): boolean { return !this.password || this.password.trim() === ''; }
+    get repeatRequired(): boolean { return !this.repeatPassword || this.repeatPassword.trim() === ''; }
+    get passwordsMismatch(): boolean { return !this.passwordRequired && !this.repeatRequired && this.password !== this.repeatPassword; }
+
+    onPasswordBlur() {
+        this.passwordTouched = true;
+        this.sameAsOldError = false;
+    }
+
+    onRepeatPasswordBlur() {
+        this.repeatTouched = true;
+        this.sameAsOldError = false;
+    }
+
     onSubmit() {
         // this.message = '';
         // this.error = '';
-        if (!this.password || !this.repeatPassword) {
-            // this.error = 'Both password fields are required.';
+        this.passwordTouched = true;
+        this.repeatTouched = true;
+        this.sameAsOldError = false;
+        if (this.passwordRequired || this.repeatRequired) {
             this.messageService.add({severity: 'error', summary: 'Validation Error', detail: 'Both password fields are required.'});
             return;
         }
-        if (this.password !== this.repeatPassword) {
-            // this.error = 'Passwords do not match.';
+        if (this.passwordsMismatch) {
             this.messageService.add({severity: 'error', summary: 'Error', detail: 'Passwords do not match.'});
             return;
         }
@@ -185,10 +212,17 @@ export class NewPassword {
             next: () => {
                 // this.message = 'Password updated successfully.';
                 this.messageService.add({severity: 'success', summary: 'Success', detail: 'Password updated successfully.'});
+                // Redirect to login page after successful password change
+                setTimeout(() => {
+                    this.router.navigate(['/auth/login']);
+                }, 1500); // 1.5 second delay to show success message
             },
             error: (err) => {
-                // this.error = err?.error?.message || 'Error resetting password.';
-                this.messageService.add({severity: 'error', summary: 'Error', detail: err?.error?.message || 'Error resetting password.'});
+                const serverMsg = err?.error?.message || 'Error resetting password.';
+                if (serverMsg && serverMsg.toLowerCase().includes('different from current password')) {
+                    this.sameAsOldError = true;
+                }
+                this.messageService.add({severity: 'error', summary: 'Error', detail: serverMsg});
             }
         });
     }

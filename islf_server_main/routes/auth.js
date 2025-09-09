@@ -74,8 +74,25 @@ router.post('/verify-password', async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
+        
+        // Generate new JWT token for re-authentication
+        const token = jwt.sign(
+            { 
+                userId: user.id, 
+                username: user.username,
+                email: user.email,
+                name: user.name || user.username
+            },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '24h' }
+        );
+        
         await logAuthEvent({ username: logUsername, action: 'UNLOCK_SUCCESS', details: 'Screen unlocked successfully' });
-        res.json({ success: true });
+        res.json({ 
+            success: true, 
+            token: token,
+            name: user.name || user.username
+        });
     } catch (err) {
         res.status(500).json({ message: 'Database error', error: err });
     }

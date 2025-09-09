@@ -56,16 +56,25 @@ router.post('/reset', async (req, res) => {
     }
     try {
         const payload = jwt.verify(token, JWT_SECRET);
+        
+        // Get current password to validate it's different
+        const userResult = await pool.query('SELECT password, username FROM users WHERE id = $1', [payload.id]);
+        if (!userResult.rows[0]) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        const currentHashedPassword = userResult.rows[0].password;
+        const username = userResult.rows[0].username || payload.email || 'unknown';
+        
+        // Check if new password is the same as current password
+        const isSamePassword = await bcrypt.compare(newPassword, currentHashedPassword);
+        if (isSamePassword) {
+            return res.status(400).json({ message: 'New password must be different from current password' });
+        }
+        
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, payload.id]);
-        // Fetch username from users table, fallback to email or 'unknown'
-        const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [payload.id]);
-        let username = 'unknown';
-        if (userResult.rows[0] && userResult.rows[0].username) {
-          username = userResult.rows[0].username;
-        } else if (payload.email) {
-          username = payload.email;
-        }
+        
         await logAuthEvent({ username, action: 'RESET_PASSWORD_SUCCESS', details: 'Password updated successfully' });
         res.json({ message: 'Password updated successfully' });
     } catch (err) {

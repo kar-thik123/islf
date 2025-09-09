@@ -41,14 +41,18 @@ export class LoginService {
     return localStorage.getItem('user_name') || sessionStorage.getItem('user_name');
   }
 
-  logout(): void {
+  logout(preserveUsername: boolean = false): void {
     localStorage.removeItem('jwt_token');
-    localStorage.removeItem('user_name');
     sessionStorage.removeItem('jwt_token');
-    sessionStorage.removeItem('user_name');
+    
+    // Only clear username if not preserving it (for session timeout)
+    if (!preserveUsername) {
+      localStorage.removeItem('user_name');
+      sessionStorage.removeItem('user_name');
+    }
   }
 
   verifyPassword(username: string, password: string) {
-    return this.http.post<{ success: boolean }>(`${this.apiUrl}/verify-password`, { username, password });
+    return this.http.post<{ success: boolean, token: string, name: string }>(`${this.apiUrl}/verify-password`, { username, password });
   }
 } 

@@ -32,8 +32,8 @@ export class AuthService {
     this.isAuthenticatedSubject.next(true);
   }
 
-  logout(): void {
-    this.loginService.logout();
+  logout(preserveUsername: boolean = false): void {
+    this.loginService.logout(preserveUsername);
     this.contextService.clearContext();
     this.contextService.hideContextSelector();
     console.log('User logged out, setting auth state to false');

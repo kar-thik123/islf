@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { ToastService } from '@/services/toast.service';
 import { ToastModule } from 'primeng/toast';
 import { LoginService } from '../../services/login.service';
+import { AuthService } from '../../services/auth.service';
 import { MessageService } from 'primeng/api';
 import { Router } from '@angular/router';
 
@@ -30,7 +31,9 @@ import { Router } from '@angular/router';
     ],
     providers:[ToastService],
     standalone: true,
-    template: `<svg
+    template: `
+    <p-toast></p-toast>
+    <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1600 800"
             class="fixed left-0 top-0 min-h-screen min-w-screen"
@@ -93,7 +96,7 @@ import { Router } from '@angular/router';
                             class="font-medium text-surface-900 dark:text-surface-0">{{ userName }}</span>
                     </div>
                     <div class="flex flex-col">
-                        <p-iconfield class="w-full mb-6">
+                        <p-iconfield class="w-full mb-2 ">
                             <p-inputicon class="pi pi-lock" />
                             <input
                                 id="password"
@@ -104,6 +107,9 @@ import { Router } from '@angular/router';
                                 [(ngModel)]="password"
                             />
                         </p-iconfield>
+                        <small class="text-red-500 mb-2" *ngIf="showPasswordError">
+                            Password must be at least 6 characters.
+                        </small>
 
                         <button
                             pButton
@@ -123,6 +129,7 @@ import { Router } from '@angular/router';
 export class LockScreen {
     LayoutService = inject(LayoutService);
     loginService = inject(LoginService);
+    authService = inject(AuthService);
     messageService = inject(MessageService);
     router = inject(Router);
     userName: string = '';
@@ -130,9 +137,14 @@ export class LockScreen {
 
     isDarkTheme = computed(() => this.LayoutService.isDarkTheme());
 
+
     constructor() {
         this.userName = this.loginService.getUserName() || 'User';
     }
+    get showPasswordError() {
+        return this.password !== '' && this.password.length < 6;
+    }
+    
 
     onUnlock() {
         if (!this.password) {
@@ -140,7 +152,10 @@ export class LockScreen {
             return;
         }
         this.loginService.verifyPassword(this.userName, this.password).subscribe({
-            next: () => {
+            next: (response) => {
+                // Restore authentication with the new token
+                this.authService.login(response.token, response.name, true); // Use rememberMe=true for session restore
+                
                 this.messageService.add({severity: 'success', summary: 'Unlocked', detail: 'Welcome back!'});
                 setTimeout(() => {
                     this.router.navigate(['/']);
