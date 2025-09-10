@@ -1,6 +1,21 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
+
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 
 // Add this function at the top after the requires
 // Replace the findMappingByContext function (lines 6-45)
@@ -300,9 +315,17 @@ router.post('/', async (req, res) => {
          RETURNING *`,
         [code, vessel_name, imo_number, flag, year_build, active, vessel_type, company_code, branch_code, department_code]
       );
+      // Log the master event
+      await logMasterEvent({
+        username: getUsernameFromToken(req),
+        action: 'CREATE',
+        masterType: 'Master Vessel',
+        recordId: code,
+        details: `New MasterVessel "${code}" has been created successfully.`
+      });
       res.status(201).json(result.rows[0]);
     } catch (err) {
-      console.error('Error creating vessel:', err);
+      
       res.status(500).json({ error: 'Failed to create vessel' });
     }
 });
@@ -315,6 +338,9 @@ router.put('/:id', async (req, res) => {
   }
   let { code, vessel_name, imo_number, flag, year_build, active, vessel_type } = req.body;
   try {
+    const oldResult = await pool.query('SELECT * FROM master_vessel WHERE id = $1', [id]);
+    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Vessel not found' });
+    const oldVessel = oldResult.rows[0];
     // Extract year from date if year_build is a date object
     if (year_build) {
       if (typeof year_build === 'string' && (year_build.includes('T') || year_build.includes('-'))) {
@@ -349,6 +375,33 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vessel not found' });
     }
+    const changedFields = [];
+    const fieldsToCheck = {
+      code, vessel_name, imo_number, flag, year_build, active, vessel_type
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValue = normalize(fieldsToCheck[field]);
+      const oldValue = normalize(oldVessel[field]);
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'UPDATE',
+      masterType: 'Master Vessel',
+      recordId: code,
+      details
+    });
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating vessel:', err);
@@ -369,6 +422,14 @@ router.delete('/:id', async (req, res) => {
        RETURNING *`,
       [id]
     );
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'DELETE',
+      masterType: 'Master Vessel',
+      recordId: result.rows[0].code,
+      details: `MasterVessel "${result.rows[0].code}" has been deleted successfully.`
+    });
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vessel not found' });
     }

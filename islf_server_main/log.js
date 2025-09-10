@@ -7,17 +7,17 @@ async function logAuthEvent({ username, action, details }) {
   );
 }
 
-async function logMasterEvent({ username, action, masterType, recordId, recordName, details }) {
+async function logMasterEvent({ username, action, masterType, recordId, details }) {
   await pool.query(
-    'INSERT INTO master_logs (username, action, master_type, record_id, record_name, details) VALUES ($1, $2, $3, $4, $5, $6)',
-    [username, action, masterType, recordId, recordName, details]
+    'INSERT INTO master_logs (username, action, master_type, record_id, details) VALUES ($1, $2, $3, $4, $5)',
+    [username, action, masterType, recordId, details]
   );
 }
 
-async function logSetupEvent({ username, action, setupType, entityType, entityCode, entityName, details }) {
+async function logSetupEvent({ username, action, setupType, entityType, entityCode, details }) {
   await pool.query(
-    'INSERT INTO setup_logs (username, action, setup_type, entity_type, entity_code, entity_name, details) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-    [username, action, setupType, entityType, entityCode, entityName, details]
+    'INSERT INTO setup_logs (username, action, setup_type, entity_type, entity_code, details) VALUES ($1, $2, $3, $4, $5, $6)',
+    [username, action, setupType, entityType, entityCode, details]
   );
 }
 

@@ -1,6 +1,21 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
+
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 
 // Get all container codes with optional context filtering
 router.get('/', async (req, res) => {
@@ -72,6 +87,14 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [code, description, status || 'Active', company_code, branch_code, department_code]
     );
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'CREATE',
+      masterType: 'Container Code',
+      recordId: code,
+      details: `New Container Code "${code}" has been created successfully.`
+    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating container code:', err);
@@ -83,11 +106,41 @@ router.post('/', async (req, res) => {
 router.put('/:code', async (req, res) => {
   const { description, status } = req.body;
   try {
+    const oldResult = await pool.query('SELECT * FROM container_code WHERE code = $1', [req.params.code]);
+    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const oldContainer = oldResult.rows[0];
     const result = await pool.query(
       'UPDATE container_code SET description = $1, status = $2 WHERE code = $3 RETURNING *',
       [description, status, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const changedFields = [];
+    const fieldsToCheck = {
+      description, status
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValue = normalize(fieldsToCheck[field]);
+      const oldValue = normalize(oldContainer[field]);
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'UPDATE',
+      masterType: 'Container Code',
+      recordId: code,
+      details
+    });
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update container code' });
@@ -99,6 +152,14 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM container_code WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'DELETE',
+      masterType: 'Container Code',
+      recordId: req.params.code,
+      details: `Container Code "${req.params.code}" has been deleted successfully.`
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete container code' });

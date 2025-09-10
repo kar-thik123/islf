@@ -1,6 +1,21 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
+
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 
 // Get all master types
 router.get('/', async (req, res) => {
@@ -65,28 +80,75 @@ router.post('/', async (req, res) => {
       'INSERT INTO master_type (key, value, description, status,company_code,branch_code,department_code) VALUES ($1, $2, $3, $4,$5,$6,$7) RETURNING *',
       [key, value, description, status,company_code,branch_code,department_code]
     );  
+      // log the master event 
+  await logMasterEvent({
+    username: getUsernameFromToken(req),
+    action: 'CREATE',
+    masterType: 'Master Type',
+    recordId: key,
+    details: `New MasterType "${key}" has been created successfully.`
+  });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create master type' });
   }
+
+ 
 });
 
 // Update master type
 router.put('/:id', async (req, res) => {
   const { value, description, status } = req.body;
   try {
+    const oldResult = await pool.query('SELECT * FROM master_type WHERE id = $1', [req.params.id]);
+    if(oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const id = oldResult.rows[0].id;
        const result = await pool.query(
       'UPDATE master_type SET value = $1, description = $2, status = $3 WHERE id = $4 RETURNING *',
       [value, description, status, req.params.id]
     );    
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const changedFields = [];
+    const fieldsToCheck = {
+      value,
+      description,
+      status
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      if (value instanceof Date) return value.toISOString().split('T')[0];
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValueRaw = fieldsToCheck[field];
+      const oldValueRaw = oldResult.rows[0][field];
+      const newValue = normalize(newValueRaw);
+      const oldValue = normalize(oldValueRaw);
+      
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
+
+    // Log the setup event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'UPDATE', 
+      masterType: 'Master Type',
+      recordId: key,
+      details
+    });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update master type' });
   }
 });
-
-// Delete master type
 // Delete master type
 router.delete('/:id', async (req, res) => {
   try {
@@ -95,6 +157,14 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Master type not found' });
     }
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'DELETE',
+      masterType: 'Master Type',
+      recordId: req.params.id,
+      details: `Master type with ID ${req.params.id} has been deleted.`
+    });
     
     res.json({ success: true });
   } catch (err) {

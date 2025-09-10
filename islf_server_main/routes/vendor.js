@@ -3,7 +3,19 @@ const pool = require('../db');
 const { logMasterEvent } = require('../log');
 const router = express.Router();
 
-
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 // GET all vendors with optional context-based filtering
 router.get('/', async (req, res) => {
   try {
@@ -191,12 +203,11 @@ router.post('/', async (req, res) => {
     
     // Log the master event
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req) || 'system',
       action: 'CREATE',
       masterType: 'Vendor',
       recordId: vendor_no,
-      recordName: name,
-      details: `Vendor created: ${name} (${vendor_no})`
+      details: `New Vendor ${vendor_no}-${name} has been created successfully.`
     });
 
     res.status(201).json(result.rows[0]);
@@ -215,9 +226,16 @@ router.put('/:id', async (req, res) => {
   let {
     seriesCode, vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
     bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-    company_code, branch_code, department_code, service_type_code // <-- Updated to snake_case
+    company_code, branch_code, department_code, service_type_code 
   } = req.body;
   try {
+    // Fetch existing vendor for comparison
+    const oldResult = await pool.query('SELECT * FROM vendor WHERE id = $1', [id]);
+    if (oldResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    const oldVendor = oldResult.rows[0];
+    // Relation-based number series lookup (if seriesCode provided)
     const result = await pool.query(
       `UPDATE vendor SET
         vendor_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
@@ -233,15 +251,37 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
+    const changedFields = [];
+    const fieldsToCheck = {
+      vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website, 
+      bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      if (value instanceof Date) return value.toISOString().split('T')[0];
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+      return value.toString().trim();
+    }
+    for (const field in fieldsToCheck) {
+      const newValue= normalize(fieldsToCheck[field]);
+      const oldValue = normalize(oldVendor[field]);
+      const valuesAreEqual = newValue === oldValue; 
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+      const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      :  'No actual changes detected.';
     
+
     // Log the master event
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req) || 'system',
       action: 'UPDATE',
       masterType: 'Vendor',
       recordId: vendor_no,
-      recordName: name,
-      details: `Vendor updated: ${name} (${vendor_no})`
+      details
     });
     
     res.json(result.rows[0]);
@@ -268,7 +308,7 @@ router.delete('/:id', async (req, res) => {
     
     // Log the master event
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req) || 'system',
       action: 'DELETE',
       masterType: 'Vendor',
       recordId: result.rows[0].vendor_no,

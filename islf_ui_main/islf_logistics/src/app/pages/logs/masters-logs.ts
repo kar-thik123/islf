@@ -95,14 +95,8 @@ interface MastersLogEntry {
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Record ID
+                Code
                 <p-columnFilter type="text" field="recordId" display="menu" placeholder="Filter by record ID"></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
-                Record Name
-                <p-columnFilter type="text" field="recordName" display="menu" placeholder="Filter by record name"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -121,7 +115,6 @@ interface MastersLogEntry {
             <td>{{ log.action }}</td>
             <td>{{ log.masterType }}</td>
             <td>{{ log.recordId }}</td>
-            <td>{{ log.recordName }}</td>
             <td>{{ log.details }}</td>
           </tr>
         </ng-template>
@@ -137,7 +130,7 @@ interface MastersLogEntry {
 })
 export class MastersLogsComponent implements OnInit {
   logs = signal<MastersLogEntry[]>([]);
-  filterFields: string[] = ['formattedTimestamp', 'username', 'action', 'masterType', 'recordId', 'recordName', 'details'];
+  filterFields: string[] = ['formattedTimestamp', 'username', 'action', 'masterType','details'];
 
   @ViewChild('dt') dt!: Table;
 
@@ -187,7 +180,6 @@ export class MastersLogsComponent implements OnInit {
       Action: log.action,
       'Master Type': log.masterType,
       'Record ID': log.recordId,
-      'Record Name': log.recordName,
       Details: log.details
     }));
 

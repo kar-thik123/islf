@@ -3,6 +3,20 @@ const pool = require('../db');
 const { logMasterEvent } = require('../log');
 const router = express.Router();
 
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
+
 // GET all customers with optional context-based filtering
 router.get('/', async (req, res) => {
   try {
@@ -190,12 +204,11 @@ router.post('/', async (req, res) => {
     
     // Log the master event
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req),
       action: 'CREATE',
       masterType: 'Customer',
       recordId: customer_no,
-      recordName: name,
-      details: `Customer created: ${name} (${customer_no})`
+      details: `New Customer ${customer_no}-${name} has been created successfully.`
     });
     
     res.status(201).json(result.rows[0]);
@@ -216,6 +229,12 @@ router.put('/:id', async (req, res) => {
     bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
   } = req.body;
   try {
+    // Fetch existing customer for comparison
+    const oldResult = await pool.query('SELECT * FROM customer WHERE id = $1', [id]);
+    if (oldResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    const oldCustomer = oldResult.rows[0];
     const result = await pool.query(
       `UPDATE customer SET
         customer_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
@@ -229,15 +248,38 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Customer not found' });
     }
+    const changedFields = [];
+    const fieldsToCheck = {
+      customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+      vat_gst_no, place_of_supply, pan_no, tan_no, contacts
+    };  
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      if (value instanceof Date) return value.toISOString().split('T')[0];
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValue = normalize(fieldsToCheck[field]);
+      const oldValue = normalize(oldCustomer[field]);
+      
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      :  'No actual changes detected.';
+    
     
     // Log the master event
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req),
       action: 'UPDATE',
       masterType: 'Customer',
       recordId: customer_no,
-      recordName: name,
-      details: `Customer updated: ${name} (${customer_no})`
+      details
     });
     
     res.json(result.rows[0]);
@@ -264,7 +306,7 @@ router.delete('/:id', async (req, res) => {
     
     // Log the master event
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req),
       action: 'DELETE',
       masterType: 'Customer',
       recordId: result.rows[0].customer_no,

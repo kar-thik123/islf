@@ -3,6 +3,19 @@ const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
 
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 // GET all master items
 router.get('/', async (req, res) => {
   try {
@@ -112,9 +125,16 @@ router.post('/', async (req, res) => {
       recordName: name,  // Changed from entity_name to recordName
       details: `Created master item: ${code} - ${name}`
     });
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'CREATE',
+      masterType: 'Master Item',
+      recordId: code,
+      details: `New MasterItem "${code}" has been created successfully.`
+    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error creating master item:', err);
     res.status(500).json({ error: 'Failed to create master item' });
   }
 });
@@ -128,10 +148,9 @@ router.put('/:id', async (req, res) => {
 
   const { item_type, code, name, hs_code, active } = req.body;
   try {
-     // Get current record for logging
-    const currentResult = await pool.query('SELECT * FROM master_code WHERE code = $1', [req.params.code]);
-    if (currentResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    const currentRecord = currentResult.rows[0];
+     const oldResult = await pool.query('SELECT * FROM master_item WHERE id = $1', [id]);
+    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
+    const oldItem = oldResult.rows[0];
 
     const result = await pool.query(
       `UPDATE master_item
@@ -144,19 +163,37 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
+    const changedFields = [];
+    const fieldsToCheck = {
+      item_type, code, name, hs_code, active
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValue = normalize(fieldsToCheck[field]);
+      const oldValue = normalize(oldItem[field]);
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
      // Log the UPDATE action
     await logMasterEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req),
       action: 'UPDATE',
-      master_type: 'master_code',
-      entity_code: req.params.code,
-      entity_name: description,
-      details: `Updated master code: ${req.params.code} - ${description}`
+      masterType: 'Master Item',
+      recordId: code,
+      details
     });
     
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error updating master item:', err);
+
     res.status(500).json({ error: 'Failed to update master item' });
   }
 });
@@ -179,6 +216,14 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'DELETE',
+      masterType: 'Master Item',
+      recordId: result.rows[0].code,
+      details: `MasterItem "${result.rows[0].code}" has been deleted successfully.`
+    });
 
     res.json({ success: true });
   } catch (err) {

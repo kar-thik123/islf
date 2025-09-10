@@ -1,6 +1,21 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
+
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 
 // Get all basis codes with optional context filtering
 router.get('/', async (req, res) => {
@@ -72,6 +87,14 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [code, description, status || 'Active', company_code, branch_code, department_code]
     );
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'CREATE',
+      masterType: 'Basis',
+      recordId: code,
+      details: `New Basis Code "${code}" has been created successfully.`
+    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating basis code:', err);
@@ -83,10 +106,40 @@ router.post('/', async (req, res) => {
 router.put('/:code', async (req, res) => {
   const { description, status } = req.body;
   try {
+    const oldResult = await pool.query('SELECT * FROM basis WHERE code = $1', [req.params.code]);
+    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const oldBasis = oldResult.rows[0];
     const result = await pool.query(
       'UPDATE basis SET description = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE code = $3 RETURNING *',
       [description, status, req.params.code]
     );
+    const changedFields = [];
+    const fieldsToCheck = {
+      description, status
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      return value.toString().trim();
+    };
+    for (const field in fieldsToCheck) {
+      const newValue = normalize(fieldsToCheck[field]);
+      const oldValue = normalize(oldBasis[field]);
+      const valuesAreEqual = newValue === oldValue;
+      if (!valuesAreEqual) {
+        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'UPDATE',
+      masterType: 'Basis',
+      recordId: code,
+      details
+    });
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (err) {
@@ -99,6 +152,14 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM basis WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'DELETE',
+      masterType: 'Basis',
+      recordId: req.params.code,
+      details: `Basis Code "${req.params.code}" has been deleted successfully.`
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete basis code' });

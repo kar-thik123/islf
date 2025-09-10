@@ -7,6 +7,9 @@ const { logAuthEvent } = require('../log');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
+// Debug: log the JWT secret being used
+console.log('Auth JWT_SECRET loaded:', JWT_SECRET);
+
 // Register user
 router.post('/register', async (req, res) => {
     const { username, email, phone, password } = req.body;
@@ -44,7 +47,26 @@ router.post('/login', async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-        const token = jwt.sign({ username: user.username, id: user.id }, JWT_SECRET, { expiresIn: '1h' });
+        
+        // Debug: log user data
+        console.log('User data from database:', user);
+        console.log('Full name:', user.full_name);
+        console.log('Username:', user.username);
+        
+        const token = jwt.sign({ 
+            userId: user.id, 
+            username: user.username,
+            email: user.email,
+            name: user.full_name || user.username
+        }, JWT_SECRET, { expiresIn: '1h' });
+        
+        // Debug: log token payload
+        console.log('JWT token payload:', { 
+            userId: user.id, 
+            username: user.username,
+            email: user.email,
+            name: user.full_name || user.username
+        });
         await logAuthEvent({ username: user.username, action: 'LOGIN_SUCCESS', details: 'User logged in successfully' });
         res.json({ token, name: user.username });
     } catch (err) {
@@ -81,9 +103,9 @@ router.post('/verify-password', async (req, res) => {
                 userId: user.id, 
                 username: user.username,
                 email: user.email,
-                name: user.name || user.username
+                name: user.full_name || user.username
             },
-            process.env.JWT_SECRET || 'your-secret-key',
+            process.env.JWT_SECRET || 'your_jwt_secret',
             { expiresIn: '24h' }
         );
         

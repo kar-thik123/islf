@@ -1,6 +1,20 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request');
+    return 'system';
+  }
+  
+  // Debug: log what's in the user object
+  console.log('User object from JWT:', req.user);
+  
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
 
 // GET all tariffs
 router.get('/', async (req, res) => {
@@ -16,9 +30,7 @@ router.get('/', async (req, res) => {
     const params = [];
     let paramIndex = 1;
     
-    // Hierarchical filtering: if only company is selected, show all records for that company
-    // If company + branch, show all records for that company and branch
-    // If company + branch + department, show exact matches
+    
     
     if (companyCode) {
       query += ` AND company_code = $${paramIndex}`;
@@ -124,7 +136,7 @@ router.post('/', async (req, res) => {
       });
     }
     
-    let finalCode = code;
+    let code = code;
     let seriesCode;
 
     // Automatic series code lookup using context
@@ -184,13 +196,13 @@ router.post('/', async (req, res) => {
         const series = seriesResult.rows[0];
         if (series.is_manual) {
           // Manual: require code from user
-          if (!finalCode || finalCode.trim() === '') {
+          if (!code || code.trim() === '') {
             await client.query('ROLLBACK');
             client.release();
             return res.status(400).json({ error: 'Manual code entry required for this series' });
           }
           // Check for duplicate code
-          const exists = await client.query('SELECT 1 FROM tariff WHERE code = $1', [finalCode]);
+          const exists = await client.query('SELECT 1 FROM tariff WHERE code = $1', [code]);
           if (exists.rows.length > 0) {
             await client.query('ROLLBACK');
             client.release();
@@ -218,8 +230,8 @@ router.post('/', async (req, res) => {
             nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
           }
           
-          finalCode = `${rel.prefix || ''}${nextNo}`;
-          console.log('Generated tariff code:', finalCode);
+          code = `${rel.prefix || ''}${nextNo}`;
+          console.log('Generated tariff code:', code);
           
           // Update the last_no_used within the same transaction
           await client.query(
@@ -237,7 +249,7 @@ router.post('/', async (req, res) => {
       }
     } else if (!code || code === '') {
       // Fallback if no series found
-      finalCode = 'TAR-' + Date.now();
+      code = 'TAR-' + Date.now();
     }
     
     const result = await pool.query(
@@ -250,12 +262,20 @@ router.post('/', async (req, res) => {
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
       ) RETURNING *`,
       [
-        finalCode, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
+        code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
         cleanContainerType, cleanItemName, cleanCurrency, cleanLocationTypeFrom, cleanLocationTypeTo,
         cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, 
         cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, isMandatory || false, company_code, branch_code, department_code
-      ]
-    );
+      ]);
+      // Log the master event
+      await logMasterEvent({
+        username: getUsernameFromToken(req),
+        action: 'CREATE',
+        masterType: 'Tariff',
+        recordId: code,
+        details: `New Tariff "${code}" has been created successfully.`
+      });
+    
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating tariff:', err);
@@ -296,6 +316,9 @@ router.put('/:id', async (req, res) => {
   const cleanPeriodEndDate = periodEndDate === '' ? null : periodEndDate;
   
   try {
+    const oldResult = await pool.query('SELECT * FROM tariff WHERE id = $1', [id]);
+    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const oldTariff = oldResult.rows[0];
     const result = await pool.query(
       `UPDATE tariff SET
         code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
@@ -309,6 +332,57 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tariff not found' });
     }
+    const changedFields = [];
+    const fieldMap = {
+      code: { newVal: code, db: 'code' },
+      mode: { newVal: mode, db: 'mode' },
+      shipping_type: { newVal: cleanShippingType, db: 'shipping_type' },
+      cargo_type: { newVal: cleanCargoType, db: 'cargo_type' },
+      tariff_type: { newVal: cleanTariffType, db: 'tariff_type' },
+      basis: { newVal: cleanBasis, db: 'basis' },
+      container_type: { newVal: cleanContainerType, db: 'container_type' },
+      item_name: { newVal: cleanItemName, db: 'item_name' },
+      currency: { newVal: cleanCurrency, db: 'currency' },
+      location_type_from: { newVal: cleanLocationTypeFrom, db: 'location_type_from' },
+      location_type_to: { newVal: cleanLocationTypeTo, db: 'location_type_to' },
+      from_location: { newVal: cleanFrom, db: 'from_location' },
+      to_location: { newVal: cleanTo, db: 'to_location' },
+      vendor_type: { newVal: cleanVendorType, db: 'vendor_type' },
+      vendor_name: { newVal: cleanVendorName, db: 'vendor_name' },
+      charges: { newVal: cleanCharges, db: 'charges' },
+      freight_charge_type: { newVal: cleanFreightChargeType, db: 'freight_charge_type' },
+      effective_date: { newVal: cleanEffectiveDate, db: 'effective_date' },
+      period_start_date: { newVal: cleanPeriodStartDate, db: 'period_start_date' },
+      period_end_date: { newVal: cleanPeriodEndDate, db: 'period_end_date' },
+      is_mandatory: { newVal: isMandatory || false, db: 'is_mandatory' }
+    };
+    const normalize = (value) => {
+      if (value === null || value === undefined) return '';
+      if (value instanceof Date) return value.toISOString();
+      if (typeof value === 'number') return Number.isNaN(value) ? '' : String(value);
+      return String(value).trim();
+    };
+    for (const label in fieldMap) {
+      const mapping = fieldMap[label];
+      const newRaw = mapping.newVal;
+      const oldRaw = oldTariff[mapping.db];
+      const newValue = normalize(newRaw);
+      const oldValue = normalize(oldRaw);
+      if (newValue !== oldValue) {
+        changedFields.push(`Field "${label}" changed from "${oldValue}" to "${newValue}".`);
+      }
+    }
+    const details = changedFields.length > 0
+      ? `Changes detected in the\n` + changedFields.join('\n')
+      : 'No actual changes detected.';
+    // Log the master event
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'UPDATE',
+      masterType: 'Tariff',
+      recordId: code,
+      details
+    });
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating tariff:', err);

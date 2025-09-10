@@ -1,10 +1,11 @@
+// Load environment variables first, before any other imports
+const dotenv = require('dotenv');
+dotenv.config();
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const { authenticateToken } = require('./middleware/auth');
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

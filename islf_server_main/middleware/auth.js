@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
+// Debug: log the JWT secret being used
+console.log('JWT_SECRET loaded:', JWT_SECRET);
+
 // JWT authentication middleware
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
