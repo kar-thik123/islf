@@ -11,6 +11,7 @@ import { CurrencyCodeComponent } from './currencycode';
 import { ContainerCodeComponent } from './containercode';   
 import { GstSetupComponent } from './gstsetup';
 import { TariffComponent } from './tariff';
+import { SourcingComponent } from './sourcing';
 import { BasisComponent } from './basis';
 import { TariffViewComponent } from './tariff-view';
 
@@ -30,6 +31,7 @@ export default [
     {path:'container',component:ContainerCodeComponent, data:{breadcrumb: 'Masters   >>>   Container ',title:'Container - ISLF'}},
     {path:'gst_setup',component:GstSetupComponent, data:{breadcrumb: 'Masters   >>>   GST Setup',title:'GST Setup - ISLF'}},
     {path:'tariff',component:TariffComponent, data:{breadcrumb: 'Masters   >>>   Tariff',title:'Tariff - ISLF'}},
+    {path:'sourcing',component:SourcingComponent, data:{breadcrumb: 'Masters   >>>   Sourcing',title:'Sourcing - ISLF'}},
     {path:'tariff_view',component:TariffViewComponent, data:{breadcrumb: 'Masters   >>>   Tariff View',title:'Tariff View - ISLF'}}
 ] as Routes;
 

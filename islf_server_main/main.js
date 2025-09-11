@@ -108,6 +108,9 @@ app.use('/api/gst_setup', gstSetupRouter);
 const tariffRouter = require('./routes/tariff');
 app.use('/api/tariff', tariffRouter);
 
+const sourceRouter = require('./routes/source');
+app.use('/api/source', sourceRouter);
+
 // Add account details route
 const accountDetailsRoutes = require('./routes/account_details');
 app.use('/api/account_details', accountDetailsRoutes);

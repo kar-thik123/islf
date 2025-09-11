@@ -1,5 +1,5 @@
-import 'zone.js';
-import { bootstrapApplication } from '@angular/platform-browser';
+import 'zone.js'; // for global change detection
+import { bootstrapApplication } from '@angular/platform-browser'; //for boot strapping the application  
 import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app';
 

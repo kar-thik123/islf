@@ -165,6 +165,11 @@ export class AppMenu {
                 label:'Tariff',
                 icon:'fa-solid fa-percent',
                 routerLink : ['/master/tariff']
+              },
+              {
+                label:'Sourcing',
+                icon:'fa-solid fa-globe',
+                routerLink: ['/master/sourcing']
               }
             ],
           },
