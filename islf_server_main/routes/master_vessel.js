@@ -225,7 +225,7 @@ router.post('/', async (req, res) => {
     }
     }
     
-    // Replace the number series processing condition (around line 165)
+    // Replace the number series
     if (seriesCode) {
     console.log('Processing number series with code:', seriesCode);
     // 1. Get the number series for the selected code

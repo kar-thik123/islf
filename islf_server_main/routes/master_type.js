@@ -2,20 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
-
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  
-  // Debug: log what's in the user object
-  console.log('User object from JWT:', req.user);
-  
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+const {getUsernameFromToken}=require('../utils/context-helper')
 
 // Get all master types
 router.get('/', async (req, res) => {
@@ -140,7 +127,7 @@ router.put('/:id', async (req, res) => {
       username: getUsernameFromToken(req),
       action: 'UPDATE', 
       masterType: 'Master Type',
-      recordId: key,
+      recordId: oldResult.rows[0].key,
       details
     });
     res.json(result.rows[0]);

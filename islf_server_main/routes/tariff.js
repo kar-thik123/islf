@@ -2,96 +2,91 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
+
+// 🔹 Extract username safely
 function getUsernameFromToken(req) {
   if (!req.user) {
     console.log('No user in request');
     return 'system';
   }
-  
-  // Debug: log what's in the user object
   console.log('User object from JWT:', req.user);
-  
   const username = req.user.name || req.user.username || req.user.email || 'system';
   console.log('Extracted username:', username);
   return username;
+}
+
+// 🔹 Enforce hierarchy: company → branch → department
+function enforceHierarchy(companyCode, branchCode, departmentCode) {
+  if (!companyCode && (branchCode || departmentCode)) {
+    throw new Error('Branch/Department cannot be used without Company.');
+  }
+  if (!branchCode && departmentCode) {
+    throw new Error('Department cannot be used without Branch.');
+  }
+}
+
+// 🔹 Build WHERE clause dynamically
+function buildWhereClause(filters) {
+  const conditions = [];
+  const values = [];
+  let index = 1;
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') {
+      conditions.push(`${key} = $${index}`);
+      values.push(value);
+      index++;
+    }
+  }
+
+  return {
+    clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    values
+  };
 }
 
 // GET all tariffs
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
-    let query = `
+    enforceHierarchy(companyCode, branchCode, departmentCode);
+
+    const filters = {
+      company_code: companyCode,
+      branch_code: branchCode,
+      department_code: departmentCode
+    };
+
+    const { clause, values } = buildWhereClause(filters);
+
+    const query = `
       SELECT *
       FROM tariff
-      WHERE 1=1
+      ${clause}
+      ORDER BY id ASC
     `;
-    
-    const params = [];
-    let paramIndex = 1;
-    
-    
-    
-    if (companyCode) {
-      query += ` AND company_code = $${paramIndex}`;
-      params.push(companyCode);
-      paramIndex++;
-      
-      // Only filter by branch if branch is provided
-      if (branchCode) {
-        query += ` AND branch_code = $${paramIndex}`;
-        params.push(branchCode);
-        paramIndex++;
-        
-        // Only filter by department if department is provided
-        if (departmentCode) {
-          query += ` AND department_code = $${paramIndex}`;
-          params.push(departmentCode);
-          paramIndex++;
-        }
-      }
-    }
-    
-    query += ` ORDER BY id ASC`;
-    const result = await pool.query(query, params);
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching tariffs:', err);
-    res.status(500).json({ error: 'Failed to fetch tariffs' });
+    res.status(400).json({ error: err.message || 'Failed to fetch tariffs' });
   }
 });
 
 // CREATE new tariff
 router.post('/', async (req, res) => {
-  const {
-    code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
-    locationTypeFrom, locationTypeTo, from, to, vendorType, vendorName, charges, freightChargeType, 
-    effectiveDate, periodStartDate, periodEndDate, isMandatory, company_code, branch_code, department_code
-  } = req.body;
-  
-  // Convert empty strings to null for optional fields
-  const cleanShippingType = shippingType === '' ? null : shippingType;
-  const cleanCargoType = cargoType === '' ? null : cargoType;
-  const cleanTariffType = tariffType === '' ? null : tariffType;
-  const cleanBasis = basis === '' ? null : basis;
-  const cleanContainerType = containerType === '' ? null : containerType;
-  const cleanItemName = itemName === '' ? null : itemName;
-  const cleanCurrency = currency === '' ? null : currency;
-  const cleanFrom = from === '' ? null : from;
-  const cleanTo = to === '' ? null : to;
-  const cleanVendorType = vendorType === '' ? null : vendorType;
-  const cleanVendorName = vendorName === '' ? null : vendorName;
-  const cleanCharges = charges === '' || charges === null ? null : parseFloat(charges);
-  const cleanFreightChargeType = freightChargeType === '' ? null : freightChargeType;
-  const cleanEffectiveDate = effectiveDate === '' ? null : effectiveDate;
-  const cleanPeriodStartDate = periodStartDate === '' ? null : periodStartDate;
-  const cleanPeriodEndDate = periodEndDate === '' ? null : periodEndDate;
-  const cleanLocationTypeFrom = locationTypeFrom === '' ? null : locationTypeFrom;
-  const cleanLocationTypeTo = locationTypeTo === '' ? null : locationTypeTo;
-  
+  const data = req.body;
+
+  // 🔹 Convert empty strings → null
+  const cleanData = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
+  );
+
   try {
-    // **ADD DUPLICATE CHECKING HERE**
-    // Check for duplicate tariff based on key business fields
+    enforceHierarchy(cleanData.company_code, cleanData.branch_code, cleanData.department_code);
+
+    // 🔹 Duplicate check
     const duplicateCheckQuery = `
       SELECT id, code FROM tariff 
       WHERE mode = $1 
@@ -119,89 +114,84 @@ router.post('/', async (req, res) => {
         AND (department_code = $23 OR (department_code IS NULL AND $23 IS NULL))
       LIMIT 1
     `;
-    
+
     const duplicateResult = await pool.query(duplicateCheckQuery, [
-      mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
-      cleanContainerType, cleanItemName, cleanCurrency, cleanLocationTypeFrom, cleanFrom,
-      cleanLocationTypeTo, cleanTo, cleanVendorType, cleanVendorName, cleanEffectiveDate,
-      cleanPeriodStartDate, cleanPeriodEndDate, cleanCharges, cleanFreightChargeType,
-      isMandatory || false, company_code, branch_code, department_code
+      cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType, cleanData.basis,
+      cleanData.containerType, cleanData.itemName, cleanData.currency, cleanData.locationTypeFrom, cleanData.from,
+      cleanData.locationTypeTo, cleanData.to, cleanData.vendorType, cleanData.vendorName, cleanData.effectiveDate,
+      cleanData.periodStartDate, cleanData.periodEndDate, cleanData.charges, cleanData.freightChargeType,
+      cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
     ]);
-    
+
     if (duplicateResult.rows.length > 0) {
-      return res.status(400).json({ 
-        error: 'Duplicate tariff found', 
+      return res.status(400).json({
+        error: 'Duplicate tariff found',
         message: `A tariff with the same combination of fields already exists (Code: ${duplicateResult.rows[0].code})`,
         duplicateCode: duplicateResult.rows[0].code
       });
     }
-    
-    let code = code;
+
+    let code = cleanData.code;
     let seriesCode;
 
-    // Automatic series code lookup using context
-    if ((!code || code === '') && company_code) {
-      // Build dynamic query based on available context
+    // 🔹 Number series lookup
+    if ((!code || code === '') && cleanData.company_code) {
       let whereConditions = ['code_type = $1', 'company_code = $2'];
-      let queryParams = ['tariffCode', company_code];
+      let queryParams = ['tariffCode', cleanData.company_code];
       let paramIndex = 3;
-      
-      if (branch_code) {
+
+      if (cleanData.branch_code) {
         whereConditions.push(`branch_code = $${paramIndex}`);
-        queryParams.push(branch_code);
+        queryParams.push(cleanData.branch_code);
         paramIndex++;
       } else {
-        whereConditions.push('(branch_code IS NULL OR branch_code = \'\')'); 
+        whereConditions.push('(branch_code IS NULL OR branch_code = \'\')');
       }
-      
-      if (department_code) {
+
+      if (cleanData.department_code) {
         whereConditions.push(`department_code = $${paramIndex}`);
-        queryParams.push(department_code);
+        queryParams.push(cleanData.department_code);
       } else {
-        whereConditions.push('(department_code IS NULL OR department_code = \'\')'); 
+        whereConditions.push('(department_code IS NULL OR department_code = \'\')');
       }
-      
-      const mappingQuery = `SELECT mapping FROM mapping_relations
-                       WHERE ${whereConditions.join(' AND ')}
-                       ORDER BY id DESC
-                       LIMIT 1`;
-      
+
+      const mappingQuery = `
+        SELECT mapping FROM mapping_relations
+        WHERE ${whereConditions.join(' AND ')}
+        ORDER BY id DESC
+        LIMIT 1
+      `;
+
       const mappingRes = await pool.query(mappingQuery, queryParams);
-      
-      console.log('TARIFF MAPPING RESULT:', mappingRes.rows);
       if (mappingRes.rows.length > 0) {
         seriesCode = mappingRes.rows[0].mapping;
-        console.log('TARIFF SERIES CODE FROM MAPPING:', seriesCode);
       }
     }
 
-    // Generate tariff code if series code found
+    // 🔹 Generate tariff code
     if (seriesCode) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        
+
         const seriesResult = await client.query(
           'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
           [seriesCode]
         );
-        
-        console.log('TARIFF NUMBER SERIES RESULT:', seriesResult.rows);
+
         if (seriesResult.rows.length === 0) {
           await client.query('ROLLBACK');
           client.release();
           return res.status(400).json({ error: 'Number series not found' });
         }
-        
+
         const series = seriesResult.rows[0];
         if (series.is_manual) {
-          // Manual: require code from user
           if (!code || code.trim() === '') {
             await client.query('ROLLBACK');
             client.release();
             return res.status(400).json({ error: 'Manual code entry required for this series' });
           }
-          // Check for duplicate code
           const exists = await client.query('SELECT 1 FROM tariff WHERE code = $1', [code]);
           if (exists.rows.length > 0) {
             await client.query('ROLLBACK');
@@ -209,37 +199,30 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Tariff code already exists' });
           }
         } else {
-          // Generate automatic tariff code with row locking
           const relResult = await client.query(
             'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
             [seriesCode]
           );
-          
-          console.log('TARIFF NUMBER RELATION RESULT:', relResult.rows);
+
           if (relResult.rows.length === 0) {
             await client.query('ROLLBACK');
             client.release();
             return res.status(400).json({ error: 'Number series relation not found' });
           }
-          
+
           const rel = relResult.rows[0];
-          let nextNo;
-          if (rel.last_no_used === 0) {
-            nextNo = Number(rel.starting_no);
-          } else {
-            nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
-          }
-          
+          let nextNo = rel.last_no_used === 0
+            ? Number(rel.starting_no)
+            : Number(rel.last_no_used) + Number(rel.increment_by);
+
           code = `${rel.prefix || ''}${nextNo}`;
-          console.log('Generated tariff code:', code);
-          
-          // Update the last_no_used within the same transaction
+
           await client.query(
             'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
             [nextNo, rel.id]
           );
         }
-        
+
         await client.query('COMMIT');
         client.release();
       } catch (error) {
@@ -248,10 +231,10 @@ router.post('/', async (req, res) => {
         throw error;
       }
     } else if (!code || code === '') {
-      // Fallback if no series found
       code = 'TAR-' + Date.now();
     }
-    
+
+    // 🔹 Insert new tariff
     const result = await pool.query(
       `INSERT INTO tariff (
         code, mode, shipping_type, cargo_type, tariff_type, basis, container_type, item_name, currency,
@@ -259,27 +242,30 @@ router.post('/', async (req, res) => {
         charges, freight_charge_type, effective_date, period_start_date, period_end_date, is_mandatory,
         company_code, branch_code, department_code
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
       ) RETURNING *`,
       [
-        code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, 
-        cleanContainerType, cleanItemName, cleanCurrency, cleanLocationTypeFrom, cleanLocationTypeTo,
-        cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, 
-        cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, isMandatory || false, company_code, branch_code, department_code
-      ]);
-      // Log the master event
-      await logMasterEvent({
-        username: getUsernameFromToken(req),
-        action: 'CREATE',
-        masterType: 'Tariff',
-        recordId: code,
-        details: `New Tariff "${code}" has been created successfully.`
-      });
-    
+        code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
+        cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
+        cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
+        cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
+        cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
+        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
+      ]
+    );
+
+    await logMasterEvent({
+      username: getUsernameFromToken(req),
+      action: 'CREATE',
+      masterType: 'Tariff',
+      recordId: code,
+      details: `New Tariff "${code}" has been created successfully.`
+    });
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating tariff:', err);
-    res.status(500).json({ error: 'Failed to create tariff' });
+    res.status(400).json({ error: err.message || 'Failed to create tariff' });
   }
 });
 
@@ -289,100 +275,89 @@ router.put('/:id', async (req, res) => {
   if (isNaN(id)) {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
-  const {
-    code, mode, shippingType, cargoType, tariffType, basis, containerType, itemName, currency,
-    locationTypeFrom, locationTypeTo, from, to, vendorType, vendorName, charges, freightChargeType, 
-    effectiveDate, periodStartDate, periodEndDate, isMandatory
-  } = req.body;
-  
-  // Convert empty strings to null for optional fields
-  const cleanShippingType = shippingType === '' ? null : shippingType;
-  const cleanCargoType = cargoType === '' ? null : cargoType;
-  const cleanTariffType = tariffType === '' ? null : tariffType;
-  const cleanBasis = basis === '' ? null : basis;
-  const cleanContainerType = containerType === '' ? null : containerType;
-  const cleanItemName = itemName === '' ? null : itemName;
-  const cleanCurrency = currency === '' ? null : currency;
-  const cleanLocationTypeFrom = locationTypeFrom === '' ? null : locationTypeFrom;
-  const cleanLocationTypeTo = locationTypeTo === '' ? null : locationTypeTo;
-  const cleanFrom = from === '' ? null : from;
-  const cleanTo = to === '' ? null : to;
-  const cleanVendorType = vendorType === '' ? null : vendorType;
-  const cleanVendorName = vendorName === '' ? null : vendorName;
-  const cleanCharges = charges === '' || charges === null ? null : parseFloat(charges);
-  const cleanFreightChargeType = freightChargeType === '' ? null : freightChargeType;
-  const cleanEffectiveDate = effectiveDate === '' ? null : effectiveDate;
-  const cleanPeriodStartDate = periodStartDate === '' ? null : periodStartDate;
-  const cleanPeriodEndDate = periodEndDate === '' ? null : periodEndDate;
-  
+
+  const data = req.body;
+  const cleanData = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
+  );
+
   try {
     const oldResult = await pool.query('SELECT * FROM tariff WHERE id = $1', [id]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const oldTariff = oldResult.rows[0];
+
     const result = await pool.query(
       `UPDATE tariff SET
         code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
         location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20, is_mandatory = $21
       WHERE id = $22 RETURNING *`,
       [
-        code, mode, cleanShippingType, cleanCargoType, cleanTariffType, cleanBasis, cleanContainerType, cleanItemName, cleanCurrency,
-        cleanLocationTypeFrom, cleanLocationTypeTo, cleanFrom, cleanTo, cleanVendorType, cleanVendorName, cleanCharges, cleanFreightChargeType, cleanEffectiveDate, cleanPeriodStartDate, cleanPeriodEndDate, isMandatory || false, id
+        cleanData.code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
+        cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
+        cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
+        cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
+        cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
+        cleanData.isMandatory || false, id
       ]
     );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tariff not found' });
     }
+
     const changedFields = [];
     const fieldMap = {
-      code: { newVal: code, db: 'code' },
-      mode: { newVal: mode, db: 'mode' },
-      shipping_type: { newVal: cleanShippingType, db: 'shipping_type' },
-      cargo_type: { newVal: cleanCargoType, db: 'cargo_type' },
-      tariff_type: { newVal: cleanTariffType, db: 'tariff_type' },
-      basis: { newVal: cleanBasis, db: 'basis' },
-      container_type: { newVal: cleanContainerType, db: 'container_type' },
-      item_name: { newVal: cleanItemName, db: 'item_name' },
-      currency: { newVal: cleanCurrency, db: 'currency' },
-      location_type_from: { newVal: cleanLocationTypeFrom, db: 'location_type_from' },
-      location_type_to: { newVal: cleanLocationTypeTo, db: 'location_type_to' },
-      from_location: { newVal: cleanFrom, db: 'from_location' },
-      to_location: { newVal: cleanTo, db: 'to_location' },
-      vendor_type: { newVal: cleanVendorType, db: 'vendor_type' },
-      vendor_name: { newVal: cleanVendorName, db: 'vendor_name' },
-      charges: { newVal: cleanCharges, db: 'charges' },
-      freight_charge_type: { newVal: cleanFreightChargeType, db: 'freight_charge_type' },
-      effective_date: { newVal: cleanEffectiveDate, db: 'effective_date' },
-      period_start_date: { newVal: cleanPeriodStartDate, db: 'period_start_date' },
-      period_end_date: { newVal: cleanPeriodEndDate, db: 'period_end_date' },
-      is_mandatory: { newVal: isMandatory || false, db: 'is_mandatory' }
+      code: { newVal: cleanData.code, db: 'code' },
+      mode: { newVal: cleanData.mode, db: 'mode' },
+      shipping_type: { newVal: cleanData.shippingType, db: 'shipping_type' },
+      cargo_type: { newVal: cleanData.cargoType, db: 'cargo_type' },
+      tariff_type: { newVal: cleanData.tariffType, db: 'tariff_type' },
+      basis: { newVal: cleanData.basis, db: 'basis' },
+      container_type: { newVal: cleanData.containerType, db: 'container_type' },
+      item_name: { newVal: cleanData.itemName, db: 'item_name' },
+      currency: { newVal: cleanData.currency, db: 'currency' },
+      location_type_from: { newVal: cleanData.locationTypeFrom, db: 'location_type_from' },
+      location_type_to: { newVal: cleanData.locationTypeTo, db: 'location_type_to' },
+      from_location: { newVal: cleanData.from, db: 'from_location' },
+      to_location: { newVal: cleanData.to, db: 'to_location' },
+      vendor_type: { newVal: cleanData.vendorType, db: 'vendor_type' },
+      vendor_name: { newVal: cleanData.vendorName, db: 'vendor_name' },
+      charges: { newVal: cleanData.charges, db: 'charges' },
+      freight_charge_type: { newVal: cleanData.freightChargeType, db: 'freight_charge_type' },
+      effective_date: { newVal: cleanData.effectiveDate, db: 'effective_date' },
+      period_start_date: { newVal: cleanData.periodStartDate, db: 'period_start_date' },
+      period_end_date: { newVal: cleanData.periodEndDate, db: 'period_end_date' },
+      is_mandatory: { newVal: cleanData.isMandatory || false, db: 'is_mandatory' }
     };
+
     const normalize = (value) => {
       if (value === null || value === undefined) return '';
       if (value instanceof Date) return value.toISOString();
       if (typeof value === 'number') return Number.isNaN(value) ? '' : String(value);
       return String(value).trim();
     };
+
     for (const label in fieldMap) {
       const mapping = fieldMap[label];
-      const newRaw = mapping.newVal;
-      const oldRaw = oldTariff[mapping.db];
-      const newValue = normalize(newRaw);
-      const oldValue = normalize(oldRaw);
+      const newValue = normalize(mapping.newVal);
+      const oldValue = normalize(oldTariff[mapping.db]);
       if (newValue !== oldValue) {
         changedFields.push(`Field "${label}" changed from "${oldValue}" to "${newValue}".`);
       }
     }
+
     const details = changedFields.length > 0
-      ? `Changes detected in the\n` + changedFields.join('\n')
+      ? `Changes detected:\n` + changedFields.join('\n')
       : 'No actual changes detected.';
-    // Log the master event
+
     await logMasterEvent({
       username: getUsernameFromToken(req),
       action: 'UPDATE',
       masterType: 'Tariff',
-      recordId: code,
+      recordId: cleanData.code,
       details
     });
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating tariff:', err);

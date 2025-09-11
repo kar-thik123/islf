@@ -269,7 +269,7 @@ router.put('/:id', async (req, res) => {
       }
     }
     const details = changedFields.length > 0
-      ? `Changes detected in the\n` + changedFields.join('\n')
+      ? `Changes detected in the \n` + changedFields.join('\n')
       :  'No actual changes detected.';
     
     

@@ -73,9 +73,16 @@ router.post('/', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error creating number series:', err);
-    res.status(500).json({ error: 'Failed to create number series' });
+    console.error('Error creating master code:', err);
+    if (err.code === '23505') {
+      userMessage = 'This code already exists. Please choose a different one.';
+    }
+  
+    res.status(400).json({
+      error: userMessage, 
+    });
   }
+  
 });
 
 // Update number series

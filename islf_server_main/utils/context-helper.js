@@ -70,8 +70,22 @@ async function buildUpdateQuery(tableName, data, whereClause, whereParams) {
   
   return { query, params };
 }
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log('No user in request, using system');
+    return 'system';
+  }
+
+  console.log('User object from JWT:', req.user);
+
+  const username = req.user.name || req.user.username || req.user.email || 'system';
+  console.log('Extracted username:', username);
+  return username;
+}
+
 
 module.exports = {
   shouldUpdateWithContext,
-  buildUpdateQuery
+  buildUpdateQuery,
+  getUsernameFromToken
 };
