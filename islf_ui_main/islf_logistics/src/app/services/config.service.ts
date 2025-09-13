@@ -120,7 +120,8 @@ export interface ValidationConfig {
   userListFilter: string;
   mappingFilter: string;
   manualCustomerFilter: string;
-  basisFilter: string; // Add this line
+  basisFilter: string;
+  sourceFilter: string; // Add this line
 }
 
 export interface AppConfig {
@@ -249,7 +250,8 @@ export class ConfigService {
       userListFilter: '',
       mappingFilter: '',
       manualCustomerFilter: '',
-      basisFilter: '' // Add this line
+      basisFilter: '',
+      sourceFilter: '' // Add this line
     }
   };
 

@@ -443,8 +443,9 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
       const referenceValue = Array.isArray(master.reference)
         ? master.reference.join(',')
         : master.reference;
+      console.log("DEV: master code value:", master.code,"Upper cased:",master.code.toUpperCase());
       this.masterService.createMaster({
-        code: master.code,
+        code: master.code.toUpperCase(),
         description: master.description,
         reference: referenceValue,
         status: master.status

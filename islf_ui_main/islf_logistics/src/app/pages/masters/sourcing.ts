@@ -14,6 +14,7 @@ import { MasterCodeService } from '../../services/mastercode.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { MasterLocationService } from '../../services/master-location.service';
 import { TariffService, Tariff } from '../../services/tariff.service';
+import { SourceService } from '@/services/sourcing.service';
 import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
@@ -45,7 +46,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 
 
 @Component({
-  selector: 'app-tariff',
+  selector: 'app-sourcing',
   standalone: true,
   providers: [MessageService],
   imports: [
@@ -72,11 +73,11 @@ import { InputSwitchModule } from 'primeng/inputswitch';
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Tariff Master</div>
+      <div class="font-semibold text-xl mb-4">Sourcing Master</div>
 
       <p-table
         #dt
-        [value]="tariffs"
+        [value]="sources"
         dataKey="id"
         [paginator]="true"
         [rows]="10"
@@ -89,7 +90,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <div class="flex gap-2">
-              <button pButton type="button" label="Create Tariff" icon="pi pi-plus" (click)="addRow()"></button>
+              <button pButton type="button" label="Add Source" icon="pi pi-plus" (click)="addRow()"></button>
               <button pButton type="button" label="Import" icon="pi pi-download"  (click)="importData()"></button>
               <button pButton type="button" label="Export" icon="pi pi-upload" (click)="exportData()"></button>
             </div>
@@ -174,23 +175,23 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             <th>Action</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-tariff>
-          <tr [ngClass]="{'mandatory-row': tariff.isMandatory, 'expired-row': getTariffStatus(tariff) === 'Expired'}">
-            <td>{{ tariff.code }}</td>
-            <td>{{ tariff.vendorType }}</td>
-            <td>{{ tariff.mode }}</td>
-            <td>{{ tariff.shippingType }}</td>
-            <td>{{ tariff.cargoType }}</td>
-            <td>{{ tariff.tariffType }}</td>
-            <td>{{ tariff.basis }}</td>
-            <td>{{ tariff.itemName }}</td>
+        <ng-template pTemplate="body" let-source>
+          <tr [ngClass]="{'mandatory-row': source.isMandatory, 'expired-row': getTariffStatus(source) === 'Expired'}">
+            <td>{{ source.code }}</td>
+            <td>{{ source.vendorType }}</td>
+            <td>{{ source.mode }}</td>
+            <td>{{ source.shippingType }}</td>
+            <td>{{ source.cargoType }}</td>
+            <td>{{ source.tariffType }}</td>
+            <td>{{ source.basis }}</td>
+            <td>{{ source.itemName }}</td>
             <td>
-              <span [ngClass]="getStatusClass(getTariffStatus(tariff))">
-                {{ getTariffStatus(tariff) }}
+              <span [ngClass]="getStatusClass(getTariffStatus(source))">
+                {{ getTariffStatus(source) }}
               </span>
             </td>
             <td>
-              <button pButton icon="pi pi-pencil" (click)="editRow(tariff)" class="p-button-sm"></button>
+              <button pButton icon="pi pi-pencil" (click)="editRow(source)" class="p-button-sm"></button>
             </td>
           </tr>
         </ng-template>
@@ -204,7 +205,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     <input #fileInput type="file" accept=".csv,.xlsx,.xls" style="display: none" (change)="onFileSelected($event)" />
     
     <p-dialog
-    header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Tariff"
+    header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Source"
     [(visible)]="isDialogVisible"
     [modal]="true"
     [closable]="true"
@@ -220,7 +221,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
              <!-- 1. Vendor Information -->
           <h3 class="section-header">1. Vendor Information</h3>
           <div class="grid grid-cols-12 gap-4 mb-6">
-            <div class="col-span-12 md:col-span-3">
+          <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Department (Mode) <span class="text-red-500">*</span></label>
               <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
               <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
@@ -271,10 +272,9 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           <div class="grid grid-cols-12 gap-4 mb-6">
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Code <span class="text-red-500">*</span></label>
-              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')" [disabled]="!isManualSeries || !selectedTariff.isNew" [placeholder]="isManualSeries ? 'Enter tariff code' : mappedTariffSeriesCode || 'Auto-generated'" class="w-full"/>
+              <input pInputText [(ngModel)]="selectedTariff.code" (ngModelChange)="onFieldChange('code', selectedTariff.code)" [ngClass]="getFieldErrorClass('code')" [ngStyle]="getFieldErrorStyle('code')" [disabled]="!isManualSeries || !selectedTariff.isNew" [placeholder]="isManualSeries ? 'Enter source code' : mappedTariffSeriesCode || 'Auto-generated'" class="w-full"/>
               <small *ngIf="fieldErrors['code']" class="p-error">{{ fieldErrors['code'] }}</small>
             </div>
-            
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Cargo Type</label>
               <div class="flex gap-2">
@@ -286,30 +286,6 @@ import { InputSwitchModule } from 'primeng/inputswitch';
                   (click)="openMaster('cargoType')"></button>
               </div>
               <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Tariff Type</label>
-              <div class="flex gap-2">
-                <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
-                <button pButton 
-                  [icon]="masterDialogLoading['tariffType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
-                  class="p-button-sm" 
-                  [disabled]="masterDialogLoading['tariffType']"
-                  (click)="openMaster('tariffType')"></button>
-              </div>
-              <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Container Type</label>
-              <div class="flex gap-2">
-                <p-dropdown [options]="containerTypeOptions" [(ngModel)]="selectedTariff.containerType" (ngModelChange)="onFieldChange('containerType', selectedTariff.containerType)" [ngClass]="getFieldErrorClass('containerType')" [ngStyle]="getFieldErrorStyle('containerType')" placeholder="Select Container Type" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
-                <button pButton 
-                  [icon]="masterDialogLoading['containerType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
-                  class="p-button-sm" 
-                  [disabled]="masterDialogLoading['containerType']"
-                  (click)="openMaster('containerType')"></button>
-              </div>
-              <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Item Name</label>
@@ -335,20 +311,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
               </div>
               <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
             </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Currency</label>
-              <div class="flex gap-2">
-                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
-                <button pButton 
-                  [icon]="masterDialogLoading['currency'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
-                  class="p-button-sm" 
-                  [disabled]="masterDialogLoading['currency']"
-                  (click)="openMaster('currency')"></button>
-              </div>
-              <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
-            </div>
           </div>
-
+          
           <!-- 3. Location Details -->
           <h3 class="section-header">3. Location Details</h3>
           <div class="grid grid-cols-12 gap-4 mb-6">
@@ -410,11 +374,6 @@ import { InputSwitchModule } from 'primeng/inputswitch';
               <input pInputText type="number" [(ngModel)]="selectedTariff.charges" (ngModelChange)="onFieldChange('charges', selectedTariff.charges)" [ngClass]="getFieldErrorClass('charges')" [ngStyle]="getFieldErrorStyle('charges')" class="w-full"/>
               <small *ngIf="fieldErrors['charges']" class="p-error">{{ fieldErrors['charges'] }}</small>
             </div>
-
-            <!--<div class="col-span-12 md:col-span-2">
-              <label class="block font-semibold mb-1">Charge Type</label>
-              <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Charge Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
-            </div> -->
            
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Effective Date</label>
@@ -447,43 +406,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
       </ng-template>
     </p-dialog>
     
-    <!-- Currency Code Dialog -->
-    <p-dialog
-      header="Currency Code Master"
-      [(visible)]="showCurrencyDialog"
-      [modal]="true"
-      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
-      [contentStyle]="{ overflow: 'visible' }"
-      [baseZIndex]="10000"
-      [closable]="true"
-      [draggable]="false"
-      [resizable]="false"
-      (onHide)="closeMasterDialog('currency')"
-      [closeOnEscape]="true"
-    >
-      <ng-template pTemplate="content">
-        <currency-code></currency-code>
-      </ng-template>
-    </p-dialog>
-
-    <!-- Container Code Dialog -->
-    <p-dialog
-      header="Container Code Master"
-      [(visible)]="showContainerDialog"
-      [modal]="true"
-      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
-      [contentStyle]="{ overflow: 'visible' }"
-      [baseZIndex]="10000"
-      [closable]="true"
-      [draggable]="false"
-      [resizable]="false"
-      (onHide)="closeMasterDialog('container')"
-      [closeOnEscape]="true"
-    >
-      <ng-template pTemplate="content">
-        <container-code></container-code>
-      </ng-template>
-    </p-dialog>
+    
      
     <!-- Vendor Master Dialog -->
     <p-dialog
@@ -655,14 +578,35 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     }
 `]
 })
-export class TariffComponent implements OnInit, OnDestroy {
+export class SourcingComponent implements OnInit, OnDestroy {
   private contextSubscription: Subscription | undefined;
   tariffs: any[] = [];
+  // sources list
+  sources: any[] =[];
+  
 
   statusOptions = [
     { label: 'Active', value: 'Active' },
     { label: 'Expired', value: 'Expired' }
   ];
+
+// returns the source staus as Active or Expired in String
+getSourceStatus(source: { periodEndDate?: string | Date}): string {
+  if (!source.periodEndDate) return 'Active';
+
+  // current Date & Time in UTC
+  const nowUtc = new Date();
+
+  // end Date
+  const endDateUtc = new Date(source.periodEndDate)
+
+  // assigning the utc hours to 23:59:59.999 for providing same day active comparison
+  endDateUtc.setUTCHours(23,59,59,999)
+
+  // compare milliseconds since epoch
+  return (nowUtc.getTime() > endDateUtc.getTime()) ? 'Expired' : 'Active';
+
+}
 
 getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   if (!tariff.periodEndDate) {
@@ -738,7 +682,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   showMasterLocationDialog = false;
   masterTypeFilter = '';
   masterDialogLoading: { [key: string]: boolean } = {};
-    mandatoryOptions = [
+  mandatoryOptions = [
     { label: 'Yes', value: true },
     { label: 'No', value: false }
   ];
@@ -755,6 +699,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     private masterTypeService: MasterTypeService,
     private masterLocationService: MasterLocationService,
     private tariffService: TariffService,
+    private sourceService: SourceService,
     private masterUOMService: MasterUOMService,
     private containerCodeService: ContainerCodeService,
     private masterItemService: MasterItemService,
@@ -811,6 +756,10 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     return '';
   }
 
+  onDepartmentChange(fieldName: string, value: any){
+
+  }
+
   onFieldChange(fieldName: string, value: any) {
     const error = this.validateField(fieldName, value);
     if (error) {
@@ -820,7 +769,9 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     }
     this.updateFormValidity();
   }
-    onLocationTypeFromChange() {
+  
+
+  onLocationTypeFromChange() {
     // Clear the from location when location type changes
     if (this.selectedTariff) {
       this.selectedTariff.from = '';
@@ -944,7 +895,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       return !hasError && !isEmpty;
     });
     
-     }
+  }
 
   isCodeDuplicate(code: string): boolean {
     if (!this.selectedTariff?.isNew) return false;
@@ -963,7 +914,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   }
 
   ngOnInit() {
-    console.log('TariffComponent ngOnInit - Initial load');
+    console.log('Sourcing Component ngOnInit - Initial load');
     // Load data immediately
     this.loadAllData();
     this.loadMappedTariffSeriesCode();
@@ -1002,17 +953,17 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   }
 
   private loadAllData() {
-    console.log('Loading all tariff master data...');
+    console.log('Loading all source master data...');
     forkJoin({
       modes: this.loadModeOptions(),
       shippingTypes: this.loadShippingTypeOptions(),
       cargoTypes: this.loadCargoTypeOptions(),
-      tariffTypes: this.loadTariffTypeOptions(),
+      // tariffTypes: this.loadTariffTypeOptions(),
       locations: this.loadLocationOptions(),
       locationTypes: this.loadLocationTypeOptions(),
       basis: this.loadBasisOptions(),
-      containers: this.loadContainersOptions(),
-      currencies: this.loadCurrencyOptions(),
+      // containers: this.loadContainersOptions(),
+      // currencies: this.loadCurrencyOptions(),
       items: this.loadItemOptions(),
       vendorTypes: this.loadVendorTypeOptions(),
       vendors: this.loadVendorOptions()
@@ -1148,6 +1099,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
           .filter(l => l.active && l.city)
           .map(l => l.city.trim())
           .filter(Boolean)));
+
         this.locationOptions = uniqueCities.map(city => ({ label: city, value: city }));
         
         // Initialize filtered location options with all locations formatted as CODE - NAME
@@ -1236,7 +1188,61 @@ loadBasisOptions() {
     return found ? found.label : value;
   }
 
-  refreshList() {
+  refreshList(){
+    const context = this.contextService.getContext();
+    console.log('🔄 Refreshing source list with context:', context);
+
+    this.sourceService.getAll().subscribe({
+      next: (data) => {
+        console.log('📊 Source data loaded Successfully:',{
+          recordCount: data.length,
+          context: context,
+          sampleData: data.slice(0,2)
+        });
+        
+        // mapping the subscribed data to the sources list 
+        this.sources = data.map((source: any)=>{
+          const mappedSource = {
+            ...source,
+            mode: source.mode,
+            shippingType: source.shipping_type,
+            vendorType: source.vendor_type,
+            vendorName: source.vendor_name,
+            cargoType: source.cargo_type,
+            itemName: source.item_name,
+            basis: source.basis,
+            locationTypeFrom: source.location_type_from,
+            from: source.from_location,
+            locationTypeTo: source.location_type_to,
+            to: source.to_location,
+            charges: source.charges,
+            effectiveDate: source.effective_date,
+            periodStartDate: source.period_start_date,
+            periodEndDate: source.period_end_date,
+            isMandatory: source.is_mandatory,
+          }
+          // Adding status key to all source object 
+          mappedSource.status = this.getSourceStatus(mappedSource);
+          return mappedSource;
+        })
+
+        console.log('✅ Source data processing completed, final count:', this.sources.length);
+
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('❌ Error loading tariff data:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load tariff data'
+        });
+        this.sources = [];
+      }
+    })    
+  }
+
+  refreshList2() {
     const context = this.contextService.getContext();
     console.log('🔄 Refreshing tariff list with context:', context);
     
@@ -1296,18 +1302,18 @@ loadBasisOptions() {
 
   loadMappedTariffSeriesCode() {
     const context = this.contextService.getContext();
-    console.log('Loading tariff series code for context:', context);
+    console.log('Loading Source series code for context:', context);
     
     // Use context-based mapping with NumberSeriesRelation
     this.mappingService.findMappingByContext(
-      'tariffCode',
+      'sourceCode',
       context.companyCode || '',
       context.branchCode || '',
       context.departmentCode || '',
       context.serviceType || undefined
     ).subscribe({
       next: (contextMapping: any) => {
-        console.log('Tariff mapping relation response:', contextMapping);
+        console.log('source mapping relation response:', contextMapping);
         this.mappedTariffSeriesCode = contextMapping.mapping;
         if (this.mappedTariffSeriesCode) {
           this.numberSeriesService.getAll().subscribe({
@@ -1360,57 +1366,57 @@ loadBasisOptions() {
   }
 
   addRow() {
-    console.log('Add Tariff button clicked - starting addRow method');
+    console.log('Add source button clicked - starting addRow method');
     
     // Get the validation settings
     const config = this.configService.getConfig();
-    const tariffFilter = config?.validation?.tariffFilter || '';
+    const sourceFilter = config?.validation?.sourceFilter || '';
     
-    console.log('Tariff filter:', tariffFilter);
+    console.log('source filter:', sourceFilter);
     
     // Check if we need to validate context
-    if (tariffFilter) {
+    if (sourceFilter) {
       // Get the current context
       const context = this.contextService.getContext();
       
       console.log('Current context:', context);
       
       // Check if the required context is set based on the filter
-      if (tariffFilter.includes('C') && !context.companyCode) {
+      if (sourceFilter.includes('C') && !context.companyCode) {
         console.log('Company context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
-          detail: 'Please select a Company before adding a new tariff.'
+          detail: 'Please select a Company before adding a new source.'
         });
         this.contextService.showContextSelector();
         return;
       }
       
-      if (tariffFilter.includes('B') && !context.branchCode) {
+      if (sourceFilter.includes('B') && !context.branchCode) {
         console.log('Branch context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
-          detail: 'Please select a Branch before adding a new tariff.'
+          detail: 'Please select a Branch before adding a new source.'
         });
         this.contextService.showContextSelector();
         return;
       }
       
-      if (tariffFilter.includes('D') && !context.departmentCode) {
+      if (sourceFilter.includes('D') && !context.departmentCode) {
         console.log('Department context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
-          detail: 'Please select a Department before adding a new tariff.'
+          detail: 'Please select a Department before adding a new source.'
         });
         this.contextService.showContextSelector();
         return;
       }
     }
 
-    console.log('Context validation passed - proceeding with add tariff');
+    console.log('Context validation passed - proceeding with add source');
     
     // Existing addRow logic
     this.selectedTariff = {
@@ -1456,8 +1462,8 @@ loadBasisOptions() {
       this.loadTariffTypeOptions(),
       this.loadLocationOptions(),
       this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
+      // this.loadContainersOptions(),
+      // this.loadCurrencyOptions(),
       this.loadItemOptions(),
       this.loadVendorTypeOptions(),
       this.loadVendorOptions()
@@ -1581,28 +1587,28 @@ loadBasisOptions() {
     }
 
     if (this.selectedTariff.isNew) {
-      this.tariffService.create(payload).subscribe({
+      this.sourceService.create(payload).subscribe({
         next: (created) => {
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Tariff created' });
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Source created' });
           this.refreshList();
           this.hideDialog();
         },
         error: (err) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to create tariff' });
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to add source' });
         }
       });
     } else {
-      this.tariffService.update(this.selectedTariff.id, payload).subscribe({
+      this.sourceService.update(this.selectedTariff.id, payload).subscribe({
         next: (updated) => {
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Tariff updated' });
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Source updated' });
           this.refreshList();
           this.hideDialog();
         },
         error: (err) => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update tariff' });
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update source' });
         },
         complete: () => {
-          console.log('Tariff updated successfully');
+          console.log('Source updated successfully');
         }
       });
     }

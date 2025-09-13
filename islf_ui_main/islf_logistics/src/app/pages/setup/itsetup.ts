@@ -823,6 +823,17 @@ interface DocumentPaths {
                   class="w-full">
                   </p-dropdown>
                   </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Sourcing:</label>
+                  <p-dropdown
+                    [(ngModel)]="validationSettings.sourceFilter"
+                    [options]="sourceFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select Source filter"
+                    class="w-full">
+                  </p-dropdown> 
+                  </div>
 
 
               </div>
@@ -989,6 +1000,7 @@ export class ITSetupComponent implements OnInit {
     userListFilter:'',
     mappingFilter:'',
     basisFilter:'',
+    sourceFilter: '',
 
 
 
@@ -1129,6 +1141,12 @@ export class ITSetupComponent implements OnInit {
   ];
   vesselFilterOptions = [
   { label: 'C ', value: 'C' },
+    { label: 'CB ', value: 'CB' },
+    { label: 'CBD ', value: 'CBD' },
+    { label: 'CBDST', value: 'CBDST' }
+  ];
+  sourceFilterOptions = [
+    { label: 'C ', value: 'C' },
     { label: 'CB ', value: 'CB' },
     { label: 'CBD ', value: 'CBD' },
     { label: 'CBDST', value: 'CBDST' }

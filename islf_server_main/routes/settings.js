@@ -238,6 +238,7 @@ router.get('/config', async (req, res) => {
         userListFilter: config.validation_user_list_filter || '',
         mappingFilter: config.validation_mapping_filter || '',
         basisFilter: config.validation_basis_filter || '',
+        sourceFilter: config.validation_source_filter || '',
       }
     };
     

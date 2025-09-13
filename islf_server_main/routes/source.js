@@ -30,7 +30,7 @@ function buildWhereClause(filters) {
   const conditions = [];
   const values = [];
   let index = 1;
-
+  console.log(filters);
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== '') {
       conditions.push(`${key} = $${index}`);
@@ -45,7 +45,7 @@ function buildWhereClause(filters) {
   };
 }
 
-// GET all tariffs
+// GET all sources
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
@@ -56,26 +56,27 @@ router.get('/', async (req, res) => {
       branch_code: branchCode,
       department_code: departmentCode
     };
-    console.log("tariff Filter:",filters);
+    
+    console.log("source filter:",filters)
     const { clause, values } = buildWhereClause(filters);
 
     const query = `
       SELECT *
-      FROM tariff
+      FROM sourcing
       ${clause}
       ORDER BY id ASC
     `;
+    console.log("sourcing table query:", query,"source Value:",values);
 
-    console.log("tariff query:",query,"tariff Value", values)
     const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching tariffs:', err);
-    res.status(400).json({ error: err.message || 'Failed to fetch tariffs' });
+    console.error('Error fetching source:', err);
+    res.status(400).json({ error: err.message || 'Failed to fetch source' });
   }
 });
 
-// CREATE new tariff
+// CREATE new source
 router.post('/', async (req, res) => {
   const data = req.body;
 
@@ -89,45 +90,41 @@ router.post('/', async (req, res) => {
 
     // 🔹 Duplicate check
     const duplicateCheckQuery = `
-      SELECT id, code FROM tariff 
+      SELECT id, code FROM sourcing 
       WHERE mode = $1 
         AND (shipping_type = $2 OR (shipping_type IS NULL AND $2 IS NULL))
         AND (cargo_type = $3 OR (cargo_type IS NULL AND $3 IS NULL))
-        AND (tariff_type = $4 OR (tariff_type IS NULL AND $4 IS NULL))
-        AND (basis = $5 OR (basis IS NULL AND $5 IS NULL))
-        AND (container_type = $6 OR (container_type IS NULL AND $6 IS NULL))
-        AND (item_name = $7 OR (item_name IS NULL AND $7 IS NULL))
-        AND (currency = $8 OR (currency IS NULL AND $8 IS NULL))
-        AND (location_type_from = $9 OR (location_type_from IS NULL AND $9 IS NULL))
-        AND (from_location = $10 OR (from_location IS NULL AND $10 IS NULL))
-        AND (location_type_to = $11 OR (location_type_to IS NULL AND $11 IS NULL))
-        AND (to_location = $12 OR (to_location IS NULL AND $12 IS NULL))
-        AND (vendor_type = $13 OR (vendor_type IS NULL AND $13 IS NULL))
-        AND (vendor_name = $14 OR (vendor_name IS NULL AND $14 IS NULL))
-        AND (effective_date = $15 OR (effective_date IS NULL AND $15 IS NULL))
-        AND (period_start_date = $16 OR (period_start_date IS NULL AND $16 IS NULL))
-        AND (period_end_date = $17 OR (period_end_date IS NULL AND $17 IS NULL))
-        AND (charges = $18 OR (charges IS NULL AND $18 IS NULL))
-        AND (freight_charge_type = $19 OR (freight_charge_type IS NULL AND $19 IS NULL))
-        AND (is_mandatory = $20 OR (is_mandatory IS NULL AND $20 IS NULL))
-        AND company_code = $21
-        AND (branch_code = $22 OR (branch_code IS NULL AND $22 IS NULL))
-        AND (department_code = $23 OR (department_code IS NULL AND $23 IS NULL))
+        AND (basis = $4 OR (basis IS NULL AND $4 IS NULL))
+        AND (item_name = $5 OR (item_name IS NULL AND $5 IS NULL))
+        AND (location_type_from = $6 OR (location_type_from IS NULL AND $6 IS NULL))
+        AND (from_location = $7 OR (from_location IS NULL AND $7 IS NULL))
+        AND (location_type_to = $8 OR (location_type_to IS NULL AND $8 IS NULL))
+        AND (to_location = $9 OR (to_location IS NULL AND $9 IS NULL))
+        AND (vendor_type = $10 OR (vendor_type IS NULL AND $10 IS NULL))
+        AND (vendor_name = $11 OR (vendor_name IS NULL AND $11 IS NULL))
+        AND (effective_date = $12 OR (effective_date IS NULL AND $12 IS NULL))
+        AND (period_start_date = $13 OR (period_start_date IS NULL AND $13 IS NULL))
+        AND (period_end_date = $14 OR (period_end_date IS NULL AND $14 IS NULL))
+        AND (charges = $15 OR (charges IS NULL AND $15 IS NULL))
+        AND (is_mandatory = $16 OR (is_mandatory IS NULL AND $16 IS NULL))
+        AND company_code = $17
+        AND (branch_code = $18 OR (branch_code IS NULL AND $18 IS NULL))
+        AND (department_code = $19 OR (department_code IS NULL AND $19 IS NULL))
       LIMIT 1
     `;
 
     const duplicateResult = await pool.query(duplicateCheckQuery, [
-      cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType, cleanData.basis,
-      cleanData.containerType, cleanData.itemName, cleanData.currency, cleanData.locationTypeFrom, cleanData.from,
+      cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.basis,
+      cleanData.itemName, cleanData.locationTypeFrom, cleanData.from,
       cleanData.locationTypeTo, cleanData.to, cleanData.vendorType, cleanData.vendorName, cleanData.effectiveDate,
-      cleanData.periodStartDate, cleanData.periodEndDate, cleanData.charges, cleanData.freightChargeType,
+      cleanData.periodStartDate, cleanData.periodEndDate, cleanData.charges,
       cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
     ]);
 
     if (duplicateResult.rows.length > 0) {
       return res.status(400).json({
-        error: 'Duplicate tariff found',
-        message: `A tariff with the same combination of fields already exists (Code: ${duplicateResult.rows[0].code})`,
+        error: 'Duplicate source found',
+        message: `A source with the same combination of fields already exists (Code: ${duplicateResult.rows[0].code})`,
         duplicateCode: duplicateResult.rows[0].code
       });
     }
@@ -138,7 +135,7 @@ router.post('/', async (req, res) => {
     // 🔹 Number series lookup
     if ((!code || code === '') && cleanData.company_code) {
       let whereConditions = ['code_type = $1', 'company_code = $2'];
-      let queryParams = ['tariffCode', cleanData.company_code];
+      let queryParams = ['sourceNo', cleanData.company_code];
       let paramIndex = 3;
 
       if (cleanData.branch_code) {
@@ -169,7 +166,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 🔹 Generate tariff code
+    // 🔹 Generate source code
     if (seriesCode) {
       const client = await pool.connect();
       try {
@@ -193,7 +190,7 @@ router.post('/', async (req, res) => {
             client.release();
             return res.status(400).json({ error: 'Manual code entry required for this series' });
           }
-          const exists = await client.query('SELECT 1 FROM tariff WHERE code = $1', [code]);
+          const exists = await client.query('SELECT 1 FROM sourcing WHERE code = $1', [code]);
           if (exists.rows.length > 0) {
             await client.query('ROLLBACK');
             client.release();
@@ -232,24 +229,23 @@ router.post('/', async (req, res) => {
         throw error;
       }
     } else if (!code || code === '') {
-      code = 'TAR-' + Date.now();
+      code = 'SRC-' + Date.now();
     }
 
     // 🔹 Insert new tariff
     const result = await pool.query(
-      `INSERT INTO tariff (
-        code, mode, shipping_type, cargo_type, tariff_type, basis, container_type, item_name, currency,
-        location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, 
-        charges, freight_charge_type, effective_date, period_start_date, period_end_date, is_mandatory,
+      `INSERT INTO sourcing (
+        code, mode, shipping_type, cargo_type, basis, item_name, location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, 
+        charges, effective_date, period_start_date, period_end_date, is_mandatory,
         company_code, branch_code, department_code
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
       ) RETURNING *`,
       [
-        code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
-        cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
+        code, cleanData.mode, cleanData.shippingType, cleanData.cargoType,
+        cleanData.basis, cleanData.itemName, 
         cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
-        cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
+        cleanData.vendorType, cleanData.vendorName, cleanData.charges,
         cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
         cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
       ]
@@ -258,15 +254,15 @@ router.post('/', async (req, res) => {
     await logMasterEvent({
       username: getUsernameFromToken(req),
       action: 'CREATE',
-      masterType: 'Tariff',
+      masterType: 'Sourcing',
       recordId: code,
-      details: `New Tariff "${code}" has been created successfully.`
+      details: `New Source "${code}" has been created successfully.`
     });
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error creating tariff:', err);
-    res.status(400).json({ error: err.message || 'Failed to create tariff' });
+    console.error('Error creating source:', err);
+    res.status(400).json({ error: err.message || 'Failed to create source' });
   }
 });
 
@@ -283,27 +279,23 @@ router.put('/:id', async (req, res) => {
   );
 
   try {
-    const oldResult = await pool.query('SELECT * FROM tariff WHERE id = $1', [id]);
+    const oldResult = await pool.query('SELECT * FROM sourcing WHERE id = $1', [id]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const oldTariff = oldResult.rows[0];
 
     const result = await pool.query(
-      `UPDATE tariff SET
-        code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
-        location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20, is_mandatory = $21
-      WHERE id = $22 RETURNING *`,
+      `UPDATE sourcing SET
+        code = $1, mode = $2, shipping_type = $3, cargo_type = $4, basis = $5, item_name = $6, location_type_from = $7, location_type_to = $8, from_location = $9, to_location = $10, vendor_type = $11, vendor_name = $12, charges = $13,  effective_date = $14, period_start_date = $15, period_end_date = $16, is_mandatory = $17
+      WHERE id = $18 RETURNING *`,
       [
-        cleanData.code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
-        cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
-        cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
-        cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
-        cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
+        cleanData.code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, 
+        cleanData.basis, cleanData.itemName, cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to, cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
         cleanData.isMandatory || false, id
       ]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Tariff not found' });
+      return res.status(404).json({ error: 'Source not found' });
     }
 
     const changedFields = [];
@@ -312,11 +304,8 @@ router.put('/:id', async (req, res) => {
       mode: { newVal: cleanData.mode, db: 'mode' },
       shipping_type: { newVal: cleanData.shippingType, db: 'shipping_type' },
       cargo_type: { newVal: cleanData.cargoType, db: 'cargo_type' },
-      tariff_type: { newVal: cleanData.tariffType, db: 'tariff_type' },
       basis: { newVal: cleanData.basis, db: 'basis' },
-      container_type: { newVal: cleanData.containerType, db: 'container_type' },
       item_name: { newVal: cleanData.itemName, db: 'item_name' },
-      currency: { newVal: cleanData.currency, db: 'currency' },
       location_type_from: { newVal: cleanData.locationTypeFrom, db: 'location_type_from' },
       location_type_to: { newVal: cleanData.locationTypeTo, db: 'location_type_to' },
       from_location: { newVal: cleanData.from, db: 'from_location' },
@@ -324,7 +313,6 @@ router.put('/:id', async (req, res) => {
       vendor_type: { newVal: cleanData.vendorType, db: 'vendor_type' },
       vendor_name: { newVal: cleanData.vendorName, db: 'vendor_name' },
       charges: { newVal: cleanData.charges, db: 'charges' },
-      freight_charge_type: { newVal: cleanData.freightChargeType, db: 'freight_charge_type' },
       effective_date: { newVal: cleanData.effectiveDate, db: 'effective_date' },
       period_start_date: { newVal: cleanData.periodStartDate, db: 'period_start_date' },
       period_end_date: { newVal: cleanData.periodEndDate, db: 'period_end_date' },
@@ -354,15 +342,15 @@ router.put('/:id', async (req, res) => {
     await logMasterEvent({
       username: getUsernameFromToken(req),
       action: 'UPDATE',
-      masterType: 'Tariff',
+      masterType: 'Source',
       recordId: cleanData.code,
       details
     });
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error updating tariff:', err);
-    res.status(500).json({ error: 'Failed to update tariff' });
+    console.error('Error updating source:', err);
+    res.status(500).json({ error: 'Failed to update source' });
   }
 });
 

@@ -74,10 +74,10 @@ router.post('/', async (req, res) => {
     department_code
   } = req.body;
 
-  // Validate mutual exclusivity
-  if (endingNo && endingDate) {
-    return res.status(400).json({ error: 'Only one of endingNo or endingDate can be set, not both' });
-  }
+  // // Validate mutual exclusivity
+  // if (endingNo && endingDate) {
+  //   return res.status(400).json({ error: 'Only one of endingNo or endingDate can be set, not both' });
+  // }
 
   try {
     // Get default company code if not provided
@@ -135,10 +135,10 @@ router.put('/:id', async (req, res) => {
 
   console.log('Update request body:', req.body);
 
-  // Validate mutual exclusivity
-  if (endingNo && endingDate) {
-    return res.status(400).json({ error: 'Only one of endingNo or endingDate can be set, not both' });
-  }
+  // // Validate mutual exclusivity
+  // if (endingNo && endingDate) {
+  //   return res.status(400).json({ error: 'Only one of endingNo or endingDate can be set, not both' });
+  // }
 
   try {
     // Handle date conversion for proper timezone storage
