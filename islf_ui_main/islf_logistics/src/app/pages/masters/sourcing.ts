@@ -176,7 +176,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-source>
-          <tr [ngClass]="{'mandatory-row': source.isMandatory, 'expired-row': getTariffStatus(source) === 'Expired'}">
+          <tr [ngClass]="{'mandatory-row': source.isMandatory, 'expired-row': getSourceStatus(source) === 'Expired'}">
             <td>{{ source.code }}</td>
             <td>{{ source.vendorType }}</td>
             <td>{{ source.mode }}</td>
@@ -186,8 +186,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
             <td>{{ source.basis }}</td>
             <td>{{ source.itemName }}</td>
             <td>
-              <span [ngClass]="getStatusClass(getTariffStatus(source))">
-                {{ getTariffStatus(source) }}
+              <span [ngClass]="getStatusClass(getSourceStatus(source))">
+                {{ getSourceStatus(source) }}
               </span>
             </td>
             <td>
@@ -196,7 +196,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
           </tr>
         </ng-template>
         <ng-template pTemplate="paginatorleft" let-state>
-          Total Tariffs: {{ state.totalRecords }}
+          Total Sources: {{ state.totalRecords }}
         </ng-template>
       </p-table>
     </div>
@@ -602,7 +602,6 @@ getSourceStatus(source: { periodEndDate?: string | Date}): string {
 
   // assigning the utc hours to 23:59:59.999 for providing same day active comparison
   endDateUtc.setUTCHours(23,59,59,999)
-
   // compare milliseconds since epoch
   return (nowUtc.getTime() > endDateUtc.getTime()) ? 'Expired' : 'Active';
 
@@ -1226,7 +1225,7 @@ loadBasisOptions() {
           return mappedSource;
         })
 
-        console.log('✅ Source data processing completed, final count:', this.sources.length);
+        console.log('✅ Source data processing completed, final value:', this.sources);
 
         this.cdr.detectChanges();
       },
@@ -1242,63 +1241,63 @@ loadBasisOptions() {
     })    
   }
 
-  refreshList2() {
-    const context = this.contextService.getContext();
-    console.log('🔄 Refreshing tariff list with context:', context);
+  // refreshList2() {
+  //   const context = this.contextService.getContext();
+  //   console.log('🔄 Refreshing tariff list with context:', context);
     
-    this.tariffService.getAll().subscribe({
-      next: (data) => {
-        console.log('📊 Tariff data loaded successfully:', {
-          recordCount: data.length,
-          context: context,
-          sampleData: data.slice(0, 2) // Show first 2 records for debugging
-        });
+  //   this.tariffService.getAll().subscribe({
+  //     next: (data) => {
+  //       console.log('📊 Tariff data loaded successfully:', {
+  //         recordCount: data.length,
+  //         context: context,
+  //         sampleData: data.slice(0, 2) // Show first 2 records for debugging
+  //       });
         
-        this.tariffs = data.map((tariff: any) => {
-          const mappedTariff = {
-            ...tariff,
-            shippingType: tariff.shipping_type,
-            cargoType: tariff.cargo_type,
-            containerType: tariff.container_type,
-            itemName: tariff.item_name,
-            from: tariff.from_location,
-            to: tariff.to_location,
-            vendorType: tariff.vendor_type,
-            vendorName: tariff.vendor_name,
-            locationTypeFrom: tariff.location_type_from,
-            locationTypeTo: tariff.location_type_to,
-            tariffType: tariff.tariff_type,
-            basis: tariff.basis,
-            currency: tariff.currency,
-            charges: tariff.charges,
-            mode: tariff.mode,
-            effectiveDate: tariff.effective_date,
-            periodStartDate: tariff.period_start_date,
-            periodEndDate: tariff.period_end_date,
-            freightChargeType: tariff.freight_charge_type,
-            isMandatory: tariff.is_mandatory
-          };
-          // Add status field to each tariff object
-          mappedTariff.status = this.getTariffStatus(mappedTariff);
-          return mappedTariff;
-        });
+  //       this.tariffs = data.map((tariff: any) => {
+  //         const mappedTariff = {
+  //           ...tariff,
+  //           shippingType: tariff.shipping_type,
+  //           cargoType: tariff.cargo_type,
+  //           containerType: tariff.container_type,
+  //           itemName: tariff.item_name,
+  //           from: tariff.from_location,
+  //           to: tariff.to_location,
+  //           vendorType: tariff.vendor_type,
+  //           vendorName: tariff.vendor_name,
+  //           locationTypeFrom: tariff.location_type_from,
+  //           locationTypeTo: tariff.location_type_to,
+  //           tariffType: tariff.tariff_type,
+  //           basis: tariff.basis,
+  //           currency: tariff.currency,
+  //           charges: tariff.charges,
+  //           mode: tariff.mode,
+  //           effectiveDate: tariff.effective_date,
+  //           periodStartDate: tariff.period_start_date,
+  //           periodEndDate: tariff.period_end_date,
+  //           freightChargeType: tariff.freight_charge_type,
+  //           isMandatory: tariff.is_mandatory
+  //         };
+  //         // Add status field to each tariff object
+  //         mappedTariff.status = this.getTariffStatus(mappedTariff);
+  //         return mappedTariff;
+  //       });
         
-        console.log('✅ Tariff data processing completed, final count:', this.tariffs.length);
+  //       console.log('✅ Tariff data processing completed, final count:', this.tariffs.length);
         
-        // Force change detection after data update
-        this.cdr.detectChanges();
-      },
-      error: (error) => {
-        console.error('❌ Error loading tariff data:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load tariff data'
-        });
-        this.tariffs = [];
-      }
-    });
-  }
+  //       // Force change detection after data update
+  //       this.cdr.detectChanges();
+  //     },
+  //     error: (error) => {
+  //       console.error('❌ Error loading tariff data:', error);
+  //       this.messageService.add({
+  //         severity: 'error',
+  //         summary: 'Error',
+  //         detail: 'Failed to load tariff data'
+  //       });
+  //       this.tariffs = [];
+  //     }
+  //   });
+  // }
 
   loadMappedTariffSeriesCode() {
     const context = this.contextService.getContext();
@@ -1320,7 +1319,7 @@ loadBasisOptions() {
             next: (seriesList: any[]) => {
               const found = seriesList.find((s: any) => s.code === this.mappedTariffSeriesCode);
               this.isManualSeries = !!(found && found.is_manual);
-              console.log('Tariff series code mapped:', this.mappedTariffSeriesCode, 'Manual:', this.isManualSeries);
+              console.log('source series code mapped:', this.mappedTariffSeriesCode, 'Manual:', this.isManualSeries);
             },
             error: (error: any) => {
               console.error('Error loading number series:', error);
@@ -1329,7 +1328,7 @@ loadBasisOptions() {
           });
         } else {
           this.isManualSeries = true;
-          console.log('No tariff series code mapping found for context');
+          console.log('No source series code mapping found for context');
         }
       },
       error: (error: any) => {
@@ -1345,7 +1344,7 @@ loadBasisOptions() {
                 next: (seriesList: any[]) => {
                   const found = seriesList.find((s: any) => s.code === this.mappedTariffSeriesCode);
                   this.isManualSeries = !!(found && found.is_manual);
-                  console.log('Tariff series code mapped (fallback):', this.mappedTariffSeriesCode, 'Manual:', this.isManualSeries);
+                  console.log('source series code mapped (fallback):', this.mappedTariffSeriesCode, 'Manual:', this.isManualSeries);
                 },
                 error: (error: any) => {
                   console.error('Error loading number series (fallback):', error);
@@ -1913,18 +1912,15 @@ loadBasisOptions() {
     data.forEach((row, index) => {
       try {
         // Map imported data to tariff object - let backend handle code generation
-        const tariff: any = {
+        const source: any = {
           // Only include code if it's provided in the import file for manual series
           // Backend will determine if series is manual/default and handle accordingly
           ...(row['code'] || row['Code'] ? { code: row['code'] || row['Code'] } : {}),
           mode: row['mode'] || row['Mode'] || '',
           shippingType: row['shippingType'] || row['Shipping Type'] || '',
           cargoType: row['cargoType'] || row['Cargo Type'] || '',
-          tariffType: row['tariffType'] || row['Tariff Type'] || '',
           basis: row['basis'] || row['Basis'] || '',
-          containerType: row['containerType'] || row['Container Type'] || '',
           itemName: row['itemName'] || row['Item Name'] || '',
-          currency: row['currency'] || row['Currency'] || '',
           locationTypeFrom: row['locationTypeFrom'] || row['Location Type From'] || '',
           from: row['from'] || row['From'] || '',
           locationTypeTo: row['locationTypeTo'] || row['Location Type To'] || '',
@@ -1935,21 +1931,20 @@ loadBasisOptions() {
           periodStartDate: row['periodStartDate'] || row['Period Start Date'] || null,
           periodEndDate: row['periodEndDate'] || row['Period End Date'] || null,
           charges: row['charges'] || row['Charges'] || 0,
-          freightChargeType: row['freightChargeType'] || row['Freight Charge Type'] || '',
           isMandatory: row['isMandatory'] || row['Mandatory'] === 'Yes' || row['Mandatory'] === true || false
         };
         
         // Validate required fields
-        if (!tariff.mode) {
+        if (!source.mode) {
           throw new Error(`Row ${index + 2}: Mode is required`);
         }
         
-        // Create the tariff - backend will handle:
+        // Create the source - backend will handle:
         // 1. Context-based mapping lookup
         // 2. Number series relation checking
         // 3. Automatic vs manual series determination
         // 4. Code generation and relation updates
-        this.tariffService.create(tariff).subscribe({
+        this.sourceService.create(source).subscribe({
           next: () => {
             successCount++;
             if (successCount + errorCount === data.length) {
@@ -1962,7 +1957,7 @@ loadBasisOptions() {
             errorCount++;
             
             // Categorize the error type
-            if (error.error && error.error.error === 'Duplicate tariff found') {
+            if (error.error && error.error.error === 'Duplicate source found') {
               duplicateCount++;
             } else if (error.status === 400) {
               validationErrorCount++;
@@ -2021,40 +2016,39 @@ loadBasisOptions() {
   }
 
   exportData() {
-    if (this.tariffs.length === 0) {
+    if (this.sources.length === 0) {
       this.messageService.add({
         severity: 'warn',
         summary: 'No Data',
-        detail: 'No tariffs to export'
+        detail: 'No sources to export'
       });
       return;
     }
 
     // Prepare data for export (excluding code field)
-    const exportData = this.tariffs.map(tariff => ({
-      'Mode': tariff.mode || '',
-      'Shipping Type': tariff.shippingType || '',
-      'Cargo Type': tariff.cargoType || '',
-      'Tariff Type': tariff.tariffType || '',
-      'Basis': tariff.basis || '',
-      'Container Type': tariff.containerType || '',
-      'Item Name': tariff.itemName || '',
-      'Currency': tariff.currency || '',
-      'Location Type From': tariff.locationTypeFrom || '',
-      'From': tariff.from || '',
-      'Location Type To': tariff.locationTypeTo || '',
-      'To': tariff.to || '',
-      'Vendor Type': tariff.vendorType || '',
-      'Vendor Name': tariff.vendorName || '',
-      'Effective Date': tariff.effectiveDate || '',
-      'Period Start Date': tariff.periodStartDate || '',
-      'Period End Date': tariff.periodEndDate || '',
-      'Charges': tariff.charges || 0,
-      'Freight Charge Type': tariff.freightChargeType || '',
-      'Mandatory': tariff.isMandatory ? 'Yes' : 'No'
-    }));
+    const exportData = this.sources.map(source => {
+      console.log("source export data:",source);
 
-    this.exportToCsv(exportData, 'tariffs');
+      ({
+      'Mode': source.mode || '',
+      'Shipping Type': source.shippingType || '',
+      'Cargo Type': source.cargoType || '',
+      'Basis': source.basis || '',
+      'Item Name': source.itemName || '',
+      'Location Type From': source.locationTypeFrom || '',
+      'From': source.from || '',
+      'Location Type To': source.locationTypeTo || '',
+      'To': source.to || '',
+      'Vendor Type': source.vendorType || '',
+      'Vendor Name': source.vendorName || '',
+      'Effective Date': source.effectiveDate || '',
+      'Period Start Date': source.periodStartDate || '',
+      'Period End Date': source.periodEndDate || '',
+      'Charges': source.charges || 0,
+      'Mandatory': source.isMandatory ? 'Yes' : 'No'
+    })});
+
+    this.exportToCsv(exportData, 'sources');
   }
 
   exportToCsv(data: any[], filename: string) {
@@ -2088,7 +2082,7 @@ loadBasisOptions() {
       this.messageService.add({
         severity: 'success',
         summary: 'Export Successful',
-        detail: `Exported ${data.length} tariff(s) to CSV`
+        detail: `Exported ${data.length} source(s) to CSV`
       });
     }
   }
