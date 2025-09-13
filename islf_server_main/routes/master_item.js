@@ -107,34 +107,28 @@ router.get('/', async (req, res) => {
 
 // CREATE new master item
 router.post('/', async (req, res) => {
-  const { item_type, code, name, hs_code, active,company_code,branch_code,department_code } = req.body;
+  const { item_type, code, name, hs_code,description,active, company_code, branch_code, department_code, masterType } = req.body;
 
   try {
     const result = await pool.query(
-      `INSERT INTO master_item (item_type, code, name, hs_code, active,company_code,branch_code,department_code)
-       VALUES ($1, $2, $3, $4, $5,$6,$7,$8)
+      `INSERT INTO master_item (item_type, code, name,description,hs_code, active, company_code, branch_code, department_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
        RETURNING *`,
-      [item_type, code, name, hs_code, active,company_code,branch_code,department_code]
+      [item_type, code, name, hs_code, active, company_code, branch_code, department_code]
     );
-     // Log the CREATE action
-    await logMasterEvent({
-      username: req.user?.username || 'system',
-      action: 'CREATE',
-      masterType: 'master_item',  // Changed from master_type to masterType
-      recordId: result.rows[0].id,  // Added recordId
-      recordName: name,  // Changed from entity_name to recordName
-      details: `Created master item: ${code} - ${name}`
-    });
+    
+
     // Log the master event
     await logMasterEvent({
       username: getUsernameFromToken(req),
       action: 'CREATE',
-      masterType: 'Master Item',
+      masterType: masterType || 'Master Item',
       recordId: code,
-      details: `New MasterItem "${code}" has been created successfully.`
+      details: `New ${masterType || 'Master Item'} "${code}" has been created successfully.`
     });
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error('Error creating master item:', err);
     res.status(500).json({ error: 'Failed to create master item' });
   }
 });
@@ -146,15 +140,15 @@ router.put('/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
 
-  const { item_type, code, name, hs_code, active } = req.body;
+  const { item_type, code, name, hs_code, active, masterType } = req.body;
   try {
-     const oldResult = await pool.query('SELECT * FROM master_item WHERE id = $1', [id]);
+    const oldResult = await pool.query('SELECT * FROM master_item WHERE id = $1', [id]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
     const oldItem = oldResult.rows[0];
 
     const result = await pool.query(
       `UPDATE master_item
-       SET item_type = $1, code = $2, name = $3, hs_code = $4, active = $5
+       SET item_type = $1, code = $2, name = $3,description = $4, hs_code = $5, active = $6
        WHERE id = $6
        RETURNING *`,
       [item_type, code, name, hs_code, active, id]
@@ -163,9 +157,10 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
+    
     const changedFields = [];
     const fieldsToCheck = {
-      item_type, code, name, hs_code, active
+      item_type, code, name, hs_code, active,description
     };
     const normalize = (value) => {
       if (value === null || value === undefined) return '';
@@ -182,18 +177,19 @@ router.put('/:id', async (req, res) => {
     const details = changedFields.length > 0
       ? `Changes detected in the\n` + changedFields.join('\n')
       : 'No actual changes detected.';
-     // Log the UPDATE action
+      
+    // Log the UPDATE action
     await logMasterEvent({
       username: getUsernameFromToken(req),
       action: 'UPDATE',
-      masterType: 'Master Item',
+      masterType: masterType || 'Master Item',
       recordId: code,
       details
     });
     
     res.json(result.rows[0]);
   } catch (err) {
-
+    console.error('Error updating master item:', err);
     res.status(500).json({ error: 'Failed to update master item' });
   }
 });
@@ -216,11 +212,12 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
+    
     // Log the master event
     await logMasterEvent({
       username: getUsernameFromToken(req),
       action: 'DELETE',
-      masterType: 'Master Item',
+      masterType: req.body.masterType || 'Master Item',
       recordId: result.rows[0].code,
       details: `MasterItem "${result.rows[0].code}" has been deleted successfully.`
     });

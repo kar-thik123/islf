@@ -1969,13 +1969,13 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving department:', this.selectedDepartment);
 
-    // Create a copy of selectedDepartment without the PAN number field for saving (same as branch)
-    const departmentData = { ...this.selectedDepartment };
-    delete departmentData['pan_number'];
-    
-    // Explicitly ensure these fields are present for updates
-    departmentData.company_code = this.selectedDepartment.company_code;
-    departmentData.branch_code = this.selectedDepartment.branch_code;
+    // Ensure required fields are included for updates
+    const departmentData = {
+      ...this.selectedDepartment,
+      // Explicitly ensure these fields are present for updates
+      company_code: this.selectedDepartment.company_code,
+      branch_code: this.selectedDepartment.branch_code
+    };
 
     // Check if the code exists in the loaded departments for this branch
     const branch = this.branches.find(b => b.code === departmentData.branch_code);

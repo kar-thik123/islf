@@ -147,6 +147,16 @@ export class AppMenu {
                 routerLink : ['/master/master_item']
               },
               {
+                label:'Cargo ',
+                icon:'fa-solid fa-dolly',
+                routerLink : ['/master/cargo']
+              },
+              {
+                label:'Charges',
+                icon:'fa-solid fa-receipt',
+                routerLink : ['/master/charges']
+              },
+              {
                 label:'Currency Code',
                 icon:'fa-solid fa-money-bill',
                 routerLink : ['/master/currency_code']

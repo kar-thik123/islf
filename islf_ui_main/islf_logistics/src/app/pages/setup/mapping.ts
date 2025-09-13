@@ -281,7 +281,7 @@ export class mappingComponent implements OnInit, OnDestroy {
     { label: 'CR No Series', value: 'crNo' },
     { label: 'Booking No Series', value: 'bookingNo' },
     { label: 'Enquiry No Series', value: 'enquiryNo' },
-    { label: 'Source No Series', value: 'sourceNo' },
+    { label: 'Source Code No Series', value: 'sourceCode' },
     { label: 'Tariff Code No Series', value: 'tariffCode' }
   ];
 

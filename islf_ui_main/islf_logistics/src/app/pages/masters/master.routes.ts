@@ -14,6 +14,8 @@ import { TariffComponent } from './tariff';
 import { SourcingComponent } from './sourcing';
 import { BasisComponent } from './basis';
 import { TariffViewComponent } from './tariff-view';
+import { CargoTypeMasterComponent } from './cargotype';
+import { ChargeTypeMasterComponent } from './chargetype';
 
 export default [
 
@@ -31,8 +33,11 @@ export default [
     {path:'container',component:ContainerCodeComponent, data:{breadcrumb: 'Masters   >>>   Container ',title:'Container - ISLF'}},
     {path:'gst_setup',component:GstSetupComponent, data:{breadcrumb: 'Masters   >>>   GST Setup',title:'GST Setup - ISLF'}},
     {path:'tariff',component:TariffComponent, data:{breadcrumb: 'Masters   >>>   Tariff',title:'Tariff - ISLF'}},
-    {path:'sourcing',component:SourcingComponent, data:{breadcrumb: 'Masters   >>>   Sourcing',title:'Sourcing - ISLF'}},
-    {path:'tariff_view',component:TariffViewComponent, data:{breadcrumb: 'Masters   >>>   Tariff View',title:'Tariff View - ISLF'}}
+    {path:'tariff_view',component:TariffViewComponent, data:{breadcrumb: 'Masters   >>>   Tariff View',title:'Tariff View - ISLF'}},
+    {path: 'sourcing',component:SourcingComponent, data:{breadcrumb: 'Masters   >>>   Sourcing',title:'Sourcing - ISLF'}},
+    {path: 'cargo',component:CargoTypeMasterComponent, data:{breadcrumb: 'Masters   >>>   Cargo ',title:'Cargo- ISLF'}},
+    {path:'charges',component:ChargeTypeMasterComponent, data:{breadcrumb: 'Masters   >>>  Charges',title:'Charges-ISLF'}}
+    
 ] as Routes;
 
 

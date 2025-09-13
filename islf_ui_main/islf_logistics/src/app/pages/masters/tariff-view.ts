@@ -427,14 +427,65 @@ export class TariffViewComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Helper method to parse dates safely without timezone issues
+  parseDate(dateValue: any): Date | null {
+    if (!dateValue) return null;
+    
+    // If it's already a Date object, return it
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    
+    // If it's a string, parse it carefully
+    if (typeof dateValue === 'string') {
+      // Handle different date formats
+      if (dateValue.includes('-')) {
+        // Handle ISO date strings or DD-MM-YYYY format
+        const parts = dateValue.split('-');
+        if (parts.length === 3) {
+          // Check if it's DD-MM-YYYY or D-M-YYYY format (day and month can be 1 or 2 digits)
+          if (parts[2].length === 4 && parts[0].length <= 2 && parts[1].length <= 2) {
+            // DD-MM-YYYY or D-M-YYYY format
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+          } else if (parts[0].length === 4) {
+            // YYYY-MM-DD format
+            return new Date(dateValue);
+          }
+        }
+      }
+      
+      // Try parsing as regular date string
+      const parsed = new Date(dateValue);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    
+    return null;
+  }
+
   getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     if (!tariff.periodEndDate) {
       return 'Active';
     }
 
     const nowUtc = new Date();
-    const endDateUtc = new Date(tariff.periodEndDate);
-    endDateUtc.setUTCHours(23, 59, 59, 999);
+    const endDate = this.parseDate(tariff.periodEndDate);
+    
+    if (!endDate) {
+      return 'Active'; // If date parsing fails, consider it active
+    }
+    
+    // Set end date to end of day in UTC (23:59:59.999)
+    const endDateUtc = new Date(
+      Date.UTC(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate(),
+        23, 59, 59, 999
+      )
+    );
 
     if (nowUtc.getTime() > endDateUtc.getTime()) {
       return 'Expired';

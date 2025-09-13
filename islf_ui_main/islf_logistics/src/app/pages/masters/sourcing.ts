@@ -377,15 +377,15 @@ import { InputSwitchModule } from 'primeng/inputswitch';
            
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Effective Date</label>
-              <p-calendar [(ngModel)]="selectedTariff.effectiveDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full"></p-calendar>
+              <p-calendar [(ngModel)]="selectedTariff.effectiveDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
             </div>
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Period Start Date</label>
-              <p-calendar [(ngModel)]="selectedTariff.periodStartDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full"></p-calendar>
+              <p-calendar [(ngModel)]="selectedTariff.periodStartDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
             </div>
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Period End Date</label>
-              <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full"></p-calendar>
+              <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
             </div>
             <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
             <p-inputSwitch 
@@ -591,43 +591,38 @@ export class SourcingComponent implements OnInit, OnDestroy {
   ];
 
 // returns the source staus as Active or Expired in String
-getSourceStatus(source: { periodEndDate?: string | Date}): string {
-  if (!source.periodEndDate) return 'Active';
-
-  // current Date & Time in UTC
-  const nowUtc = new Date();
-
-  // end Date
-  const endDateUtc = new Date(source.periodEndDate)
-
-  // assigning the utc hours to 23:59:59.999 for providing same day active comparison
-  endDateUtc.setUTCHours(23,59,59,999)
-  // compare milliseconds since epoch
-  return (nowUtc.getTime() > endDateUtc.getTime()) ? 'Expired' : 'Active';
-
-}
-
-getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
+getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
   if (!tariff.periodEndDate) {
     return 'Active';
   }
 
-  // Current time in UTC
   const nowUtc = new Date();
 
-  // End date in UTC
-  const endDateUtc = new Date(tariff.periodEndDate);
+  // Parse the end date using the helper method
+  const endDate = this.parseDate(tariff.periodEndDate);
+  if (!endDate) {
+    return 'Active'; // If date is invalid, consider it active
+  }
 
-  // Set end date to the end of the day in UTC (23:59:59.999)
-  endDateUtc.setUTCHours(23, 59, 59, 999);
+  // Set end date to end of day in UTC (23:59:59.999)
+  const endDateUtc = new Date(
+    Date.UTC(
+      endDate.getFullYear(),
+      endDate.getMonth(),
+      endDate.getDate(),
+      23, 59, 59, 999
+    )
+  );
 
-  // Compare timestamps (milliseconds since epoch)
   if (nowUtc.getTime() > endDateUtc.getTime()) {
     return 'Expired';
   }
 
   return 'Active';
 }
+
+
+
 
   getStatusClass(status: string): string {
     switch (status) {
@@ -638,6 +633,55 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       default:
         return 'status-default';
     }
+  }
+
+  // Helper method to parse dates safely without timezone issues
+  parseDate(dateValue: any): Date | null {
+    if (!dateValue) return null;
+    
+    // If it's already a Date object, return it
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    
+    // If it's a string, parse it carefully
+    if (typeof dateValue === 'string') {
+      // Handle different date formats
+      if (dateValue.includes('-')) {
+        // Handle ISO date strings or DD-MM-YYYY format
+        const parts = dateValue.split('-');
+        if (parts.length === 3) {
+          // Check if it's DD-MM-YYYY or D-M-YYYY format (day and month can be 1 or 2 digits)
+          if (parts[2].length === 4 && parts[0].length <= 2 && parts[1].length <= 2) {
+            // DD-MM-YYYY or D-M-YYYY format
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+          } else if (parts[0].length === 4) {
+            // YYYY-MM-DD format
+            return new Date(dateValue);
+          }
+        }
+      }
+      
+      // Try parsing as regular date string
+      const parsed = new Date(dateValue);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    
+    return null;
+  }
+
+  // Helper method to format dates for backend (YYYY-MM-DD format)
+  formatDateForBackend(date: Date): string {
+    if (!date || !(date instanceof Date)) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   }
   modeOptions: any[] = [];
   shippingTypeOptions: any[] = [];
@@ -1531,14 +1575,15 @@ loadBasisOptions() {
     this.selectedTariff = { ...tariff, isNew: false, isEdit: true };
     
     // Convert date strings to Date objects for the calendar components
+    // Use proper date parsing to avoid timezone issues
     if (this.selectedTariff.effectiveDate) {
-      this.selectedTariff.effectiveDate = new Date(this.selectedTariff.effectiveDate);
+      this.selectedTariff.effectiveDate = this.parseDate(this.selectedTariff.effectiveDate);
     }
     if (this.selectedTariff.periodStartDate) {
-      this.selectedTariff.periodStartDate = new Date(this.selectedTariff.periodStartDate);
+      this.selectedTariff.periodStartDate = this.parseDate(this.selectedTariff.periodStartDate);
     }
     if (this.selectedTariff.periodEndDate) {
-      this.selectedTariff.periodEndDate = new Date(this.selectedTariff.periodEndDate);
+      this.selectedTariff.periodEndDate = this.parseDate(this.selectedTariff.periodEndDate);
     }
     
     // Filter locations based on existing location types
@@ -1579,6 +1624,17 @@ loadBasisOptions() {
     
     // Clear original data backup since we're saving changes
     this.originalTariffData = null;
+
+    // Format dates properly before sending to backend
+    if (payload.effectiveDate instanceof Date) {
+      payload.effectiveDate = this.formatDateForBackend(payload.effectiveDate);
+    }
+    if (payload.periodStartDate instanceof Date) {
+      payload.periodStartDate = this.formatDateForBackend(payload.periodStartDate);
+    }
+    if (payload.periodEndDate instanceof Date) {
+      payload.periodEndDate = this.formatDateForBackend(payload.periodEndDate);
+    }
 
     // For automatic series, ensure code is empty so backend generates it (only for new records)
     if (!this.isManualSeries && this.selectedTariff.isNew) {

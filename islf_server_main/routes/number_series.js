@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
       query += ` AND ns.branch_code = $${paramIndex}`;
       params.push(branchCode);
       paramIndex++;
-    }
+    }                       
     
     if (departmentCode) {
       query += ` AND ns.department_code = $${paramIndex}`;

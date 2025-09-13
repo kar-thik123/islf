@@ -2,18 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
-
-// 🔹 Extract username safely
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  console.log('User object from JWT:', req.user);
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // 🔹 Enforce hierarchy: company → branch → department
 function enforceHierarchy(companyCode, branchCode, departmentCode) {
@@ -135,7 +124,7 @@ router.post('/', async (req, res) => {
     // 🔹 Number series lookup
     if ((!code || code === '') && cleanData.company_code) {
       let whereConditions = ['code_type = $1', 'company_code = $2'];
-      let queryParams = ['sourceNo', cleanData.company_code];
+      let queryParams = ['sourceCode', cleanData.company_code];
       let paramIndex = 3;
 
       if (cleanData.branch_code) {

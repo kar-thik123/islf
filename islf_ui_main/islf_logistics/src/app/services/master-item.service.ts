@@ -12,6 +12,7 @@ export interface MasterItem {
   name: string;
   hs_code: string;
   active: boolean;
+  cargo_type?: string;
 }
 
 @Injectable({ providedIn: 'root' })

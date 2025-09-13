@@ -16,14 +16,24 @@ import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
 import { MasterTypeComponent } from './mastertype';
 
-interface ItemTypeOption {
+interface CargoTypeOption {
   key: string;
   value: string;
   status: string;
 }
 
+interface CargoType {
+  id?: number;
+  cargo_type: string;
+  code: string;
+  name: string;
+  hs_code: string;
+  description: string;
+  active: boolean;
+}
+
 @Component({
-  selector: 'master-item',
+  selector: 'cargo-type',
   standalone: true,
   providers: [MessageService],
   imports: [
@@ -40,23 +50,23 @@ interface ItemTypeOption {
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Master Item</div>
+      <div class="font-semibold text-xl mb-4">Cargo Type Master</div>
 
       <p-table
         #dt
-        [value]="items"
+        [value]="cargoTypes"
         dataKey="id"
         [paginator]="true"
         [rows]="10"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['item_type', 'code', 'name', 'hs_code']"
+        [globalFilterFields]="['cargo_type', 'code', 'name', 'description' , 'hs_code']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Item" icon="pi pi-plus" (click)="addRow()"></button>
+            <button pButton type="button" label="Add Cargo Type" icon="pi pi-plus" (click)="addRow()"></button>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -67,8 +77,8 @@ interface ItemTypeOption {
           <tr>
             <th>
               <div class="flex justify-between items-center">
-                Item Type
-                <p-columnFilter type="text" field="item_type" display="menu" placeholder="Search by type"></p-columnFilter>
+                Cargo Type
+                <p-columnFilter type="text" field="cargo_type" display="menu" placeholder="Search by cargo type"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -87,6 +97,12 @@ interface ItemTypeOption {
               <div class="flex justify-between items-center">
                 HS Code
                 <p-columnFilter type="text" field="hs_code" display="menu" placeholder="Search by HS code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Description
+                <p-columnFilter type="text" field="description" display="menu" placeholder="Search by description"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -111,37 +127,38 @@ interface ItemTypeOption {
           </tr>
         </ng-template>
 
-        <ng-template pTemplate="body" let-item>
+        <ng-template pTemplate="body" let-cargoType>
           <tr>
-            <td>{{ item.item_type }}</td>
-            <td>{{ item.code }}</td>
-            <td>{{ item.name }}</td>
-            <td>{{ item.hs_code }}</td>
+            <td>{{ cargoType.cargo_type }}</td>
+            <td>{{ cargoType.code }}</td>
+            <td>{{ cargoType.name }}</td>
+            <td>{{cargoType.hs_code}}</td>
+            <td>{{ cargoType.description }}</td>
             <td>
               <span
                 class="text-sm font-semibold px-3 py-1 rounded-full"
                 [ngClass]="{
-                  'text-green-700 bg-green-100': item.active,
-                  'text-red-700 bg-red-100': !item.active
+                  'text-green-700 bg-green-100': cargoType.active,
+                  'text-red-700 bg-red-100': !cargoType.active
                 }"
               >
-                {{ item.active ? 'Active' : 'Inactive' }}
+                {{ cargoType.active ? 'Active' : 'Inactive' }}
               </span>
             </td>
 
             <td>
-              <button pButton icon="pi pi-pencil" (click)="editRow(item)" class="p-button-sm"></button>
+              <button pButton icon="pi pi-pencil" (click)="editRow(cargoType)" class="p-button-sm"></button>
             </td>
           </tr>
         </ng-template>
         <ng-template pTemplate="paginatorleft" let-state>
-          Total Items: {{ state.totalRecords }}
+          Total Cargo Types: {{ state.totalRecords }}
         </ng-template>
       </p-table>
     </div>
 
     <p-dialog
-      header="{{ selectedItem?.isNew ? 'Add' : 'Edit' }} Item"
+      header="{{ selectedCargoType?.isNew ? 'Add' : 'Edit' }} Cargo Type"
       [(visible)]="isDialogVisible"
       [modal]="true"
       [style]="{ width: '600px' }"
@@ -151,20 +168,20 @@ interface ItemTypeOption {
       (onHide)="hideDialog()"
     >
       <ng-template pTemplate="content">
-        <div *ngIf="selectedItem" class="p-fluid form-grid dialog-body-padding">
+        <div *ngIf="selectedCargoType" class="p-fluid form-grid dialog-body-padding">
           <div class="grid-container">
             <div class="grid-item">
-              <label for="item_type "> Item Type <span class="text-red-500">*</span></label>
+              <label for="cargo_type"> Cargo Type <span class="text-red-500">*</span></label>
               <div class="flex gap-2">
                 <p-dropdown
-                  id="item_type"
-                  [options]="itemTypeOptions"
-                  [(ngModel)]="selectedItem.item_type"
+                  id="cargo_type"
+                  [options]="cargoTypeOptions"
+                  [(ngModel)]="selectedCargoType.cargo_type"
                   optionLabel="value"
                   optionValue="value"
-                  placeholder="Select Item Type"
+                  placeholder="Select Cargo Type"
                   [filter]="true"
-                  (onChange)="onFieldChange('item_type', $event.value)"
+                  (onChange)="onFieldChange('cargo_type', $event.value)"
                   class="flex-1"
                 ></p-dropdown>
                 <button 
@@ -172,26 +189,30 @@ interface ItemTypeOption {
                   type="button" 
                   icon="pi pi-ellipsis-h" 
                   class="p-button-sm" 
-                  [loading]="masterDialogLoading['itemType']" 
-                  (click)="openMaster('itemType')"
-                  title="Open Item Type Master"
+                  [loading]="masterDialogLoading['cargoType']" 
+                  (click)="openMaster('cargoType')"
+                  title="Open Cargo Type Master"
                 ></button>
               </div>
-              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('item_type')">{{ getFieldError('item_type') }}</small>
+              <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('cargo_type')">{{ getFieldError('cargo_type') }}</small>
             </div>
             <div class="grid-item">
               <label for="code"> Code<span class="text-red-500">*</span></label>
-              <input #codeInput id="code" pInputText [(ngModel)]="selectedItem.code" [disabled]="!selectedItem.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
+              <input #codeInput id="code" pInputText [(ngModel)]="selectedCargoType.code" [disabled]="!selectedCargoType.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('code')">{{ getFieldError('code') }}</small>
             </div>
             <div class="grid-item">
               <label for="name"> Name <span class="text-red-500">*</span></label>
-              <input #nameInput id="name" pInputText [(ngModel)]="selectedItem.name" required (input)="onFieldChange('name', nameInput.value)"/>
+              <input #nameInput id="name" pInputText [(ngModel)]="selectedCargoType.name" required (input)="onFieldChange('name', nameInput.value)"/>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('name')">{{ getFieldError('name') }}</small>
             </div>
             <div class="grid-item">
               <label for="hs_code"> HS Code </label>
-              <input #hsCodeInput id="hs_code" pInputText [(ngModel)]="selectedItem.hs_code" (input)="onFieldChange('hs_code', hsCodeInput.value)"/>
+              <input #hsCodeInput id="hs_code" pInputText [(ngModel)]="selectedCargoType.hs_code" (input)="onFieldChange('hs_code', hsCodeInput.value)"/>
+            </div>
+            <div class="grid-item">
+              <label for="description"> Description </label>
+              <input #descriptionInput id="description" pInputText [(ngModel)]="selectedCargoType.description" (input)="onFieldChange('description', descriptionInput.value)"/>
             </div>
             <div class="grid-item">
               <label for="active">Status</label>
@@ -199,7 +220,7 @@ interface ItemTypeOption {
                 appendTo="body"
                 id="active"
                 [options]="activeOptions"
-                [(ngModel)]="selectedItem.active"
+                [(ngModel)]="selectedCargoType.active"
                 optionLabel="label"
                 optionValue="value"
               ></p-dropdown>
@@ -210,15 +231,15 @@ interface ItemTypeOption {
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedItem?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid()"></button>
+          <button pButton label="{{ selectedCargoType?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()" [disabled]="!isFormValid()"></button>
         </div>
       </ng-template>
     </p-dialog>
 
-    <!-- Item Type Master Dialog -->
+    <!-- Cargo Type Master Dialog -->
     <p-dialog
-      header="Item Type Master (ITEM_TYPE only)"
-      [(visible)]="showItemTypeDialog"
+      header="Cargo Type Master (CARGO_TYPE only)"
+      [(visible)]="showCargoTypeDialog"
       [modal]="true"
       [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
       [contentStyle]="{ overflow: 'visible' }"
@@ -226,10 +247,10 @@ interface ItemTypeOption {
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
-      (onHide)="closeMasterDialog('itemType')"
+      (onHide)="closeMasterDialog('cargoType')"
     >
       <ng-template pTemplate="content">
-        <master-type [filterByKey]="'ITEM_TYPE'"></master-type>
+        <master-type [filterByKey]="'CARGO_TYPE'"></master-type>
       </ng-template>
     </p-dialog>
   `,
@@ -249,18 +270,18 @@ interface ItemTypeOption {
     }
   `]
 })
-export class MasterItemComponent implements OnInit, OnDestroy {
-  items: MasterItem[] = [];
-  itemTypeOptions: ItemTypeOption[] = [];
+export class CargoTypeMasterComponent implements OnInit, OnDestroy {
+  cargoTypes: CargoType[] = [];
+  cargoTypeOptions: CargoTypeOption[] = [];
   activeOptions = [
     { label: 'Active', value: true },
     { label: 'Inactive', value: false }
   ];
 
   isDialogVisible = false;
-  selectedItem: (MasterItem & { isNew?: boolean }) | null = null;
+  selectedCargoType: (CargoType & { isNew?: boolean }) | null = null;
   fieldErrors: { [key: string]: string } = {};
-  showItemTypeDialog = false;
+  showCargoTypeDialog = false;
   masterDialogLoading: { [key: string]: boolean } = {};
   private contextSubscription: Subscription | undefined;
 
@@ -275,11 +296,11 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.refreshList();
-    this.loadItemTypeOptions();
+    this.loadCargoTypeOptions();
     
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
-      console.log('Context changed in MasterItemComponent, reloading data...');
+      console.log('Context changed in CargoTypeMasterComponent, reloading data...');
       this.refreshList();
     });
   }
@@ -295,28 +316,39 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    console.log('Refreshing items list');
+    console.log('Refreshing cargo types list');
     
-    // ❌ Remove context validation - let backend handle filtering
+    // Load cargo types from master_item where item_type = 'CARGO_TYPE'
     this.masterItemService.getAll().subscribe({
       next: (data) => {
-        this.items = data || [];
-        console.log('Items loaded:', this.items.length);
+        // Filter for CARGO_TYPE entries and transform to CargoType format
+        this.cargoTypes = (data || [])
+          .filter(item => item.item_type === 'CARGO_TYPE')
+          .map(item => ({
+            id: item.id,
+            cargo_type: item.item_type,
+            code: item.code,
+            name: item.name,
+            hs_code: item.hs_code || '',
+            description: '', 
+            active: item.active
+          }));
+        console.log('Cargo types loaded:', this.cargoTypes.length);
       },
       error: (error) => {
-        console.error('Error loading items:', error);
+        console.error('Error loading cargo types:', error);
         this.messageService.add({ 
           severity: 'error', 
           summary: 'Error', 
-          detail: 'Failed to load items' 
+          detail: 'Failed to load cargo types' 
         });
-        this.items = [];
+        this.cargoTypes = [];
       }
     });
   }
 
   addRow() {
-    console.log('Add Item button clicked - starting addRow method');
+    console.log('Add Cargo Type button clicked - starting addRow method');
     
     // Get the validation settings
     const config = this.configService.getConfig();
@@ -352,7 +384,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
-          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding an Item.`
+          detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Cargo Type.`
         });
         
         // Trigger the context selector
@@ -362,11 +394,12 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     }
     
     // If validation passes or no validation required, proceed with adding row
-    this.selectedItem = {
-      item_type: '',
+    this.selectedCargoType = {
+      cargo_type: '',
       code: '',
       name: '',
       hs_code: '',
+      description: '',
       active: true,
       isNew: true
     };
@@ -374,8 +407,8 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     this.isDialogVisible = true;
   }
 
-  editRow(item: MasterItem) {
-    this.selectedItem = { ...item, isNew: false };
+  editRow(cargoType: CargoType) {
+    this.selectedCargoType = { ...cargoType, isNew: false };
     this.fieldErrors = {};
     this.isDialogVisible = true;
   }
@@ -384,7 +417,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     if (!value || value.toString().trim() === '') {
       return `*${field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} is required`;
     }
-    if (field === 'code' && this.selectedItem?.isNew && this.items.some(i => i.code === value)) {
+    if (field === 'code' && this.selectedCargoType?.isNew && this.cargoTypes.some(i => i.code === value)) {
       return '*Code already exists';
     }
     return '';
@@ -404,27 +437,38 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   }
 
   isFormValid(): boolean {
-    if (!this.selectedItem) return false;
-    const required = ['item_type', 'code', 'name'];
+    if (!this.selectedCargoType) return false;
+    const required = ['cargo_type', 'code', 'name'];
     for (const f of required) {
-      if (this.validateField(f, (this.selectedItem as any)[f])) return false;
+      if (this.validateField(f, (this.selectedCargoType as any)[f])) return false;
     }
     return true;
   }
 
   saveRow() {
-    if (!this.selectedItem) return;
+    if (!this.selectedCargoType) return;
     // Validate all required fields on save
-    ['item_type', 'code', 'name'].forEach(f => {
-      this.onFieldChange(f, (this.selectedItem as any)[f]);
+    ['cargo_type', 'code', 'name'].forEach(f => {
+      this.onFieldChange(f, (this.selectedCargoType as any)[f]);
     });
     if (!this.isFormValid()) return;
-    const req = this.selectedItem.isNew
-      ? this.masterItemService.create(this.selectedItem)
-      : this.masterItemService.update(this.selectedItem.id!, this.selectedItem);
+    
+    // Transform CargoType to master_item format
+    const masterItemData = {
+      item_type: 'CARGO_TYPE',
+      code: this.selectedCargoType.code,
+      name: this.selectedCargoType.name,
+      hs_code: this.selectedCargoType.hs_code || '',
+      active: this.selectedCargoType.active,
+      masterType: 'Cargo Type'
+    };
+    
+    const req = this.selectedCargoType.isNew
+      ? this.masterItemService.create(masterItemData)
+      : this.masterItemService.update(this.selectedCargoType.id!, masterItemData);
     req.subscribe({
       next: () => {
-        const msg = this.selectedItem?.isNew ? 'Item created' : 'Item updated';
+        const msg = this.selectedCargoType?.isNew ? 'Cargo Type created' : 'Cargo Type updated';
         this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
         this.refreshList();
         this.hideDialog();
@@ -437,7 +481,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
   hideDialog() {
     this.isDialogVisible = false;
-    this.selectedItem = null;
+    this.selectedCargoType = null;
     this.fieldErrors = {};
   }
 
@@ -454,8 +498,8 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     this.masterDialogLoading[type] = true;
     
     // Open dialog immediately for better user experience
-    if (type === 'itemType') {
-      this.showItemTypeDialog = true;
+    if (type === 'cargoType') {
+      this.showCargoTypeDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -470,10 +514,10 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     
     // Reset the appropriate dialog visibility
     switch (type) {
-      case 'itemType':
-        this.showItemTypeDialog = false;
-        // Refresh item type options when dialog closes
-        this.loadItemTypeOptions();
+      case 'cargoType':
+        this.showCargoTypeDialog = false;
+        // Refresh cargo type options when dialog closes
+        this.loadCargoTypeOptions();
         break;
       default:
         console.warn(`Unknown master dialog type: ${type}`);
@@ -488,18 +532,19 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private loadItemTypeOptions() {
+  private loadCargoTypeOptions() {
+    // Load cargo type options from master_type for dropdown
     this.masterTypeService.getAll().subscribe({
-      next: (types: ItemTypeOption[]) => {
-        this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE'  && t.status === 'Active');
-        console.log('Item type options refreshed:', this.itemTypeOptions.length);
+      next: (types: CargoTypeOption[]) => {
+        this.cargoTypeOptions = types.filter(t => t.key === 'CARGO_TYPE' && t.status === 'Active');
+        console.log('Cargo type options refreshed:', this.cargoTypeOptions.length);
       },
       error: (error) => {
-        console.error('Error loading item type options:', error);
+        console.error('Error loading cargo type options:', error);
         this.messageService.add({ 
           severity: 'error', 
           summary: 'Error', 
-          detail: 'Failed to refresh item type options' 
+          detail: 'Failed to refresh cargo type options' 
         });
       }
     });
