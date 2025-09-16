@@ -40,9 +40,7 @@ router.post('/', async (req, res) => {
       username: req.user?.username || 'system',
       action: 'CREATE',
       setupType: 'Company',
-      entityType: 'company',
       entityCode: code,
-      entityName: name,
       details: `Company created: ${name} (${code})`
     });
     
@@ -106,9 +104,7 @@ router.put('/:code', async (req, res) => {
       username: req.user?.username || 'system',
       action: 'UPDATE',
       setupType: 'Company',
-      entityType: 'company',
       entityCode: req.params.code,
-      entityName: name,
       details
     });
     
@@ -132,9 +128,7 @@ router.delete('/:code', async (req, res) => {
       username: req.user?.username || 'system',
       action: 'DELETE',
       setupType: 'Company',
-      entityType: 'company',
       entityCode: req.params.code,
-      entityName: result.rows[0]?.name || 'Unknown',
       details: `Company deleted: ${JSON.stringify({
         name: result.rows[0]?.name || 'Unknown',
         code: req.params.code

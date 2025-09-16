@@ -14,10 +14,11 @@ async function logMasterEvent({ username, action, masterType, recordId, details 
   );
 }
 
-async function logSetupEvent({ username, action, setupType, entityType, entityCode, details }) {
+async function logSetupEvent({ username, action, setupType, entityCode, details }) {
+  // console.log(`log setup Event values UN: ${username},Acti: ${action}, setupType: ${setupType}, entityCode: ${entityCode} , details: ${details} ` );
   await pool.query(
-    'INSERT INTO setup_logs (username, action, setup_type, entity_type, entity_code, details) VALUES ($1, $2, $3, $4, $5, $6)',
-    [username, action, setupType, entityType, entityCode, details]
+    'INSERT INTO setup_logs (username, action, setup_type, entity_code, details) VALUES ($1, $2, $3, $4, $5)',
+    [username, action, setupType, entityCode, details]
   );
 }
 

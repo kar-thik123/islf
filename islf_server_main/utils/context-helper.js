@@ -84,8 +84,31 @@ function getUsernameFromToken(req) {
 }
 
 
+// change Field Detection
+function fieldChangeDetection({fieldsToCheck, prevVal}) {
+  if( typeof fieldsToCheck !== 'object'|| typeof prevVal !== 'object' ){
+      throw new TypeError('fieldsToCheck and prevVal must be of type Object');      
+  }
+  changedFields = [];
+
+  const normalize = (value)=>{
+    if (value==null || value ==undefined) return '';
+
+    return value.toString().trim();
+  }
+  for (field in fieldsToCheck){
+    const newVal = normalize(fieldsToCheck[field]);
+    const oldVal =normalize(prevVal[field]);
+    newVal !== oldVal && changedFields.push(`Field ${field} changed From ${oldVal} to ${newVal}`);
+  }
+
+  return changedFields.length > 0 ? 'Changes detected in the field \n'+changedFields.join('\n') : 'No Changes Detected';
+  
+}
+
 module.exports = {
   shouldUpdateWithContext,
   buildUpdateQuery,
-  getUsernameFromToken
+  getUsernameFromToken,
+  fieldChangeDetection
 };

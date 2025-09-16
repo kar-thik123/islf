@@ -51,9 +51,7 @@ router.post('/', async (req, res) => {
       username: req.user?.username || 'system',
       action: 'CREATE',
       setupType: 'Department',
-      entityType: 'department',
       entityCode: code,
-      entityName: name,
       details: `Department created: ${name} (${code}) for branch ${branch_code}`
     });
     
@@ -79,9 +77,7 @@ router.put('/:code', async (req, res) => {
       username: req.user?.username || 'system',
       action: 'UPDATE',
       setupType: 'Department',
-      entityType: 'department',
       entityCode: req.params.code,
-      entityName: name,
       details: `Department updated: ${name} (${req.params.code}) for branch ${branch_code}`
     });
     
@@ -103,9 +99,7 @@ router.delete('/:code', async (req, res) => {
       username: req.user?.username || 'system',
       action: 'DELETE',
       setupType: 'Department',
-      entityType: 'department',
       entityCode: req.params.code,
-      entityName: result.rows[0]?.name || 'Unknown',
       details: `Department deleted: ${result.rows[0]?.name || 'Unknown'} (${req.params.code})`
     });
     

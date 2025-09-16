@@ -1,6 +1,9 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const {logSetupEvent} = require('../log');
+const {getUsernameFromToken, fieldChangeDetection} = require('../utils/context-helper');
+
 
 // Get all number series relations with context-based filtering
 router.get('/', async (req, res) => {
@@ -110,6 +113,11 @@ router.post('/', async (req, res) => {
       'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, ending_date, prefix, last_no_used, increment_by, company_code, branch_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
       [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, branch_code, department_code]
     );
+    await logSetupEvent({username:getUsernameFromToken(req)||'System',action:'CREATE',
+      setupType: 'No.Series Relation',
+      entityCode: company_code,
+      details: `New No.Series Relation ${numberSeries} Created`
+    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating number series relation:', err);
@@ -141,6 +149,11 @@ router.put('/:id', async (req, res) => {
   // }
 
   try {
+    const prevValResult = await pool.query('SELECT * FROM number_relation WHERE id = $1', [req.params.id]);
+
+    const prevVal= prevValResult.rows[0];
+    if (!prevVal) res.status(404).json({msg: 'No.Series relation not found'});
+
     // Handle date conversion for proper timezone storage
     let processedStartingDate = startingDate;
     let processedEndingDate = endingDate;
@@ -172,6 +185,14 @@ router.put('/:id', async (req, res) => {
       [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, branch_code, department_code, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    fieldsToCheck={...req.body};
+    const details = fieldChangeDetection({fieldsToCheck, prevVal})
+    await logSetupEvent({username: getUsernameFromToken(req)||'System',
+      action: 'UPDATE',
+      setupType: 'No.Series Relation',
+      entityCode: finalCompanyCode,
+      details
+    })
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating number series relation:', err);
@@ -185,6 +206,12 @@ router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM number_relation WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    await logSetupEvent({username:getUsernameFromToken(req)||'System',
+      action: 'DELETE',
+      setupType: 'No.Series Relation',
+      entityCode: result.rows[0]['company_code'],
+      details: `No.Series Relation ${result.rows[0]['number_series']} deleted`
+    });
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting number series relation:', err);
