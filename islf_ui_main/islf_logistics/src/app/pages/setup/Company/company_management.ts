@@ -84,16 +84,16 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   <div *ngFor="let branch of getBranchesForCompany(company.code)" class="cursor-pointer border rounded-xl shadow hover:shadow-lg transition-all" (click)="openBranchDialog(branch)">
                  <div class="branch-header">
                     <h3 class="text-xl font-bold uppercase">{{ branch.name }}</h3>
-                    <div class="text-right text-sm font-medium">Incharge: {{ branch.incharge_name }}</div>
+                    <div class="text-right text-sm font-medium">Code: {{ branch.code }}</div>
                   </div>
 
                     <div class="grid grid-cols-2 p-4 gap-2 text-sm bg-white">
-                      <div><strong>Code:</strong> {{ branch.code }}</div>
+                      <div class="col-span-2 "><strong>Incharge:</strong> {{ branch.incharge_name }}</div>
                       <div><strong>GST:</strong> {{ branch.gst }}</div>
-                      <div><strong>Address:</strong> {{ branch.address }}</div>
-                      <div><strong>Status:</strong> {{ branch.status }}</div>
+                      <div class ="col-span-2"><strong>Address:</strong> {{ branch.address }}</div>
                       <div><strong>Start:</strong> {{ branch.start_date | configDate }}</div>
                       <div><strong>Close:</strong> {{ branch.close_date ? (branch.close_date | configDate) : '-' }}</div>
+                      <div><strong>Status:</strong> {{ branch.status }}</div>
                       <div class="col-span-2"><strong>Remarks:</strong> {{ branch.remarks }}</div>
                       <div class="col-span-2"><strong>Description:</strong> {{ branch.description }}</div>
                     </div>
@@ -135,18 +135,18 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                         <div class="branch-header">
                           <div class="col-span-full flex justify-between items-center w-full">
                             <div class="text-lg font-bold uppercase">{{ dept.name }}</div>
-                            <div class="text-sm font-medium">Incharge: {{ dept.incharge_name }}</div>
+                            <div class="text-sm font-medium">Code: {{ dept.code }}</div>
                           </div>
                         </div>
-                        <div class="p-4">
-                          <div class="text-xs text-gray-600 mb-2">{{ dept.description }}</div>
-                          <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div><strong>Code:</strong> {{dept.code }}</div>
-                             <div><strong>Status:</strong> {{ dept.status }}</div>
+                          <div class="grid grid-cols-2 p-4 gap-2 text-sm bg-white">
+                            <div class="col-span-2"><strong>Incharge:</strong> {{dept.incharge_name }}</div>
+                            <div><strong>GST:</strong> {{ dept.gst }}</div>
                             <div><strong>Start:</strong> {{ dept.start_date | configDate }}</div>
                             <div><strong>Close:</strong> {{ dept.close_date ? (dept.close_date | configDate) : '-' }}</div>
+                             <div><strong>Status:</strong> {{ dept.status }}</div>
                             <div class="col-span-2"><strong>Remarks:</strong> {{ dept.remarks }}</div>
-                          </div>
+                            <div class="col-span-2"><strong>Description:</strong>{{ dept.description }}</div>
+                          
                         </div>
                       </div>
                     </div>
@@ -206,17 +206,17 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                             <div class="branch-header">
                               <div class="col-span-full flex justify-between items-center w-full">
                                 <div class="text-lg font-bold uppercase">{{ serviceType.name }}</div>
-                                <div class="text-sm font-medium">Incharge: {{ serviceType.incharge_name }}</div>
+                                <div class="text-sm font-medium">Code: {{ serviceType.code }}</div>
                               </div>
                             </div>
-                            <div class="p-4">
-                              <div class="grid grid-cols-2 gap-2 text-xs">
-                                <div><strong>Code:</strong> {{ serviceType.code }}</div>
-                                <div><strong>Status:</strong> {{ serviceType.status }}</div>
+                            <div class="grid grid-cols-2 p-4 gap-2 text-sm bg-white">
+                                <div class="col-span-2"><strong>Incharge:</strong> {{ serviceType.incharge_name }}</div>
                                 <div><strong>Start:</strong> {{ serviceType.start_date | configDate }}</div>
                                 <div><strong>Close:</strong> {{ serviceType.close_date ? (serviceType.close_date | configDate) : '-' }}</div>
+                                <div><strong>Status:</strong> {{ serviceType.status }}</div>
                                 <div class="col-span-2"><strong>Remarks:</strong> {{ serviceType.remarks }}</div>
-                              </div>
+                                <div class="col-span-2"><strong>Description:</strong> {{ serviceType.description }}</div>
+                              
                             </div>
                           </div>
                         </div>
@@ -378,6 +378,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   [options]="field.options" 
                   [(ngModel)]="selectedDepartment[field.key]" 
                   [name]="field.key"
+                  [disabled]="field.disabled ?? false"
                   placeholder="Select {{ field.label }}"
                   optionLabel="label" 
                   optionValue="value"
@@ -396,7 +397,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   [class.border-red-500]="getFieldError(field.key)"
                   [(ngModel)]="selectedDepartment[field.key]" 
                   [name]="field.key"
-                  [disabled]="(field.key === 'code' && isDepartmentCodeDisabled()) || (field.key === 'branch_code' && isDepartmentBranchCodeDisabled()) || (field.key === 'company_code' && isDepartmentCompanyCodeDisabled())"
+                  [disabled]="(field.key === 'code' && isDepartmentCodeDisabled()) || (field.key === 'branch_code' && isDepartmentBranchCodeDisabled()) || (field.key === 'company_code' && isDepartmentCompanyCodeDisabled() ) || (field.disabled === true)"
                   (ngModelChange)="onFieldChange(field.key, $event)"
                   (blur)="onFieldBlur(field.key)"
                   (click)="field.key === 'incharge_name' ? openInchargeDialog('department', selectedDepartment.code) : null"

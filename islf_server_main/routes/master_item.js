@@ -107,14 +107,14 @@ router.get('/', async (req, res) => {
 
 // CREATE new master item
 router.post('/', async (req, res) => {
-  const { item_type, code, name, hs_code,description,active, company_code, branch_code, department_code, masterType } = req.body;
+  const { item_type, code, name, hs_code, description, active, company_code, branch_code, department_code, masterType, charge_type } = req.body;
 
   try {
     const result = await pool.query(
-      `INSERT INTO master_item (item_type, code, name,description,hs_code, active, company_code, branch_code, department_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
+      `INSERT INTO master_item (item_type, code, name, description, hs_code, active, company_code, branch_code, department_code, charge_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [item_type, code, name, hs_code, active, company_code, branch_code, department_code]
+      [item_type, code, name, description || '', hs_code, Boolean(active), company_code, branch_code, department_code, charge_type || null]
     );
     
 
@@ -140,7 +140,7 @@ router.put('/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
 
-  const { item_type, code, name, hs_code, active, masterType } = req.body;
+  const { item_type, code, name, description, hs_code, active, masterType, charge_type } = req.body;
   try {
     const oldResult = await pool.query('SELECT * FROM master_item WHERE id = $1', [id]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
@@ -148,10 +148,10 @@ router.put('/:id', async (req, res) => {
 
     const result = await pool.query(
       `UPDATE master_item
-       SET item_type = $1, code = $2, name = $3,description = $4, hs_code = $5, active = $6
-       WHERE id = $6
+       SET item_type = $1, code = $2, name = $3, description = $4, hs_code = $5, active = $6, charge_type = $7
+       WHERE id = $8
        RETURNING *`,
-      [item_type, code, name, hs_code, active, id]
+      [item_type, code, name, description || '', hs_code, Boolean(active), charge_type || null, id]
     );
 
     if (result.rows.length === 0) {
@@ -160,15 +160,21 @@ router.put('/:id', async (req, res) => {
     
     const changedFields = [];
     const fieldsToCheck = {
-      item_type, code, name, hs_code, active,description
+      item_type, code, name, hs_code, active, description, charge_type
     };
     const normalize = (value) => {
       if (value === null || value === undefined) return '';
       return value.toString().trim();
     };
     for (const field in fieldsToCheck) {
-      const newValue = normalize(fieldsToCheck[field]);
-      const oldValue = normalize(oldItem[field]);
+      let newValue, oldValue;
+      if (field === 'active') {
+        newValue = Boolean(fieldsToCheck[field]);
+        oldValue = Boolean(oldItem[field]);
+      } else {
+        newValue = normalize(fieldsToCheck[field]);
+        oldValue = normalize(oldItem[field]);
+      }
       const valuesAreEqual = newValue === oldValue;
       if (!valuesAreEqual) {
         changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);

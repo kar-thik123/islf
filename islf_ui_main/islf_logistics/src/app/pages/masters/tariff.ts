@@ -42,7 +42,7 @@ import { NumberSeriesService } from '@/services/number-series.service';
 import { NumberSeriesRelationService } from '@/services/number-series-relation.service';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputSwitchModule } from 'primeng/inputswitch';
-
+import { ChargeTypeMasterComponent } from './chargetype';
 
 @Component({
   selector: 'app-tariff',
@@ -67,6 +67,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     MasterTypeComponent,
     MasterLocationComponent,
     MasterItemComponent,
+    ChargeTypeMasterComponent,
     InputSwitchModule
   ],
   template: `
@@ -544,7 +545,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 
     <!-- Master Item Dialog -->
     <p-dialog
-      header="Item Master"
+      header="Charge Type Master"
       [(visible)]="showMasterItemDialog"
       [modal]="true"
       [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
@@ -557,7 +558,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
       [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
-        <master-item></master-item>
+        <charge-type></charge-type>
       </ng-template>
     </p-dialog>
 
@@ -1254,7 +1255,7 @@ loadBasisOptions() {
       // @ts-ignore
       tap((items: any[]) => {
         this.itemNameOptions = (items || [])
-          .filter(i => i.item_type === 'CHARGE' && i.active)
+          .filter(i => i.item_type === 'CHARGE_TYPE' && i.active)
           .map(i => ({ label: `${i.code} - ${i.name}`, value: i.code }));
       })
     );

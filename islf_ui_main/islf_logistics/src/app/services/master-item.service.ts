@@ -13,6 +13,8 @@ export interface MasterItem {
   hs_code: string;
   active: boolean;
   cargo_type?: string;
+  charge_type?: string;
+  description?: string;
 }
 
 @Injectable({ providedIn: 'root' })

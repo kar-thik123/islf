@@ -43,6 +43,7 @@ import { NumberSeriesService } from '@/services/number-series.service';
 import { NumberSeriesRelationService } from '@/services/number-series-relation.service';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputSwitchModule } from 'primeng/inputswitch';
+import { ChargeTypeMasterComponent } from './chargetype';
 
 
 @Component({
@@ -68,7 +69,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
     MasterTypeComponent,
     MasterLocationComponent,
     MasterItemComponent,
-    InputSwitchModule
+    InputSwitchModule,
+    ChargeTypeMasterComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -480,7 +482,7 @@ import { InputSwitchModule } from 'primeng/inputswitch';
       [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
-        <master-item></master-item>
+        <charge-type></charge-type>
       </ng-template>
     </p-dialog>
 
@@ -1191,7 +1193,7 @@ loadBasisOptions() {
       // @ts-ignore
       tap((items: any[]) => {
         this.itemNameOptions = (items || [])
-          .filter(i => i.item_type === 'CHARGE' && i.active)
+          .filter(i => i.item_type === 'CHARGE_TYPE' && i.active)
           .map(i => ({ label: `${i.code} - ${i.name}`, value: i.code }));
       })
     );
