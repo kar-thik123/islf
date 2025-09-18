@@ -59,7 +59,18 @@ router.get('/', async (req, res) => {
     query += ` ORDER BY id ASC`;
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    
+    // Fetch contacts for each vendor
+    const vendors = result.rows;
+    for (const vendor of vendors) {
+      const contactsResult = await pool.query(
+        'SELECT * FROM vendor_contacts WHERE vendor_id = $1 AND is_active = true ORDER BY is_primary DESC, id ASC',
+        [vendor.id]
+      );
+      vendor.contacts = contactsResult.rows;
+    }
+    
+    res.json(vendors);
   } catch (err) {
     console.error('Error fetching vendors:', err);
     res.status(500).json({ error: 'Failed to fetch vendors' });
@@ -185,32 +196,69 @@ router.post('/', async (req, res) => {
       vendor_no = 'VEN-' + Date.now();
     }
 
-    // Update the INSERT statement parameters
-    const result = await pool.query(
-      `INSERT INTO vendor (
-        vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-        company_code, branch_code, department_code, service_type_code
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22 ) RETURNING *`,
-      [
-        vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
-        company_code, branch_code, department_code, service_type_code // <-- Use snake_case variables
-      ]
-    );
-    
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req) || 'system',
-      action: 'CREATE',
-      masterType: 'Vendor',
-      recordId: vendor_no,
-      details: `New Vendor ${vendor_no}-${name} has been created successfully.`
-    });
+    // Start transaction for vendor and contacts
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Insert vendor without contacts field
+      const result = await client.query(
+        `INSERT INTO vendor (
+          vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+          bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no,
+          company_code, branch_code, department_code, service_type_code
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+          $18, $19, $20, $21 ) RETURNING *`,
+        [
+          vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+          bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no,
+          company_code, branch_code, department_code, service_type_code
+        ]
+      );
+      
+      const vendorId = result.rows[0].id;
+      
+      // Insert contacts if provided
+      if (contacts && Array.isArray(contacts) && contacts.length > 0) {
+        for (const contact of contacts) {
+          await client.query(
+            `INSERT INTO vendor_contacts (
+              vendor_id, name, department, mobile, landline, email, remarks, is_primary, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              vendorId,
+              contact.name || '',
+              contact.department || null,
+              contact.mobile || null,
+              contact.landline || null,
+              contact.email || null,
+              contact.remarks || null,
+              contact.is_primary || false,
+              contact.is_active !== false // Default to true unless explicitly false
+            ]
+          );
+        }
+      }
+      
+      await client.query('COMMIT');
+      client.release();
+      
+      // Log the master event
+      await logMasterEvent({
+        username: getUsernameFromToken(req) || 'system',
+        action: 'CREATE',
+        masterType: 'Vendor',
+        recordId: vendor_no,
+        details: `New Vendor ${vendor_no}-${name} has been created successfully.`
+      });
 
-    res.status(201).json(result.rows[0]);
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
   } catch (err) {
     console.error('Error creating vendor:', err);
     res.status(500).json({ error: 'Failed to create vendor' });
@@ -235,19 +283,58 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Vendor not found' });
     }
     const oldVendor = oldResult.rows[0];
-    // Relation-based number series lookup (if seriesCode provided)
-    const result = await pool.query(
-      `UPDATE vendor SET
-        vendor_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
-        bill_to_vendor_name = $13, vat_gst_no = $14, place_of_supply = $15, pan_no = $16, tan_no = $17, contacts = $18,
-        company_code = $19, branch_code = $20, department_code = $21, service_type_code = $22
-      WHERE id = $23 RETURNING *`,
-      [
-        vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
-        company_code, branch_code, department_code, service_type_code, id
-      ]
-    );
+    // Start transaction for vendor and contacts update
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      
+      result = await client.query(
+        `UPDATE vendor SET
+          vendor_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
+          bill_to_vendor_name = $13, vat_gst_no = $14, place_of_supply = $15, pan_no = $16, tan_no = $17,
+          company_code = $18, branch_code = $19, department_code = $20, service_type_code = $21
+        WHERE id = $22 RETURNING *`,
+        [
+          vendor_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+          bill_to_vendor_name, vat_gst_no, place_of_supply, pan_no, tan_no,
+          company_code, branch_code, department_code, service_type_code, id
+        ]
+      );
+      
+      // Update contacts if provided
+      if (contacts && Array.isArray(contacts)) {
+        // Delete existing contacts
+        await client.query('DELETE FROM vendor_contacts WHERE vendor_id = $1', [id]);
+        
+        // Insert new contacts
+        for (const contact of contacts) {
+          await client.query(
+            `INSERT INTO vendor_contacts (
+              vendor_id, name, department, mobile, landline, email, remarks, is_primary, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              id,
+              contact.name || '',
+              contact.department || null,
+              contact.mobile || null,
+              contact.landline || null,
+              contact.email || null,
+              contact.remarks || null,
+              contact.is_primary || false,
+              contact.is_active !== false // Default to true unless explicitly false
+            ]
+          );
+        }
+      }
+      
+      await client.query('COMMIT');
+      client.release();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
@@ -298,12 +385,35 @@ router.delete('/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
   try {
-    const result = await pool.query(
-      `DELETE FROM vendor WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
+    // Start transaction to delete vendor and related contacts
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      
+      // First get vendor details for logging
+      const vendorResult = await client.query('SELECT * FROM vendor WHERE id = $1', [id]);
+      if (vendorResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+      
+      // Delete related contacts first
+      await client.query('DELETE FROM vendor_contacts WHERE vendor_id = $1', [id]);
+      
+      // Then delete the vendor
+      result = await client.query(
+        `DELETE FROM vendor WHERE id = $1 RETURNING *`,
+        [id]
+      );
+      
+      await client.query('COMMIT');
+      client.release();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
     }
     
     // Log the master event

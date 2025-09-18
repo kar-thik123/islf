@@ -7,6 +7,7 @@ import logsRoutes from './pages/logs/logs.routes';
 import setupRoutes from './pages/setup/setup.routes';
 import masterRoutes from './pages/masters/master.routes';
 import { AuthGuard } from './guards/auth.guard';
+import operationRoutes from './pages/Operation/operation.routes';
 
 export const routes: Routes = [
   // Auth routes (no layout)
@@ -25,6 +26,7 @@ export const routes: Routes = [
       { path: 'logs', children:[...logsRoutes]},
       { path: 'settings', children:[...setupRoutes]},
       {path:'master', children:[...masterRoutes]},
+      {path  :'operation', children:[...operationRoutes]},
       
       // Add more layout-wrapped routes here
     ]

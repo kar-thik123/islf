@@ -199,6 +199,21 @@ export class AppMenu {
             ]
           }
         ]
+      },
+       {
+       items: [
+          {
+            label: 'Operations',
+            icon: 'fa-solid fa-briefcase',
+            items: [
+              {
+                label:'Enquiry',
+                icon:'fa-solid fa-question',
+                routerLink : ['/operation/enquiry']
+              }
+            ]
+          }
+        ]
       }
     ];
   }

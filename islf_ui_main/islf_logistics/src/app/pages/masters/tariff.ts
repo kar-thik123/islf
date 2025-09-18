@@ -373,6 +373,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
                   class="p-button-sm" 
                   [disabled]="masterDialogLoading['from']"
                   (click)="openMaster('from')"></button>
+                  
               </div>
               <small *ngIf="fieldErrors['from']" class="p-error">{{ fieldErrors['from'] }}</small>
             </div>

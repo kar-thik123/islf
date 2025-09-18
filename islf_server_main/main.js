@@ -115,6 +115,10 @@ app.use('/api/source', sourceRouter);
 const accountDetailsRoutes = require('./routes/account_details');
 app.use('/api/account_details', accountDetailsRoutes);
 
+//opreation routes
+const enquiryRouter = require('./routes/enquiry');
+app.use('/api/enquiry', enquiryRouter);
+
 // Add this line with other route imports
 const inchargeRouter = require('./routes/incharge');
 app.use('/api/incharge', inchargeRouter);

@@ -61,7 +61,18 @@ router.get('/', async (req, res) => {
     query += ` ORDER BY id ASC`;
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    
+    // Fetch contacts for each customer
+    const customers = result.rows;
+    for (const customer of customers) {
+      const contactsResult = await pool.query(
+        'SELECT * FROM customer_contacts WHERE customer_id = $1 AND is_active = true ORDER BY is_primary DESC, id ASC',
+        [customer.id]
+      );
+      customer.contacts = contactsResult.rows;
+    }
+    
+    res.json(customers);
   } catch (err) {
     console.error('Error fetching customers:', err);
     res.status(500).json({ error: 'Failed to fetch customers' });
@@ -186,32 +197,69 @@ router.post('/', async (req, res) => {
     } else if (!customer_no || customer_no === 'AUTO') {
       customer_no = 'CUS-' + Date.now();
     }
-    // Update the INSERT statement parameters
-    const result = await pool.query(
-      `INSERT INTO customer (
-        customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-        company_code, branch_code, department_code, service_type_code
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-        $19, $20, $21, $22 ) RETURNING *`,
-      [
-        customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []),
-        company_code, branch_code, department_code, service_type_code // <-- Use snake_case variables
-      ]
-    );
-    
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      masterType: 'Customer',
-      recordId: customer_no,
-      details: `New Customer ${customer_no}-${name} has been created successfully.`
-    });
-    
-    res.status(201).json(result.rows[0]);
+    // Start transaction for customer and contacts
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Insert customer without contacts field
+      const result = await client.query(
+        `INSERT INTO customer (
+          customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+          bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no,
+          company_code, branch_code, department_code, service_type_code
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+          $18, $19, $20, $21 ) RETURNING *`,
+        [
+          customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+          bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no,
+          company_code, branch_code, department_code, service_type_code
+        ]
+      );
+      
+      const customerId = result.rows[0].id;
+      
+      // Insert contacts if provided
+      if (contacts && Array.isArray(contacts) && contacts.length > 0) {
+        for (const contact of contacts) {
+          await client.query(
+            `INSERT INTO customer_contacts (
+              customer_id, name, department, mobile, landline, email, remarks, is_primary, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              customerId,
+              contact.name || '',
+              contact.department || null,
+              contact.mobile || null,
+              contact.landline || null,
+              contact.email || null,
+              contact.remarks || null,
+              contact.is_primary || false,
+              contact.is_active !== false // Default to true unless explicitly false
+            ]
+          );
+        }
+      }
+      
+      await client.query('COMMIT');
+      client.release();
+      
+      // Log the master event
+      await logMasterEvent({
+        username: getUsernameFromToken(req),
+        action: 'CREATE',
+        masterType: 'Customer',
+        recordId: customer_no,
+        details: `New Customer ${customer_no}-${name} has been created successfully.`
+      });
+      
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
   } catch (err) {
     console.error('Error creating customer:', err);
     res.status(500).json({ error: 'Failed to create customer' });
@@ -235,16 +283,57 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Customer not found' });
     }
     const oldCustomer = oldResult.rows[0];
-    const result = await pool.query(
-      `UPDATE customer SET
-        customer_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
-        bill_to_customer_name = $13, vat_gst_no = $14, place_of_supply = $15, pan_no = $16, tan_no = $17, contacts = $18
-      WHERE id = $19 RETURNING *`,
-      [
-        customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-        bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, JSON.stringify(contacts || []), id
-      ]
-    );
+    // Start transaction for customer and contacts update
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      
+      result = await client.query(
+        `UPDATE customer SET
+          customer_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
+          bill_to_customer_name = $13, vat_gst_no = $14, place_of_supply = $15, pan_no = $16, tan_no = $17
+        WHERE id = $18 RETURNING *`,
+        [
+          customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
+          bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, id
+        ]
+      );
+      
+      // Update contacts if provided
+      if (contacts && Array.isArray(contacts)) {
+        // Delete existing contacts
+        await client.query('DELETE FROM customer_contacts WHERE customer_id = $1', [id]);
+        
+        // Insert new contacts
+        for (const contact of contacts) {
+          await client.query(
+            `INSERT INTO customer_contacts (
+              customer_id, name, department, mobile, landline, email, remarks, is_primary, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              id,
+              contact.name || '',
+              contact.department || null,
+              contact.mobile || null,
+              contact.landline || null,
+              contact.email || null,
+              contact.remarks || null,
+              contact.is_primary || false,
+              contact.is_active !== false // Default to true unless explicitly false
+            ]
+          );
+        }
+      }
+      
+      await client.query('COMMIT');
+      client.release();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
+    
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Customer not found' });
     }
@@ -296,12 +385,35 @@ router.delete('/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
   try {
-    const result = await pool.query(
-      `DELETE FROM customer WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Customer not found' });
+    // Start transaction to delete customer and related contacts
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      
+      // First get customer details for logging
+      const customerResult = await client.query('SELECT * FROM customer WHERE id = $1', [id]);
+      if (customerResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      
+      // Delete related contacts first
+      await client.query('DELETE FROM customer_contacts WHERE customer_id = $1', [id]);
+      
+      // Then delete the customer
+      result = await client.query(
+        `DELETE FROM customer WHERE id = $1 RETURNING *`,
+        [id]
+      );
+      
+      await client.query('COMMIT');
+      client.release();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
     }
     
     // Log the master event
