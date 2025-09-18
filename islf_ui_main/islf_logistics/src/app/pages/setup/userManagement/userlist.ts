@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InputTextModule } from 'primeng/inputtext';
 import { Table, TableModule } from 'primeng/table';
@@ -169,7 +169,9 @@ export class UserListComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private configService: ConfigService,
     private contextService: ContextService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private cdr: ChangeDetectorRef,
+
   ) {}
 
   ngOnInit() {
@@ -194,8 +196,12 @@ export class UserListComponent implements OnInit, OnDestroy {
   
   refreshUserList() {
     this.userService.getUsers().subscribe((res) => {
+      console.log("userlist loaded");
       this.users = res.users || [];
+      console.log("Sample users list loaded ")
+      this.cdr.detectChanges()
     });
+
   }
 
   onGlobalFilter(table: Table, event: Event) {

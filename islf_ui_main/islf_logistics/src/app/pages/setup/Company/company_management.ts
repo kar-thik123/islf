@@ -2049,6 +2049,8 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving service type:', this.selectedServiceType);
 
+    console.log('Saving Service type Branch:',this.branches);
+
     // Ensure required fields are included for updates
     const serviceTypeData = {
       ...this.selectedServiceType,

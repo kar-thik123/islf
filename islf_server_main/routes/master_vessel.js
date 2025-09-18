@@ -396,7 +396,7 @@ router.put('/:id', async (req, res) => {
       : 'No actual changes detected.';
     // Log the master event
     await logMasterEvent({
-      username: getUsernameFromToken(req),
+      username: getUsernameFromToken(req)||'System',
       action: 'UPDATE',
       masterType: 'Master Vessel',
       recordId: code,

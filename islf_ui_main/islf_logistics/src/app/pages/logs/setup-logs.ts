@@ -96,20 +96,8 @@ interface SetupLogEntry {
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Entity Type
-                <p-columnFilter type="text" field="entityType" display="menu" placeholder="Filter by entity type"></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
                 Entity Code
                 <p-columnFilter type="text" field="entityCode" display="menu" placeholder="Filter by entity code"></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
-                Entity Name
-                <p-columnFilter type="text" field="entityName" display="menu" placeholder="Filter by entity name"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -127,9 +115,7 @@ interface SetupLogEntry {
             <td>{{ log.username }}</td>
             <td>{{ log.action }}</td>
             <td>{{ log.setupType }}</td>
-            <td>{{ log.entityType }}</td>
             <td>{{ log.entityCode }}</td>
-            <td>{{ log.entityName }}</td>
             <td>{{ log.details }}</td>
           </tr>
         </ng-template>
@@ -158,9 +144,7 @@ export class SetupLogsComponent implements OnInit {
           ...log,
           // Map snake_case to camelCase for frontend compatibility
           setupType: log.setup_type,
-          entityType: log.entity_type,
           entityCode: log.entity_code,
-          entityName: log.entity_name,
           formattedTimestamp: new Date(log.timestamp).toLocaleString('en-GB', {
             day: '2-digit',
             month: '2-digit',
@@ -195,9 +179,7 @@ export class SetupLogsComponent implements OnInit {
       User: log.username,
       Action: log.action,
       'Setup Type': log.setupType,
-      'Entity Type': log.entityType,
       'Entity Code': log.entityCode,
-      'Entity Name': log.entityName,
       Details: log.details
     }));
 

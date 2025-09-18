@@ -10,6 +10,7 @@ export interface ServiceType {
   department_code: string;
   code: string;
   name: string;
+  department_name: string;
   description?: string;
   incharge_name?: string;
   incharge_from?: string;

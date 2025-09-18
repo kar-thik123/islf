@@ -223,7 +223,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
           <div class="grid grid-cols-12 gap-4 mb-6">
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Department (Mode) <span class="text-red-500">*</span></label>
-              <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onFieldChange('mode', selectedTariff.mode)" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
+              <p-dropdown [options]="modeOptions" [(ngModel)]="selectedTariff.mode" (ngModelChange)="onDeptModeChange()" [ngClass]="getFieldErrorClass('mode')" [ngStyle]="getFieldErrorStyle('mode')" placeholder="Select Mode" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
               <small *ngIf="fieldErrors['mode']" class="p-error">{{ fieldErrors['mode'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
@@ -769,6 +769,8 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   fromLocationOptions: any[] = [];  // New property
   toLocationOptions: any[] = [];    // New property
   allLocations: any[] = [];         // New property to store all locations
+  allShippingType: any[] = [];
+  allDepartments: any[] =[];
   containerCodeOptions: any[] = [];
   currencyCodeOptions: any[] = [];
   itemCodeOptions: any[] = [];
@@ -880,7 +882,21 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     }
     this.updateFormValidity();
   }
-    onLocationTypeFromChange() {
+
+  onDeptModeChange(){
+    console.log("Selected Tariff value from the onDept Mode Change",this.selectedTariff);
+
+    console.log("locations: from on dept mode change:",this.allLocations);
+    // console.log("shipping Types from on dept mode change:",this.shippingTypeOptions)
+    if(this.selectedTariff){
+      this.selectedTariff.shippingType = '';
+      this.fieldErrors['shippingType'] = '';
+
+      this.filterServiceType();
+    }
+  }
+
+  onLocationTypeFromChange() {
     // Clear the from location when location type changes
     if (this.selectedTariff) {
       this.selectedTariff.from = '';
@@ -900,6 +916,50 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       // Filter to locations based on selected location type
       this.filterToLocations();
     }
+  }
+  filterServiceType(){
+    console.log('Filtering service/shipping Type:',this.selectedTariff?.mode);
+    console.log("All Service types:",this.allShippingType);
+    console.log("All Departments:",this.allDepartments);
+    if (this.selectedTariff?.mode) {
+      // Debug: Log all location types to see what's available
+      const availableTypes = [...new Set(this.allShippingType.map(st => st.name))];
+      console.log('Available shipping types in data:', availableTypes);
+      console.log("department Name:",)
+      const [dept]= this.allDepartments.filter( dept=> dept?.name === this.selectedTariff?.mode)
+      console.log("service Type mode code:",dept);
+      const filteredServiceTypes = this.allShippingType.filter(st => {
+        // console.log(`Comparing shipping type '${st.type}' with selected '${this.selectedTariff.}'`);
+        return st.department_code === dept.code;
+      });
+      console.log('Filtered service Types for the Mode:',this.selectedTariff?.mode,"service type length",  filteredServiceTypes.length,'filtered Service type',filteredServiceTypes);
+      
+      // If no exact match, try case-insensitive comparison
+      if (filteredServiceTypes.length === 0) {
+        const caseInsensitiveFiltered = this.allDepartments.filter(dept => 
+          dept.name?.toLowerCase() === this.selectedTariff.mode?.toLowerCase()
+        );
+        console.log('Case-insensitive filtered locations:', caseInsensitiveFiltered.length);
+        
+        this.shippingTypeOptions = caseInsensitiveFiltered.map(st => ({
+          label: `${st.name}`,
+          value: st.code
+        }));
+      } else {
+        this.shippingTypeOptions = filteredServiceTypes.map(st => ({
+          label: st.name,
+          value: st.name
+        }));
+      }
+    } else {
+      // If no location type selected, show all locations formatted as CODE - NAME
+      this.shippingTypeOptions = this.allShippingType.map(st => ({
+        label: `${st.name}`,
+        value: st.name
+      }));
+    }
+    console.log('From Shipping Type options:', this.shippingTypeOptions.length);
+
   }
 
   filterFromLocations() {
@@ -1114,6 +1174,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
               }
             }
           });
+        this.allDepartments = (departments || []).filter( d=> !d.status || d.status ==='Active'|| d.status==='active'|| d.status === null || d.status ==='');
         
         this.modeOptions = Array.from(uniqueNames.values())
           .map(name => ({ label: name, value: name }))
@@ -1136,7 +1197,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
         console.log('Service types loaded for context:', context, serviceTypes);
-        
+        this.allShippingType=(serviceTypes||[]).filter(st=>st.status==='active');
         // Get unique service type names with case-insensitive deduplication
         const uniqueNames = new Map<string, string>();
         (serviceTypes || [])
