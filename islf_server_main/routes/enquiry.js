@@ -4,28 +4,142 @@ const pool = require('../db');
 const jwt = require('jsonwebtoken');
 const {getUsernameFromToken}=require('../utils/context-helper')
 // GET /enquiry - Fetch all enquiries with context filtering
+// router.get('/', async (req, res) => {
+//     try {
+//         const username = getUsernameFromToken(req);
+//         if (!username) {
+//             return res.status(401).json({ error: 'Unauthorized' });
+//         }
+
+//         const { page = 1, limit = 10, search = '', status = '' } = req.query;
+//         const offset = (page - 1) * limit;
+
+//         // Get user context
+//         const userResult = await pool.query(
+//             'SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1',
+//             [username]
+//         );
+
+//         if (userResult.rows.length === 0) {
+//             return res.status(404).json({ error: 'User not found' });
+//         }
+
+//         const userContext = userResult.rows[0];
+        
+//         // Build dynamic query with context filtering
+//         let query = `
+//             SELECT e.*, c.name as customer_display_name, c.name as customer_company
+//             FROM enquiry e
+//             LEFT JOIN customer c ON e.customer_id = c.id
+//             WHERE 1=1
+//         `;
+        
+//         const params = [];
+//         let paramIndex = 1;
+
+//         // Context filtering
+//         if (userContext.company_code) {
+//             query += ` AND e.company_code = $${paramIndex}`;
+//             params.push(userContext.company_code);
+//             paramIndex++;
+//         }
+
+//         if (userContext.branch_code) {
+//             query += ` AND e.branch_code = $${paramIndex}`;
+//             params.push(userContext.branch_code);
+//             paramIndex++;
+//         }
+
+//         if (userContext.department_code) {
+//             query += ` AND e.department_code = $${paramIndex}`;
+//             params.push(userContext.department_code);
+//             paramIndex++;
+//         }
+
+//         // Search filtering
+//         if (search) {
+//             query += ` AND (e.enquiry_no ILIKE $${paramIndex} OR e.customer_name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`;
+//             params.push(`%${search}%`);
+//             paramIndex++;
+//         }
+
+//         // Status filtering
+//         if (status) {
+//             query += ` AND e.status = $${paramIndex}`;
+//             params.push(status);
+//             paramIndex++;
+//         }
+
+//         query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+//         params.push(limit, offset);
+
+//         const result = await pool.query(query, params);
+
+//         // Get total count for pagination
+//         let countQuery = `
+//             SELECT COUNT(*) 
+//             FROM enquiry e
+//             LEFT JOIN customer c ON e.customer_id = c.id
+//             WHERE 1=1
+//         `;
+        
+//         const countParams = params.slice(0, -2); // Remove limit and offset
+        
+//         if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
+//         if (userContext.branch_code) countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
+//         if (userContext.department_code) countQuery += ` AND e.department_code = $${(userContext.company_code ? 1 : 0) + (userContext.branch_code ? 1 : 0) + 1}`;
+//         if (search) countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
+//         if (status) countQuery += ` AND e.status = $${countParams.length}`;
+
+//         const countResult = await pool.query(countQuery, countParams);
+//         const totalRecords = parseInt(countResult.rows[0].count);
+
+//         res.json({
+//             data: result.rows,
+//             pagination: {
+//                 page: parseInt(page),
+//                 limit: parseInt(limit),
+//                 total: totalRecords,
+//                 pages: Math.ceil(totalRecords / limit)
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error fetching enquiries:', error);
+//         res.status(500).json({ error: 'Internal server error' });
+//     }
+// });
 router.get('/', async (req, res) => {
+    console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
+
     try {
         const username = getUsernameFromToken(req);
+        console.log("👤 [DEBUG] Extracted username:", username);
+
         if (!username) {
+            console.warn("⚠️ [DEBUG] No username found in token");
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
         const { page = 1, limit = 10, search = '', status = '' } = req.query;
         const offset = (page - 1) * limit;
+        console.log("📄 [DEBUG] Pagination => page:", page, "limit:", limit, "offset:", offset);
 
         // Get user context
         const userResult = await pool.query(
             'SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1',
             [username]
         );
+        console.log("✅ [DEBUG] User context rows:", userResult.rows);
 
         if (userResult.rows.length === 0) {
+            console.warn("⚠️ [DEBUG] User not found in DB for username:", username);
             return res.status(404).json({ error: 'User not found' });
         }
 
         const userContext = userResult.rows[0];
-        
+        console.log("📌 [DEBUG] User context:", userContext);
+
         // Build dynamic query with context filtering
         let query = `
             SELECT e.*, c.name as customer_display_name, c.name as customer_company
@@ -43,13 +157,11 @@ router.get('/', async (req, res) => {
             params.push(userContext.company_code);
             paramIndex++;
         }
-
         if (userContext.branch_code) {
             query += ` AND e.branch_code = $${paramIndex}`;
             params.push(userContext.branch_code);
             paramIndex++;
         }
-
         if (userContext.department_code) {
             query += ` AND e.department_code = $${paramIndex}`;
             params.push(userContext.department_code);
@@ -73,7 +185,11 @@ router.get('/', async (req, res) => {
         query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
         params.push(limit, offset);
 
+        console.log("📝 [DEBUG] Final query:", query);
+        console.log("📊 [DEBUG] Query params:", params);
+
         const result = await pool.query(query, params);
+        console.log("✅ [DEBUG] Enquiry result count:", result.rows.length);
 
         // Get total count for pagination
         let countQuery = `
@@ -84,15 +200,19 @@ router.get('/', async (req, res) => {
         `;
         
         const countParams = params.slice(0, -2); // Remove limit and offset
-        
+        console.log("🧮 [DEBUG] Count query params:", countParams);
+
         if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
         if (userContext.branch_code) countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
         if (userContext.department_code) countQuery += ` AND e.department_code = $${(userContext.company_code ? 1 : 0) + (userContext.branch_code ? 1 : 0) + 1}`;
         if (search) countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
         if (status) countQuery += ` AND e.status = $${countParams.length}`;
 
+        console.log("🧮 [DEBUG] Count query:", countQuery);
+
         const countResult = await pool.query(countQuery, countParams);
         const totalRecords = parseInt(countResult.rows[0].count);
+        console.log("📦 [DEBUG] Total records:", totalRecords);
 
         res.json({
             data: result.rows,
@@ -105,7 +225,7 @@ router.get('/', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error fetching enquiries:', error);
+        console.error('❌ [ERROR] Fetching enquiries failed:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

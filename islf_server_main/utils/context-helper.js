@@ -78,7 +78,9 @@ function getUsernameFromToken(req) {
 
   console.log('User object from JWT:', req.user);
 
-  const username = req.user.name || req.user.username || req.user.email || 'system';
+  // For valid JWT tokens, prefer username over name, then email as fallback
+  // For system fallback (when no valid token), it will have { username: 'system' }
+  const username = req.user.username || req.user.name || req.user.email || 'system';
   console.log('Extracted username:', username);
   return username;
 }

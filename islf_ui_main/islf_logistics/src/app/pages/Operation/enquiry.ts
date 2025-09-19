@@ -180,7 +180,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
 
     <!-- Enhanced Enquiry Dialog -->
     <p-dialog
-      header="{{ !selectedEnquiry?.code ? 'Add' : 'Edit' }} Enquiry"
+      header="{{ selectedEnquiry?.id ? 'Edit' : 'Add' }} Enquiry"
       [(visible)]="isDialogVisible"
       [modal]="true"
       [closable]="false"
@@ -299,13 +299,14 @@ import { NumberSeriesService } from '../../services/number-series.service';
                 <label class="block font-semibold mb-1">From Location <span class="text-red-500">*</span></label>
                 <p-autoComplete
                   id="from_location"
-                  [(ngModel)]="selectedEnquiry.from_location"
+                  [(ngModel)]="selectedFromLocation"
                   [suggestions]="locationSuggestions"
                   (completeMethod)="searchLocations($event)"
-                  field="location_name"
+                  field="name"
+                  (onSelect)="onFromLocationSelect($event)"
                   placeholder="Type to search from location..."
                   [dropdown]="true"
-                  [forceSelection]="false">
+                  [forceSelection]="true">
                 </p-autoComplete>
                 <small *ngIf="fieldErrors['from_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['from_location'] }}</small>
               </div>
@@ -314,13 +315,14 @@ import { NumberSeriesService } from '../../services/number-series.service';
                 <label class="block font-semibold mb-1">To Location <span class="text-red-500">*</span></label>
                 <p-autoComplete
                   id="to_location"
-                  [(ngModel)]="selectedEnquiry.to_location"
+                  [(ngModel)]="selectedToLocation"
                   [suggestions]="locationSuggestions"
                   (completeMethod)="searchLocations($event)"
-                  field="location_name"
+                  field="name"
+                  (onSelect)="onToLocationSelect($event)"
                   placeholder="Type to search to location..."
                   [dropdown]="true"
-                  [forceSelection]="false">
+                  [forceSelection]="true">
                 </p-autoComplete>
                 <small *ngIf="fieldErrors['to_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['to_location'] }}</small>
               </div>
@@ -329,10 +331,11 @@ import { NumberSeriesService } from '../../services/number-series.service';
                 <label class="block font-semibold mb-1">Department</label>
                 <p-autoComplete
                   id="department"
-                  [(ngModel)]="selectedEnquiry.department"
+                  [(ngModel)]="selectedDepartment"
                   [suggestions]="departmentSuggestions"
                   (completeMethod)="searchDepartments($event)"
-                  field="department_name"
+                  field="name"
+                  (onSelect)="onDepartmentSelect($event)"
                   placeholder="Type to search department..."
                   [dropdown]="true"
                   [forceSelection]="false">
@@ -370,20 +373,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
                 <small *ngIf="fieldErrors['effective_date_to']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['effective_date_to'] }}</small>
               </div>
 
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1">Basis</label>
-                <p-autoComplete
-                  id="basis"
-                  [(ngModel)]="selectedEnquiry.basis"
-                  [suggestions]="basisSuggestions"
-                  (completeMethod)="searchBasis($event)"
-                  field="display_name"
-                  placeholder="Type to search basis..."
-                  [dropdown]="true"
-                  [forceSelection]="false">
-                </p-autoComplete>
-                <small *ngIf="fieldErrors['basis']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['basis'] }}</small>
-              </div>
+              
 
               <div class="col-span-12 md:col-span-6">
                 <label class="block font-semibold mb-1">Remarks</label>
@@ -444,10 +434,13 @@ import { NumberSeriesService } from '../../services/number-series.service';
                     </p-inputNumber>
                   </td>
                   <td>
-                    <input 
-                      pInputText 
+                    <p-dropdown
                       [(ngModel)]="item.basis"
-                      placeholder="Basis">
+                      [options]="basisOptions"
+                      optionLabel="name"
+                      optionValue="name"
+                      placeholder="Select basis">
+                    </p-dropdown>
                   </td>
                   <td>
                     <input 
@@ -563,7 +556,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
               size="small">
             </p-button>
             <p-button 
-              *ngIf="!selectedEnquiry?.code"
+              *ngIf="!selectedEnquiry?.id"
               label="Save Draft" 
               icon="pi pi-save" 
               (click)="saveEnquiry()"
@@ -571,7 +564,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
               size="small">
             </p-button>
             <p-button 
-              *ngIf="selectedEnquiry?.code"
+              *ngIf="selectedEnquiry?.id"
               label="Update" 
               icon="pi pi-check" 
               (click)="saveEnquiry()"
@@ -786,12 +779,16 @@ export class EnquiryComponent implements OnInit {
   
   // Location autocomplete
   locationSuggestions: any[] = [];
+  selectedFromLocation: any = null;
+  selectedToLocation: any = null;
 
   // Department autocomplete
   departmentSuggestions: any[] = [];
+  selectedDepartment: any = null;
 
   // Basis autocomplete
   basisSuggestions: any[] = [];
+  basisOptions: any[] = [];
 
   // Contact management
   customerContacts: CustomerContact[] = [];
@@ -840,6 +837,12 @@ export class EnquiryComponent implements OnInit {
   ngOnInit() {
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
+    // Preload basis master for line item dropdown
+    this.enquiryService.getBasisDropdown().subscribe({
+      next: (basis) => {
+        this.basisOptions = basis.map((b: any) => ({ name: b.code || b.description }));
+      }
+    });
   }
 
   initializeForm() {
@@ -856,7 +859,6 @@ export class EnquiryComponent implements OnInit {
       effective_date_from: ['', Validators.required],
       effective_date_to: ['', Validators.required],
       department: ['', Validators.required],
-      basis: ['', Validators.required],
       status: ['Open', Validators.required],
       remarks: ['']
     });
@@ -888,7 +890,7 @@ export class EnquiryComponent implements OnInit {
     this.selectedEnquiry = {
       id: undefined,
       enquiry_no: '',
-      code: this.isManualSeries ? '' : (this.mappedEnquirySeriesCode || ''),
+      code: '',
       date: today.toISOString().split('T')[0], // Default today's date as specified
       customer_name: '',
       company_name: '',
@@ -985,24 +987,12 @@ export class EnquiryComponent implements OnInit {
   }
 
   onCustomerSelect(event: any) {
-    const customer = event;
+    const customer = event?.value ?? event;
     if (customer && customer.id && this.selectedEnquiry) {
-      // Existing customer - auto-fill related fields
+      // Existing customer - set company and load contacts to decide autofill/dropdown
       this.selectedEnquiry.company_name = customer.name || customer.display_name;
-      this.selectedEnquiry.customer_name = customer.contact_name || '';
-      this.selectedEnquiry.email = customer.email || '';
-      this.selectedEnquiry.mobile = customer.mobile || '';
-      this.selectedEnquiry.landline = customer.landline || '';
       this.isNewCustomer = false;
-      
-      // Check if customer has multiple contacts
-      if (customer.contact_count && customer.contact_count > 1) {
-        this.loadCustomerContacts(customer.id);
-      } else {
-        this.showContactDropdown = false;
-        this.customerContacts = [];
-        this.selectedContact = null;
-      }
+      this.loadCustomerContacts(customer.id);
     } else {
       // New customer (manual entry)
       if (this.selectedEnquiry) {
@@ -1028,13 +1018,29 @@ export class EnquiryComponent implements OnInit {
     this.enquiryService.getCustomerContacts(customerId).subscribe({
       next: (contacts) => {
         this.customerContacts = contacts;
-        this.showContactDropdown = true;
-        
-        // Auto-select primary contact if available
-        const primaryContact = contacts.find(c => c.is_primary);
-        if (primaryContact) {
-          this.selectedContact = primaryContact;
-          this.onContactSelect({ value: primaryContact });
+        // If exactly one contact, auto-fill fields and do not show dropdown
+        if (contacts && contacts.length === 1 && this.selectedEnquiry) {
+          const only = contacts[0];
+          this.showContactDropdown = false;
+          this.selectedContact = null;
+          this.selectedEnquiry.customer_name = only.name || '';
+          this.selectedEnquiry.email = only.email || '';
+          this.selectedEnquiry.mobile = only.mobile || '';
+          this.selectedEnquiry.landline = only.landline || '';
+        } else if (contacts && contacts.length > 1) {
+          this.showContactDropdown = true;
+          // Auto-select primary contact if available
+          const primaryContact = contacts.find(c => c.is_primary);
+          if (primaryContact) {
+            this.selectedContact = primaryContact;
+            this.onContactSelect({ value: primaryContact });
+          } else {
+            this.selectedContact = null;
+          }
+        } else {
+          // No contacts found
+          this.showContactDropdown = false;
+          this.selectedContact = null;
         }
       },
       error: (error) => {
@@ -1064,7 +1070,9 @@ export class EnquiryComponent implements OnInit {
     const query = event.query;
     this.enquiryService.getLocationsDropdown(query).subscribe({
       next: (locations) => {
-        this.locationSuggestions = locations;
+        this.locationSuggestions = locations.map((loc: any) => ({
+          name: loc.display_name || loc.location_name || loc.name || loc.code
+        }));
       },
       error: (error) => {
         console.error('Error fetching locations:', error);
@@ -1077,16 +1085,27 @@ export class EnquiryComponent implements OnInit {
     });
   }
 
+  onFromLocationSelect(event: any) {
+    const loc = event?.value ?? event;
+    if (this.selectedEnquiry) {
+      this.selectedEnquiry.from_location = loc.name || '';
+    }
+  }
+
+  onToLocationSelect(event: any) {
+    const loc = event?.value ?? event;
+    if (this.selectedEnquiry) {
+      this.selectedEnquiry.to_location = loc.name || '';
+    }
+  }
+
   // Department autocomplete methods
   searchDepartments(event: any) {
     const query = event.query;
     const context = this.contextService.getContext();
     this.enquiryService.getDepartmentsDropdown(context.companyCode, query).subscribe({
       next: (departments) => {
-        this.departmentSuggestions = departments.map(dept => ({
-          ...dept,
-          display_name: dept.display_name || dept.name
-        }));
+        this.departmentSuggestions = departments.map((dept: any) => ({ name: dept.display_name || dept.name }));
       },
       error: (error) => {
         console.error('Error fetching departments:', error);
@@ -1097,6 +1116,13 @@ export class EnquiryComponent implements OnInit {
         });
       }
     });
+  }
+
+  onDepartmentSelect(event: any) {
+    const dept = event?.value ?? event;
+    if (this.selectedEnquiry) {
+      this.selectedEnquiry.department = dept.name || '';
+    }
   }
 
   // Basis autocomplete methods
@@ -1127,7 +1153,7 @@ export class EnquiryComponent implements OnInit {
     const newItem: EnquiryLineItem = {
       s_no: this.lineItems.length + 1,
       quantity: 0,
-      basis: '',
+      basis: this.basisOptions[0]?.name || '',
       remarks: '',
       status: 'Active'
     };
@@ -1159,26 +1185,28 @@ export class EnquiryComponent implements OnInit {
 
   // Sourcing and Tariff methods
   canGetSourcing(): boolean {
-    return !!(this.selectedEnquiry && 
-              this.selectedEnquiry.company_name && 
-              this.selectedEnquiry.from_location && 
-              this.selectedEnquiry.to_location && 
-              this.selectedEnquiry.effective_date_from && 
-              this.selectedEnquiry.effective_date_to && 
-              this.selectedEnquiry.department &&
-              this.selectedEnquiry.basis &&
+    const firstBasis = this.lineItems[0]?.basis;
+    const enq = this.selectedEnquiry;
+    return !!(enq &&
+              (enq.company_name || enq.customer_name) &&
+              enq.from_location &&
+              enq.to_location &&
+              enq.effective_date_from &&
+              enq.effective_date_to &&
+              firstBasis &&
               this.lineItems.length > 0);
   }
 
   canGetTariff(): boolean {
-    return !!(this.selectedEnquiry && 
-              this.selectedEnquiry.company_name && 
-              this.selectedEnquiry.from_location && 
-              this.selectedEnquiry.to_location && 
-              this.selectedEnquiry.effective_date_from && 
-              this.selectedEnquiry.effective_date_to && 
-              this.selectedEnquiry.department &&
-              this.selectedEnquiry.basis &&
+    const firstBasis = this.lineItems[0]?.basis;
+    const enq = this.selectedEnquiry;
+    return !!(enq &&
+              (enq.company_name || enq.customer_name) &&
+              enq.from_location &&
+              enq.to_location &&
+              enq.effective_date_from &&
+              enq.effective_date_to &&
+              firstBasis &&
               this.lineItems.length > 0);
   }
 
@@ -1194,14 +1222,14 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-    const formValue = this.enquiryForm.value;
+    const enq = this.selectedEnquiry!;
     const criteria = {
-      department: formValue.department,
-      from_location: formValue.from_location,
-      to_location: formValue.to_location,
-      effective_date_from: this.formatDateForAPI(formValue.effective_date_from),
-      effective_date_to: this.formatDateForAPI(formValue.effective_date_to),
-      basis: formValue.basis // Use basis from form
+      department: enq.department,
+      from_location: enq.from_location,
+      to_location: enq.to_location,
+      effective_date_from: this.formatDateForAPI(enq.effective_date_from),
+      effective_date_to: this.formatDateForAPI(enq.effective_date_to),
+      basis: this.lineItems[0]?.basis
     };
 
     this.enquiryService.getSourcingOptions(this.currentEnquiry.code, criteria).subscribe({
@@ -1234,14 +1262,14 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-    const formValue = this.enquiryForm.value;
+    const enq = this.selectedEnquiry!;
     const criteria = {
-      department: formValue.department,
-      from_location: formValue.from_location,
-      to_location: formValue.to_location,
-      effective_date_from: this.formatDateForAPI(formValue.effective_date_from),
-      effective_date_to: this.formatDateForAPI(formValue.effective_date_to),
-      basis: formValue.basis // Use basis from form
+      department: enq.department,
+      from_location: enq.from_location,
+      to_location: enq.to_location,
+      effective_date_from: this.formatDateForAPI(enq.effective_date_from),
+      effective_date_to: this.formatDateForAPI(enq.effective_date_to),
+      basis: this.lineItems[0]?.basis
     };
 
     this.enquiryService.getTariffOptions(this.currentEnquiry.code, criteria).subscribe({
@@ -1360,8 +1388,8 @@ export class EnquiryComponent implements OnInit {
       effective_date_to: this.formatDateForAPI(this.selectedEnquiry.effective_date_to)
     };
 
-    const saveOperation = this.selectedEnquiry.code 
-      ? this.enquiryService.updateEnquiry(this.selectedEnquiry.code, enquiryData)
+    const saveOperation = this.selectedEnquiry.id 
+      ? this.enquiryService.updateEnquiry(this.selectedEnquiry.code!, enquiryData)
       : this.enquiryService.createEnquiry(enquiryData);
 
     saveOperation.subscribe({
@@ -1488,6 +1516,7 @@ export class EnquiryComponent implements OnInit {
       detail: 'Navigate to enquiry list view'
     });
   }
+  
 
   clearForm() {
     this.confirmationService.confirm({
@@ -1572,17 +1601,10 @@ export class EnquiryComponent implements OnInit {
         next: (seriesList: any[]) => {
           const found = seriesList.find((s: any) => s.code === this.mappedEnquirySeriesCode);
           this.isManualSeries = !!(found && found.is_manual);
-          
-          // Update the code field if we have a selected enquiry
-          if (this.selectedEnquiry) {
-            this.selectedEnquiry.code = this.isManualSeries ? '' : (this.mappedEnquirySeriesCode || '');
-          }
+          // Do not pre-fill code for auto series; keep empty until save
         },
         error: () => {
           this.isManualSeries = true;
-          if (this.selectedEnquiry) {
-            this.selectedEnquiry.code = '';
-          }
         }
       });
     }
@@ -1598,5 +1620,11 @@ export class EnquiryComponent implements OnInit {
     if (!date) return '';
     const d = new Date(date);
     return d.toISOString().split('T')[0];
+  }
+
+  private resolveLocationName(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    return value.location_name || value.name || '';
   }
 }

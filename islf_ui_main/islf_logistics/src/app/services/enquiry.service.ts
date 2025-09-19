@@ -48,6 +48,7 @@ export interface Enquiry {
   remarks: string;
   line_items: EnquiryLineItem[];
   vendor_cards?: EnquiryVendorCard[];
+  isNew?: boolean;
   is_new_customer?: boolean;
 }
 
