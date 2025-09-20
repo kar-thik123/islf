@@ -1,17 +1,19 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
-import { TextareaModule } from 'primeng/textarea';
-import { DropdownModule } from 'primeng/dropdown';
 import { CalendarModule } from 'primeng/calendar';
-import { TableModule } from 'primeng/table';
-import { DialogModule } from 'primeng/dialog';
-import { ToastModule } from 'primeng/toast';
+import { CardModule } from 'primeng/card';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { DialogModule } from 'primeng/dialog';
+import { DropdownModule } from 'primeng/dropdown';
+import { InputTextModule } from 'primeng/inputtext';
+import { TableModule } from 'primeng/table';
+import { TextareaModule } from 'primeng/textarea';
+import { ToastModule } from 'primeng/toast';
+import { TooltipModule } from 'primeng/tooltip';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -20,12 +22,15 @@ import { DividerModule } from 'primeng/divider';
 import { FieldsetModule } from 'primeng/fieldset';
 import { PanelModule } from 'primeng/panel';
 import { AccordionModule } from 'primeng/accordion';
-import { MessageService, ConfirmationService } from 'primeng/api';
 import { EnquiryService, Enquiry, EnquiryLineItem, EnquiryVendorCard, CustomerDropdown, CustomerContact, SourcingOption, TariffOption } from '../../services/enquiry.service';
 import { ContextService } from '../../services/context.service';
 import { MappingService } from '../../services/mapping.service';
 import { NumberSeriesService } from '../../services/number-series.service';
 import { MasterLocationService } from '../../services/master-location.service';
+import { DepartmentService } from '../../services/department.service';
+import { BasisService } from '../../services/basis.service';
+import { MasterLocationComponent } from '../masters/masterlocation';
+import { BasisComponent } from '../masters/basis';
 import { forkJoin } from 'rxjs';
 import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
@@ -47,6 +52,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
     TableModule,
     DialogModule,
     ToastModule,
+    TooltipModule,
     ConfirmDialogModule,
     AutoCompleteModule,
     InputNumberModule,
@@ -55,7 +61,9 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
     DividerModule,
     FieldsetModule,
     PanelModule,
-    AccordionModule
+    AccordionModule,
+    MasterLocationComponent,
+    BasisComponent
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -202,14 +210,17 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <div class="section-header">General Enquiry Details</div>
           <div class="grid grid-cols-12 gap-4 mb-6">
           <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1">Code</label>
+                <label class="block font-semibold mb-1">Code <span class="text-red-500">*</span></label>
                 <input 
                   id="code"
                   pInputText 
                   [(ngModel)]="selectedEnquiry.code"
-                  [placeholder]="isManualSeries ? 'Enter enquiry code' : 'Auto-generated'"
-                  [readonly]="!isManualSeries"
-                  [disabled]="!isManualSeries">
+                  (ngModelChange)="onFieldChange('code', selectedEnquiry.code)"
+                  [ngClass]="getFieldErrorClass('code')"
+                  [ngStyle]="getFieldErrorStyle('code')"
+                  [disabled]="!isManualSeries || !selectedEnquiry.isNew"
+                  [placeholder]="isManualSeries ? 'Enter enquiry code' : mappedEnquirySeriesCode || 'Auto-generated'"
+                  class="w-full">
                 <small *ngIf="fieldErrors['code']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['code'] }}</small>
               </div>  
               <div class="col-span-12 md:col-span-3">
@@ -229,30 +240,65 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Company Name</label>
-                <p-autoComplete
+                <div class="flex gap-2">
+                  <div class="flex-1" *ngIf="!isManualCompanyName">
+                    <p-dropdown
                   id="company_name"
+                      [(ngModel)]="selectedCustomer"
+                      [options]="customerOptions"
+                      optionLabel="display_name"
+                      optionValue="id"
+                      placeholder="Select Company"
+                      [filter]="true"
+                      filterBy="display_name"
+                      [showClear]="true"
+                      (onChange)="onCustomerSelect($event)"
+                      [ngClass]="getFieldErrorClass('company_name')"
+                      [ngStyle]="getFieldErrorStyle('company_name')"
+                      class="w-full">
+                      <ng-template let-customer pTemplate="item">
+                        <div>
+                          <div class="font-semibold">{{ customer.name }}</div>
+                          <div class="text-sm text-gray-500">{{ customer.company_name || customer.name }}</div>
+                        </div>
+                      </ng-template>
+                    </p-dropdown>
+                  </div>
+                  <div class="flex-1" *ngIf="isManualCompanyName">
+                    <input 
+                      id="company_name_manual"
+                      pInputText 
                   [(ngModel)]="selectedEnquiry.company_name"
-                  [suggestions]="customerSuggestions"
-                  (completeMethod)="searchCustomers($event)"
-                  field="display_name"
-                  placeholder="Type to search companies or enter new..."
-                  [dropdown]="true"
-                  (onSelect)="onCustomerSelect($event)"
-                  [forceSelection]="false">
-                </p-autoComplete>
+                      placeholder="Enter company name manually"
+                      [ngClass]="getFieldErrorClass('company_name')"
+                      [ngStyle]="getFieldErrorStyle('company_name')"
+                      class="w-full">
+                  </div>
+                  <button 
+                    pButton 
+                    type="button" 
+                    [icon]="isManualCompanyName ? 'pi pi-list' : 'pi pi-pencil'" 
+                    (click)="toggleManualCompanyName()"
+                    [pTooltip]="isManualCompanyName ? 'Switch to dropdown' : 'Switch to manual entry'"
+                    class="p-button-sm p-button-outlined">
+                  </button>
+                </div>
                 <small *ngIf="fieldErrors['company_name']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['company_name'] }}</small>
               </div>
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Name</label>
-                <div *ngIf="showContactDropdown; else manualNameInput">
+                <div class="flex gap-2">
+                  <div class="flex-1">
+                    <div *ngIf="showContactDropdown && !isManualName; else manualNameInput">
                   <p-dropdown
                     id="name"
                     [(ngModel)]="selectedContact"
                     [options]="customerContacts"
                     optionLabel="name"
                     placeholder="Select contact person"
-                    (onChange)="onContactSelect($event)">
+                        (onChange)="onContactSelect($event)"
+                        class="w-full">
                     <ng-template let-contact pTemplate="item">
                       <div>
                         <div class="font-semibold">{{ contact.name }}</div>
@@ -266,85 +312,150 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                     id="name"
                     pInputText 
                     [(ngModel)]="selectedEnquiry.customer_name"
-                    placeholder="Enter contact person name">
+                        placeholder="Enter contact person name"
+                        class="w-full">
                 </ng-template>
+                  </div>
+                  <button 
+                    pButton 
+                    type="button" 
+                    [icon]="isManualName ? 'pi pi-list' : 'pi pi-pencil'" 
+                    (click)="toggleManualName()"
+                    [pTooltip]="isManualName ? 'Switch to dropdown' : 'Switch to manual entry'"
+                    class="p-button-sm p-button-outlined"
+                    [disabled]="!showContactDropdown && !isManualName">
+                  </button>
+                </div>
               </div>
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Email</label>
+                <div class="flex gap-2">
                 <input 
                   id="email"
                   pInputText 
                   [(ngModel)]="selectedEnquiry.email"
                   placeholder="Auto-filled from customer"
-                  [readonly]="!isNewCustomer">
+                    [readonly]="!isNewCustomer && !isManualEmail"
+                    class="flex-1">
+                  <button 
+                    pButton 
+                    type="button" 
+                    [icon]="isManualEmail ? 'pi pi-lock' : 'pi pi-pencil'" 
+                    (click)="toggleManualEmail()"
+                    [pTooltip]="isManualEmail ? 'Lock to auto-fill' : 'Enable manual entry'"
+                    class="p-button-sm p-button-outlined">
+                  </button>
+                </div>
               </div>
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Mobile</label>
+                <div class="flex gap-2">
                 <input 
                   id="mobile"
                   pInputText 
                   [(ngModel)]="selectedEnquiry.mobile"
                   placeholder="Auto-filled from customer"
-                  [readonly]="!isNewCustomer">
+                    [readonly]="!isNewCustomer && !isManualMobile"
+                    class="flex-1">
+                  <button 
+                    pButton 
+                    type="button" 
+                    [icon]="isManualMobile ? 'pi pi-lock' : 'pi pi-pencil'" 
+                    (click)="toggleManualMobile()"
+                    [pTooltip]="isManualMobile ? 'Lock to auto-fill' : 'Enable manual entry'"
+                    class="p-button-sm p-button-outlined">
+                  </button>
+                </div>
               </div>
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Landline</label>
+                <div class="flex gap-2">
                 <input 
                   id="landline"
                   pInputText 
                   [(ngModel)]="selectedEnquiry.landline"
                   placeholder="Auto-filled from customer"
-                  [readonly]="!isNewCustomer">
+                    [readonly]="!isNewCustomer && !isManualLandline"
+                    class="flex-1">
+                  <button 
+                    pButton 
+                    type="button" 
+                    [icon]="isManualLandline ? 'pi pi-lock' : 'pi pi-pencil'" 
+                    (click)="toggleManualLandline()"
+                    [pTooltip]="isManualLandline ? 'Lock to auto-fill' : 'Enable manual entry'"
+                    class="p-button-sm p-button-outlined">
+                  </button>
+                </div>
               </div>
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">From Location <span class="text-red-500">*</span></label>
-                <p-autoComplete
-                  id="from_location"
-                  [(ngModel)]="selectedFromLocation"
-                  [suggestions]="locationSuggestions"
-                  (completeMethod)="searchLocations($event)"
-                  field="name"
-                  (onSelect)="onFromLocationSelect($event)"
-                  placeholder="Type to search from location..."
-                  [dropdown]="true"
-                  [forceSelection]="true">
-                </p-autoComplete>
+                <div class="flex gap-2">
+                  <p-dropdown 
+                    appendTo="body" 
+                    [options]="fromLocationOptions" 
+                    [(ngModel)]="selectedEnquiry.from_location" 
+                    (ngModelChange)="onFieldChange('from_location', selectedEnquiry.from_location)" 
+                    [ngClass]="getFieldErrorClass('from_location')" 
+                    [ngStyle]="getFieldErrorStyle('from_location')" 
+                    placeholder="Select From Location" 
+                    [filter]="true" 
+                    filterBy="label" 
+                    [showClear]="true" 
+                    class="flex-1">
+                  </p-dropdown>
+                  <button pButton 
+                    [icon]="masterDialogLoading['from'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                    class="p-button-sm" 
+                    [disabled]="masterDialogLoading['from']"
+                    (click)="openMaster('from')">
+                  </button>
+                </div>
                 <small *ngIf="fieldErrors['from_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['from_location'] }}</small>
               </div>
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">To Location <span class="text-red-500">*</span></label>
-                <p-autoComplete
-                  id="to_location"
-                  [(ngModel)]="selectedToLocation"
-                  [suggestions]="locationSuggestions"
-                  (completeMethod)="searchLocations($event)"
-                  field="name"
-                  (onSelect)="onToLocationSelect($event)"
-                  placeholder="Type to search to location..."
-                  [dropdown]="true"
-                  [forceSelection]="true">
-                </p-autoComplete> 
-               <!-- <p-dropdown [options]="locTypeOptions" [(ngModel)]="selectedToLocation" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown> -->
+                <div class="flex gap-2">
+                  <p-dropdown 
+                    appendTo="body" 
+                    [options]="toLocationOptions" 
+                    [(ngModel)]="selectedEnquiry.to_location" 
+                    (ngModelChange)="onFieldChange('to_location', selectedEnquiry.to_location)" 
+                    [ngClass]="getFieldErrorClass('to_location')" 
+                    [ngStyle]="getFieldErrorStyle('to_location')" 
+                    placeholder="Select To Location" 
+                    [filter]="true" 
+                    filterBy="label" 
+                    [showClear]="true" 
+                    class="flex-1">
+                  </p-dropdown>
+                  <button pButton 
+                    [icon]="masterDialogLoading['to'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                    class="p-button-sm" 
+                    [disabled]="masterDialogLoading['to']"
+                    (click)="openMaster('to')">
+                  </button>
+                </div>
                 <small *ngIf="fieldErrors['to_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['to_location'] }}</small>
               </div>
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Department</label>
-                <p-autoComplete
-                  id="department"
-                  [(ngModel)]="selectedDepartment"
-                  [suggestions]="departmentSuggestions"
-                  (completeMethod)="searchDepartments($event)"
-                  field="name"
-                  (onSelect)="onDepartmentSelect($event)"
-                  placeholder="Type to search department..."
-                  [dropdown]="true"
-                  [forceSelection]="false">
-                </p-autoComplete>
+                <p-dropdown 
+                  [options]="departmentOptions" 
+                  [(ngModel)]="selectedEnquiry.department" 
+                  (ngModelChange)="onFieldChange('department', selectedEnquiry.department)" 
+                  [ngClass]="getFieldErrorClass('department')" 
+                  [ngStyle]="getFieldErrorStyle('department')" 
+                  placeholder="Select Department" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  [showClear]="true" 
+                  class="w-full">
+                </p-dropdown>
                 <small *ngIf="fieldErrors['department']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['department'] }}</small>
               </div>
 
@@ -439,13 +550,22 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                     </p-inputNumber>
                   </td>
                   <td>
+                    <div class="flex gap-2">
                     <p-dropdown
                       [(ngModel)]="item.basis"
                       [options]="basisOptions"
-                      optionLabel="name"
-                      optionValue="name"
-                      placeholder="Select basis">
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Select basis"
+                        class="flex-1">
                     </p-dropdown>
+                      <button pButton 
+                        [icon]="masterDialogLoading['basis'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                        class="p-button-sm" 
+                        [disabled]="masterDialogLoading['basis']"
+                        (click)="openMaster('basis')">
+                      </button>
+                    </div>
                   </td>
                   <td>
                     <input 
@@ -718,6 +838,44 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
       
       <!-- Confirmation Dialog -->
       <p-confirmDialog></p-confirmDialog>
+
+      <!-- Master Location Dialog -->
+      <p-dialog
+        header="Location Master"
+        [(visible)]="showMasterLocationDialog"
+        [modal]="true"
+        [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+        [contentStyle]="{ overflow: 'visible' }"
+        [baseZIndex]="10000"
+        [closable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="closeMasterDialog('masterLocation')"
+        [closeOnEscape]="true"
+      >
+        <ng-template pTemplate="content">
+          <master-location></master-location>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Basis Dialog -->
+      <p-dialog
+        header="Basis Code Master"
+        [(visible)]="showBasisDialog"
+        [modal]="true"
+        [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+        [contentStyle]="{ overflow: 'visible' }"
+        [baseZIndex]="10000"
+        [closable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="closeMasterDialog('basis')"
+        [closeOnEscape]="true"
+      >
+        <ng-template pTemplate="content">
+          <basis-code></basis-code>
+        </ng-template>
+      </p-dialog>
   `,
   styles: [`
     .vendor-card {
@@ -773,10 +931,16 @@ export class EnquiryComponent implements OnInit {
     { label: 'Pending', value: 'Pending' }
   ];
 
-  // locationTypeOptions: any[] = [];
-locationOptions: any[] = [];  // New property
-  fromLocationOptions: any[] = [];  // New property
-  toLocationOptions: any[] = [];    // New property
+  // Location options
+  locationOptions: any[] = [];
+  fromLocationOptions: any[] = [];
+  toLocationOptions: any[] = [];
+  
+  // Department options
+  departmentOptions: any[] = [];
+  
+  // Basis options
+  basisOptions: any[] = [];
 
 
   currencyOptions = [
@@ -786,26 +950,30 @@ locationOptions: any[] = [];  // New property
     { label: 'AED', value: 'AED' }
   ];
 
-  // Customer autocomplete
-  customerSuggestions: CustomerDropdown[] = [];
+  // Customer dropdown
+  customerOptions: CustomerDropdown[] = [];
+  selectedCustomer: any = null;
   
-  // Location autocomplete
-  locationSuggestions: any[] = [];
-  selectedFromLocation: any = null;
-  selectedToLocation: any = null;
-
-  // Department autocomplete
-  departmentSuggestions: any[] = [];
-  selectedDepartment: any = null;
-
-  // Basis autocomplete
-  basisSuggestions: any[] = [];
-  basisOptions: any[] = [];
+  // Master dialog states
+  showMasterLocationDialog = false;
+  showBasisDialog = false;
+  masterDialogLoading: { [key: string]: boolean } = {};
 
   // Contact management
   customerContacts: CustomerContact[] = [];
   selectedContact: CustomerContact | null = null;
   showContactDropdown = false;
+  
+  // Manual entry toggles for contact fields
+  isManualCompanyName = false;
+  isManualName = false;
+  isManualEmail = false;
+  isManualMobile = false;
+  isManualLandline = false;
+  
+  // Number series properties for code field
+  isManualSeries: boolean = false;
+  mappedEnquirySeriesCode: string = '';
   
   // Dialog states
   showVendorSelectionDialog = false;
@@ -830,9 +998,6 @@ locationOptions: any[] = [];  // New property
   isNewCustomer = false;
   activeVendorIndex: number = -1;
 
-  // Auto-generation properties
-  mappedEnquirySeriesCode: string = '';
-  isManualSeries: boolean = false;
 
   constructor(
     private fb: FormBuilder,
@@ -843,6 +1008,9 @@ locationOptions: any[] = [];  // New property
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private masterLocationService: MasterLocationService,
+    private departmentService: DepartmentService,
+    private basisService: BasisService,
+    private cdr: ChangeDetectorRef
   ) {
     this.initializeForm();
   }
@@ -850,12 +1018,6 @@ locationOptions: any[] = [];  // New property
   ngOnInit() {
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
-    // Preload basis master for line item dropdown
-    this.enquiryService.getBasisDropdown().subscribe({
-      next: (basis) => {
-        this.basisOptions = basis.map((b: any) => ({ name: b.code || b.description }));
-      }
-    });
   }
 
   initializeForm() {
@@ -880,48 +1042,45 @@ locationOptions: any[] = [];  // New property
   loadInitialData() {
     // Load any initial data needed from masters.
     forkJoin({
-      enqui: this.loadEnquiries(),
+      enquiries: this.loadEnquiries(),
       locations: this.loadLocations(),
-
+      departments: this.loadDepartments(),
+      basis: this.loadBasisOptions(),
+      customers: this.loadCustomers()
     }).subscribe({
-      next: () => {},
-      error: () =>{}
-    })
-
+      next: () => {
+        console.log('All initial data loaded successfully');
+      },
+      error: (error) => {
+        console.error('Error loading initial data:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load initial data'
+        });
+      }
+    });
   }
 
-  // loads location from the location masters
-  loadLocations(){
-    // masterLocationService
+  // Load locations from the location masters
+  loadLocations() {
     return this.masterLocationService.getAll().pipe(
       tap((locations: any[]) => {
         this.allLocations = locations.filter(l => l.active);
         console.log('Loaded all locations:', this.allLocations.length);
         
-        // Debug: Log the first few locations to see their structure
-        if (this.allLocations.length > 0) {
-          console.log('Sample location data:', this.allLocations.slice(0, 3));
-          console.log('Available location types in data:', [...new Set(this.allLocations.map(l => l.type))]);
-        }
-        
-        // Keep the existing logic for backward compatibility
-        const uniqueCities = Array.from(new Set((locations || [])
-          .filter(l => l.active && l.city)
-          .map(l => l.city.trim())
-          .filter(Boolean)));
-
-        this.locationOptions = uniqueCities.map(city => ({ label: city, value: city }));
-        
-        // Initialize filtered location options with all locations formatted as CODE - NAME
+        // Initialize location options formatted as CODE - NAME
         this.fromLocationOptions = this.allLocations.map(l => ({
           label: `${l.code} - ${l.name}`,
           value: l.code
         }));
-        console.log("from location from options Datatype",this.fromLocationOptions);
         this.toLocationOptions = this.allLocations.map(l => ({
           label: `${l.code} - ${l.name}`,
           value: l.code
         }));
+        
+        console.log('From location options:', this.fromLocationOptions.length);
+        console.log('To location options:', this.toLocationOptions.length);
       })
     );
   }
@@ -933,8 +1092,184 @@ locationOptions: any[] = [];  // New property
         this.enquiries = (enquiries as any)["data"];
         console.log("this.enquiry property value after assignment",this.enquiries);
       })
-      
     );
+  }
+
+  // Load departments from the department service
+  loadDepartments() {
+    const context = this.contextService.getContext();
+    
+    const departmentObservable = context.branchCode 
+      ? this.departmentService.getByBranch(context.branchCode)
+      : this.departmentService.getAll();
+    
+    return departmentObservable.pipe(
+      tap((departments: any[]) => {
+        console.log('Departments loaded for context:', context, departments);
+        
+        // Get unique department names with case-insensitive deduplication
+        const uniqueNames = new Map<string, string>();
+        (departments || [])
+          .filter(d => !d.status || d.status === 'Active' || d.status === 'active' || d.status === '' || d.status === null)
+          .forEach(d => {
+            if (d.name && d.name.trim()) {
+              const lowerName = d.name.trim().toLowerCase();
+              if (!uniqueNames.has(lowerName)) {
+                uniqueNames.set(lowerName, d.name.trim());
+              }
+            }
+          });
+        
+        this.departmentOptions = Array.from(uniqueNames.values())
+          .map(name => ({ label: name, value: name }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        
+        console.log('Department options:', this.departmentOptions);
+      })
+    );
+  }
+
+  // Load basis options from the basis service
+  loadBasisOptions() {
+    return this.basisService.getAll().pipe(
+      tap((basis: any[]) => {
+        this.basisOptions = (basis || [])
+          .filter(b => b.status === 'Active')
+          .map(b => ({ label: `${b.code} - ${b.description}`, value: b.code }));
+        
+        console.log('Basis options:', this.basisOptions);
+      })
+    );
+  }
+
+  // Load customers from the enquiry service
+  loadCustomers() {
+    return this.enquiryService.getCustomersDropdown('').pipe(
+      tap((customers: CustomerDropdown[]) => {
+        this.customerOptions = customers || [];
+        console.log('Customer options loaded:', this.customerOptions.length);
+      })
+    );
+  }
+
+  // Field validation methods (similar to tariff)
+  onFieldChange(fieldName: string, value: any) {
+    const error = this.validateField(fieldName, value);
+    if (error) {
+      this.fieldErrors[fieldName] = error;
+    } else {
+      delete this.fieldErrors[fieldName];
+    }
+  }
+
+  validateField(fieldName: string, value: any): string {
+    switch (fieldName) {
+      case 'code':
+        // Skip validation if auto-generation is enabled (not manual series)
+        if (!this.isManualSeries) {
+          return '';
+        }
+        if (!value || value.toString().trim() === '') {
+          return 'Code is required';
+        }
+        if (this.selectedEnquiry?.isNew && this.isCodeDuplicate(value)) {
+          return 'Code already exists';
+        }
+        break;
+      case 'from_location':
+        if (!value) {
+          return 'From location is required';
+        }
+        break;
+      case 'to_location':
+        if (!value) {
+          return 'To location is required';
+        }
+        break;
+      case 'department':
+        if (!value) {
+          return 'Department is required';
+        }
+        break;
+      // Add other field validations as needed
+    }
+    return '';
+  }
+
+  isCodeDuplicate(code: string): boolean {
+    return this.enquiries.some(enquiry => 
+      enquiry.code === code && enquiry.id !== this.selectedEnquiry?.id
+    );
+  }
+
+  getFieldErrorClass(fieldName: string): string {
+    return this.fieldErrors[fieldName] ? 'p-invalid' : '';
+  }
+
+  getFieldErrorStyle(fieldName: string): { [key: string]: string } {
+    return this.fieldErrors[fieldName] ? { 'border-color': '#f44336' } : {};
+  }
+
+  // Master dialog methods
+  openMaster(type: string) {
+    // Prevent multiple clicks and show loading state
+    if (this.masterDialogLoading[type]) {
+      return;
+    }
+    
+    this.masterDialogLoading[type] = true;
+    
+    // Open dialog immediately for better user experience
+    if (type === 'from' || type === 'to') {
+      this.showMasterLocationDialog = true;
+    } else if (type === 'basis') {
+      this.showBasisDialog = true;
+    } else {
+      this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
+    }
+    
+    // Reset loading state immediately since dialog is now open
+    this.masterDialogLoading[type] = false;
+    this.cdr.detectChanges();
+  }
+
+  closeMasterDialog(type: string) {
+    console.log(`Closing master dialog: ${type}`);
+    
+    // Reset the appropriate dialog visibility
+    switch (type) {
+      case 'masterLocation':
+        this.showMasterLocationDialog = false;
+        // Reload locations so newly added entries appear in dropdowns
+        this.loadLocations().subscribe({
+          next: () => {
+            // Re-apply filters based on current selection
+            this.cdr.detectChanges();
+          },
+          error: () => {
+            // Even on error, attempt to refresh UI
+            this.cdr.detectChanges();
+          }
+        });
+        break;
+      case 'basis':
+        this.showBasisDialog = false;
+        this.loadBasisOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      default:
+        console.warn(`Unknown master dialog type: ${type}`);
+    }
+    
+    // Reset loading state if it exists
+    if (this.masterDialogLoading[type]) {
+      this.masterDialogLoading[type] = false;
+    }
+    
+    // Force change detection to ensure UI updates
+    this.cdr.detectChanges();
   }
 
   addEnquiry() {
@@ -942,7 +1277,7 @@ locationOptions: any[] = [];  // New property
     this.selectedEnquiry = {
       id: undefined,
       enquiry_no: '',
-      code: '',
+      code: this.isManualSeries ? '' : (this.mappedEnquirySeriesCode || ''),
       date: today.toISOString().split('T')[0], // Default today's date as specified
       customer_name: '',
       company_name: '',
@@ -958,7 +1293,8 @@ locationOptions: any[] = [];  // New property
       effective_date_to: today.toISOString().split('T')[0],
       status: 'Open',
       remarks: '',
-      line_items: []
+      line_items: [],
+      isNew: true
     };
     
     this.lineItems = [];
@@ -966,6 +1302,23 @@ locationOptions: any[] = [];  // New property
     this.activeVendorIndex = -1;
     this.isNewCustomer = false;
     this.fieldErrors = {};
+    
+    // Initialize customer selection
+    this.selectedCustomer = null;
+    this.customerContacts = [];
+    this.selectedContact = null;
+    this.showContactDropdown = false;
+    
+    // Reset manual entry flags
+    this.isManualCompanyName = false;
+    this.isManualName = false;
+    this.isManualEmail = false;
+    this.isManualMobile = false;
+    this.isManualLandline = false;
+    
+    // Initialize masterDialogLoading state for ellipsis buttons
+    this.masterDialogLoading = {};
+    
     this.isDialogVisible = true;
   }
 
@@ -973,6 +1326,35 @@ locationOptions: any[] = [];  // New property
     this.selectedEnquiry = { ...enquiry };
     this.lineItems = enquiry.line_items || [];
     this.vendorCards = enquiry.vendor_cards || [];
+    
+    // Set selected customer if company_name matches
+    if (enquiry.company_name) {
+      const matchingCustomer = this.customerOptions.find(c => 
+        c.name === enquiry.company_name || c.display_name === enquiry.company_name
+      );
+      if (matchingCustomer && matchingCustomer.id) {
+        this.selectedCustomer = matchingCustomer.id;
+        this.loadCustomerContacts(matchingCustomer.id);
+      } else {
+        this.selectedCustomer = null;
+        this.customerContacts = [];
+        this.selectedContact = null;
+        this.showContactDropdown = false;
+      }
+    } else {
+      this.selectedCustomer = null;
+      this.customerContacts = [];
+      this.selectedContact = null;
+      this.showContactDropdown = false;
+    }
+    
+    // Reset manual entry flags
+    this.isManualCompanyName = false;
+    this.isManualName = false;
+    this.isManualEmail = false;
+    this.isManualMobile = false;
+    this.isManualLandline = false;
+    
     this.isDialogVisible = true;
   }
 
@@ -1002,6 +1384,12 @@ locationOptions: any[] = [];  // New property
     this.lineItems = [];
     this.vendorCards = [];
     this.fieldErrors = {};
+    
+    // Clear customer selection
+    this.selectedCustomer = null;
+    this.customerContacts = [];
+    this.selectedContact = null;
+    this.showContactDropdown = false;
   }
 
   getStatusClass(status: string): string {
@@ -1020,35 +1408,20 @@ locationOptions: any[] = [];  // New property
     return d.toLocaleDateString('en-GB');
   }
 
-  // Customer autocomplete methods
-  searchCustomers(event: any) {
-    const query = event.query;
-    this.enquiryService.getCustomersDropdown(query).subscribe({
-      next: (customers) => {
-        this.customerSuggestions = customers;
-      },
-      error: (error) => {
-        console.error('Error searching customers:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to search customers'
-        });
-      }
-    });
-  }
 
   onCustomerSelect(event: any) {
-    const customer = event?.value ?? event;
+    const customerId = event?.value;
+    const customer = this.customerOptions.find(c => c.id === customerId);
+    
     if (customer && customer.id && this.selectedEnquiry) {
       // Existing customer - set company and load contacts to decide autofill/dropdown
       this.selectedEnquiry.company_name = customer.name || customer.display_name;
       this.isNewCustomer = false;
       this.loadCustomerContacts(customer.id);
     } else {
-      // New customer (manual entry)
+      // No customer selected - clear fields
       if (this.selectedEnquiry) {
-        this.selectedEnquiry.company_name = typeof customer === 'string' ? customer : (customer?.display_name || customer?.name || '');
+        this.selectedEnquiry.company_name = '';
         this.selectedEnquiry.customer_name = '';
         this.selectedEnquiry.email = '';
         this.selectedEnquiry.mobile = '';
@@ -1117,95 +1490,69 @@ locationOptions: any[] = [];  // New property
     }
   }
 
-  // Location autocomplete methods
-  searchLocations(event: any) {
-    const query = event.query;
-    this.enquiryService.getLocationsDropdown(query).subscribe({
-      next: (locations) => {
-        this.locationSuggestions = locations.map((loc: any) => ({
-          name: loc.display_name || loc.location_name || loc.name || loc.code
-        }));
-      },
-      error: (error) => {
-        console.error('Error fetching locations:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to fetch locations'
-        });
+  // Manual entry toggle methods
+  toggleManualCompanyName() {
+    this.isManualCompanyName = !this.isManualCompanyName;
+    
+    if (this.isManualCompanyName) {
+      // When switching to manual company name, enable manual entry for all contact fields
+      this.isManualName = true;
+      this.isManualEmail = true;
+      this.isManualMobile = true;
+      this.isManualLandline = true;
+    } else if (this.selectedCustomer && this.selectedEnquiry) {
+      // Reset to dropdown selection
+      const customer = this.customerOptions.find(c => c.id === this.selectedCustomer);
+      if (customer) {
+        this.selectedEnquiry.company_name = customer.name || customer.display_name;
       }
-    });
-  }
-
-  onFromLocationSelect(event: any) {
-    const loc = event?.value ?? event;
-    if (this.selectedEnquiry) {
-      this.selectedEnquiry.from_location = loc.name || '';
+      // When switching back to dropdown, disable manual entry for contact fields
+      this.isManualName = false;
+      this.isManualEmail = false;
+      this.isManualMobile = false;
+      this.isManualLandline = false;
     }
   }
 
-  onToLocationSelect(event: any) {
-    const loc = event?.value ?? event;
-    if (this.selectedEnquiry) {
-      this.selectedEnquiry.to_location = loc.name || '';
+  toggleManualName() {
+    this.isManualName = !this.isManualName;
+    if (!this.isManualName && this.selectedContact && this.selectedEnquiry) {
+      // Reset to contact selection
+      this.selectedEnquiry.customer_name = this.selectedContact.name || '';
     }
   }
 
-  // Department autocomplete methods
-  searchDepartments(event: any) {
-    const query = event.query;
-    const context = this.contextService.getContext();
-    this.enquiryService.getDepartmentsDropdown(context.companyCode, query).subscribe({
-      next: (departments) => {
-        this.departmentSuggestions = departments.map((dept: any) => ({ name: dept.display_name || dept.name }));
-      },
-      error: (error) => {
-        console.error('Error fetching departments:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to fetch departments'
-        });
-      }
-    });
-  }
-
-  onDepartmentSelect(event: any) {
-    const dept = event?.value ?? event;
-    if (this.selectedEnquiry) {
-      this.selectedEnquiry.department = dept.name || '';
+  toggleManualEmail() {
+    this.isManualEmail = !this.isManualEmail;
+    if (!this.isManualEmail && this.selectedContact && this.selectedEnquiry) {
+      // Reset to contact selection
+      this.selectedEnquiry.email = this.selectedContact.email || '';
     }
   }
 
-  // Basis autocomplete methods
-  searchBasis(event: any) {
-    const query = event.query;
-    this.enquiryService.getBasisDropdown().subscribe({
-      next: (basis) => {
-        this.basisSuggestions = basis.filter(b => 
-          b.name.toLowerCase().includes(query.toLowerCase())
-        ).map(b => ({
-          ...b,
-          display_name: b.display_name || b.name
-        }));
-      },
-      error: (error) => {
-        console.error('Error fetching basis:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to fetch basis'
-        });
-      }
-    });
+  toggleManualMobile() {
+    this.isManualMobile = !this.isManualMobile;
+    if (!this.isManualMobile && this.selectedContact && this.selectedEnquiry) {
+      // Reset to contact selection
+      this.selectedEnquiry.mobile = this.selectedContact.mobile || '';
+    }
   }
+
+  toggleManualLandline() {
+    this.isManualLandline = !this.isManualLandline;
+    if (!this.isManualLandline && this.selectedContact && this.selectedEnquiry) {
+      // Reset to contact selection
+      this.selectedEnquiry.landline = this.selectedContact.landline || '';
+    }
+  }
+
 
   // Line Items methods
   addLineItem() {
     const newItem: EnquiryLineItem = {
       s_no: this.lineItems.length + 1,
       quantity: 0,
-      basis: this.basisOptions[0]?.name || '',
+      basis: this.basisOptions[0]?.value || '',
       remarks: '',
       status: 'Active'
     };
@@ -1439,6 +1786,11 @@ locationOptions: any[] = [];  // New property
       effective_date_from: this.formatDateForAPI(this.selectedEnquiry.effective_date_from),
       effective_date_to: this.formatDateForAPI(this.selectedEnquiry.effective_date_to)
     };
+
+    // For automatic series, ensure code is empty so backend generates it (only for new records)
+    if (!this.isManualSeries && this.selectedEnquiry.isNew) {
+      enquiryData.code = '';
+    }
 
     const saveOperation = this.selectedEnquiry.id 
       ? this.enquiryService.updateEnquiry(this.selectedEnquiry.code!, enquiryData)

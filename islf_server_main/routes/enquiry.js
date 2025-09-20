@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const jwt = require('jsonwebtoken');
-const {getUsernameFromToken}=require('../utils/context-helper')
+const {getUsernameFromToken}=require('../utils/context-helper');
+const { logMasterEvent } = require('../log');
 // GET /enquiry - Fetch all enquiries with context filtering
 // router.get('/', async (req, res) => {
 //     try {
@@ -112,15 +113,10 @@ const {getUsernameFromToken}=require('../utils/context-helper')
 router.get('/', async (req, res) => {
     console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
 
-    try {
-        const username = getUsernameFromToken(req);
-        console.log("👤 [DEBUG] Extracted username:", username);
-
+    try { const username = getUsernameFromToken(req);
         if (!username) {
-            console.warn("⚠️ [DEBUG] No username found in token");
             return res.status(401).json({ error: 'Unauthorized' });
         }
-
         const { page = 1, limit = 10, search = '', status = '' } = req.query;
         const offset = (page - 1) * limit;
         console.log("📄 [DEBUG] Pagination => page:", page, "limit:", limit, "offset:", offset);
@@ -233,10 +229,7 @@ router.get('/', async (req, res) => {
 // GET /enquiry/:code - Fetch single enquiry with line items and vendor cards
 router.get('/:code', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code } = req.params;
 
@@ -279,10 +272,7 @@ router.get('/:code', async (req, res) => {
 // POST /enquiry - Create new enquiry
 router.post('/', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const {
             date,
@@ -301,7 +291,8 @@ router.post('/', async (req, res) => {
             status = 'Open',
             remarks,
             line_items = [],
-            is_new_customer = false
+            is_new_customer = false,
+            code
         } = req.body;
 
         // Get user context
@@ -327,24 +318,23 @@ router.post('/', async (req, res) => {
             if (is_new_customer && customer_name) {
                 // Generate customer number using number series
                 const customerNumberResult = await client.query(
-                    `SELECT nr.prefix, nr.suffix, nr.current_number, nr.number_length, nr.increment_by
+                    `SELECT nr.prefix, nr.last_no_used as current_number, nr.increment_by
                      FROM number_relation nr 
-                     INNER JOIN mapping m ON nr.id = m.number_relation_id 
-                     WHERE m.code_type = 'CUSTOMER' AND m.company_code = $1 AND m.branch_code = $2 
-                     AND m.department_code = $3 AND m.service_type_code = $4`,
-                    [userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
+                     WHERE nr.company_code = $1 AND nr.branch_code = $2 
+                     AND nr.department_code = $3 AND nr.number_series = 'CUSTOMER'`,
+                    [userContext.company_code, userContext.branch_code, userContext.department_code]
                 );
 
                 let customerNo;
                 if (customerNumberResult.rows.length > 0) {
                     const numberSeries = customerNumberResult.rows[0];
                     const nextNumber = numberSeries.current_number + numberSeries.increment_by;
-                    const paddedNumber = nextNumber.toString().padStart(numberSeries.number_length, '0');
-                    customerNo = (numberSeries.prefix || '') + paddedNumber + (numberSeries.suffix || '');
+                    const paddedNumber = nextNumber.toString().padStart(6, '0'); // Use 6 digits as default
+                    customerNo = (numberSeries.prefix || 'CUST') + paddedNumber;
                     
                     // Update the current number in number_relation
                     await client.query(
-                        'UPDATE number_relation SET current_number = $1 WHERE id = $2',
+                        'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
                         [nextNumber, numberSeries.id]
                     );
                 } else {
@@ -367,38 +357,104 @@ router.post('/', async (req, res) => {
                 finalCustomerId = customerResult.rows[0].id;
             }
 
-            // Generate enquiry number and code using number series
-            const enquiryNumberResult = await client.query(
-                `SELECT nr.prefix, nr.suffix, nr.current_number, nr.number_length, nr.increment_by, nr.id
-                 FROM number_relation nr 
-                 INNER JOIN mapping m ON nr.id = m.number_relation_id 
-                 WHERE m.code_type = 'ENQUIRY' AND m.company_code = $1 AND m.branch_code = $2 
-                 AND m.department_code = $3 AND m.service_type_code = $4`,
-                [userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
-            );
-
+            // Generate enquiry number and code using number series (matching tariff pattern)
             let enquiryNo, enquiryCode;
-            if (enquiryNumberResult.rows.length > 0) {
-                const numberSeries = enquiryNumberResult.rows[0];
-                const nextNumber = numberSeries.current_number + numberSeries.increment_by;
-                const paddedNumber = nextNumber.toString().padStart(numberSeries.number_length, '0');
-                enquiryNo = (numberSeries.prefix || '') + paddedNumber + (numberSeries.suffix || '');
-                enquiryCode = enquiryNo; // Use the same for code
+            let seriesCode;
+
+            // Number series lookup (matching tariff pattern)
+            if ((!code || code === '') && userContext.company_code) {
+                let whereConditions = ['code_type = $1', 'company_code = $2'];
+                let queryParams = ['enquiryNo', userContext.company_code];
+                let paramIndex = 3;
+
                 
-                // Update the current number in number_relation
-                await client.query(
-                    'UPDATE number_relation SET current_number = $1 WHERE id = $2',
-                    [nextNumber, numberSeries.id]
-                );
-            } else {
-                // Fallback to simple numbering if no number series found
-                const enquiryNoResult = await client.query(
-                    `SELECT COALESCE(MAX(CAST(SUBSTRING(enquiry_no FROM '[0-9]+') AS INTEGER)), 0) + 1 as next_no 
-                     FROM enquiry WHERE enquiry_no ~ '^ENQ[0-9]+$'`
-                );
-                enquiryNo = 'ENQ' + enquiryNoResult.rows[0].next_no.toString().padStart(6, '0');
-                enquiryCode = enquiryNo;
+                if (userContext.branch_code) {
+                    whereConditions.push(`branch_code = $${paramIndex}`);
+                    queryParams.push(userContext.branch_code);
+                    paramIndex++;
+                } else {
+                    whereConditions.push('(branch_code IS NULL OR branch_code = \'\')');
+                }
+
+                if (userContext.department_code) {
+                    whereConditions.push(`department_code = $${paramIndex}`);
+                    queryParams.push(userContext.department_code);
+                } else {
+                    whereConditions.push('(department_code IS NULL OR department_code = \'\')');
+                }
+
+                const mappingQuery = `
+                    SELECT mapping FROM mapping_relations
+                    WHERE ${whereConditions.join(' AND ')}
+                    ORDER BY id DESC
+                    LIMIT 1
+                `;
+
+                const mappingRes = await client.query(mappingQuery, queryParams);
+                if (mappingRes.rows.length > 0) {
+                    seriesCode = mappingRes.rows[0].mapping;
+                }
             }
+
+            // Generate enquiry code (matching tariff pattern)
+            if (seriesCode) {
+                const seriesResult = await client.query(
+                    'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
+                    [seriesCode]
+                );
+
+                if (seriesResult.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    client.release();
+                    return res.status(400).json({ error: 'Number series not found' });
+                }
+
+                const series = seriesResult.rows[0];
+                if (series.is_manual) {
+                    if (!code || code.trim() === '') {
+                        await client.query('ROLLBACK');
+                        client.release();
+                        return res.status(400).json({ error: 'Manual code entry required for this series' });
+                    }
+                    const exists = await client.query('SELECT 1 FROM enquiry WHERE code = $1', [code]);
+                    if (exists.rows.length > 0) {
+                        await client.query('ROLLBACK');
+                        client.release();
+                        return res.status(400).json({ error: 'Enquiry code already exists' });
+                    }
+                    enquiryCode = code;
+                } else {
+                    const relResult = await client.query(
+                        'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
+                        [seriesCode]
+                    );
+
+                    if (relResult.rows.length === 0) {
+                        await client.query('ROLLBACK');
+                        client.release();
+                        return res.status(400).json({ error: 'Number series relation not found' });
+                    }
+
+                    const rel = relResult.rows[0];
+                    let nextNo = rel.last_no_used === 0
+                        ? Number(rel.starting_no)
+                        : Number(rel.last_no_used) + Number(rel.increment_by);
+
+                    enquiryCode = `${rel.prefix || ''}${nextNo}`;
+
+                    await client.query(
+                        'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+                        [nextNo, rel.id]
+                    );
+                }
+            } else if (!code || code === '') {
+                enquiryCode = 'ENQ-' + Date.now();
+            } else {
+                enquiryCode = code;
+            }
+
+            // Generate enquiry number (same as code for enquiries)
+            enquiryNo = enquiryCode;
 
             // Check for duplicate enquiry number
             const duplicateCheck = await client.query(
@@ -436,10 +492,13 @@ router.post('/', async (req, res) => {
             await client.query('COMMIT');
 
             // Log the creation
-            await pool.query(
-                'INSERT INTO master_logs (table_name, operation, record_id, username) VALUES ($1, $2, $3, $4)',
-                ['enquiry', 'CREATE', enquiryId, username]
-            );
+            await logMasterEvent({
+                username: username,
+                action: 'CREATE',
+                masterType: 'Enquiry',
+                recordId: enquiryCode,
+                details: `New Enquiry "${enquiryCode}" has been created successfully.`
+            });
 
             res.status(201).json({ 
                 message: 'Enquiry created successfully', 
@@ -464,10 +523,7 @@ router.post('/', async (req, res) => {
 // PUT /enquiry/:code - Update enquiry
 router.put('/:code', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code: enquiryCode } = req.params;
         const {
@@ -527,10 +583,13 @@ router.put('/:code', async (req, res) => {
             await client.query('COMMIT');
 
             // Log the update
-            await pool.query(
-                'INSERT INTO master_logs (table_name, operation, record_id, username) VALUES ($1, $2, $3, $4)',
-                ['enquiry', 'UPDATE', enquiryId, username]
-            );
+            await logMasterEvent({
+                username: username,
+                action: 'UPDATE',
+                masterType: 'Enquiry',
+                recordId: enquiryCode,
+                details: `Enquiry "${enquiryCode}" has been updated successfully.`
+            });
 
             res.json({ message: 'Enquiry updated successfully' });
 
@@ -550,10 +609,7 @@ router.put('/:code', async (req, res) => {
 // DELETE /enquiry/:code - Delete enquiry
 router.delete('/:code', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code } = req.params;
 
@@ -571,10 +627,13 @@ router.delete('/:code', async (req, res) => {
         }
 
         // Log the deletion
-        await pool.query(
-            'INSERT INTO master_logs (table_name, operation, record_id, username) VALUES ($1, $2, $3, $4)',
-            ['enquiry', 'DELETE', enquiryId, username]
-        );
+        await logMasterEvent({
+            username: username,
+            action: 'DELETE',
+            masterType: 'Enquiry',
+            recordId: code,
+            details: `Enquiry "${code}" has been deleted successfully.`
+        });
 
         res.json({ message: 'Enquiry deleted successfully' });
 
@@ -587,11 +646,7 @@ router.delete('/:code', async (req, res) => {
 // GET /enquiry/customers/dropdown - Get customers for dropdown
 router.get('/customers/dropdown', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            console.warn("Unauthorized request - no username found in token");
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+        const username = getUsernameFromToken(req) || 'system';
 
         const { search = '' } = req.query;
         console.log("🔍 Search query received:", search);
@@ -699,10 +754,7 @@ router.get('/customers/dropdown', async (req, res) => {
 // Get customer details for auto-fill
 router.get('/customers/:customerId/details', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { customerId } = req.params;
 
@@ -760,10 +812,7 @@ router.get('/customers/:customerId/details', async (req, res) => {
 // Get customer contacts for dropdown
 router.get('/customers/:customerId/contacts', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { customerId } = req.params;
 
@@ -788,10 +837,7 @@ router.get('/customers/:customerId/contacts', async (req, res) => {
 // GET /enquiry/locations/dropdown - Get locations for dropdown
 router.get('/locations/dropdown', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+        const username = getUsernameFromToken(req) || 'system';
 
         const { search = '' } = req.query;
 
@@ -858,7 +904,7 @@ router.get('/locations/dropdown', async (req, res) => {
 router.get('/departments/dropdown', async (req, res) => {
   try {
     const { search, company_code } = req.query;
-    const userContext = getUsernameFromToken(req);
+    const userContext = getUsernameFromToken(req) || 'system';
     
     console.log("🏢 Departments dropdown request:", { search, company_code, userContext });
 
@@ -910,10 +956,7 @@ router.get('/departments/dropdown', async (req, res) => {
 
 router.post('/:code/sourcing', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code } = req.params;
         const { department, from_location, to_location, effective_date_from, effective_date_to, basis } = req.body;
@@ -978,10 +1021,7 @@ router.post('/:code/sourcing', async (req, res) => {
 // POST /enquiry/:code/tariff - Get tariff options for enquiry
 router.post('/:code/tariff', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code } = req.params;
         const { department, from_location, to_location, effective_date_from, effective_date_to } = req.body;
@@ -1037,10 +1077,7 @@ router.post('/:code/tariff', async (req, res) => {
 // POST /enquiry/:code/vendor-cards - Add vendor cards to enquiry
 router.post('/:code/vendor-cards', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code } = req.params;
         const { vendor_cards } = req.body;
@@ -1072,7 +1109,16 @@ router.post('/:code/vendor-cards', async (req, res) => {
 
             await client.query('COMMIT');
 
-            res.json({ message: 'Vendor cards updated successfully' });
+            // Log the update
+            await logMasterEvent({
+                username: username,
+                action: 'UPDATE',
+                masterType: 'Enquiry',
+                recordId: enquiryCode,
+                details: `Enquiry "${enquiryCode}" has been updated successfully.`
+            });
+
+            res.json({ message: 'Enquiry updated successfully' });
 
         } catch (error) {
             await client.query('ROLLBACK');
@@ -1090,10 +1136,7 @@ router.post('/:code/vendor-cards', async (req, res) => {
 // PUT /enquiry/:code/vendor-cards/:cardId/negotiate - Update negotiated charges
 router.put('/:code/vendor-cards/:cardId/negotiate', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { cardId } = req.params;
         const { negotiated_charges } = req.body;
@@ -1114,10 +1157,7 @@ router.put('/:code/vendor-cards/:cardId/negotiate', async (req, res) => {
 // POST /enquiry/:code/confirm - Confirm enquiry and create booking
 router.post('/:code/confirm', async (req, res) => {
     try {
-        const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+       
 
         const { code } = req.params;
 
