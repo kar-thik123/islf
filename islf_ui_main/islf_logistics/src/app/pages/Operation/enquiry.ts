@@ -25,6 +25,10 @@ import { EnquiryService, Enquiry, EnquiryLineItem, EnquiryVendorCard, CustomerDr
 import { ContextService } from '../../services/context.service';
 import { MappingService } from '../../services/mapping.service';
 import { NumberSeriesService } from '../../services/number-series.service';
+import { MasterLocationService } from '../../services/master-location.service';
+import { forkJoin } from 'rxjs';
+import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+
 
 @Component({
   selector: 'app-enquiry',
@@ -157,7 +161,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
           <tr>
             <td>{{ enquiry.code }}</td>
             <td>{{ formatDate(enquiry.date) }}</td>
-            <td>{{ enquiry.customer_name}</td>
+            <td>{{ enquiry.customer_name}}</td>
             <td>{{ enquiry.company_name }}</td>
             <td>{{ enquiry.department }}</td> 
             <td>{{ enquiry.from_location }}</td>
@@ -323,7 +327,8 @@ import { NumberSeriesService } from '../../services/number-series.service';
                   placeholder="Type to search to location..."
                   [dropdown]="true"
                   [forceSelection]="true">
-                </p-autoComplete>
+                </p-autoComplete> 
+               <!-- <p-dropdown [options]="locTypeOptions" [(ngModel)]="selectedToLocation" (ngModelChange)="onFieldChange('cargoType', selectedTariff.cargoType)" [ngClass]="getFieldErrorClass('cargoType')" [ngStyle]="getFieldErrorStyle('cargoType')" placeholder="Select Cargo Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown> -->
                 <small *ngIf="fieldErrors['to_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['to_location'] }}</small>
               </div>
 
@@ -746,6 +751,7 @@ export class EnquiryComponent implements OnInit {
   enquiryForm!: FormGroup;
   lineItems: EnquiryLineItem[] = [];
   vendorCards: EnquiryVendorCard[] = [];
+  allLocations: any[] = [];
   
   // Table data
   enquiries: Enquiry[] = [];
@@ -766,6 +772,12 @@ export class EnquiryComponent implements OnInit {
     { label: 'Inactive', value: 'Inactive' },
     { label: 'Pending', value: 'Pending' }
   ];
+
+  // locationTypeOptions: any[] = [];
+locationOptions: any[] = [];  // New property
+  fromLocationOptions: any[] = [];  // New property
+  toLocationOptions: any[] = [];    // New property
+
 
   currencyOptions = [
     { label: 'USD', value: 'USD' },
@@ -829,7 +841,8 @@ export class EnquiryComponent implements OnInit {
     private confirmationService: ConfirmationService,
     private contextService: ContextService,
     private mappingService: MappingService,
-    private numberSeriesService: NumberSeriesService
+    private numberSeriesService: NumberSeriesService,
+    private masterLocationService: MasterLocationService,
   ) {
     this.initializeForm();
   }
@@ -865,24 +878,63 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadInitialData() {
-    // Load any initial data needed for dropdowns, etc.
-    this.loadEnquiries();
+    // Load any initial data needed from masters.
+    forkJoin({
+      enqui: this.loadEnquiries(),
+      locations: this.loadLocations(),
+
+    }).subscribe({
+      next: () => {},
+      error: () =>{}
+    })
+
+  }
+
+  // loads location from the location masters
+  loadLocations(){
+    // masterLocationService
+    return this.masterLocationService.getAll().pipe(
+      tap((locations: any[]) => {
+        this.allLocations = locations.filter(l => l.active);
+        console.log('Loaded all locations:', this.allLocations.length);
+        
+        // Debug: Log the first few locations to see their structure
+        if (this.allLocations.length > 0) {
+          console.log('Sample location data:', this.allLocations.slice(0, 3));
+          console.log('Available location types in data:', [...new Set(this.allLocations.map(l => l.type))]);
+        }
+        
+        // Keep the existing logic for backward compatibility
+        const uniqueCities = Array.from(new Set((locations || [])
+          .filter(l => l.active && l.city)
+          .map(l => l.city.trim())
+          .filter(Boolean)));
+
+        this.locationOptions = uniqueCities.map(city => ({ label: city, value: city }));
+        
+        // Initialize filtered location options with all locations formatted as CODE - NAME
+        this.fromLocationOptions = this.allLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+        console.log("from location from options Datatype",this.fromLocationOptions);
+        this.toLocationOptions = this.allLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      })
+    );
   }
 
   loadEnquiries() {
-    this.enquiryService.getAllEnquiries().subscribe({
-      next: (enquiries: Enquiry[]) => {
-        this.enquiries = enquiries;
-      },
-      error: (error: any) => {
-        console.error('Error loading enquiries:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load enquiries'
-        });
-      }
-    });
+    return this.enquiryService.getAllEnquiries().pipe(
+      tap((enquiries: Enquiry[]) => {
+        console.log("Debug: Enquiry response from initial data",enquiries)
+        this.enquiries = (enquiries as any)["data"];
+        console.log("this.enquiry property value after assignment",this.enquiries);
+      })
+      
+    );
   }
 
   addEnquiry() {

@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/pages/setup/mapping.ts"],
-  "sourcesContent": ["\n  .card {\n  padding: 1rem;\n}\n\n.p-toolbar {\n  background-color: transparent;\n  border: none;\n  padding: 0;\n}\n\n.p-panel {\n  margin-top: 1rem;\n}\n\n/* Label + input alignment */\n.field {\n  display: flex;\n  align-items: center;\n  margin-bottom: 2.5rem;\n}\n\n.field label {\n  width: 220px;\n  margin-right: 1rem;\n  font-weight: 500;\n  font-size: 0.95rem;\n}\n\n/* Limit input width */\n.field .p-dropdown,\n.field input {\n  width: 400px; /* 👈 Restricts max width */\n  max-width: 100%;\n}\n\n/* Responsive for smaller devices */\n@media screen and (max-width: 768px) {\n  .field {\n    flex-direction: column;\n    align-items: flex-start;\n  }\n\n  .field label {\n    width: 100%;\n    margin-bottom: 0.5rem;\n  }\n\n  .field .p-dropdown,\n  .field input {\n    width: 100%;\n  }\n}\n\n\n  "],
-  "mappings": ";;;AACE,CAAA;AACA,WAAA;;AAGF,CAAA;AACE,oBAAA;AACA,UAAA;AACA,WAAA;;AAGF,CAAA;AACE,cAAA;;AAIF,CAAA;AACE,WAAA;AACA,eAAA;AACA,iBAAA;;AAGF,CANA,MAMA;AACE,SAAA;AACA,gBAAA;AACA,eAAA;AACA,aAAA;;AAIF,CAdA,MAcA,CAAA;AAAA,CAdA,MAcA;AAEE,SAAA;AACA,aAAA;;AAIF,OAAA,OAAA,IAAA,CAAA,SAAA,EAAA;AACE,GAtBF;AAuBI,oBAAA;AACA,iBAAA;;AAGF,GA3BF,MA2BE;AACE,WAAA;AACA,mBAAA;;AAGF,GAhCF,MAgCE,CAlBF;EAkBE,CAhCF,MAgCE;AAEE,WAAA;;;",
-  "names": []
-}

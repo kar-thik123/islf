@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/pages/masters/vendor.ts"],
-  "sourcesContent": ["\n    .grid-container {\n      display: grid;\n      grid-template-columns: repeat(2, 1fr);\n      gap: 1.5rem;\n    }\n    .grid-item {\n      display: flex;\n      flex-direction: column;\n    }\n    .section-header {\n      font-weight: bold;\n      margin-top: 1.5rem;\n      margin-bottom: 0.5rem;\n      font-size: 1.1rem;\n    }\n    label {\n      margin-bottom: 0.5rem;\n      font-weight: 500;\n    }\n    .document-upload-section {\n      margin-top: 1rem;\n    }\n    .document-header {\n      background-color: #f8f9fa;\n      padding: 0.75rem;\n      border-radius: 0.375rem;\n      margin-bottom: 1rem;\n    }\n    .document-header h4 {\n      margin: 0;\n      font-weight: bold;\n      color: #374151;\n    }\n    .flex {\n      display: flex;\n    }\n    .gap-1 {\n      gap: 0.25rem;\n    }\n    .text-gray-600 {\n      color: #6b7280;\n    }\n    .text-xs {\n      font-size: 0.75rem;\n    }\n    .ml-2 {\n      margin-left: 0.5rem;\n    }\n  "],
-  "mappings": ";AACI,CAAA;AACE,WAAA;AACA,yBAAA,OAAA,CAAA,EAAA;AACA,OAAA;;AAEF,CAAA;AACE,WAAA;AACA,kBAAA;;AAEF,CAAA;AACE,eAAA;AACA,cAAA;AACA,iBAAA;AACA,aAAA;;AAEF;AACE,iBAAA;AACA,eAAA;;AAEF,CAAA;AACE,cAAA;;AAEF,CAAA;AACE,oBAAA;AACA,WAAA;AACA,iBAAA;AACA,iBAAA;;AAEF,CANA,gBAMA;AACE,UAAA;AACA,eAAA;AACA,SAAA;;AAEF,CAAA;AACE,WAAA;;AAEF,CAAA;AACE,OAAA;;AAEF,CAAA;AACE,SAAA;;AAEF,CAAA;AACE,aAAA;;AAEF,CAAA;AACE,eAAA;;",
-  "names": []
-}
