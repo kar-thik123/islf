@@ -228,7 +228,8 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                 <label class="block font-semibold mb-1">Date</label>
                 <p-calendar 
                   id="date"
-                  [(ngModel)]="selectedEnquiry.date"
+                  [(ngModel)]="selectedDate"
+                  (ngModelChange)="onDateChange($event)"
                   [showIcon]="true"
                   dateFormat="dd-mm-yy"
                   appendTo="body"
@@ -464,11 +465,12 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                 <label class="block font-semibold mb-1">Effective Date From</label>
                 <p-calendar 
                   id="effective_date_from"
-                  [(ngModel)]="selectedEnquiry.effective_date_from"
+                  [(ngModel)]="selectedEffectiveDateFrom"
+                  (ngModelChange)="onEffectiveDateFromChange($event)"
                   [showIcon]="true"
                   dateFormat="dd-mm-yy"
                   appendTo="body"
-                  placeholder="Select Start Date"
+                  placeholder="Select Effective Date From"
                   [showTime]="false"
                   [timeOnly]="false">
                 </p-calendar>
@@ -479,11 +481,12 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                  <label class="block font-semibold mb-1">Effective Date To</label>
                 <p-calendar 
                   id="effective_date_to"
-                  [(ngModel)]="selectedEnquiry.effective_date_to"
+                  [(ngModel)]="selectedEffectiveDateTo"
+                  (ngModelChange)="onEffectiveDateToChange($event)"
                   [showIcon]="true"
                   dateFormat="dd-mm-yy"
                   appendTo="body"
-                  placeholder="Select End Date"
+                  placeholder="Select Effective Date To"
                   [showTime]="false"
                   [timeOnly]="false">
                 </p-calendar>
@@ -609,7 +612,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <!-- Vendor Cards Section -->
           <div *ngIf="vendorCards.length > 0" class="mb-4">
             <h3 class="text-lg font-semibold mb-3">Vendor Cards</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 gap-4">
               <div *ngFor="let card of vendorCards; let i = index" class="vendor-card" [ngClass]="{'active-vendor': card.is_active}">
                 <p-card>
                   <ng-template pTemplate="header">
@@ -999,6 +1002,11 @@ export class EnquiryComponent implements OnInit {
   isNewCustomer = false;
   activeVendorIndex: number = -1;
 
+  // Date objects for calendar components
+  selectedDate: Date | null = null;
+  selectedEffectiveDateFrom: Date | null = null;
+  selectedEffectiveDateTo: Date | null = null;
+
 
   constructor(
     private fb: FormBuilder,
@@ -1322,6 +1330,11 @@ export class EnquiryComponent implements OnInit {
     // Initialize masterDialogLoading state for ellipsis buttons
     this.masterDialogLoading = {};
     
+    // Initialize date objects for calendar components
+    this.selectedDate = today;
+    this.selectedEffectiveDateFrom = today;
+    this.selectedEffectiveDateTo = today;
+    
     this.isDialogVisible = true;
   }
 
@@ -1340,25 +1353,37 @@ export class EnquiryComponent implements OnInit {
       if (matchingCustomer && matchingCustomer.id) {
         this.selectedCustomer = matchingCustomer.id;
         this.loadCustomerContacts(matchingCustomer.id);
+        this.isManualCompanyName = false;
+        this.showContactDropdown = true;
+        
+        // Check if customer_name matches any contact, if not set to manual
+        if (enquiry.customer_name) {
+          // We'll check for matching contact after contacts are loaded
+          this.isManualName = true; // Default to manual, will be updated in loadCustomerContacts if match found
+        } else {
+          this.isManualName = false;
+        }
       } else {
         this.selectedCustomer = null;
         this.customerContacts = [];
         this.selectedContact = null;
         this.showContactDropdown = false;
+        this.isManualCompanyName = true; // Show manual input for company name
+        this.isManualName = true; // Show manual input for customer name
       }
     } else {
       this.selectedCustomer = null;
       this.customerContacts = [];
       this.selectedContact = null;
       this.showContactDropdown = false;
+      this.isManualCompanyName = true; // Show manual input for company name
+      this.isManualName = true; // Show manual input for customer name
     }
     
-    // Reset manual entry flags
-    this.isManualCompanyName = false;
-    this.isManualName = false;
-    this.isManualEmail = false;
-    this.isManualMobile = false;
-    this.isManualLandline = false;
+    // Set manual flags based on existing data
+    this.isManualEmail = !!enquiry.email;
+    this.isManualMobile = !!enquiry.mobile;
+    this.isManualLandline = !!enquiry.landline;
     
     this.isDialogVisible = true;
   }
@@ -1369,6 +1394,12 @@ export class EnquiryComponent implements OnInit {
       next: (enquiry: Enquiry) => {
         this.selectedEnquiry = { ...enquiry };
         this.currentEnquiry = { ...enquiry };
+        
+        // Set Date objects for calendar components
+        this.selectedDate = this.selectedEnquiry.date ? new Date(this.selectedEnquiry.date) : null;
+        this.selectedEffectiveDateFrom = this.selectedEnquiry.effective_date_from ? new Date(this.selectedEnquiry.effective_date_from) : null;
+        this.selectedEffectiveDateTo = this.selectedEnquiry.effective_date_to ? new Date(this.selectedEnquiry.effective_date_to) : null;
+        
         this.lineItems = enquiry.line_items || [];
         this.vendorCards = enquiry.vendor_cards || [];
         this.isDialogVisible = true;
@@ -1418,6 +1449,23 @@ export class EnquiryComponent implements OnInit {
     return d.toLocaleDateString('en-GB');
   }
 
+  onDateChange(date: Date | null) {
+    if (this.selectedEnquiry && date) {
+      this.selectedEnquiry.date = this.formatDateForAPI(date);
+    }
+  }
+
+  onEffectiveDateFromChange(date: Date | null) {
+    if (this.selectedEnquiry && date) {
+      this.selectedEnquiry.effective_date_from = this.formatDateForAPI(date);
+    }
+  }
+
+  onEffectiveDateToChange(date: Date | null) {
+    if (this.selectedEnquiry && date) {
+      this.selectedEnquiry.effective_date_to = this.formatDateForAPI(date);
+    }
+  }
 
   onCustomerSelect(event: any) {
     const customerId = event?.value;
@@ -1453,29 +1501,68 @@ export class EnquiryComponent implements OnInit {
     this.enquiryService.getCustomerContacts(customerId).subscribe({
       next: (contacts) => {
         this.customerContacts = contacts;
-        // If exactly one contact, auto-fill fields and do not show dropdown
-        if (contacts && contacts.length === 1 && this.selectedEnquiry) {
-          const only = contacts[0];
-          this.showContactDropdown = false;
-          this.selectedContact = null;
-          this.selectedEnquiry.customer_name = only.name || '';
-          this.selectedEnquiry.email = only.email || '';
-          this.selectedEnquiry.mobile = only.mobile || '';
-          this.selectedEnquiry.landline = only.landline || '';
-        } else if (contacts && contacts.length > 1) {
-          this.showContactDropdown = true;
-          // Auto-select primary contact if available
-          const primaryContact = contacts.find(c => c.is_primary);
-          if (primaryContact) {
-            this.selectedContact = primaryContact;
-            this.onContactSelect({ value: primaryContact });
+        
+        if (contacts && contacts.length > 0 && this.selectedEnquiry) {
+          // Check if current enquiry data matches any contact
+          const matchingContact = contacts.find(c => 
+            c.name === this.selectedEnquiry?.customer_name ||
+            c.email === this.selectedEnquiry?.email ||
+            c.mobile === this.selectedEnquiry?.mobile ||
+            c.landline === this.selectedEnquiry?.landline
+          );
+          
+          if (contacts.length === 1) {
+            // Single contact - check if enquiry data matches
+            const only = contacts[0];
+            this.showContactDropdown = false;
+            
+            if (matchingContact) {
+              // Data matches, use contact data
+              this.selectedContact = only;
+              this.isManualName = false;
+              this.isManualEmail = false;
+              this.isManualMobile = false;
+              this.isManualLandline = false;
+            } else {
+              // Data doesn't match, keep existing data and set manual flags
+              this.selectedContact = null;
+              this.isManualName = !!this.selectedEnquiry.customer_name;
+              this.isManualEmail = !!this.selectedEnquiry.email;
+              this.isManualMobile = !!this.selectedEnquiry.mobile;
+              this.isManualLandline = !!this.selectedEnquiry.landline;
+            }
           } else {
-            this.selectedContact = null;
+            // Multiple contacts
+            this.showContactDropdown = true;
+            
+            if (matchingContact) {
+              // Found matching contact
+              this.selectedContact = matchingContact;
+              this.onContactSelect({ value: matchingContact });
+            } else {
+              // No matching contact, try primary contact or set manual
+              const primaryContact = contacts.find(c => c.is_primary);
+              if (primaryContact && !this.selectedEnquiry.customer_name) {
+                this.selectedContact = primaryContact;
+                this.onContactSelect({ value: primaryContact });
+              } else {
+                // Keep existing data and set manual flags
+                this.selectedContact = null;
+                this.isManualName = !!this.selectedEnquiry.customer_name;
+                this.isManualEmail = !!this.selectedEnquiry.email;
+                this.isManualMobile = !!this.selectedEnquiry.mobile;
+                this.isManualLandline = !!this.selectedEnquiry.landline;
+              }
+            }
           }
         } else {
           // No contacts found
           this.showContactDropdown = false;
           this.selectedContact = null;
+          this.isManualName = true;
+          this.isManualEmail = true;
+          this.isManualMobile = true;
+          this.isManualLandline = true;
         }
       },
       error: (error) => {
