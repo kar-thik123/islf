@@ -165,6 +165,7 @@ export class EnquiryService {
   /** Create enquiry */
   create(enquiry: Partial<Enquiry>): Observable<Enquiry> {
     const payload = this.contextPayload.withContext(enquiry, this.contextService.getContext());
+    console.log("Debug: enquiry value from create enquiry service method",enquiry,"payload value",payload);
     return this.http.post<Enquiry>(`${this.baseUrl}`, payload);
   }
 

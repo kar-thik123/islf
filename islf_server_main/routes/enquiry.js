@@ -114,9 +114,9 @@ router.get('/', async (req, res) => {
     console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
 
     try { const username = getUsernameFromToken(req);
-        if (!username) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+        // if (!username) {
+        //     return res.status(401).json({ error: 'Unauthorized' });
+        // }
         const { page = 1, limit = 10, search = '', status = '' } = req.query;
         const offset = (page - 1) * limit;
         console.log("📄 [DEBUG] Pagination => page:", page, "limit:", limit, "offset:", offset);
@@ -292,13 +292,14 @@ router.post('/', async (req, res) => {
             remarks,
             line_items = [],
             is_new_customer = false,
-            code
+            code,
+            name
         } = req.body;
 
         // Get user context
         const userResult = await pool.query(
             'SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1',
-            [username]
+            [name]
         );
 
         if (userResult.rows.length === 0) {
@@ -391,6 +392,7 @@ router.post('/', async (req, res) => {
                 `;
 
                 const mappingRes = await client.query(mappingQuery, queryParams);
+                console.log("Debug: Enquiry create method No series Mapping res", mappingRes,"for Query:", mappingQuery,"params:",queryParams);
                 if (mappingRes.rows.length > 0) {
                     seriesCode = mappingRes.rows[0].mapping;
                 }
@@ -455,6 +457,7 @@ router.post('/', async (req, res) => {
 
             // Generate enquiry number (same as code for enquiries)
             enquiryNo = enquiryCode;
+            console.log("Debug: create enquiry API enquiryNo generated no series",enquiryNo);
 
             // Check for duplicate enquiry number
             const duplicateCheck = await client.query(
@@ -477,6 +480,8 @@ router.post('/', async (req, res) => {
                  status, remarks, userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
             );
 
+            console.log("Debug: Create enquiry result",enquiryResult);
+
             const enquiryId = enquiryResult.rows[0].id;
 
             // Create line items
@@ -493,7 +498,7 @@ router.post('/', async (req, res) => {
 
             // Log the creation
             await logMasterEvent({
-                username: username,
+                username: name,
                 action: 'CREATE',
                 masterType: 'Enquiry',
                 recordId: enquiryCode,
@@ -542,7 +547,8 @@ router.put('/:code', async (req, res) => {
             department,
             status,
             remarks,
-            line_items = []
+            line_items = [],
+            username = 'System'
         } = req.body;
 
         // First get the enquiry ID from the code
@@ -900,6 +906,7 @@ router.get('/locations/dropdown', async (req, res) => {
     }
 });
 
+
 // Get departments dropdown for enquiry
 router.get('/departments/dropdown', async (req, res) => {
   try {
@@ -962,36 +969,43 @@ router.post('/:code/sourcing', async (req, res) => {
         const { department, from_location, to_location, effective_date_from, effective_date_to, basis } = req.body;
 
         // Get sourcing options based on criteria
-        let query = `
-            SELECT s.*, v.name as vendor_name, v.type as vendor_type
-            FROM sourcing s
-            LEFT JOIN vendor v ON s.vendor_code = v.code
-            WHERE s.active = true
-        `;
+        // let query = `
+        //     SELECT s.*, v.name as vendor_name, v.type as vendor_type
+        //     FROM sourcing s
+        //     LEFT JOIN vendor v ON s.vendor_code = v.code
+        //     WHERE s.active = true
+        // `;
         
+        let query= `
+            SELECT * FROM ( SELECT *, CASE
+            WHEN period_end_date = NULL THEN 'Active'
+            WHEN NOW() > period_end_date::DATE  THEN 'Expired'
+            ELSE 'Active' END AS source_status
+            FROM sourcing) WHERE source_status = 'Active'
+        `;
         const params = [];
         let paramIndex = 1;
 
         if (department) {
-            query += ` AND s.mode = $${paramIndex}`;
+            query += ` AND mode = $${paramIndex}`;
             params.push(department);
             paramIndex++;
         }
 
         if (from_location) {
-            query += ` AND s.from_location = $${paramIndex}`;
+            query += ` AND from_location = $${paramIndex}`;
             params.push(from_location);
             paramIndex++;
         }
 
         if (to_location) {
-            query += ` AND s.to_location = $${paramIndex}`;
+            query += ` AND to_location = $${paramIndex}`;
             params.push(to_location);
             paramIndex++;
         }
 
         if (basis) {
-            query += ` AND s.basis = $${paramIndex}`;
+            query += ` AND basis = $${paramIndex}`;
             params.push(basis);
             paramIndex++;
         }
@@ -999,15 +1013,16 @@ router.post('/:code/sourcing', async (req, res) => {
         // Date range check
         if (effective_date_from && effective_date_to) {
             query += ` AND (
-                (s.start_date <= $${paramIndex} AND s.end_date >= $${paramIndex}) OR
-                (s.effective_date <= $${paramIndex + 1} AND s.effective_date >= $${paramIndex})
+                (period_start_date <= $${paramIndex} AND period_end_date >= $${paramIndex}) OR
+                (effective_date <= $${paramIndex + 1} AND effective_date >= $${paramIndex})
             )`;
             params.push(effective_date_from, effective_date_to);
             paramIndex += 2;
         }
 
-        query += ` ORDER BY s.vendor_code, s.created_at DESC`;
-
+        // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
+        query += `ORDER BY code, id DESC`;
+        console.log(`DEBUG: /code/sourcing query ${query}, Params ${params}`);
         const result = await pool.query(query, params);
 
         res.json(result.rows);

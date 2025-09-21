@@ -29,6 +29,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
 import { MasterLocationService } from '../../services/master-location.service';
 import { DepartmentService } from '../../services/department.service';
 import { BasisService } from '../../services/basis.service';
+import {AuthService} from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
 import { forkJoin } from 'rxjs';
@@ -1010,12 +1011,14 @@ export class EnquiryComponent implements OnInit {
     private masterLocationService: MasterLocationService,
     private departmentService: DepartmentService,
     private basisService: BasisService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
   ) {
     this.initializeForm();
   }
 
   ngOnInit() {
+    // console.log("Debug: obtaining username from the auth service during enquiry on Init", this.authService.getUserName())
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
   }
@@ -1323,9 +1326,11 @@ export class EnquiryComponent implements OnInit {
   }
 
   editEnquiry(enquiry: Enquiry) {
-    this.selectedEnquiry = { ...enquiry };
-    this.lineItems = enquiry.line_items || [];
-    this.vendorCards = enquiry.vendor_cards || [];
+    console.log("Debug: Editing the Enquiry",enquiry);
+    this.loadEnquiry(enquiry.code!);
+    // this.selectedEnquiry = { ...enquiry };
+    // this.lineItems = enquiry.line_items || [];
+    // this.vendorCards = enquiry.vendor_cards || [];
     
     // Set selected customer if company_name matches
     if (enquiry.company_name) {
@@ -1358,7 +1363,8 @@ export class EnquiryComponent implements OnInit {
     this.isDialogVisible = true;
   }
 
-  viewEnquiry(enquiryCode: string) {
+// load Line of Items for respective Enquiry
+  loadEnquiry(enquiryCode: string){
     this.enquiryService.getEnquiryByCode(enquiryCode).subscribe({
       next: (enquiry: Enquiry) => {
         this.selectedEnquiry = { ...enquiry };
@@ -1376,6 +1382,10 @@ export class EnquiryComponent implements OnInit {
         });
       }
     });
+  }
+
+  viewEnquiry(enquiryCode: string) {
+    this.loadEnquiry(enquiryCode);
   }
 
   hideDialog() {
@@ -1613,12 +1623,13 @@ export class EnquiryComponent implements OnInit {
     if (!this.canGetSourcing()) return;
 
     if (!this.currentEnquiry?.code) {
+      this.saveEnquiry(); 
       this.messageService.add({
-        severity: 'warn',
-        summary: 'Warning',
-        detail: 'Please save the enquiry first before getting sourcing options'
+        severity: 'info',
+        summary: 'INFO',
+        detail: 'Saved enquiry Successfully'
       });
-      return;
+      // return;
     }
 
     const enq = this.selectedEnquiry!;
@@ -1631,7 +1642,7 @@ export class EnquiryComponent implements OnInit {
       basis: this.lineItems[0]?.basis
     };
 
-    this.enquiryService.getSourcingOptions(this.currentEnquiry.code, criteria).subscribe({
+    this.enquiryService.getSourcingOptions(this.currentEnquiry?.code!, criteria).subscribe({
       next: (options) => {
         this.availableVendors = options;
         this.currentVendorSource = 'sourcing';
@@ -1778,13 +1789,16 @@ export class EnquiryComponent implements OnInit {
   saveEnquiry() {
     if (!this.selectedEnquiry) return;
 
+    console.log("DEBUG: selected enquiry value from save enquiry",this.selectedEnquiry);
+
     const enquiryData: Enquiry = {
       ...this.selectedEnquiry,
       line_items: this.lineItems,
       is_new_customer: this.isNewCustomer,
       date: this.formatDateForAPI(this.selectedEnquiry.date),
       effective_date_from: this.formatDateForAPI(this.selectedEnquiry.effective_date_from),
-      effective_date_to: this.formatDateForAPI(this.selectedEnquiry.effective_date_to)
+      effective_date_to: this.formatDateForAPI(this.selectedEnquiry.effective_date_to),
+      name: this.authService.getUserName()!
     };
 
     // For automatic series, ensure code is empty so backend generates it (only for new records)
@@ -1835,7 +1849,8 @@ export class EnquiryComponent implements OnInit {
         
         // Don't hide dialog immediately for new enquiries so user can see the generated number
         if (this.selectedEnquiry?.code) {
-          this.hideDialog();
+          console.log("Save Enquiry hide dialog",this.selectedEnquiry);
+          // this.hideDialog();
         }
       },
       error: (error: any) => {
