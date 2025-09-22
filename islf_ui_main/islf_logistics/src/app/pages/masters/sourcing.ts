@@ -1281,9 +1281,11 @@ loadBasisOptions() {
         this.vendorOptions = this.allVendors
           .map(v => ({
             label: `${v.vendor_no} - ${v.name2}`,
-            value: v.vendor_no,
+            value: v.name2,
             vendorType: v.type // Include vendor type for filtering
           }));
+
+          console.log("Mapped Vendor Options in loadVendorOptions,",this.vendorOptions);
       })
     );
   }
@@ -1683,7 +1685,9 @@ loadBasisOptions() {
 
   saveRow() {
     if (!this.selectedTariff || !this.isFormValid) return;
-    const payload: any = { ...this.selectedTariff };
+    
+    const payload: any = { ...this.selectedTariff};
+    console.log("DEBUG: Saving the source value for the selected source payload",payload);
     
     // Clear original data backup since we're saving changes
     this.originalTariffData = null;

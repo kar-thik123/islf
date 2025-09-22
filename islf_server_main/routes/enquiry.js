@@ -1097,6 +1097,10 @@ router.post('/:code/vendor-cards', async (req, res) => {
         const { code } = req.params;
         const { vendor_cards } = req.body;
 
+        (typeof vendor_cards === 'undefined') && [] ;
+
+        console.log("DEBUG: vendor casrds list from prost met:",vendor_cards);
+
         // First get the enquiry ID from the code
         const enquiryResult = await pool.query('SELECT id FROM enquiry WHERE code = $1', [code]);
         if (enquiryResult.rows.length === 0) {

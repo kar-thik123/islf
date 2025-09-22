@@ -212,6 +212,7 @@ export class EnquiryService {
 
   /** Get sourcing options */
   getSourcingOptions(enquiryCode: string, criteria: any): Observable<SourcingOption[]> {
+    console.log("get Sourcing Options:",enquiryCode,"Criteria",criteria);
     return this.http.post<SourcingOption[]>(`${this.baseUrl}/${enquiryCode}/sourcing`, criteria);
   }
 
@@ -228,6 +229,7 @@ export class EnquiryService {
   /** Vendor card operations */
   addVendorCards(enquiryCode: string, vendorCards: EnquiryVendorCard[]): Observable<any> {
     const payload = this.contextPayload.withContext({ vendorCards }, this.contextService.getContext());
+    console.log("add Vendor Cards payload,", payload);
     return this.http.post(`${this.baseUrl}/${enquiryCode}/vendor-cards`, payload);
   }
 

@@ -744,9 +744,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
               <td>{{ vendor.from_location }} → {{ vendor.to_location }}</td>
               <td>{{ vendor.basis }}</td>
               <td>
-                <div *ngFor="let charge of vendor.charges">
-                  {{ charge.charge_type }}: {{ charge.currency }} {{ charge.amount }}
-                </div>
+                {{vendor.charges}}
               </td>
             </tr>
           </ng-template>
@@ -1308,6 +1306,9 @@ export class EnquiryComponent implements OnInit {
       isNew: true
     };
     
+    // Initializing currentEnquiry to prevent undefined errors in functions like getSourcing()
+    this.currentEnquiry = { ...this.selectedEnquiry };
+    
     this.lineItems = [];
     this.vendorCards = [];
     this.activeVendorIndex = -1;
@@ -1392,6 +1393,7 @@ export class EnquiryComponent implements OnInit {
   loadEnquiry(enquiryCode: string){
     this.enquiryService.getEnquiryByCode(enquiryCode).subscribe({
       next: (enquiry: Enquiry) => {
+        console.log("Debug Loaded Enquiry value for the enquiry code:",enquiryCode,"enquiry response",enquiry);
         this.selectedEnquiry = { ...enquiry };
         this.currentEnquiry = { ...enquiry };
         
@@ -1731,6 +1733,7 @@ export class EnquiryComponent implements OnInit {
 
     this.enquiryService.getSourcingOptions(this.currentEnquiry?.code!, criteria).subscribe({
       next: (options) => {
+        console.log("vendor list from get sourcing:",options);
         this.availableVendors = options;
         this.currentVendorSource = 'sourcing';
         this.selectedVendors = [];
@@ -1771,6 +1774,7 @@ export class EnquiryComponent implements OnInit {
 
     this.enquiryService.getTariffOptions(this.currentEnquiry.code, criteria).subscribe({
       next: (options) => {
+        console.log("DEBUG get Tariff response options,",options);
         this.availableVendors = options;
         this.currentVendorSource = 'tariff';
         this.selectedVendors = [];
@@ -1788,18 +1792,45 @@ export class EnquiryComponent implements OnInit {
   }
 
   addSelectedVendors() {
+    console.log("list of vendors selected from the sourcing:", this.selectedVendors);
     this.selectedVendors.forEach(vendor => {
+      // Ensure charges is always an array
+      let charges: any[] = [];
+      if (vendor.charges) {
+        if (Array.isArray(vendor.charges)) {
+          charges = vendor.charges;
+        } else if (typeof vendor.charges === 'string') {
+          // If charges is a string, parse it or create a simple charge object
+          try {
+            charges = JSON.parse(vendor.charges);
+          } catch (e) {
+            // If parsing fails, create a simple charge structure
+            charges = [{
+              charge_type: 'Total',
+              amount: vendor.charges,
+              currency: 'INR' // Default currency
+            }];
+          }
+        } else {
+          // If charges is an object, wrap it in an array
+          charges = [vendor.charges];
+        }
+      }
+
       const vendorCard: EnquiryVendorCard = {
         vendor_name: vendor.vendor_name,
         vendor_type: vendor.vendor_type,
         is_active: false,
-        charges: vendor.charges || [],
+        charges: charges,
         source_type: this.currentVendorSource,
         source_id: vendor.id
       };
       this.vendorCards.push(vendorCard);
     });
 
+    console.log("DEBUG List of selected vendors stored in the vendorCards:", this.vendorCards);
+    // Push the vendors list to the db for retrieval 
+    this.saveVendorCards() 
     this.showVendorSelectionDialog = false;
     this.messageService.add({
       severity: 'success',
@@ -1815,12 +1846,17 @@ export class EnquiryComponent implements OnInit {
     this.vendorCards.forEach((card, i) => {
       card.is_active = i === index;
     });
+    // update the is_active value from the 
+    
   }
 
   getDisplayCharges(card: EnquiryVendorCard): any[] {
-    return card.negotiated_charges && card.negotiated_charges.length > 0 
+    const charges = card.negotiated_charges && card.negotiated_charges.length > 0 
       ? card.negotiated_charges 
       : card.charges;
+    
+    // Ensure we always return an array for ngFor
+    return Array.isArray(charges) ? charges : [];
   }
 
   // Negotiation methods
@@ -1952,8 +1988,9 @@ export class EnquiryComponent implements OnInit {
   }
 
   canConfirmEnquiry(): boolean {
-    return this.enquiryForm.valid && 
-           this.lineItems.length > 0 && 
+    console.log("DEBUG: values params in canConfirmEnquiry,",this.enquiryForm,"lineItems,",this.lineItems,"vendor cards,",this.vendorCards,"Current Enquiry,",this.currentEnquiry);
+    // this.enquiryForm.valid && 
+    return this.lineItems.length > 0 && 
            this.vendorCards.some(card => card.is_active) &&
            this.currentEnquiry?.code !== undefined;
   }
@@ -1988,6 +2025,8 @@ export class EnquiryComponent implements OnInit {
 
   saveVendorCards() {
     if (!this.currentEnquiry?.code || this.vendorCards.length === 0) return;
+
+    console.log("Save vendor cards vendor Cards list,",this.vendorCards);
 
     this.enquiryService.addVendorCards(this.currentEnquiry.code, this.vendorCards).subscribe({
       next: () => {
