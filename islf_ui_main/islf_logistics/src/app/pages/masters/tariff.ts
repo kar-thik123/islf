@@ -336,18 +336,6 @@ import { ChargeTypeMasterComponent } from './chargetype';
               </div>
               <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
             </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Currency</label>
-              <div class="flex gap-2">
-                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
-                <button pButton 
-                  [icon]="masterDialogLoading['currency'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
-                  class="p-button-sm" 
-                  [disabled]="masterDialogLoading['currency']"
-                  (click)="openMaster('currency')"></button>
-              </div>
-              <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
-            </div>
           </div>
 
           <!-- 3. Location Details -->
@@ -407,6 +395,18 @@ import { ChargeTypeMasterComponent } from './chargetype';
           <!-- 4. Validity Period -->
           <h3 class="section-header">4. Charges & Validity Period</h3>
           <div class="grid grid-cols-12 gap-4 mb-6">
+          <div class="col-span-12 md:col-span-2">
+              <label class="block font-semibold mb-1">Currency</label>
+              <div class="flex gap-2">
+                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['currency'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['currency']"
+                  (click)="openMaster('currency')"></button>
+              </div>
+              <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
+            </div>
              <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Charges</label>
               <input pInputText type="number" [(ngModel)]="selectedTariff.charges" (ngModelChange)="onFieldChange('charges', selectedTariff.charges)" [ngClass]="getFieldErrorClass('charges')" [ngStyle]="getFieldErrorStyle('charges')" class="w-full"/>

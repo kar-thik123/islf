@@ -20,10 +20,20 @@ export interface EnquiryVendorCard {
   vendor_name: string;
   vendor_type: string;
   is_active: boolean;
-  charges: any[];
+  charges: number;
   source_type: string;
   source_id: number;
-  negotiated_charges?: any[];
+  quantity?: number;
+  // Additional sourcing details
+  mode?: string;
+  from_location?: string;
+  to_location?: string;
+  basis?: string;
+  vendor_code?: string;
+  effective_date?: string;
+  expiry_date?: string;
+  currency?: string;
+  remarks?: string;
 }
 
 export interface Enquiry {
@@ -40,9 +50,12 @@ export interface Enquiry {
   company_name: string;
   from_location: string;
   to_location: string;
+  location_type_from: string;
+  location_type_to: string;
   effective_date_from: string;
   effective_date_to: string;
   department: string;
+  service_type: string;
   basis: string;
   status: string;
   remarks: string;
@@ -83,6 +96,8 @@ export interface SourcingOption {
   mode: string;
   from_location: string;
   to_location: string;
+  currency: string;
+  
   basis: string;
   charges: any[];
   start_date: string;
@@ -238,10 +253,7 @@ export class EnquiryService {
     return this.http.put(`${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/negotiate`, payload);
   }
 
-  updateNegotiatedCharges(enquiryCode: string, cardId: number, negotiatedCharges: any[]): Observable<any> {
-    const payload = this.contextPayload.withContext({ negotiatedCharges }, this.contextService.getContext());
-    return this.http.put(`${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/charges`, payload);
-  }
+
 
   /** Confirm enquiry */
   confirmEnquiry(enquiryCode: string): Observable<any> {
@@ -257,8 +269,8 @@ export class EnquiryService {
 
   /** Client-side mail template generator */
   generateMailTemplateString(enquiry: Enquiry, activeVendorCard: EnquiryVendorCard): string {
-    const charges = activeVendorCard.negotiated_charges || activeVendorCard.charges;
-    const chargesText = charges.map(charge => `${charge.charge_type}: ${charge.currency} ${charge.amount}`).join('\n');
+    const charges = activeVendorCard.charges;
+    const chargesText = `Total Charges: ${charges}`;
     const lineItemsText = enquiry.line_items.map(item =>
       `${item.s_no}. Quantity: ${item.quantity}, Basis: ${item.basis}, Remarks: ${item.remarks}`
     ).join('\n');

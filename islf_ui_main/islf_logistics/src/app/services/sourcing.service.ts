@@ -16,6 +16,7 @@ export interface Source {
   locationTypeTo: string;
   from: string;
   to: string;
+  currency: string;
   vendorType: string;
   vendorName: string;
   charges: number;

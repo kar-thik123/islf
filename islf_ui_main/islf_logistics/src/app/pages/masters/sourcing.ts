@@ -371,6 +371,18 @@ import { ChargeTypeMasterComponent } from './chargetype';
           <!-- 4. Validity Period -->
           <h3 class="section-header">4. Charges & Validity Period</h3>
           <div class="grid grid-cols-12 gap-4 mb-6">
+          <div class="col-span-12 md:col-span-2">
+              <label class="block font-semibold mb-1">Currency</label>
+              <div class="flex gap-2">
+                <p-dropdown [options]="currencyOptions" [(ngModel)]="selectedTariff.currency" (ngModelChange)="onFieldChange('currency', selectedTariff.currency)" [ngClass]="getFieldErrorClass('currency')" [ngStyle]="getFieldErrorStyle('currency')" placeholder="Select Currency" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['currency'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['currency']"
+                  (click)="openMaster('currency')"></button>
+              </div>
+              <small *ngIf="fieldErrors['currency']" class="p-error">{{ fieldErrors['currency'] }}</small>
+            </div>
              <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Charges</label>
               <input pInputText type="number" [(ngModel)]="selectedTariff.charges" (ngModelChange)="onFieldChange('charges', selectedTariff.charges)" [ngClass]="getFieldErrorClass('charges')" [ngStyle]="getFieldErrorStyle('charges')" class="w-full"/>
@@ -445,6 +457,24 @@ import { ChargeTypeMasterComponent } from './chargetype';
     >
       <ng-template pTemplate="content">
         <basis-code></basis-code>
+      </ng-template>
+    </p-dialog>
+      <!-- Currency Code Dialog -->
+    <p-dialog
+      header="Currency Code Master"
+      [(visible)]="showCurrencyDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('currency')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <currency-code></currency-code>
       </ng-template>
     </p-dialog>
 

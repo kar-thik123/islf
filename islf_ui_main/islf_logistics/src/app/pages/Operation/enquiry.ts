@@ -1,3 +1,4 @@
+
 import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -29,6 +30,8 @@ import { NumberSeriesService } from '../../services/number-series.service';
 import { MasterLocationService } from '../../services/master-location.service';
 import { DepartmentService } from '../../services/department.service';
 import { BasisService } from '../../services/basis.service';
+import { ServiceTypeService } from '../../services/servicetype.service';
+import { MasterTypeService } from '../../services/mastertype.service';
 import {AuthService} from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
@@ -81,7 +84,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['enquiry_no', 'customer_name', 'company_name', 'department', 'from_location', 'to_location', 'status']"
+        [globalFilterFields]="['enquiry_no', 'customer_name', 'company_name', 'department', 'service_type', 'from_location', 'to_location', 'status']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -131,6 +134,12 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
             </th>
             <th>
               <div class="flex justify-between items-center">
+                Service Type
+                <p-columnFilter type="text" field="service_type" display="menu" placeholder="Search by service type"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
                 From Location
                 <p-columnFilter type="text" field="from_location" display="menu" placeholder="Search by from location"></p-columnFilter>
               </div>
@@ -173,6 +182,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
             <td>{{ enquiry.customer_name}}</td>
             <td>{{ enquiry.company_name }}</td>
             <td>{{ enquiry.department }}</td> 
+            <td>{{ enquiry.service_type }}</td>
             <td>{{ enquiry.from_location }}</td>
             <td>{{ enquiry.to_location }}</td>
             <td>
@@ -445,11 +455,57 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
               </div>
 
               <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1">From Location Type</label>
+                <div class="flex gap-2">
+                  <p-dropdown 
+                    appendTo="body" 
+                    [options]="locationTypeFromOptions" 
+                    [(ngModel)]="selectedEnquiry.location_type_from" 
+                    (ngModelChange)="onLocationTypeFromChange($event)" 
+                    placeholder="Select From Location Type" 
+                    [filter]="true" 
+                    filterBy="label" 
+                    [showClear]="true" 
+                    class="flex-1">
+                  </p-dropdown>
+                  <button pButton 
+                    [icon]="masterDialogLoading['locationTypeFrom'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                    class="p-button-sm" 
+                    [disabled]="masterDialogLoading['locationTypeFrom']"
+                    (click)="openMaster('locationTypeFrom')">
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1">To Location Type</label>
+                <div class="flex gap-2">
+                  <p-dropdown 
+                    appendTo="body" 
+                    [options]="locationTypeToOptions" 
+                    [(ngModel)]="selectedEnquiry.location_type_to" 
+                    (ngModelChange)="onLocationTypeToChange($event)" 
+                    placeholder="Select To Location Type" 
+                    [filter]="true" 
+                    filterBy="label" 
+                    [showClear]="true" 
+                    class="flex-1">
+                  </p-dropdown>
+                  <button pButton 
+                    [icon]="masterDialogLoading['locationTypeTo'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                    class="p-button-sm" 
+                    [disabled]="masterDialogLoading['locationTypeTo']"
+                    (click)="openMaster('locationTypeTo')">
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">Department</label>
                 <p-dropdown 
                   [options]="departmentOptions" 
                   [(ngModel)]="selectedEnquiry.department" 
-                  (ngModelChange)="onFieldChange('department', selectedEnquiry.department)" 
+                  (ngModelChange)="onFieldChange('department', selectedEnquiry.department); filterServiceType()" 
                   [ngClass]="getFieldErrorClass('department')" 
                   [ngStyle]="getFieldErrorStyle('department')" 
                   placeholder="Select Department" 
@@ -459,6 +515,23 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   class="w-full">
                 </p-dropdown>
                 <small *ngIf="fieldErrors['department']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['department'] }}</small>
+              </div>
+
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1">Service Type</label>
+                <p-dropdown 
+                  [options]="serviceTypeOptions" 
+                  [(ngModel)]="selectedEnquiry.service_type" 
+                  (ngModelChange)="onFieldChange('service_type', selectedEnquiry.service_type)" 
+                  [ngClass]="getFieldErrorClass('service_type')" 
+                  [ngStyle]="getFieldErrorStyle('service_type')" 
+                  placeholder="Select Service Type" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  [showClear]="true" 
+                  class="w-full">
+                </p-dropdown>
+                <small *ngIf="fieldErrors['service_type']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['service_type'] }}</small>
               </div>
 
               <div class="col-span-12 md:col-span-3">
@@ -502,7 +575,9 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   pInputTextarea 
                   [(ngModel)]="selectedEnquiry.remarks"
                   rows="3"
-                  placeholder="Enter remarks">
+                  placeholder="Enter remarks"
+                  class="w-full">
+                  >
                 </textarea> 
               </div>
               <div class="col-span-12 md:col-span-3">
@@ -513,7 +588,8 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   [options]="statusOptions"
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="Select Status">
+                  placeholder="Select Status"
+                  class="w-full">
                 </p-dropdown>
               </div>
             </div>
@@ -536,7 +612,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                 <tr>
                   <th style="width: 80px">S.No.</th>
                   <th style="width: 150px">Quantity</th>
-                  <th style="width: 150px">Basis</th>
+                  <th style="width: 350px">Basis</th>
                   <th>Remarks</th>
                   <th style="width: 120px">Status</th>
                   <th style="width: 120px">Actions</th>
@@ -561,13 +637,15 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                         optionLabel="label"
                         optionValue="value"
                         placeholder="Select basis"
-                        class="flex-1">
+                        class="flex-1"
+                        appendTo="body">
                     </p-dropdown>
                       <button pButton 
                         [icon]="masterDialogLoading['basis'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
                         class="p-button-sm" 
                         [disabled]="masterDialogLoading['basis']"
-                        (click)="openMaster('basis')">
+                        (click)="openMaster('basis')"
+                        appendTo="body">
                       </button>
                     </div>
                   </td>
@@ -575,14 +653,16 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                     <input 
                       pInputText 
                       [(ngModel)]="item.remarks"
-                      placeholder="Remarks">
+                      placeholder="Remarks"
+                      class="w-full">
                   </td>
                   <td>
                     <p-dropdown
                       [(ngModel)]="item.status"
                       [options]="lineItemStatusOptions"
                       optionLabel="label"
-                      optionValue="value">
+                      optionValue="value"
+                      appendTo="body">
                     </p-dropdown>
                   </td>
                   <td>
@@ -612,43 +692,73 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <!-- Vendor Cards Section -->
           <div *ngIf="vendorCards.length > 0" class="mb-4">
             <h3 class="text-lg font-semibold mb-3">Vendor Cards</h3>
-            <div class="grid grid-cols-1 gap-4">
-              <div *ngFor="let card of vendorCards; let i = index" class="vendor-card" [ngClass]="{'active-vendor': card.is_active}">
-                <p-card>
-                  <ng-template pTemplate="header">
-                    <div class="flex justify-between items-center p-3">
-                      <h4 class="font-semibold text-lg">{{ card.vendor_name }}</h4>
+            <div class="vendor-cards-container">
+              <p-table 
+                [value]="vendorCards" 
+                [responsive]="true"
+                [showGridlines]="true"
+                [rowHover]="true"
+                styleClass="vendor-cards-table">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th style="width: 3rem">Active</th>
+                    <th>Vendor Name</th>
+                    <th>Basis</th>
+                    <th>Quantity</th>
+                    <th>Currency</th>
+                    <th>Charges</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-card let-i="rowIndex">
+                  <tr [ngClass]="{'active-vendor-row': card.is_active}">
+                    <td>
                       <p-radioButton 
                         [(ngModel)]="activeVendorIndex"
                         [value]="i"
-                        (onChange)="onVendorActiveChange(i)"
-                        label="Active">
+                        (onChange)="onVendorActiveChange(i)">
                       </p-radioButton>
-                    </div>
-                  </ng-template>
-                  
-                  <div class="mb-2">
-                    <strong>Type:</strong> {{ card.vendor_type }}
-                  </div>
-                  <div class="mb-2">
-                    <strong>Source:</strong> {{ card.source_type | titlecase }}
-                  </div>
-                  
-                  <!-- Charges Display -->
-                  <div class="mb-3">
-                    <strong>Charges:</strong>
-                    <div *ngFor="let charge of getDisplayCharges(card)" class="ml-2 text-sm">
-                      {{ charge.charge_type }}: {{ charge.currency }} {{ charge.amount }}
-                    </div>
-                  </div>
-
-                  <ng-template pTemplate="footer">
-                    <div class="flex gap-2">
-                      <button pButton type="button" label="Negotiate" icon="pi pi-comments" (click)="openNegotiationDialog(card, i)" class="p-button-warning p-button-sm"></button>
-                    </div>
-                  </ng-template>
-                </p-card>
-              </div>
+                    </td>
+                    <td>
+                      <div class="font-semibold">{{ card.vendor_name }}</div>
+                      <div class="text-sm text-gray-600">{{ card.source_type | titlecase }} Source</div>
+                    </td>
+                    <td>{{ getVendorBasis(card) }}</td>
+                    <td>{{ formatQuantity(card.quantity) }}</td>
+                    <td>{{ card.currency || 'N/A' }}</td>
+                    <td>
+                      <div class="charges-display">
+                        {{ getDisplayCharges(card) }}
+                        <div *ngIf="!getDisplayCharges(card) || getDisplayCharges(card) === 0" class="text-gray-500 text-sm">
+                          No charges available
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ card.remarks || 'N/A' }}</td>
+                    <td>
+                      <div class="flex gap-1">
+                        <button 
+                          pButton 
+                          type="button" 
+                          icon="pi pi-pencil" 
+                          (click)="editVendorCard(card, i)" 
+                          class="p-button-sm p-button-text"
+                          pTooltip="Edit vendor details">
+                        </button>
+                        <button 
+                          pButton 
+                          type="button" 
+                          icon="pi pi-trash" 
+                          (click)="removeVendorCard(i)" 
+                          class="p-button-sm p-button-danger p-button-text"
+                          pTooltip="Remove vendor card">
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
             </div>
           </div>
 
@@ -730,6 +840,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
               <th>Mode</th>
               <th>Route</th>
               <th>Basis</th>
+              <th>Currency</th>
               <th>Charges</th>
             </tr>
           </ng-template>
@@ -743,6 +854,7 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
               <td>{{ vendor.mode }}</td>
               <td>{{ vendor.from_location }} → {{ vendor.to_location }}</td>
               <td>{{ vendor.basis }}</td>
+              <td>{{ vendor.currency || 'N/A' }}</td>
               <td>
                 {{vendor.charges}}
               </td>
@@ -766,30 +878,57 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
         </ng-template>
       </p-dialog>
 
-      <!-- Negotiation Dialog -->
+
+
+      <!-- Edit Vendor Card Dialog -->
       <p-dialog 
-        header="Negotiate Charges" 
-        [(visible)]="showNegotiationDialog" 
+        header="Edit Vendor Card" 
+        [(visible)]="showEditVendorDialog" 
         [modal]="true" 
-        [style]="{width: '60vw'}">
-        <div *ngIf="negotiatingCard">
-          <h4>{{ negotiatingCard.vendor_name }}</h4>
-          <div class="grid">
-            <div *ngFor="let charge of negotiationCharges; let i = index" class="col-12">
-              <div class="flex align-items-center gap-3 mb-2">
-                <label class="w-3">{{ charge.charge_type }}:</label>
-                <p-dropdown
-                  [(ngModel)]="charge.currency"
-                  [options]="currencyOptions"
-                  class="w-2">
-                </p-dropdown>
-                <p-inputNumber
-                  [(ngModel)]="charge.amount"
-                  [min]="0"
-                  [maxFractionDigits]="2"
-                  class="w-3">
-                </p-inputNumber>
-              </div>
+        [style]="{width: '70vw'}">
+        <div *ngIf="editingCard">
+          <h4>{{ editingCard.vendor_name }}</h4>
+          
+          <!-- Sourcing Details Section -->
+          <div class="grid grid-cols-12 gap-4 mb-4">
+            <div class="col-span-12">
+              <h5 class="font-semibold mb-3">Sourcing Details</h5>
+            </div>
+            
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Mode</label>
+              <input 
+                pInputText 
+                [(ngModel)]="editingCard.mode"
+                placeholder="Transportation mode"
+                class="w-full">
+            </div>
+            
+            <div class="col-span-12 md:col-span-4">
+              <label class="block font-semibold mb-1">From Location</label>
+              <input 
+                pInputText 
+                [(ngModel)]="editingCard.from_location"
+                placeholder="Origin location"
+                class="w-full">
+            </div>
+            
+            <div class="col-span-12 md:col-span-4">
+              <label class="block font-semibold mb-1">To Location</label>
+              <input 
+                pInputText 
+                [(ngModel)]="editingCard.to_location"
+                placeholder="Destination location"
+                class="w-full">
+            </div>
+            
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Basis</label>
+              <input 
+                pInputText 
+                [(ngModel)]="editingCard.basis"
+                placeholder="Pricing basis"
+                class="w-full">
             </div>
           </div>
         </div>
@@ -798,13 +937,13 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <p-button 
             label="Cancel" 
             icon="pi pi-times" 
-            (onClick)="showNegotiationDialog = false"
+            (onClick)="cancelVendorCardEdit()"
             class="p-button-text">
           </p-button>
           <p-button 
-            label="Save Negotiation" 
+            label="Save Changes" 
             icon="pi pi-check" 
-            (onClick)="saveNegotiation()">
+            (onClick)="saveVendorCardEdit()">
           </p-button>
         </ng-template>
       </p-dialog>
@@ -889,6 +1028,27 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
       border-color: #007ad9;
       box-shadow: 0 0 10px rgba(0, 122, 217, 0.3);
     }
+
+    .vendor-cards-container {
+      margin-top: 1rem;
+    }
+
+    .vendor-cards-table .active-vendor-row {
+      background-color: #f0f8ff !important;
+      border-left: 4px solid #007ad9;
+    }
+
+    .vendor-cards-table .active-vendor-row:hover {
+      background-color: #e6f3ff !important;
+    }
+
+    .charges-display {
+      max-width: 200px;
+    }
+
+    .charges-display .text-sm {
+      margin-bottom: 2px;
+    }
     
     .mail-preview {
       background: #f8f9fa;
@@ -944,6 +1104,23 @@ export class EnquiryComponent implements OnInit {
   // Basis options
   basisOptions: any[] = [];
 
+  // Service type options
+  serviceTypeOptions: any[] = [];
+  allServiceTypes: any[] = [];
+
+  // Location type options
+  locationTypeFromOptions: any[] = [];
+  locationTypeToOptions: any[] = [];
+  allLocationTypes: any[] = [];
+
+  // Mode options for vendor cards
+  modeOptions = [
+    { label: 'Transportation', value: 'Transportation' },
+    { label: 'Shipping', value: 'Shipping' },
+    { label: 'Air Freight', value: 'Air Freight' },
+    { label: 'Rail', value: 'Rail' },
+    { label: 'Road', value: 'Road' }
+  ];
 
   currencyOptions = [
     { label: 'USD', value: 'USD' },
@@ -979,18 +1156,17 @@ export class EnquiryComponent implements OnInit {
   
   // Dialog states
   showVendorSelectionDialog = false;
-  showNegotiationDialog = false;
+  showEditVendorDialog = false;
   showMailDialog = false;
-  
-  // Vendor selection
+
+  // Vendor management
   availableVendors: (SourcingOption | TariffOption)[] = [];
   selectedVendors: (SourcingOption | TariffOption)[] = [];
   currentVendorSource: 'sourcing' | 'tariff' = 'sourcing';
   
-  // Negotiation
-  negotiatingCard: EnquiryVendorCard | null = null;
-  negotiatingCardIndex = -1;
-  negotiationCharges: any[] = [];
+  // Edit vendor card properties
+  editingCard: EnquiryVendorCard | null = null;
+  editingCardIndex = -1;
   
   // Mail
   mailContent = '';
@@ -1017,6 +1193,8 @@ export class EnquiryComponent implements OnInit {
     private masterLocationService: MasterLocationService,
     private departmentService: DepartmentService,
     private basisService: BasisService,
+    private serviceTypeService: ServiceTypeService,
+    private masterTypeService: MasterTypeService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService
   ) {
@@ -1043,6 +1221,7 @@ export class EnquiryComponent implements OnInit {
       effective_date_from: ['', Validators.required],
       effective_date_to: ['', Validators.required],
       department: ['', Validators.required],
+      service_type: [''],
       status: ['Open', Validators.required],
       remarks: ['']
     });
@@ -1055,7 +1234,9 @@ export class EnquiryComponent implements OnInit {
       locations: this.loadLocations(),
       departments: this.loadDepartments(),
       basis: this.loadBasisOptions(),
-      customers: this.loadCustomers()
+      customers: this.loadCustomers(),
+      serviceTypes: this.loadServiceTypes(),
+      locationTypes: this.loadLocationTypes()
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
@@ -1161,6 +1342,75 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+  // Load service types
+  loadServiceTypes() {
+    return this.serviceTypeService.getAll().pipe(
+      tap((serviceTypes: any[]) => {
+        this.allServiceTypes = serviceTypes || [];
+        this.serviceTypeOptions = this.allServiceTypes.map(st => ({
+          label: `${st.code} - ${st.name}`,
+          value: st.code
+        }));
+        console.log('Service type options loaded:', this.serviceTypeOptions.length);
+      })
+    );
+  }
+
+  // Load location types
+  loadLocationTypes() {
+    const context = this.contextService.getContext();
+    return this.masterTypeService.getAll().pipe(
+      tap((locationTypes: any[]) => {
+        this.allLocationTypes = locationTypes?.filter(lt => lt.type === 'Location Type') || [];
+        this.locationTypeFromOptions = this.allLocationTypes.map(lt => ({
+          label: `${lt.code} - ${lt.name}`,
+          value: lt.code
+        }));
+        this.locationTypeToOptions = [...this.locationTypeFromOptions];
+        console.log('Location type options loaded:', this.locationTypeFromOptions.length);
+      })
+    );
+  }
+
+  // Filter service types based on department
+  filterServiceType() {
+    if (!this.selectedEnquiry?.department || !this.allServiceTypes.length) {
+      this.serviceTypeOptions = [];
+      return;
+    }
+
+    const departmentCode = this.selectedEnquiry.department;
+    
+    // First try exact match
+    let filteredTypes = this.allServiceTypes.filter(st => 
+      st.department_code === departmentCode
+    );
+
+    // If no exact match, try case-insensitive match
+    if (filteredTypes.length === 0) {
+      filteredTypes = this.allServiceTypes.filter(st => 
+        st.department_code?.toLowerCase() === departmentCode.toLowerCase()
+      );
+    }
+
+    // If still no match, show all service types
+    if (filteredTypes.length === 0) {
+      filteredTypes = this.allServiceTypes;
+    }
+
+    this.serviceTypeOptions = filteredTypes.map(st => ({
+      label: `${st.code} - ${st.name}`,
+      value: st.code
+    }));
+
+    // Clear selected service type if it's not in the filtered options
+    const enquiry = this.selectedEnquiry;
+    if (enquiry && enquiry.service_type && 
+        !this.serviceTypeOptions.find(opt => opt.value === enquiry.service_type)) {
+      enquiry.service_type = '';
+    }
+  }
+
   // Field validation methods (similar to tariff)
   onFieldChange(fieldName: string, value: any) {
     const error = this.validateField(fieldName, value);
@@ -1233,6 +1483,14 @@ export class EnquiryComponent implements OnInit {
       this.showMasterLocationDialog = true;
     } else if (type === 'basis') {
       this.showBasisDialog = true;
+    } else if (type === 'locationTypeFrom' || type === 'locationTypeTo') {
+      // For location type dialogs, show a message for now
+      // In a real implementation, you might want to open a location type master dialog
+      this.messageService.add({ 
+        severity: 'info', 
+        summary: 'Location Type Master', 
+        detail: `Open ${type === 'locationTypeFrom' ? 'From' : 'To'} Location Type master page` 
+      });
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -1253,6 +1511,8 @@ export class EnquiryComponent implements OnInit {
         this.loadLocations().subscribe({
           next: () => {
             // Re-apply filters based on current selection
+            this.filterFromLocations();
+            this.filterToLocations();
             this.cdr.detectChanges();
           },
           error: () => {
@@ -1298,6 +1558,9 @@ export class EnquiryComponent implements OnInit {
       basis: '',
       from_location: '',
       to_location: '',
+      location_type_from: '',
+      location_type_to: '',
+      service_type: '',
       effective_date_from: today.toISOString().split('T')[0],
       effective_date_to: today.toISOString().split('T')[0],
       status: 'Open',
@@ -1404,6 +1667,21 @@ export class EnquiryComponent implements OnInit {
         
         this.lineItems = enquiry.line_items || [];
         this.vendorCards = enquiry.vendor_cards || [];
+        
+        // Process vendor cards to ensure charges are in proper format
+        this.vendorCards = this.vendorCards.map(card => this.processVendorCardCharges(card));
+        
+        console.log('DEBUG loadEnquiry - vendor_cards from database:', enquiry.vendor_cards);
+        console.log('DEBUG loadEnquiry - processed vendorCards:', this.vendorCards);
+        if (this.vendorCards.length > 0) {
+          console.log('DEBUG loadEnquiry - first vendor card charges:', this.vendorCards[0].charges);
+          console.log('DEBUG loadEnquiry - first vendor card structure:', this.vendorCards[0]);
+        }
+        
+        // Apply location filtering based on selected location types
+        this.filterFromLocations();
+        this.filterToLocations();
+        
         this.isDialogVisible = true;
       },
       error: (error: any) => {
@@ -1614,6 +1892,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   toggleManualName() {
+
     this.isManualName = !this.isManualName;
     if (!this.isManualName && this.selectedContact && this.selectedEnquiry) {
       // Reset to contact selection
@@ -1727,8 +2006,7 @@ export class EnquiryComponent implements OnInit {
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
-      effective_date_to: this.formatDateForAPI(enq.effective_date_to),
-      basis: this.lineItems[0]?.basis
+      effective_date_to: this.formatDateForAPI(enq.effective_date_to)
     };
 
     this.enquiryService.getSourcingOptions(this.currentEnquiry?.code!, criteria).subscribe({
@@ -1794,36 +2072,67 @@ export class EnquiryComponent implements OnInit {
   addSelectedVendors() {
     console.log("list of vendors selected from the sourcing:", this.selectedVendors);
     this.selectedVendors.forEach(vendor => {
-      // Ensure charges is always an array
-      let charges: any[] = [];
+      // Extract simple numeric charge value
+      let chargeValue: number = 0;
       if (vendor.charges) {
-        if (Array.isArray(vendor.charges)) {
-          charges = vendor.charges;
+        if (Array.isArray(vendor.charges) && vendor.charges.length > 0) {
+          // If charges is an array, take the amount from the first charge
+          chargeValue = parseFloat(vendor.charges[0].amount) || 0;
         } else if (typeof vendor.charges === 'string') {
-          // If charges is a string, parse it or create a simple charge object
+          // If charges is a string, try to parse it as a number
           try {
-            charges = JSON.parse(vendor.charges);
+            const parsed = JSON.parse(vendor.charges);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              chargeValue = parseFloat(parsed[0].amount) || 0;
+            } else {
+              chargeValue = parseFloat(vendor.charges) || 0;
+            }
           } catch (e) {
-            // If parsing fails, create a simple charge structure
-            charges = [{
-              charge_type: 'Total',
-              amount: vendor.charges,
-              currency: 'INR' // Default currency
-            }];
+            // If parsing fails, try to parse as direct number
+            chargeValue = parseFloat(vendor.charges) || 0;
           }
-        } else {
-          // If charges is an object, wrap it in an array
-          charges = [vendor.charges];
+        } else if (typeof vendor.charges === 'object' && !Array.isArray(vendor.charges) && (vendor.charges as any).amount) {
+          // If charges is an object with amount property
+          chargeValue = parseFloat((vendor.charges as any).amount) || 0;
+        } else if (typeof vendor.charges === 'number') {
+          // If charges is already a number
+          chargeValue = vendor.charges;
         }
+      }
+
+      // Get vendor basis for quantity mapping
+      const vendorBasis = (vendor as any).basis || '';
+      
+      // Map quantity from line items based on basis matching
+      let mappedQuantity = 0;
+      if (vendorBasis && this.lineItems && this.lineItems.length > 0) {
+        // Find line items with matching basis (case-insensitive comparison)
+        const matchingLineItems = this.lineItems.filter(lineItem => 
+          lineItem.basis && lineItem.basis.toLowerCase() === vendorBasis.toLowerCase()
+        );
+        
+        // Sum quantities from matching line items
+        mappedQuantity = matchingLineItems.reduce((total, lineItem) => total + (lineItem.quantity || 0), 0);
       }
 
       const vendorCard: EnquiryVendorCard = {
         vendor_name: vendor.vendor_name,
         vendor_type: vendor.vendor_type,
         is_active: false,
-        charges: charges,
+        charges: chargeValue, // Store as simple numeric value
         source_type: this.currentVendorSource,
-        source_id: vendor.id
+        source_id: vendor.id,
+        // Store additional sourcing details for display
+        mode: vendor.mode,
+        from_location: vendor.from_location,
+        to_location: vendor.to_location,
+        basis: vendorBasis,
+        vendor_code: (vendor as any).vendor_code || '',
+        effective_date: (vendor as any).effective_date || '',
+        expiry_date: (vendor as any).expiry_date || (vendor as any).end_date || '',
+        currency: (vendor as any).currency || 'N/A',
+        quantity: mappedQuantity,
+        remarks: ''
       };
       this.vendorCards.push(vendorCard);
     });
@@ -1850,34 +2159,155 @@ export class EnquiryComponent implements OnInit {
     
   }
 
-  getDisplayCharges(card: EnquiryVendorCard): any[] {
-    const charges = card.negotiated_charges && card.negotiated_charges.length > 0 
-      ? card.negotiated_charges 
-      : card.charges;
+  processVendorCardCharges(card: EnquiryVendorCard): EnquiryVendorCard {
+    // Process charges field - ensure it's a simple numeric value
+    const charges = (card as any).charges; // Temporarily cast to any to handle mixed types
     
-    // Ensure we always return an array for ngFor
-    return Array.isArray(charges) ? charges : [];
+    if (charges !== undefined && charges !== null) {
+      if (typeof charges === 'string') {
+        try {
+          const parsed = JSON.parse(charges);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Extract amount from first charge in array
+            card.charges = parseFloat(parsed[0].amount) || 0;
+          } else {
+            // Try to parse as direct number
+            card.charges = parseFloat(charges) || 0;
+          }
+        } catch (e) {
+          // If parsing fails, try to parse as direct number
+          card.charges = parseFloat(charges) || 0;
+        }
+      } else if (Array.isArray(charges) && charges.length > 0) {
+        // Extract amount from first charge in array
+        card.charges = parseFloat(charges[0].amount) || 0;
+      } else if (typeof charges === 'object' && charges.amount) {
+        // Extract amount from charge object
+        card.charges = parseFloat(charges.amount) || 0;
+      } else if (typeof charges === 'number') {
+        // Already a number, keep as is
+        card.charges = charges;
+      } else {
+        // Default to 0 if not a valid type
+        card.charges = 0;
+      }
+    } else {
+      card.charges = 0;
+    }
+
+    return card;
   }
 
-  // Negotiation methods
-  openNegotiationDialog(card: EnquiryVendorCard, index: number) {
-    this.negotiatingCard = card;
-    this.negotiatingCardIndex = index;
-    this.negotiationCharges = JSON.parse(JSON.stringify(card.charges)); // Deep copy
-    this.showNegotiationDialog = true;
+  getDisplayCharges(card: EnquiryVendorCard): number {
+    // Return simple charges value
+    console.log('DEBUG getDisplayCharges for vendor:', card.vendor_name);
+    console.log('DEBUG card.charges:', card.charges);
+    
+    // Return numeric value, default to 0 if not available
+    const result = typeof card.charges === 'number' ? card.charges : 0;
+    console.log('DEBUG returning charges value:', result);
+    return result;
   }
 
-  saveNegotiation() {
-    if (this.negotiatingCard && this.negotiatingCardIndex >= 0) {
-      this.vendorCards[this.negotiatingCardIndex].negotiated_charges = [...this.negotiationCharges];
-      this.showNegotiationDialog = false;
+  getVendorStatusClass(status: string | undefined): string {
+    switch (status) {
+      case 'Active': return 'text-green-600 font-semibold';
+      case 'Inactive': return 'text-red-600 font-semibold';
+      case 'Pending': return 'text-yellow-600 font-semibold';
+      default: return 'text-gray-600 font-semibold';
+    }
+  }
+
+  getVendorMode(card: EnquiryVendorCard): string {
+    // Use the stored mode from sourcing selection
+    return card.mode || 'N/A';
+  }
+
+  getVendorRoute(card: EnquiryVendorCard): string {
+    // Use the stored from_location and to_location from sourcing selection
+    const from = card.from_location || 'N/A';
+    const to = card.to_location || 'N/A';
+    return `${from} → ${to}`;
+  }
+
+  getVendorBasis(card: EnquiryVendorCard): string {
+    // Use the stored basis from sourcing selection
+    return card.basis || 'N/A';
+  }
+
+  formatQuantity(quantity: any): string {
+    if (quantity === null || quantity === undefined || quantity === '') {
+      return 'N/A';
+    }
+    
+    // Convert to number and remove leading zeros
+    const numValue = parseFloat(quantity);
+    
+    if (isNaN(numValue)) {
+      return 'N/A';
+    }
+    
+    // Format without unnecessary decimal places
+    return numValue % 1 === 0 ? numValue.toString() : numValue.toFixed(2);
+  }
+
+  editVendorCard(card: EnquiryVendorCard, index: number) {
+    // Open edit dialog for vendor card
+    this.editingCard = { ...card };
+    this.editingCardIndex = index;
+    this.showEditVendorDialog = true;
+  }
+
+  saveVendorCardEdit() {
+    if (this.editingCard && this.editingCardIndex >= 0) {
+      // Update the vendor card with edited values
+      this.vendorCards[this.editingCardIndex] = { ...this.editingCard };
+      
+      // Close the dialog
+      this.showEditVendorDialog = false;
+      this.editingCard = null;
+      this.editingCardIndex = -1;
+      
+      // Show success message
       this.messageService.add({
         severity: 'success',
         summary: 'Success',
-        detail: 'Negotiated charges saved successfully'
+        detail: 'Vendor card updated successfully'
       });
     }
   }
+
+  cancelVendorCardEdit() {
+    this.showEditVendorDialog = false;
+    this.editingCard = null;
+    this.editingCardIndex = -1;
+  }
+
+  removeVendorCard(index: number) {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to remove this vendor card?',
+      header: 'Confirm Removal',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.vendorCards.splice(index, 1);
+        
+        // Adjust active vendor index if needed
+        if (this.activeVendorIndex === index) {
+          this.activeVendorIndex = -1;
+        } else if (this.activeVendorIndex > index) {
+          this.activeVendorIndex--;
+        }
+        
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Vendor card removed successfully'
+        });
+      }
+    });
+  }
+
+
 
   // Mail methods
   canGenerateMail(): boolean {
@@ -2081,6 +2511,9 @@ export class EnquiryComponent implements OnInit {
             basis: '',
             from_location: '',
             to_location: '',
+            location_type_from: '',
+            location_type_to: '',
+            service_type: '',
             effective_date_from: '',
             effective_date_to: '',
             status: 'Open',
@@ -2171,5 +2604,117 @@ export class EnquiryComponent implements OnInit {
     if (!value) return '';
     if (typeof value === 'string') return value;
     return value.location_name || value.name || '';
+  }
+
+  // Location type change handlers
+  onLocationTypeFromChange(value: any) {
+    this.onFieldChange('location_type_from', value);
+    
+    // Clear the from location when location type changes
+    if (this.selectedEnquiry) {
+      this.selectedEnquiry.from_location = '';
+      this.fieldErrors['from_location'] = '';
+      
+      // Filter from locations based on selected location type
+      this.filterFromLocations();
+    }
+  }
+
+  onLocationTypeToChange(value: any) {
+    this.onFieldChange('location_type_to', value);
+    
+    // Clear the to location when location type changes
+    if (this.selectedEnquiry) {
+      this.selectedEnquiry.to_location = '';
+      this.fieldErrors['to_location'] = '';
+      
+      // Filter to locations based on selected location type
+      this.filterToLocations();
+    }
+  }
+
+  // Location filtering methods
+  filterFromLocations() {
+    console.log('Filtering from locations for type:', this.selectedEnquiry?.location_type_from);
+    console.log('All locations:', this.allLocations.length);
+    
+    if (this.selectedEnquiry?.location_type_from) {
+      // Debug: Log all location types to see what's available
+      const availableTypes = [...new Set(this.allLocations.map(l => l.type))];
+      console.log('Available location types in data:', availableTypes);
+      
+      const filteredLocations = this.allLocations.filter(l => {
+        console.log(`Comparing location type '${l.type}' with selected '${this.selectedEnquiry!.location_type_from}'`);
+        return l.type === this.selectedEnquiry!.location_type_from;
+      });
+      console.log('Filtered from locations:', filteredLocations.length);
+      
+      // If no exact match, try case-insensitive comparison
+      if (filteredLocations.length === 0) {
+        const caseInsensitiveFiltered = this.allLocations.filter(l => 
+          l.type?.toLowerCase() === this.selectedEnquiry!.location_type_from?.toLowerCase()
+        );
+        console.log('Case-insensitive filtered locations:', caseInsensitiveFiltered.length);
+        
+        this.fromLocationOptions = caseInsensitiveFiltered.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      } else {
+        this.fromLocationOptions = filteredLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      }
+    } else {
+      // If no location type selected, show all locations formatted as CODE - NAME
+      this.fromLocationOptions = this.allLocations.map(l => ({
+        label: `${l.code} - ${l.name}`,
+        value: l.code
+      }));
+    }
+    console.log('From location options:', this.fromLocationOptions.length);
+  }
+
+  filterToLocations() {
+    console.log('Filtering to locations for type:', this.selectedEnquiry?.location_type_to);
+    console.log('All locations:', this.allLocations.length);
+    
+    if (this.selectedEnquiry?.location_type_to) {
+      // Debug: Log all location types to see what's available
+      const availableTypes = [...new Set(this.allLocations.map(l => l.type))];
+      console.log('Available location types in data:', availableTypes);
+      
+      const filteredLocations = this.allLocations.filter(l => {
+        console.log(`Comparing location type '${l.type}' with selected '${this.selectedEnquiry!.location_type_to}'`);
+        return l.type === this.selectedEnquiry!.location_type_to;
+      });
+      console.log('Filtered to locations:', filteredLocations.length);
+      
+      // If no exact match, try case-insensitive comparison
+      if (filteredLocations.length === 0) {
+        const caseInsensitiveFiltered = this.allLocations.filter(l => 
+          l.type?.toLowerCase() === this.selectedEnquiry!.location_type_to?.toLowerCase()
+        );
+        console.log('Case-insensitive filtered locations:', caseInsensitiveFiltered.length);
+        
+        this.toLocationOptions = caseInsensitiveFiltered.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      } else {
+        this.toLocationOptions = filteredLocations.map(l => ({
+          label: `${l.code} - ${l.name}`,
+          value: l.code
+        }));
+      }
+    } else {
+      // If no location type selected, show all locations formatted as CODE - NAME
+      this.toLocationOptions = this.allLocations.map(l => ({
+        label: `${l.code} - ${l.name}`,
+        value: l.code
+      }));
+    }
+    console.log('To location options:', this.toLocationOptions.length);
   }
 }

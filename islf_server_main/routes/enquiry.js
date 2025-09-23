@@ -285,9 +285,12 @@ router.post('/', async (req, res) => {
             contact_department,
             from_location,
             to_location,
+            location_type_from,
+            location_type_to,
             effective_date_from,
             effective_date_to,
             department,
+            service_type,
             status = 'Open',
             remarks,
             line_items = [],
@@ -472,12 +475,12 @@ router.post('/', async (req, res) => {
             // Create enquiry
             const enquiryResult = await client.query(
                 `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
-                 company_name, contact_department, from_location, to_location, effective_date_from, effective_date_to, department,
-                 status, remarks, company_code, branch_code, department_code, service_type_code)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+                 company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
+                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING id`,
                 [enquiryNo, enquiryCode, date, finalCustomerId, customer_name, email, mobile, landline,
-                 company_name, contact_department, from_location, to_location, effective_date_from, effective_date_to, department,
-                 status, remarks, userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
+                 company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
+                 service_type, status, remarks, userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
             );
 
             console.log("Debug: Create enquiry result",enquiryResult);
@@ -542,9 +545,12 @@ router.put('/:code', async (req, res) => {
             contact_department,
             from_location,
             to_location,
+            location_type_from,
+            location_type_to,
             effective_date_from,
             effective_date_to,
             department,
+            service_type,
             status,
             remarks,
             line_items = [],
@@ -567,10 +573,10 @@ router.put('/:code', async (req, res) => {
             await client.query(
                 `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
                  mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
-                 effective_date_from = $11, effective_date_to = $12, department = $13, status = $14, remarks = $15
-                 WHERE id = $16`,
+                 location_type_from = $11, location_type_to = $12, effective_date_from = $13, effective_date_to = $14, department = $15, service_type = $16, status = $17, remarks = $18
+                 WHERE id = $19`,
                 [date, customer_id, customer_name, email, mobile, landline, company_name, contact_department,
-                 from_location, to_location, effective_date_from, effective_date_to, department, status, remarks, enquiryId]
+                 from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department, service_type, status, remarks, enquiryId]
             );
 
             // Delete existing line items
@@ -740,11 +746,34 @@ router.get('/customers/dropdown', async (req, res) => {
         const enquiryResult = await pool.query(enquiryQuery, enquiryParams);
         console.log(`✅ Enquiry customers fetched: ${enquiryResult.rows.length}`);
 
-        // Combine and deduplicate results
+        // Combine and deduplicate results with case-insensitive comparison
         const allCustomers = [...customerResult.rows, ...enquiryResult.rows];
-        const uniqueCustomers = allCustomers.filter((customer, index, self) => 
-            index === self.findIndex(c => c.display_name === customer.display_name)
-        );
+        const uniqueCustomers = allCustomers.filter((customer, index, self) => {
+            return index === self.findIndex(c => {
+                // Compare by display_name first (case-insensitive)
+                if (c.display_name && customer.display_name) {
+                    if (c.display_name.toLowerCase() === customer.display_name.toLowerCase()) {
+                        return true;
+                    }
+                }
+                
+                // Also compare by company_name (case-insensitive) to catch duplicates
+                if (c.company_name && customer.company_name) {
+                    if (c.company_name.toLowerCase() === customer.company_name.toLowerCase()) {
+                        return true;
+                    }
+                }
+                
+                // Compare by name field (case-insensitive) for customer table entries
+                if (c.name && customer.name) {
+                    if (c.name.toLowerCase() === customer.name.toLowerCase()) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            });
+        });
 
         console.log(`🎯 Final unique customers: ${uniqueCustomers.length}`);
 
@@ -966,7 +995,7 @@ router.post('/:code/sourcing', async (req, res) => {
        
 
         const { code } = req.params;
-        const { department, from_location, to_location, effective_date_from, effective_date_to, basis } = req.body;
+        const { department, from_location, to_location, effective_date_from, effective_date_to } = req.body;
 
         // Get sourcing options based on criteria
         // let query = `
@@ -1001,12 +1030,6 @@ router.post('/:code/sourcing', async (req, res) => {
         if (to_location) {
             query += ` AND to_location = $${paramIndex}`;
             params.push(to_location);
-            paramIndex++;
-        }
-
-        if (basis) {
-            query += ` AND basis = $${paramIndex}`;
-            params.push(basis);
             paramIndex++;
         }
 
@@ -1092,14 +1115,16 @@ router.post('/:code/tariff', async (req, res) => {
 // POST /enquiry/:code/vendor-cards - Add vendor cards to enquiry
 router.post('/:code/vendor-cards', async (req, res) => {
     try {
-       
+        const username = getUsernameFromToken(req); 
+        if (!username){ 
+            return res.status(401).json({ error: 'Unauthorized' }); }
 
         const { code } = req.params;
-        const { vendor_cards } = req.body;
+        const { vendorCards } = req.body;
 
-        (typeof vendor_cards === 'undefined') && [] ;
+        (typeof vendorCards === 'undefined') && (vendorCards = []);
 
-        console.log("DEBUG: vendor casrds list from prost met:",vendor_cards);
+        console.log("DEBUG: vendor cards list from post met:",vendorCards);
 
         // First get the enquiry ID from the code
         const enquiryResult = await pool.query('SELECT id FROM enquiry WHERE code = $1', [code]);
@@ -1117,12 +1142,18 @@ router.post('/:code/vendor-cards', async (req, res) => {
             await client.query('DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1', [enquiryId]);
 
             // Add new vendor cards
-            for (const card of vendor_cards) {
+            for (const card of vendorCards) {
+                // Handle date fields - convert empty strings to null
+                const effectiveDate = card.effective_date && card.effective_date.trim() !== '' ? card.effective_date : null;
+                const expiryDate = card.expiry_date && card.expiry_date.trim() !== '' ? card.expiry_date : null;
+                
                 await client.query(
-                    `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                     [enquiryId, card.vendor_name, card.vendor_type, card.is_active || false, 
-                     JSON.stringify(card.charges || []), card.source_type, card.source_id]
+                     JSON.stringify(card.charges || []), card.source_type, card.source_id,
+                     card.mode, card.from_location, card.to_location, card.basis, 
+                     card.vendor_code, effectiveDate, expiryDate, card.currency, card.quantity, card.remarks]
                 );
             }
 
@@ -1133,8 +1164,8 @@ router.post('/:code/vendor-cards', async (req, res) => {
                 username: username,
                 action: 'UPDATE',
                 masterType: 'Enquiry',
-                recordId: enquiryCode,
-                details: `Enquiry "${enquiryCode}" has been updated successfully.`
+                recordId: code,
+                details: `Enquiry "${code}" has been updated successfully.`
             });
 
             res.json({ message: 'Enquiry updated successfully' });
