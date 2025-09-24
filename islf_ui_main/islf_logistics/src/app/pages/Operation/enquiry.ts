@@ -10,6 +10,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
+
 import { TableModule } from 'primeng/table';
 import { TextareaModule } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
@@ -35,7 +36,8 @@ import { MasterTypeService } from '../../services/mastertype.service';
 import {AuthService} from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
-import { forkJoin } from 'rxjs';
+import { MasterTypeComponent } from '../masters/mastertype';
+import { forkJoin, from } from 'rxjs';
 import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 
@@ -67,7 +69,8 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
     PanelModule,
     AccordionModule,
     MasterLocationComponent,
-    BasisComponent
+    BasisComponent,
+    MasterTypeComponent
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -401,7 +404,28 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   </button>
                 </div>
               </div>
-
+                <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1">From Location Type</label>
+                <div class="flex gap-2">
+                  <p-dropdown 
+                    appendTo="body" 
+                    [options]="locationTypeFromOptions" 
+                    [(ngModel)]="selectedEnquiry.location_type_from" 
+                    (ngModelChange)="onLocationTypeFromChange($event)" 
+                    placeholder="Select From Location Type" 
+                    [filter]="true" 
+                    filterBy="label" 
+                    [showClear]="true" 
+                    class="flex-1">
+                  </p-dropdown>
+                  <button pButton 
+                    [icon]="masterDialogLoading['locationTypeFrom'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                    class="p-button-sm" 
+                    [disabled]="masterDialogLoading['locationTypeFrom']"
+                    (click)="openMaster('locationTypeFrom')">
+                  </button>
+                </div>
+              </div>
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">From Location <span class="text-red-500">*</span></label>
                 <div class="flex gap-2">
@@ -427,6 +451,29 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                 </div>
                 <small *ngIf="fieldErrors['from_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['from_location'] }}</small>
               </div>
+               <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1">To Location Type</label>
+                <div class="flex gap-2">
+                  <p-dropdown 
+                    appendTo="body" 
+                    [options]="locationTypeToOptions" 
+                    [(ngModel)]="selectedEnquiry.location_type_to" 
+                    (ngModelChange)="onLocationTypeToChange($event)" 
+                    placeholder="Select To Location Type" 
+                    [filter]="true" 
+                    filterBy="label" 
+                    [showClear]="true" 
+                    class="flex-1">
+                  </p-dropdown>
+                  <button pButton 
+                    [icon]="masterDialogLoading['locationTypeTo'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                    class="p-button-sm" 
+                    [disabled]="masterDialogLoading['locationTypeTo']"
+                    (click)="openMaster('locationTypeTo')">
+                  </button>
+                </div>
+              </div>
+
 
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1">To Location <span class="text-red-500">*</span></label>
@@ -452,52 +499,6 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   </button>
                 </div>
                 <small *ngIf="fieldErrors['to_location']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['to_location'] }}</small>
-              </div>
-
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1">From Location Type</label>
-                <div class="flex gap-2">
-                  <p-dropdown 
-                    appendTo="body" 
-                    [options]="locationTypeFromOptions" 
-                    [(ngModel)]="selectedEnquiry.location_type_from" 
-                    (ngModelChange)="onLocationTypeFromChange($event)" 
-                    placeholder="Select From Location Type" 
-                    [filter]="true" 
-                    filterBy="label" 
-                    [showClear]="true" 
-                    class="flex-1">
-                  </p-dropdown>
-                  <button pButton 
-                    [icon]="masterDialogLoading['locationTypeFrom'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
-                    class="p-button-sm" 
-                    [disabled]="masterDialogLoading['locationTypeFrom']"
-                    (click)="openMaster('locationTypeFrom')">
-                  </button>
-                </div>
-              </div>
-
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1">To Location Type</label>
-                <div class="flex gap-2">
-                  <p-dropdown 
-                    appendTo="body" 
-                    [options]="locationTypeToOptions" 
-                    [(ngModel)]="selectedEnquiry.location_type_to" 
-                    (ngModelChange)="onLocationTypeToChange($event)" 
-                    placeholder="Select To Location Type" 
-                    [filter]="true" 
-                    filterBy="label" 
-                    [showClear]="true" 
-                    class="flex-1">
-                  </p-dropdown>
-                  <button pButton 
-                    [icon]="masterDialogLoading['locationTypeTo'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
-                    class="p-button-sm" 
-                    [disabled]="masterDialogLoading['locationTypeTo']"
-                    (click)="openMaster('locationTypeTo')">
-                  </button>
-                </div>
               </div>
 
               <div class="col-span-12 md:col-span-3">
@@ -682,9 +683,9 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
             <!-- Action Buttons -->
             <div class="flex gap-2 mt-4 pt-3 border-t">
-              <button pButton type="button" label="Get Sourcing" icon="pi pi-search" (click)="getSourcing()" [disabled]="!canGetSourcing()" class="p-button-info" 
+              <button pButton type="button" label="Get Sourcing" icon="pi pi-search" (click)="getSourcing()" class="p-button-info" 
                 pTooltip="Query Sourcing Table with matching conditions"></button>
-              <button pButton type="button" label="Get Tariff" icon="pi pi-calculator" (click)="getTariff()" [disabled]="!canGetTariff()" class="p-button-secondary"
+              <button pButton type="button" label="Get Tariff" icon="pi pi-calculator" (click)="getTariff()"  class="p-button-secondary"
                 pTooltip="Fetch directly from Tariff Table"></button>
             </div>
           </div>
@@ -1017,6 +1018,25 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <basis-code></basis-code>
         </ng-template>
       </p-dialog>
+
+      <!-- Master Type Dialog -->
+      <p-dialog
+        header="Master Type"
+        [(visible)]="showMasterTypeDialog"
+        [modal]="true"
+        [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+        [contentStyle]="{ overflow: 'visible' }"
+        [baseZIndex]="10000"
+        [closable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="closeMasterDialog('masterType')"
+        [closeOnEscape]="true"
+      >
+        <ng-template pTemplate="content">
+          <master-type [filterByKey]="masterTypeFilter"></master-type>
+        </ng-template>
+      </p-dialog>
   `,
   styles: [`
     .vendor-card {
@@ -1136,6 +1156,8 @@ export class EnquiryComponent implements OnInit {
   // Master dialog states
   showMasterLocationDialog = false;
   showBasisDialog = false;
+  showMasterTypeDialog = false;
+  masterTypeFilter = '';
   masterDialogLoading: { [key: string]: boolean } = {};
 
   // Contact management
@@ -1361,15 +1383,17 @@ export class EnquiryComponent implements OnInit {
     const context = this.contextService.getContext();
     return this.masterTypeService.getAll().pipe(
       tap((locationTypes: any[]) => {
-        console.log("DEBUG: Loading the initial value from the location types,",locationTypes);
-        this.allLocationTypes = locationTypes?.filter(lt => lt.type === 'Location Type') || [];
-        // this.allLocationTypes = locationTypes;
+        console.log("DEBUG: Loading the initial value from the location types,", locationTypes);
+        // Fix: Use 'key' instead of 'type' and add status filter
+        this.allLocationTypes = locationTypes?.filter(lt => lt.key === 'LOCATION' && lt.status === 'Active') || [];
+        console.log("DEBUG: Filtered location types:", this.allLocationTypes);
+        
         this.locationTypeFromOptions = this.allLocationTypes.map(lt => ({
-          label: `${lt.code} - ${lt.name}`,
-          value: lt.code
+          label: lt.value, // Use 'value' field for display
+          value: lt.value  // Use 'value' field for the actual value
         }));
         this.locationTypeToOptions = [...this.locationTypeFromOptions];
-        console.log('Location type options loaded:', this.locationTypeFromOptions.length);
+        console.log('Location type options loaded:', this.locationTypeFromOptions.length, this.locationTypeFromOptions);
       })
     );
   }
@@ -1498,13 +1522,9 @@ export class EnquiryComponent implements OnInit {
     } else if (type === 'basis') {
       this.showBasisDialog = true;
     } else if (type === 'locationTypeFrom' || type === 'locationTypeTo') {
-      // For location type dialogs, show a message for now
-      // In a real implementation, you might want to open a location type master dialog
-      this.messageService.add({ 
-        severity: 'info', 
-        summary: 'Location Type Master', 
-        detail: `Open ${type === 'locationTypeFrom' ? 'From' : 'To'} Location Type master page` 
-      });
+      // Open Master Type Dialog with LOCATION filter
+      this.masterTypeFilter = 'LOCATION';
+      this.showMasterTypeDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -1541,6 +1561,26 @@ export class EnquiryComponent implements OnInit {
           next: () => this.cdr.detectChanges(),
           error: () => this.cdr.detectChanges()
         });
+        break;
+      case 'masterType':
+        this.showMasterTypeDialog = false;
+        // Reload location types if the filter was for LOCATION
+        if (this.masterTypeFilter === 'LOCATION') {
+          this.loadLocationTypes().subscribe({
+            next: () => {
+              // Re-apply filters based on current selection
+              this.filterFromLocations();
+              this.filterToLocations();
+              this.cdr.detectChanges();
+            },
+            error: () => {
+              // Even on error, attempt to refresh UI
+              this.cdr.detectChanges();
+            }
+          });
+        }
+        // Reset the filter
+        this.masterTypeFilter = '';
         break;
       default:
         console.warn(`Unknown master dialog type: ${type}`);
@@ -2002,7 +2042,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   getSourcing() {
-    if (!this.canGetSourcing()) return;
+  
 
     if (!this.currentEnquiry?.code) {
       this.saveEnquiry(); 
@@ -2020,7 +2060,11 @@ export class EnquiryComponent implements OnInit {
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
-      effective_date_to: this.formatDateForAPI(enq.effective_date_to)
+      effective_date_to: this.formatDateForAPI(enq.effective_date_to),
+      basis: this.lineItems[0]?.basis,
+      service_type: enq.service_type,
+      from_location_type: enq.location_type_from,
+      to_location_type: enq.location_type_to
     };
 
     this.enquiryService.getSourcingOptions(this.currentEnquiry?.code!, criteria).subscribe({
@@ -2043,7 +2087,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   getTariff() {
-    if (!this.canGetTariff()) return;
+  
 
     if (!this.currentEnquiry?.code) {
       this.messageService.add({
@@ -2061,7 +2105,11 @@ export class EnquiryComponent implements OnInit {
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
-      basis: this.lineItems[0]?.basis
+      basis: this.lineItems[0]?.basis,
+      service_type: enq.service_type,
+      from_location_type: enq.location_type_from,
+      to_location_type: enq.location_type_to
+      
     };
 
     this.enquiryService.getTariffOptions(this.currentEnquiry.code, criteria).subscribe({

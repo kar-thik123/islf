@@ -1020,7 +1020,7 @@ router.post('/:code/sourcing', async (req, res) => {
             params.push(department);
             paramIndex++;
         }
-
+        
         if (from_location) {
             query += ` AND from_location = $${paramIndex}`;
             params.push(from_location);

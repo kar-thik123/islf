@@ -10,7 +10,8 @@ import { BranchService, Branch } from '../../../services/branch.service';
 import { DepartmentService, Department } from '../../../services/department.service';
 import { ServiceTypeService, ServiceType } from '../../../services/servicetype.service';
 import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
-
+import { forkJoin } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 @Component({
   selector: 'app-company-tree',
   standalone: true,
@@ -28,51 +29,56 @@ import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
         </div>
 
         <div class="tree-container">
-          <p-tree 
-            [value]="treeData" 
-            (onNodeExpand)="onNodeExpand($event)"
-            (onNodeCollapse)="onNodeCollapse($event)">
-           
-            <ng-template pTemplate="default" let-node>
-              <div class="flex items-center gap-2 p-2 cursor-pointer" (click)="showDetailsDialog(node)">
-                <!-- Company Node -->
-                <div *ngIf="node.data.type === 'company'" class="flex items-center gap-2 w-full">
-                  <i class="pi pi-building text-blue-600 text-lg"></i>
-                  <div class="flex-1">
-                    <div class="font-semibold text-blue-800">{{ node.data.name }}</div>
-                    <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                  </div>
-                </div>
-
-                <!-- Branch Node -->
-                <div *ngIf="node.data.type === 'branch'" class="flex items-center gap-2 w-full">
-                  <i class="pi pi-sitemap text-green-600 text-lg"></i>
-                  <div class="flex-1">
-                    <div class="font-semibold text-green-800">{{ node.data.name }}</div>
-                    <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                  </div>
-                </div>
-
-                <!-- Department Node -->
-                <div *ngIf="node.data.type === 'department'" class="flex items-center gap-2 w-full">
-                  <i class="pi pi-briefcase text-orange-600 text-lg"></i>
-                  <div class="flex-1">
-                    <div class="font-semibold text-orange-800">{{ node.data.name }}</div>
-                    <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                  </div>
-                </div>
-
-                <!-- Service Type Node -->
-                <div *ngIf="node.data.type === 'serviceType'" class="flex items-center gap-2 w-full">
-                  <i class="pi pi-cog text-purple-600 text-lg"></i>
-                  <div class="flex-1">
-                    <div class="font-semibold text-purple-800">{{ node.data.name }}</div>
-                    <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
-                  </div>
+        <p-tree 
+          [value]="treeData" 
+          selectionMode="single"
+          [expandedKeys]="expandedKeys"
+          (onNodeSelect)="showDetailsDialog($event.node)"
+          (onNodeExpand)="onNodeExpand($event)"
+          (onNodeCollapse)="onNodeCollapse($event)">
+          
+          <ng-template pTemplate="default" let-node>
+            <div class="flex items-center gap-2 p-2 cursor-pointer">
+              <!-- Company Node -->
+              <div *ngIf="node.data.type === 'company'" class="flex items-center gap-2 w-full">
+                <i class="pi pi-building text-blue-600 text-lg"></i>
+                <div class="flex-1">
+                  <div class="font-semibold text-blue-800">{{ node.data.name }}</div>
+                  <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
                 </div>
               </div>
-            </ng-template>
-          </p-tree>
+
+              <!-- Branch Node -->
+              <div *ngIf="node.data.type === 'branch'" class="flex items-center gap-2 w-full">
+                <i class="pi pi-sitemap text-green-600 text-lg"></i>
+                <div class="flex-1">
+                  <div class="font-semibold text-green-800">{{ node.data.name }}</div>
+                  <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
+                </div>
+              </div>
+
+              <!-- Department Node -->
+              <div *ngIf="node.data.type === 'department'" class="flex items-center gap-2 w-full">
+                <i class="pi pi-briefcase text-orange-600 text-lg"></i>
+                <div class="flex-1">
+                  <div class="font-semibold text-orange-800">{{ node.data.name }}</div>
+                  <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
+                </div>
+              </div>
+
+              <!-- Service Type Node -->
+              <div *ngIf="node.data.type === 'serviceType'" class="flex items-center gap-2 w-full">
+                <i class="pi pi-cog text-purple-600 text-lg"></i>
+                <div class="flex-1">
+                  <div class="font-semibold text-purple-800">{{ node.data.name }}</div>
+                  <div class="text-xs text-gray-500">Code: {{ node.data.code }}</div>
+                </div>
+              </div>
+            </div>
+          </ng-template>
+        </p-tree>
+
+
         </div>
 
         <!-- Summary Statistics -->
@@ -293,29 +299,30 @@ export class CompanyTreeComponent implements OnInit {
     this.loadTreeData();
   }
 
-  async loadTreeData() {
-    try {
-      // Load all data using firstValueFrom instead of deprecated toPromise()
-      const companies = await this.companyService.getAll().toPromise();
-      const branches = await this.branchService.getAll().toPromise();
-      const departments = await this.departmentService.getAll().toPromise();
-      const serviceTypes = await this.serviceTypeService.getAll().toPromise();
+async loadTreeData() {
+  try {
+    const [companies, branches, departments, serviceTypes] = await firstValueFrom(
+      forkJoin([
+        this.companyService.getAll(),
+        this.branchService.getAll(),
+        this.departmentService.getAll(),
+        this.serviceTypeService.getAll()
+      ])
+    );
 
-      // Build tree structure
-      this.treeData = this.buildTreeStructure(companies || [], branches || [], departments || [], serviceTypes || []);
-      
-      // Set counts
-      this.companiesCount = companies?.length || 0;
-      this.branchesCount = branches?.length || 0;
-      this.departmentsCount = departments?.length || 0;
-      this.serviceTypesCount = serviceTypes?.length || 0;
+    this.treeData = this.buildTreeStructure(companies || [], branches || [], departments || [], serviceTypes || []);
 
-      // Expand first level by default
-      this.expandFirstLevel();
-    } catch (error) {
-      console.error('Error loading tree data:', error);
-    }
+    // Set counts
+    this.companiesCount = companies?.length || 0;
+    this.branchesCount = branches?.length || 0;
+    this.departmentsCount = departments?.length || 0;
+    this.serviceTypesCount = serviceTypes?.length || 0;
+
+    this.expandFirstLevel();
+  } catch (error) {
+    console.error('Error loading tree data:', error);
   }
+}
 
   navigateBack() {
     this.router.navigate(['/settings/company_management']);
@@ -402,10 +409,7 @@ export class CompanyTreeComponent implements OnInit {
     delete this.expandedKeys[event.node.key];
   }
 
-  // Add click handler method
-  onNodeSelect(node: TreeNode) {
-    this.selectedNode = node;
-  }
+ 
 
   showDetailsDialog(node: TreeNode) {
     this.selectedNode = node;
