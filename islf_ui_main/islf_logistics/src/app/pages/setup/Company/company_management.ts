@@ -1565,7 +1565,10 @@ export class CompanyManagementComponent implements OnInit {
 
   fetchMaxCompanies() {
     this.http.get<{ value: number }>('/api/settings/max_companies').subscribe({
-      next: (res) => this.maxCompanies = res.value || 1,
+      next: (res) => {
+        console.log("DEBUG: fetching Max Companies on init",res);
+        this.maxCompanies = res.value || 1
+      },
       error: () => this.maxCompanies = 1
     });
   }
@@ -1742,6 +1745,7 @@ export class CompanyManagementComponent implements OnInit {
   }
 
   openCompanyDialog(data: Company | null = null) {
+    // console.log("DEBUG company management open company dialog,", this.companies);
     this.errorMessage = '';
     this.companyFormError = '';
     this.clearFieldErrors();
