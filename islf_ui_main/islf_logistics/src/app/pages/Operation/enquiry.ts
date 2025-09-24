@@ -1351,7 +1351,7 @@ export class EnquiryComponent implements OnInit {
           label: `${st.code} - ${st.name}`,
           value: st.code
         }));
-        console.log('Service type options loaded:', this.serviceTypeOptions.length);
+        console.log('Service type options loaded:', this.serviceTypeOptions);
       })
     );
   }
@@ -1361,7 +1361,9 @@ export class EnquiryComponent implements OnInit {
     const context = this.contextService.getContext();
     return this.masterTypeService.getAll().pipe(
       tap((locationTypes: any[]) => {
+        console.log("DEBUG: Loading the initial value from the location types,",locationTypes);
         this.allLocationTypes = locationTypes?.filter(lt => lt.type === 'Location Type') || [];
+        // this.allLocationTypes = locationTypes;
         this.locationTypeFromOptions = this.allLocationTypes.map(lt => ({
           label: `${lt.code} - ${lt.name}`,
           value: lt.code
@@ -1374,22 +1376,24 @@ export class EnquiryComponent implements OnInit {
 
   // Filter service types based on department
   filterServiceType() {
+    console.log("Debug: current selected enquiry value in filter service type", this.selectedEnquiry);
     if (!this.selectedEnquiry?.department || !this.allServiceTypes.length) {
       this.serviceTypeOptions = [];
       return;
     }
 
-    const departmentCode = this.selectedEnquiry.department;
+    console.log("DEBUG: enquiry service type options in filter service type,",this.allServiceTypes);
+    const departmentName = this.selectedEnquiry.department;
     
     // First try exact match
     let filteredTypes = this.allServiceTypes.filter(st => 
-      st.department_code === departmentCode
+      st.department_name === departmentName
     );
 
     // If no exact match, try case-insensitive match
     if (filteredTypes.length === 0) {
       filteredTypes = this.allServiceTypes.filter(st => 
-        st.department_code?.toLowerCase() === departmentCode.toLowerCase()
+        st.department_name?.toLowerCase() === departmentName.toLowerCase()
       );
     }
 
@@ -1448,6 +1452,16 @@ export class EnquiryComponent implements OnInit {
       case 'department':
         if (!value) {
           return 'Department is required';
+        }
+        break;
+      case 'location_type_to':
+        if (!value){
+          return 'to Location type is required.';
+        }
+        break;
+      case 'location_type_from':
+        if (!value) {
+          return 'From Location type is required';
         }
         break;
       // Add other field validations as needed
@@ -2635,8 +2649,8 @@ export class EnquiryComponent implements OnInit {
 
   // Location filtering methods
   filterFromLocations() {
-    console.log('Filtering from locations for type:', this.selectedEnquiry?.location_type_from);
-    console.log('All locations:', this.allLocations.length);
+    console.log('Filtering from locations for type:', this.selectedEnquiry);
+    console.log('All locations:', this.allLocations);
     
     if (this.selectedEnquiry?.location_type_from) {
       // Debug: Log all location types to see what's available

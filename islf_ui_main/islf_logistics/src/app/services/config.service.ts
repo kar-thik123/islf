@@ -146,7 +146,7 @@ export class ConfigService {
   private defaultConfig: AppConfig = {
     system: {
       maxCompanies: 1,
-      sessionTimeout: 30,
+      sessionTimeout: 2,
       defaultLanguage: 'en',
       defaultCurrency: 'USD',
       maxFileSize: 10,
