@@ -389,10 +389,10 @@ import { ChargeTypeMasterComponent } from './chargetype';
               <small *ngIf="fieldErrors['charges']" class="p-error">{{ fieldErrors['charges'] }}</small>
             </div>
            
-            <div class="col-span-12 md:col-span-2">
+           <!-- <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Effective Date</label>
               <p-calendar [(ngModel)]="selectedTariff.effectiveDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
-            </div>
+            </div> -->
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Period Start Date</label>
               <p-calendar [(ngModel)]="selectedTariff.periodStartDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>

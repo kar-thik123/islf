@@ -32,7 +32,7 @@ import { firstValueFrom } from 'rxjs';
         <p-tree 
           [value]="treeData" 
           selectionMode="single"
-          [expandedKeys]="expandedKeys"
+          
           (onNodeSelect)="showDetailsDialog($event.node)"
           (onNodeExpand)="onNodeExpand($event)"
           (onNodeCollapse)="onNodeCollapse($event)">

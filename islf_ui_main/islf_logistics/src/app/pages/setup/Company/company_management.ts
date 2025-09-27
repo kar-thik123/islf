@@ -48,7 +48,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <p-tabpanels>
             <p-tabpanel [value]="0">
               <!-- Company Section: Add button, company card, full detail dialog -->
-              <div class="flex justify-end mb-4">
+              <div class="flex justify-end mb-4" *ngIf="companies.length < maxCompanies">
                 <button pButton label="+ Add Company" class="p-button-success" (click)="openCompanyDialog()"></button>
               </div>
               <div *ngIf="errorMessage" class="text-red-600 mb-2">{{ errorMessage }}</div>
@@ -1564,9 +1564,20 @@ export class CompanyManagementComponent implements OnInit {
   }
 
   fetchMaxCompanies() {
+    console.log('DEBUG: Fetching max companies setting...');
     this.http.get<{ value: number }>('/api/settings/max_companies').subscribe({
-      next: (res) => this.maxCompanies = res.value || 1,
-      error: () => this.maxCompanies = 1
+      next: (res) => {
+        console.log('DEBUG: Max companies API response:', res);
+        this.maxCompanies = res.value || 1;
+        console.log('DEBUG: Set maxCompanies to:', this.maxCompanies);
+      },
+      error: (err) => {
+        console.error('DEBUG: Error fetching max companies:', err);
+        this.maxCompanies = 1;
+        console.log('DEBUG: Set maxCompanies to default:', this.maxCompanies);
+        // Load companies even if there's an error
+        this.loadCompanies();
+      }
     });
   }
 
@@ -1742,6 +1753,12 @@ export class CompanyManagementComponent implements OnInit {
   }
 
   openCompanyDialog(data: Company | null = null) {
+    console.log('DEBUG: openCompanyDialog called with data:', data);
+    console.log('DEBUG: Current companies array:', this.companies);
+    console.log('DEBUG: Current companies length:', this.companies?.length);
+    console.log('DEBUG: Current maxCompanies value:', this.maxCompanies);
+    console.log('DEBUG: Is creating new company?', !data);
+    
     this.errorMessage = '';
     this.companyFormError = '';
     this.clearFieldErrors();
@@ -1750,11 +1767,14 @@ export class CompanyManagementComponent implements OnInit {
       localStorage.setItem('selectedCompany', JSON.stringify(data));
     }
     if (!data && Array.isArray(this.companies) && this.companies.length >= this.maxCompanies) {
+      console.log('DEBUG: Company limit reached!');
+      console.log('DEBUG: Companies length:', this.companies.length, 'Max allowed:', this.maxCompanies);
       if (this.maxCompanies === 1) {
         this.errorMessage = `You can only create one company.`; // Singular form
       } else {
         this.errorMessage = `You can only create up to ${this.maxCompanies} companies.`; // Plural form
       }
+      console.log('DEBUG: Error message set to:', this.errorMessage);
       return;
     }
     

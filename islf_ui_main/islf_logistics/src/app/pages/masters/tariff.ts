@@ -288,7 +288,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
               </div>
               <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
             </div>
-            <div class="col-span-12 md:col-span-3">
+            <!--<div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Tariff Type</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="tariffTypeOptions" [(ngModel)]="selectedTariff.tariffType" (ngModelChange)="onFieldChange('tariffType', selectedTariff.tariffType)" [ngClass]="getFieldErrorClass('tariffType')" [ngStyle]="getFieldErrorStyle('tariffType')" placeholder="Select Tariff Type" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
@@ -299,7 +299,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
                   (click)="openMaster('tariffType')"></button>
               </div>
               <small *ngIf="fieldErrors['tariffType']" class="p-error">{{ fieldErrors['tariffType'] }}</small>
-            </div>
+            </div> 
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Container Type</label>
               <div class="flex gap-2">
@@ -311,9 +311,9 @@ import { ChargeTypeMasterComponent } from './chargetype';
                   (click)="openMaster('containerType')"></button>
               </div>
               <small *ngIf="fieldErrors['containerType']" class="p-error">{{ fieldErrors['containerType'] }}</small>
-            </div>
+            </div> -->
             <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Item Name</label>
+              <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
                 <button pButton 
@@ -416,12 +416,12 @@ import { ChargeTypeMasterComponent } from './chargetype';
             <!--<div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Charge Type</label>
               <p-dropdown appendTo="body" [options]="freightChargeTypeOptions" [(ngModel)]="selectedTariff.freightChargeType" placeholder="Select Charge Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
-            </div> -->
+            </div> 
            
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Effective Date</label>
               <p-calendar [(ngModel)]="selectedTariff.effectiveDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
-            </div>
+            </div> -->
             <div class="col-span-12 md:col-span-2">
               <label class="block font-semibold mb-1">Period Start Date</label>
               <p-calendar [(ngModel)]="selectedTariff.periodStartDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>

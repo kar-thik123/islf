@@ -746,18 +746,76 @@ export class UserCreateComponent implements OnInit {
 
     this.masterCodeService.getMasters().subscribe((codes: any[]) => {
       console.log('Master Codes:', codes);
+      
+      // Debug: Check all USER_STATUS related codes
+      const userStatusCodes = (codes || []).filter((c: any) => 
+        c.code && c.code.trim().toLowerCase().includes('user_status')
+      );
+      console.log('DEBUG: All USER_STATUS related codes:', userStatusCodes);
+      
       // Designation
       const activeDesignationCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'USER_DESIGNATION' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_designation' && c.status && c.status.trim().toLowerCase() === 'active'
       );
       const activeStatusCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'USER_STATUS' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_status' && c.status && c.status.trim().toLowerCase() === 'active'
       );
+      
       const activeRoleCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'USER_ROLE' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_role' && c.status && c.status.trim().toLowerCase() === 'active'
       );
+      
+      console.log('DEBUG: Found activeDesignationCode:', activeDesignationCode);
+      console.log('DEBUG: Found activeStatusCode:', activeStatusCode);
+      console.log('DEBUG: Found activeRoleCode:', activeRoleCode);
+      
       this.masterTypeService.getAll().subscribe((types: any[]) => {
         console.log('Master Types:', types);
+        
+        // Debug: Show detailed structure of ALL types
+        console.log('DEBUG: ALL Master Types structure:', types);
+        
+        // Debug: Show each master type individually
+        types.forEach((type, index) => {
+          console.log(`DEBUG: Master Type ${index + 1}:`, {
+            id: type.id,
+            key: type.key,
+            value: type.value,
+            status: type.status,
+            description: type.description,
+            fullObject: type
+          });
+        });
+        
+        // Debug: Check all USER_STATUS related types
+        const userStatusTypes = (types || []).filter((t: any) => 
+          t.key && t.key.trim().toLowerCase().includes('user_status')
+        );
+        console.log('DEBUG: All USER_STATUS related types:', userStatusTypes);
+        
+        // Debug: Check exact USER_STATUS match
+        const exactUserStatusTypes = (types || []).filter((t: any) => 
+          t.key && t.key.trim().toLowerCase() === 'user_status'
+        );
+        console.log('DEBUG: Exact USER_STATUS matches:', exactUserStatusTypes);
+        
+        // Debug: Check each USER_STATUS type individually
+        exactUserStatusTypes.forEach((type, index) => {
+          console.log(`DEBUG: USER_STATUS type ${index + 1}:`, {
+            key: type.key,
+            value: type.value,
+            status: type.status,
+            keyTrimmed: type.key ? type.key.trim() : 'null',
+            statusTrimmed: type.status ? type.status.trim() : 'null',
+            keyLowerCase: type.key ? type.key.trim().toLowerCase() : 'null',
+            statusLowerCase: type.status ? type.status.trim().toLowerCase() : 'null'
+          });
+        });
+        
+        // Debug: Show all keys in master types
+        const allKeys = (types || []).map(t => t.key).filter(k => k);
+        console.log('DEBUG: All Master Type keys:', allKeys);
+        
         // Designation
         if (activeDesignationCode && activeDesignationCode.code) {
           this.designationOptions = (types || []).filter(
@@ -765,15 +823,26 @@ export class UserCreateComponent implements OnInit {
           );
         } else {
           this.designationOptions = [];
+          console.log('DEBUG: No active USER_DESIGNATION master code found');
         }
+        
         // Status
         if (activeStatusCode && activeStatusCode.code) {
+          console.log('DEBUG: Filtering types for USER_STATUS with key:', activeStatusCode.code);
+          const allMatchingTypes = (types || []).filter(
+            (t: any) => t.key && t.key.trim().toLowerCase() === activeStatusCode.code.trim().toLowerCase()
+          );
+          console.log('DEBUG: All types matching USER_STATUS key:', allMatchingTypes);
+          
           this.statusOptions = (types || []).filter(
             (t: any) => t.key && t.key.trim().toLowerCase() === activeStatusCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
           );
+          console.log('DEBUG: Final filtered status options:', this.statusOptions);
         } else {
           this.statusOptions = [];
+          console.log('DEBUG: No active USER_STATUS master code found');
         }
+        
         // Role
         if (activeRoleCode && activeRoleCode.code) {
           this.roleOptions = (types || []).filter(
@@ -781,7 +850,9 @@ export class UserCreateComponent implements OnInit {
           );
         } else {
           this.roleOptions = [];
+          console.log('DEBUG: No active USER_ROLE master code found');
         }
+        
         console.log('Designation Options:', this.designationOptions);
         console.log('Status Options:', this.statusOptions);
         console.log('Role Options:', this.roleOptions);
@@ -1189,6 +1260,9 @@ export class UserCreateComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading employee mapping relation:', error);
+        if (error.error === 'No mapping found') {
+          this.toast.showError('Setup Required', 'Employee Code number series mapping is not configured. Please set up the mapping in Number Series Mapping.');
+        }
         // Fallback to generic mapping if context-based mapping fails
         console.log('Falling back to generic mapping method');
         this.mappingService.getMapping().subscribe({
