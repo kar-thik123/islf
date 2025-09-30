@@ -73,7 +73,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
   template: `
     <p-toast></p-toast>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Tariff Master</div>
+      <div class="font-semibold text-xl mb-4">Local Tariff</div>
 
       <p-table
         #dt
@@ -84,13 +84,13 @@ import { ChargeTypeMasterComponent } from './chargetype';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code','vendorType', 'mode', 'shippingType', 'cargoType','tariffType','unitOfMeasure','itemName', 'status']"
+        [globalFilterFields]="['code','vendorName', 'mode', 'shippingType', 'cargoType','tariffType','basis','itemName', 'fromLocation', 'toLocation', 'periodStartDateFormatted', 'periodEndDateFormatted', 'charges', 'amount', 'status']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <div class="flex gap-2">
-              <button pButton type="button" label="Create Tariff" icon="pi pi-plus" (click)="addRow()"></button>
+              <button pButton type="button" label="Create Locals" icon="pi pi-plus" (click)="addRow()"></button>
               <button pButton type="button" label="Import" icon="pi pi-download"  (click)="importData()"></button>
               <button pButton type="button" label="Export" icon="pi pi-upload" (click)="exportData()"></button>
             </div>
@@ -110,20 +110,20 @@ import { ChargeTypeMasterComponent } from './chargetype';
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Vendor Type
-                <p-columnFilter type="text" field="vendorType" display="menu" placeholder="Search by vendor type"></p-columnFilter>
+                Vendor name
+                <p-columnFilter type="text" field="vendorName" display="menu" placeholder="Search by vendor name"></p-columnFilter>
               </div>
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Mode
-                <p-columnFilter type="text" field="mode" display="menu" placeholder="Search by mode"></p-columnFilter>
+                Department
+                <p-columnFilter type="text" field="mode" display="menu" placeholder="Search by department"></p-columnFilter>
               </div>
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Shipping Type
-                <p-columnFilter type="text" field="shippingType" display="menu" placeholder="Search by shipping type"></p-columnFilter>
+                Service Type
+                <p-columnFilter type="text" field="shippingType" display="menu" placeholder="Search by service type"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -132,22 +132,52 @@ import { ChargeTypeMasterComponent } from './chargetype';
                 <p-columnFilter type="text" field="cargoType" display="menu" placeholder="Search by cargo type"></p-columnFilter>
               </div>
             </th>
-            <th>
+            <!--<th>
               <div class="flex justify-between items-center">
                 Tariff Type
                 <p-columnFilter type="text" field="tariffType" display="menu" placeholder="Search by tariff type"></p-columnFilter>
               </div>
-            </th>
+            </th>-->
             <th>
               <div class="flex justify-between items-center">
-                Unit Of Measure
-                <p-columnFilter type="text" field="basis" display="menu" placeholder="Search by unit"></p-columnFilter>
+                Basis
+                <p-columnFilter type="text" field="basis" display="menu" placeholder="Search by Basis"></p-columnFilter>
               </div>
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Item Name
-                <p-columnFilter type="text" field="itemName" display="menu" placeholder="Search by item"></p-columnFilter>
+                Charge Name
+                <p-columnFilter type="text" field="itemName" display="menu" placeholder="Search by charge name"></p-columnFilter>
+              </div>
+            </th> 
+            <th>
+              <div class="flex justify-between items-center">
+                From Location
+                <p-columnFilter type="text" field="fromLocation" display="menu" placeholder="Search by from location"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                To Location
+                <p-columnFilter type="text" field="toLocation" display="menu" placeholder="Search by to location"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                From Date
+                <p-columnFilter type="date" field="periodStartDate" display="menu" placeholder="Search by from date"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                To Date
+                <p-columnFilter type="date" field="periodEndDate" display="menu" placeholder="Search by to date"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Charges
+                <p-columnFilter type="text" field="charges" display="menu" placeholder="Search by charges"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -178,13 +208,18 @@ import { ChargeTypeMasterComponent } from './chargetype';
         <ng-template pTemplate="body" let-tariff>
           <tr [ngClass]="{'mandatory-row': tariff.isMandatory, 'expired-row': getTariffStatus(tariff) === 'Expired'}">
             <td>{{ tariff.code }}</td>
-            <td>{{ tariff.vendorType }}</td>
+            <td>{{ getVendorName(tariff.vendorName) }}</td>
             <td>{{ tariff.mode }}</td>
             <td>{{ tariff.shippingType }}</td>
             <td>{{ tariff.cargoType }}</td>
-            <td>{{ tariff.tariffType }}</td>
+            
             <td>{{ tariff.basis }}</td>
             <td>{{ tariff.itemName }}</td>
+            <td>{{ getLocationName(tariff.fromLocation) }}</td>
+            <td>{{ getLocationName(tariff.toLocation) }}</td>
+            <td>{{ tariff.periodStartDate | date:'dd/MM/yyyy' }}</td>
+            <td>{{ tariff.periodEndDate | date:'dd/MM/yyyy' }}</td>
+            <td>{{ tariff.charges || tariff.amount || '-' }}</td>
             <td>
               <span [ngClass]="getStatusClass(getTariffStatus(tariff))">
                 {{ getTariffStatus(tariff) }}
@@ -205,7 +240,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
     <input #fileInput type="file" accept=".csv,.xlsx,.xls" style="display: none" (change)="onFileSelected($event)" />
     
     <p-dialog
-    header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Tariff"
+    header="{{ selectedTariff?.isNew ? 'Add' : 'Edit' }} Local Tariff"
     [(visible)]="isDialogVisible"
     [modal]="true"
     [closable]="true"
@@ -754,6 +789,17 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     const day = String(date.getDate()).padStart(2, '0');
     
     return `${year}-${month}-${day}`;
+  }
+
+  // Helper method to format dates for display and filtering (dd/MM/yyyy format)
+  formatDateForDisplay(date: Date): string {
+    if (!date || !(date instanceof Date)) return '';
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
   }
 
   modeOptions: any[] = [];
@@ -1351,6 +1397,21 @@ loadBasisOptions() {
     );
   }
 
+  // Helper to get vendor name from vendor code for table display
+  getVendorName(vendorCode: string): string {
+    if (!vendorCode || !this.allVendors) return vendorCode || '';
+    
+    const vendor = this.allVendors.find(v => v.code === vendorCode);
+    return vendor ? `${vendor.code} - ${vendor.name}` : vendorCode;
+  }
+
+  getLocationName(locationCode: string): string {
+    if (!locationCode || !this.allLocations) return locationCode || '';
+    
+    const location = this.allLocations.find(l => l.code === locationCode);
+    return location ? `${location.name}` : locationCode;
+  }
+
   // Helper to map code to label for table display
   getLabel(options: any[], value: string): string {
     const found = options.find(opt => opt.value === value);
@@ -1376,8 +1437,8 @@ loadBasisOptions() {
             cargoType: tariff.cargo_type,
             containerType: tariff.container_type,
             itemName: tariff.item_name,
-            from: tariff.from_location,
-            to: tariff.to_location,
+            fromLocation: tariff.from_location,
+            toLocation: tariff.to_location,
             vendorType: tariff.vendor_type,
             vendorName: tariff.vendor_name,
             locationTypeFrom: tariff.location_type_from,
@@ -1393,6 +1454,14 @@ loadBasisOptions() {
             freightChargeType: tariff.freight_charge_type,
             isMandatory: tariff.is_mandatory
           };
+          
+          // Add formatted date fields for global filtering
+          const startDate = this.parseDate(tariff.period_start_date);
+          const endDate = this.parseDate(tariff.period_end_date);
+          
+          mappedTariff.periodStartDateFormatted = startDate ? this.formatDateForDisplay(startDate) : '';
+          mappedTariff.periodEndDateFormatted = endDate ? this.formatDateForDisplay(endDate) : '';
+          
           // Add status field to each tariff object
           mappedTariff.status = this.getTariffStatus(mappedTariff);
           return mappedTariff;

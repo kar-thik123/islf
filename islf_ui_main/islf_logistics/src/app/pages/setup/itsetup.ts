@@ -1249,6 +1249,10 @@ export class ITSetupComponent implements OnInit {
     this.error.set('');
     this.message.set('');
 
+    // Debug: Log the maxCompanies value being saved
+    console.log('IT Setup - Saving maxCompanies:', this.systemSettings.maxCompanies);
+    console.log('IT Setup - System settings:', this.systemSettings);
+
     // Create the complete configuration object
     const config: AppConfig = {
       system: this.systemSettings,
@@ -1261,6 +1265,10 @@ export class ITSetupComponent implements OnInit {
       documentPaths: this.documentUploadPaths,
       validation: this.validationSettings
     };
+
+    // Debug: Log the complete config being sent
+    console.log('IT Setup - Complete config being sent:', config);
+    console.log('IT Setup - Config.system.maxCompanies:', config.system.maxCompanies);
 
     // Save using the config service
     this.configService.saveConfig(config).subscribe({

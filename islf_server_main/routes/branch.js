@@ -39,8 +39,12 @@ router.get('/:code', async (req, res) => {
 
 // Create branch
 router.post('/', async (req, res) => {
+
   const { code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks } = req.body;
   try {
+    console.log('Branch POST - Received data:', req.body);
+    console.log('Branch POST - User object:', req.user);
+    
     // Validate required fields
     if (!code) {
       return res.status(400).json({ error: 'Branch code is required' });
@@ -52,9 +56,20 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Branch code already exists' });
     }
     
+    // Handle empty date strings - convert to null for PostgreSQL
+    const processedStartDate = start_date === '' || start_date === undefined ? null : start_date;
+    const processedCloseDate = close_date === '' || close_date === undefined ? null : close_date;
+    
+    console.log('Branch POST - Processed dates:', { 
+      original_start_date: start_date, 
+      processed_start_date: processedStartDate,
+      original_close_date: close_date,
+      processed_close_date: processedCloseDate
+    });
+    
     const result = await pool.query(
       'INSERT INTO branches (code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-      [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks]
+      [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, processedStartDate, processedCloseDate, remarks]
     );
     
     // Log the setup event
@@ -68,8 +83,10 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error creating branch:', err);
-    res.status(500).json({ error: 'Failed to create branch' });
+    console.error('Error creating branch - Full error:', err);
+    console.error('Error creating branch - Stack:', err.stack);
+    console.error('Error creating branch - Message:', err.message);
+    res.status(500).json({ error: 'Failed to create branch', details: err.message });
   }
 });
 
@@ -77,9 +94,13 @@ router.post('/', async (req, res) => {
 router.put('/:code', async (req, res) => {
   const { company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks } = req.body;
   try {
+    // Handle empty date strings - convert to null for PostgreSQL
+    const processedStartDate = start_date === '' || start_date === undefined ? null : start_date;
+    const processedCloseDate = close_date === '' || close_date === undefined ? null : close_date;
+    
     const result = await pool.query(
       'UPDATE branches SET company_code = $1, name = $2, description = $3, address = $4, gst = $5, incharge_name = $6, incharge_from = $7, status = $8, start_date = $9, close_date = $10, remarks = $11 WHERE code = $12 RETURNING *',
-      [company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks, req.params.code]
+      [company_code, name, description, address, gst, incharge_name, incharge_from, status, processedStartDate, processedCloseDate, remarks, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     
@@ -121,4 +142,4 @@ router.delete('/:code', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

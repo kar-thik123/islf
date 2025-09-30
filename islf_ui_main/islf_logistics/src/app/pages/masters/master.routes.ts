@@ -32,7 +32,7 @@ export default [
     {path:'currency_code',component:CurrencyCodeComponent, data:{breadcrumb: 'Masters   >>>   Currency Code',title:'Currency Code - ISLF'}},
     {path:'container',component:ContainerCodeComponent, data:{breadcrumb: 'Masters   >>>   Container ',title:'Container - ISLF'}},
     {path:'gst_setup',component:GstSetupComponent, data:{breadcrumb: 'Masters   >>>   GST Setup',title:'GST Setup - ISLF'}},
-    {path:'tariff',component:TariffComponent, data:{breadcrumb: 'Masters   >>>   Tariff',title:'Tariff - ISLF'}},
+    {path:'tariff',component:TariffComponent, data:{breadcrumb: 'Masters   >>>   Local Tariff',title:'Local Tariff - ISLF'}},
     {path:'tariff_view',component:TariffViewComponent, data:{breadcrumb: 'Masters   >>>   Tariff View',title:'Tariff View - ISLF'}},
     {path: 'sourcing',component:SourcingComponent, data:{breadcrumb: 'Masters   >>>   Sourcing',title:'Sourcing - ISLF'}},
     {path: 'cargo',component:CargoTypeMasterComponent, data:{breadcrumb: 'Masters   >>>   Cargo ',title:'Cargo- ISLF'}},

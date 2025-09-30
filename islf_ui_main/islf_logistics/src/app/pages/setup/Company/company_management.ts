@@ -48,7 +48,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <p-tabpanels>
             <p-tabpanel [value]="0">
               <!-- Company Section: Add button, company card, full detail dialog -->
-              <div class="flex justify-end mb-4" *ngIf="companies.length < maxCompanies">
+              <div class="flex justify-end mb-4" *ngIf="maxCompanies && companies.length < maxCompanies">
                 <button pButton label="+ Add Company" class="p-button-success" (click)="openCompanyDialog()"></button>
               </div>
               <div *ngIf="errorMessage" class="text-red-600 mb-2">{{ errorMessage }}</div>
@@ -1558,7 +1558,6 @@ export class CompanyManagementComponent implements OnInit {
 
   ngOnInit() {
     this.fetchMaxCompanies();
-    this.loadCompanies();
     this.loadBranches();
     this.loadDocumentTypeOptions();
   }
@@ -1566,8 +1565,14 @@ export class CompanyManagementComponent implements OnInit {
   fetchMaxCompanies() {
     console.log('DEBUG: Fetching max companies setting...');
     this.http.get<{ value: number }>('/api/settings/max_companies').subscribe({
-      next: (res) => this.maxCompanies = res.value || 1,
-      error: () => this.maxCompanies = 1
+      next: (res) =>{
+     this.maxCompanies = Number(res.value) || 1;
+     this.loadCompanies();
+     },
+      error: () => {
+        this.maxCompanies = 1;
+        this.loadCompanies();
+      }
     });
   }
 
@@ -1575,6 +1580,8 @@ export class CompanyManagementComponent implements OnInit {
     this.companyService.getAll().subscribe({
       next: (companies) => {
         this.companies = companies;
+        console.log("DEBUG companies length:", this.companies.length);
+        console.log("DEBUG maxCompanies:", this.maxCompanies);
       },
       error: (error) => {
         console.error('Error loading companies:', error);
@@ -1888,6 +1895,7 @@ export class CompanyManagementComponent implements OnInit {
     // Create a copy of selectedBranch without the PAN number field for saving
      const branchToSave = { ...this.selectedBranch };
     delete branchToSave['pan_number'];
+    
 
     // Check if the code exists in the loaded branches
     const codeExists = this.branches.some(b => b.code === branchToSave.code);
@@ -1926,7 +1934,7 @@ export class CompanyManagementComponent implements OnInit {
     this.currentBranchForDepartment = branch;
     this.selectedDepartment = department
       ? { ...department }
-      : { company_code: branch.company_code, branch_code: branch.code } as Department;
+      : { company_code: branch.company_code, branch_code: branch.code, status: 'active' } as Department;
     
     // Populate PAN number from company data (same as branch)
     if (branch.company_code) {
@@ -2020,7 +2028,7 @@ export class CompanyManagementComponent implements OnInit {
     this.currentDepartmentForServiceType = department;
     this.selectedServiceType = serviceType
       ? { ...serviceType }
-      : { company_code: department.company_code, branch_code: department.branch_code, department_code: department.code } as ServiceType;
+      : { company_code: department.company_code, branch_code: department.branch_code, department_code: department.code, status: 'active' } as ServiceType;
     
     // Format date fields for HTML date inputs
     if (serviceType) {
@@ -2104,7 +2112,7 @@ export class CompanyManagementComponent implements OnInit {
       address: '',
       gst: '',
       incharge_name: '',
-      status: '',
+      status: 'active',
       start_date: '',
       close_date: '',
       remarks: ''

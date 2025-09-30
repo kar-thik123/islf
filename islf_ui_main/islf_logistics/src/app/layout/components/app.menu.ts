@@ -172,7 +172,7 @@ export class AppMenu {
                 routerLink : ['/master/gst_setup']
               },
               {
-                label:'Tariff',
+                label:'Local Tariff',
                 icon:'fa-solid fa-percent',
                 routerLink : ['/master/tariff']
               },

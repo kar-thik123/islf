@@ -86,7 +86,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code','vendorType', 'mode', 'shippingType', 'cargoType','tariffType','unitOfMeasure','itemName', 'status']"
+         [globalFilterFields]="['code','vendorName', 'mode', 'shippingType', 'cargoType','tariffType','basis','itemName', 'fromLocation', 'toLocation', 'periodStartDateFormatted', 'periodEndDateFormatted', 'charges', 'amount', 'status']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -112,20 +112,20 @@ import { ChargeTypeMasterComponent } from './chargetype';
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Vendor Type
-                <p-columnFilter type="text" field="vendorType" display="menu" placeholder="Search by vendor type"></p-columnFilter>
+                Vendor Name
+                <p-columnFilter type="text" field="vendorName" display="menu" placeholder="Search by vendor name"></p-columnFilter>
               </div>
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Mode
-                <p-columnFilter type="text" field="mode" display="menu" placeholder="Search by mode"></p-columnFilter>
+                Department
+                <p-columnFilter type="text" field="mode" display="menu" placeholder="Search by department"></p-columnFilter>
               </div>
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Shipping Type
-                <p-columnFilter type="text" field="shippingType" display="menu" placeholder="Search by shipping type"></p-columnFilter>
+                Service Type
+                <p-columnFilter type="text" field="shippingType" display="menu" placeholder="Search by service type"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -134,22 +134,52 @@ import { ChargeTypeMasterComponent } from './chargetype';
                 <p-columnFilter type="text" field="cargoType" display="menu" placeholder="Search by cargo type"></p-columnFilter>
               </div>
             </th>
-            <th>
+            <!--<th>
               <div class="flex justify-between items-center">
                 Tariff Type
                 <p-columnFilter type="text" field="tariffType" display="menu" placeholder="Search by tariff type"></p-columnFilter>
               </div>
-            </th>
+            </th> -->
             <th>
               <div class="flex justify-between items-center">
-                Unit Of Measure
-                <p-columnFilter type="text" field="basis" display="menu" placeholder="Search by unit"></p-columnFilter>
+                Basis
+                <p-columnFilter type="text" field="basis" display="menu" placeholder="Search by basis"></p-columnFilter>
               </div>
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Item Name
-                <p-columnFilter type="text" field="itemName" display="menu" placeholder="Search by item"></p-columnFilter>
+                Charge Name
+                <p-columnFilter type="text" field="itemName" display="menu" placeholder="Search by charge name"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                From Location
+                <p-columnFilter type="text" field="fromLocation" display="menu" placeholder="Search by from location"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                To Location
+                <p-columnFilter type="text" field="toLocation" display="menu" placeholder="Search by to location"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                From Date
+                <p-columnFilter type="date" field="periodStartDate" display="menu" placeholder="Search by from date"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                To Date
+                <p-columnFilter type="date" field="periodEndDate" display="menu" placeholder="Search by to date"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Charges
+                <p-columnFilter type="text" field="charges" display="menu" placeholder="Search by charges"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -180,13 +210,18 @@ import { ChargeTypeMasterComponent } from './chargetype';
         <ng-template pTemplate="body" let-source>
           <tr [ngClass]="{'mandatory-row': source.isMandatory, 'expired-row': getSourceStatus(source) === 'Expired'}">
             <td>{{ source.code }}</td>
-            <td>{{ source.vendorType }}</td>
+            <td>{{ getVendorName(source.vendorName) }}</td>
             <td>{{ source.mode }}</td>
             <td>{{ source.shippingType }}</td>
             <td>{{ source.cargoType }}</td>
-            <td>{{ source.tariffType }}</td>
+      
             <td>{{ source.basis }}</td>
             <td>{{ source.itemName }}</td>
+            <td>{{ getLocationName(source.fromLocation) }}</td>
+            <td>{{ getLocationName(source.toLocation) }}</td>
+            <td>{{ source.periodStartDate | date:'dd/MM/yyyy' }}</td>
+            <td>{{ source.periodEndDate | date:'dd/MM/yyyy' }}</td>
+            <td>{{ source.charges || source.amount || '-' }}</td>
             <td>
               <span [ngClass]="getStatusClass(getSourceStatus(source))">
                 {{ getSourceStatus(source) }}
@@ -401,13 +436,13 @@ import { ChargeTypeMasterComponent } from './chargetype';
               <label class="block font-semibold mb-1">Period End Date</label>
               <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
             </div>
-            <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
+            <!--<div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
             <p-inputSwitch 
               [(ngModel)]="selectedTariff.isMandatory" 
               inputId="mandatory">
             </p-inputSwitch>
             <label for="mandatory" class="ml-2 font-semibold">Mandatory</label>
-          </div>
+          </div> -->
 
           </div>
         </div>
@@ -1112,7 +1147,13 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
       }
     });
   }
-
+  getVendorName(vendorCode: string): string {
+    if (!vendorCode || !this.allVendors) return vendorCode || '';
+    
+    const vendor = this.allVendors.find(v => v.vendor_no === vendorCode);
+    return vendor ? `
+     ${vendor.name2}` : vendorCode;
+  }
   // Updated method to load unique department names (mode options) with case-insensitive deduplication
   loadModeOptions() {
     const context = this.contextService.getContext();
@@ -1319,7 +1360,21 @@ loadBasisOptions() {
       })
     );
   }
-
+  formatDateForDisplay(date: Date): string {
+  if (!date || !(date instanceof Date)) return '';
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  }
+   getLocationName(locationCode: string): string {
+    if (!locationCode || !this.allLocations) return locationCode || '';
+    
+    const location = this.allLocations.find(l => l.code === locationCode);
+    return location ? `${location.name}` : locationCode;
+  }
   // Helper to map code to label for table display
   getLabel(options: any[], value: string): string {
     const found = options.find(opt => opt.value === value);
@@ -1350,15 +1405,20 @@ loadBasisOptions() {
             itemName: source.item_name,
             basis: source.basis,
             locationTypeFrom: source.location_type_from,
-            from: source.from_location,
+            fromLocation: source.from_location,
             locationTypeTo: source.location_type_to,
-            to: source.to_location,
+            toLocation: source.to_location,
             charges: source.charges,
             effectiveDate: source.effective_date,
             periodStartDate: source.period_start_date,
             periodEndDate: source.period_end_date,
             isMandatory: source.is_mandatory,
           }
+           const startDate = this.parseDate(source.period_start_date);
+          const endDate = this.parseDate(source.period_end_date);
+          
+          mappedSource.periodStartDateFormatted = startDate ? this.formatDateForDisplay(startDate) : '';
+          mappedSource.periodEndDateFormatted = endDate ? this.formatDateForDisplay(endDate) : '';
           // Adding status key to all source object 
           mappedSource.status = this.getSourceStatus(mappedSource);
           return mappedSource;
@@ -1379,6 +1439,7 @@ loadBasisOptions() {
       }
     })    
   }
+
 
   // refreshList2() {
   //   const context = this.contextService.getContext();

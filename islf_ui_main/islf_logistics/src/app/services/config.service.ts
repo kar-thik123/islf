@@ -313,8 +313,13 @@ export class ConfigService {
 
   // Save configuration to backend
   saveConfig(config: AppConfig): Observable<any> {
+    // Debug: Log the config being sent to backend
+    console.log('ConfigService - Saving config to backend:', config);
+    console.log('ConfigService - maxCompanies value:', config.system?.maxCompanies);
+    
     return this.http.post(`${environment.apiUrl}/api/settings/config`, config).pipe(
-      tap(() => {
+      tap((response) => {
+        console.log('ConfigService - Backend response:', response);
         this.configSubject.next(config);
         this.applyConfig(config);
       })

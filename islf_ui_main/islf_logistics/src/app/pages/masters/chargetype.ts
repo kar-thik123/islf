@@ -43,6 +43,7 @@ interface ChargeType {
     DropdownModule,
     ToastModule,
     DialogModule,
+    MasterTypeComponent,
   ],
   template: `
     <p-toast></p-toast>
@@ -177,7 +178,7 @@ interface ChargeType {
           <div class="grid-container">
              <div class="grid-item">
                <label for="charge_type"> Charge Type <span class="text-red-500">*</span></label>
-               
+               <div class="flex gap-2">
                <p-dropdown
                  id="charge_type"
                  [options]="chargeTypeOptions"
@@ -188,6 +189,16 @@ interface ChargeType {
                  [filter]="true"
                  (onChange)="onFieldChange('charge_type', $event.value)"
                ></p-dropdown>
+               <button 
+                  pButton 
+                  type="button" 
+                  icon="pi pi-ellipsis-h" 
+                  class="p-button-sm" 
+                  [loading]="masterDialogLoading['chargeType']" 
+                  (click)="openMaster('chargeType')"
+                  title="Open Charge Type Master"
+                ></button>
+                </div>
               
                <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('charge_type')">{{ getFieldError('charge_type') }}</small>
              </div>
@@ -233,6 +244,24 @@ interface ChargeType {
         </div>
       </ng-template>
     </p-dialog>
+
+    <!-- Add Charge Type Master Dialog -->
+    <p-dialog
+    header="Charge Type Master (CHARGE_TYPE only)"
+      [(visible)]="showChargeTypeDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('chargeType')"
+    >
+      <ng-template pTemplate="content">
+        <master-type [filterByKey]="'CHARGE_TYPE'"></master-type>
+      </ng-template>
+    </p-dialog>
     
   `,
   styles: [`
@@ -262,6 +291,8 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
   isDialogVisible = false;
   selectedChargeType: (ChargeType & { isNew?: boolean }) | null = null;
   fieldErrors: { [key: string]: string } = {};
+  masterDialogLoading: { [key: string]: boolean } = {};
+  showChargeTypeDialog = false;
   private contextSubscription: Subscription | undefined;
 
   constructor(
@@ -300,7 +331,7 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
 
   private mapChargeValueToTypeKey(chargeValue: string): string {
     const match = this.chargeTypeOptions.find(opt => opt.value === chargeValue);
-    return match ? match.key : 'CHARGE';
+    return match ? match.key : 'CHARGE_TYPE';
   }
   refreshList() {
     console.log('Refreshing charge types list');
@@ -313,7 +344,7 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
           .filter(item => item.item_type === 'CHARGE_TYPE')
           .map(item => ({
             id: item.id,
-            charge_type: item.charge_type || this.mapTypeKeyToChargeValue('CHARGE'),
+            charge_type: item.charge_type || this.mapTypeKeyToChargeValue('CHARGE_TYPE'),
             code: item.code,
             name: item.name,
             description: item.description || '',
@@ -405,7 +436,7 @@ async editRow(chargeType: ChargeType) {
   } else if (!this.selectedChargeType.charge_type || this.selectedChargeType.charge_type === '') {
     // If no charge_type is set and multiple options exist, try to find a match
     const matchingOption = this.chargeTypeOptions.find(opt => 
-      opt.value === chargeType.charge_type || opt.key === 'CHARGE'
+      opt.value === chargeType.charge_type || opt.key === 'CHARGE_TYPE'
     );
     if (matchingOption) {
       this.selectedChargeType.charge_type = matchingOption.value;
@@ -501,7 +532,7 @@ private loadChargeTypeOptions(): Promise<void> {
   return new Promise((resolve, reject) => {
     this.masterTypeService.getAll().subscribe({
       next: (types: ChargeTypeOption[]) => {
-        this.chargeTypeOptions = types.filter(t => t.key === 'CHARGE' && t.status === 'Active');
+        this.chargeTypeOptions = types.filter(t => t.key === 'CHARGE_TYPE' && t.status === 'Active');
         console.log('Charge type options refreshed:', this.chargeTypeOptions.length);
         resolve();
       },
@@ -516,5 +547,21 @@ private loadChargeTypeOptions(): Promise<void> {
       }
     });
   });
+}
+
+openMaster(type: string) {
+  this.masterDialogLoading[type] = true;
+  if (type === 'chargeType') {
+    this.showChargeTypeDialog = true;
+  }
+  this.masterDialogLoading[type] = false;
+}
+
+closeMasterDialog(type: string) {
+  if (type === 'chargeType') {
+    this.showChargeTypeDialog = false;
+  }
+  // Refresh the charge type options after closing the dialog
+  this.loadChargeTypeOptions();
 }
 }
