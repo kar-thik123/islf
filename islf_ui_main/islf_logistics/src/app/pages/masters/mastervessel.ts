@@ -307,8 +307,8 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   vessels: MasterVessel[] = [];
   flagOptions: FlagOption[] = [];
   activeOptions = [
-    { label: 'Active', value: 'Active' },
-    { label: 'Inactive', value: 'Inactive' }
+    { label: 'Active', value: true },
+    { label: 'Inactive', value: false }
   ];
   mappedVesselSeriesCode: string | null = null;
   isManualSeries: boolean = false;
@@ -575,9 +575,8 @@ loadFlagOptions() {
         imo_number: '',
         flag: '',
         vessel_type: '',
-
         year_build: '',
-        active: true,
+        active: 'active',
         isNew: true
       };
       this.isDialogVisible = true;

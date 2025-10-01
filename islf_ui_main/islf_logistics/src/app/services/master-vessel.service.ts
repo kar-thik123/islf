@@ -13,7 +13,7 @@ export interface MasterVessel {
   imo_number: string;
   flag: string;
   year_build: string;
-  active: boolean;
+  active: string | boolean ;
   vessel_type?: string;
 }
 

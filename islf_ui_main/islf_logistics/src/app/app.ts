@@ -7,6 +7,7 @@ import { AuthService } from './services/auth.service';
 import { CompanyService } from './services/company.service';
 import { ConfigService } from './services/config.service';
 import { Subscription, timer } from 'rxjs';
+import {NgxSpinnerModule} from 'ngx-spinner';
 
 @Component({
   selector: 'app-root',
@@ -14,9 +15,26 @@ import { Subscription, timer } from 'rxjs';
   imports: [
     RouterOutlet,
     ToastModule,
-    CommonModule
+    CommonModule,
+    NgxSpinnerModule,
+  
   ],
   template: `
+  <!--  <ngx-spinner
+      bdColor="rgba(0,0,0,0.3)"
+      size="medium"
+      color="#fff"
+      type="ball-spin-clockwise"
+      [fullScreen]="true">
+    </ngx-spinner> -->
+    <ngx-spinner
+      bdColor="rgba(51,51,51,0.8)"
+      size="medium"
+      color="#fff"
+      type="square-jelly-box"
+    >
+      <p style="font-size: 20px; color: white">Loading...</p>
+    </ngx-spinner>
    
     <router-outlet></router-outlet>
   `

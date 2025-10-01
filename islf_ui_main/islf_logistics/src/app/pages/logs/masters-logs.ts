@@ -137,7 +137,7 @@ export class MastersLogsComponent implements OnInit {
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    this.http.get<any[]>('/api/logs/masters').subscribe({
+    this.http.get<any[]>('http://77.237.234.63:3001/api/logs/masters').subscribe({
       next: (data) => {
         const enriched = data.map(log => ({
           ...log,

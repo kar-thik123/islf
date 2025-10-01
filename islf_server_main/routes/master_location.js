@@ -135,7 +135,7 @@ router.put('/:code', async (req, res) => {
       username: getUsernameFromToken(req),
       action: 'UPDATE',
       masterType: 'Master Location',
-      recordId: code,
+      recordId: req.params.code,
       details
     });
     res.json(result.rows[0]);
@@ -155,7 +155,7 @@ router.put('/:code', async (req, res) => {
         code: req.params.code 
       });
     } else {
-      res.status(500).json({ error: 'Failed to update master location' });
+      res.status(500).json({ msg: 'Failed to update master location', error: err.msg  });
     }
   }
 });

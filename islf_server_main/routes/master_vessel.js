@@ -333,12 +333,13 @@ router.post('/', async (req, res) => {
 // UPDATE vessel by ID
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid ID format' });
-  }
+  // if (isNaN(id)) {
+  //   return res.status(400).json({ error: 'Invalid ID format' });
+  // }
   let { code, vessel_name, imo_number, flag, year_build, active, vessel_type } = req.body;
   try {
-    const oldResult = await pool.query('SELECT * FROM master_vessel WHERE id = $1', [id]);
+    
+    const oldResult = await pool.query('SELECT * FROM master_vessel WHERE code = $1', [code]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Vessel not found' });
     const oldVessel = oldResult.rows[0];
     // Extract year from date if year_build is a date object
@@ -364,7 +365,8 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ error: 'IMO number already exists' });
       }
     }
-    
+    // let is_active = active.toLowerCase() ==='inactive' ? false: true;
+    console.log("vessel body:",req.body, "is Active:",active);
     const result = await pool.query(
       `UPDATE master_vessel
        SET code = $1, vessel_name = $2, imo_number = $3, flag = $4, year_build = $5, active = $6, vessel_type = $7

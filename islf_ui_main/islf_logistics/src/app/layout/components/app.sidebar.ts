@@ -55,6 +55,7 @@ export class AppSidebar implements OnInit, OnDestroy {
           const companyWithLogo = Array.isArray(companies) ? companies.find(c => c.logo) : "assets/layout/images/logo.png";
           if (companyWithLogo && companyWithLogo.logo) {
             this.logoToShow = companyWithLogo.logo;
+            console.log("logo to Show,",this.logoToShow);
           } else {
             // No company logo found, fetch settings logo
             this.http.get<{ value: string | null }>('/api/settings/default_logo').subscribe({

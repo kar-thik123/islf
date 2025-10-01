@@ -242,13 +242,13 @@ router.post('/', async (req, res) => {
 // UPDATE master item by ID
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid ID format' });
-  }
+  // if (isNaN(id)) {
+  //   return res.status(400).json({ error: 'Invalid ID format' });
+  // }
 
   const { item_type, code, name, description, hs_code, active, masterType, charge_type } = req.body;
   try {
-    const oldResult = await pool.query('SELECT * FROM master_item WHERE id = $1', [id]);
+    const oldResult = await pool.query('SELECT * FROM master_item WHERE code = $1', [code]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
     const oldItem = oldResult.rows[0];
 

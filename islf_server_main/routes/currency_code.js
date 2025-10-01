@@ -127,7 +127,7 @@ router.put('/:code', async (req, res) => {
       username: getUsernameFromToken(req),
       action: 'UPDATE',
       masterType: 'Currency Code',
-      recordId: code,
+      recordId: req.params.code,
       details
     });
     res.json(result.rows[0]);
