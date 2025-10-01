@@ -3,3 +3,4 @@
 **/.env
 **/.angular/cache
 
+**/dist
