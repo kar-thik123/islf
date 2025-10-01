@@ -110,6 +110,112 @@ router.post('/', async (req, res) => {
   const { item_type, code, name, hs_code, description, active, company_code, branch_code, department_code, masterType, charge_type } = req.body;
 
   try {
+      let code;
+      let seriesCode;
+      let codeType= masterType.toLowerCase() ==='cargo type' ? 'cargoCode': 'chargeCode';
+      console.log("Master Item code type,",codeType);
+    // 🔹 Number series lookup
+        if ((!code || code === '') && company_code) {
+          let whereConditions = ['code_type = $1', 'company_code = $2'];
+          let queryParams = [codeType, company_code];
+          let paramIndex = 3;
+    
+          if (branch_code) {
+            whereConditions.push(`branch_code = $${paramIndex}`);
+            queryParams.push(branch_code);
+            paramIndex++;
+          } else {
+            whereConditions.push('(branch_code IS NULL OR branch_code = \'\')');
+          }
+    
+          if (department_code) {
+            whereConditions.push(`department_code = $${paramIndex}`);
+            queryParams.push(department_code);
+          } else {
+            whereConditions.push('(department_code IS NULL OR department_code = \'\')');
+          }
+    
+          const mappingQuery = `
+            SELECT mapping FROM mapping_relations
+            WHERE ${whereConditions.join(' AND ')}
+            ORDER BY id DESC
+            LIMIT 1
+          `;
+    
+          const mappingRes = await pool.query(mappingQuery, queryParams);
+          if (mappingRes.rows.length > 0) {
+            seriesCode = mappingRes.rows[0].mapping;
+          }
+        }
+    
+        // 🔹 Generate source code
+        if (seriesCode) {
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
+    
+            const seriesResult = await client.query(
+              'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
+              [seriesCode]
+            );
+    
+            if (seriesResult.rows.length === 0) {
+              await client.query('ROLLBACK');
+              client.release();
+              return res.status(400).json({ error: 'Number series not found' });
+            }
+    
+            const series = seriesResult.rows[0];
+            if (series.is_manual) {
+              if (!code || code.trim() === '') {
+                await client.query('ROLLBACK');
+                client.release();
+                return res.status(400).json({ error: 'Manual code entry required for this series' });
+              }
+              const exists = await client.query('SELECT 1 FROM master_item WHERE code = $1', [code]);
+              if (exists.rows.length > 0) {
+                await client.query('ROLLBACK');
+                client.release();
+                return res.status(400).json({ error: 'Cargo code already exists' });
+              }
+            } else {
+              const relResult = await client.query(
+                'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
+                [seriesCode]
+              );
+    
+              if (relResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                client.release();
+                return res.status(400).json({ error: 'Number series relation not found' });
+              }
+    
+              const rel = relResult.rows[0];
+              let nextNo = rel.last_no_used === 0
+                ? Number(rel.starting_no)
+                : Number(rel.last_no_used) + Number(rel.increment_by);
+    
+              code = `${rel.prefix || ''}${nextNo}`;
+    
+              await client.query(
+                'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+                [nextNo, rel.id]
+              );
+            }
+    
+            await client.query('COMMIT');
+            client.release();
+          } catch (error) {
+            await client.query('ROLLBACK');
+            client.release();
+            throw error;
+          }
+        } else if (!code || code === '') {
+          code = 'CAR-' + Date.now();
+        }
+    
+   
+  //  Insert New Cargo
     const result = await pool.query(
       `INSERT INTO master_item (item_type, code, name, description, hs_code, active, company_code, branch_code, department_code, charge_type)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

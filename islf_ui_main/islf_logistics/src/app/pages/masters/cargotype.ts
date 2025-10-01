@@ -12,6 +12,8 @@ import { MessageService } from 'primeng/api';
 import { MasterItemService, MasterItem } from '../../services/master-item.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
+import {MappingService} from '@/services/mapping.service';
+import {NumberSeriesService} from '@/services/number-series.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
 import { MasterTypeComponent } from './mastertype';
@@ -198,7 +200,7 @@ interface CargoType {
             </div>
             <div class="grid-item">
               <label for="code"> Code<span class="text-red-500">*</span></label>
-              <input #codeInput id="code" pInputText [(ngModel)]="selectedCargoType.code" [disabled]="!selectedCargoType.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
+              <input #codeInput id="code" pInputText [(ngModel)]="selectedCargoType.code" [disabled]="!isManualSeries || !selectedCargoType.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('code')">{{ getFieldError('code') }}</small>
             </div>
             <div class="grid-item">
@@ -284,19 +286,92 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
   showCargoTypeDialog = false;
   masterDialogLoading: { [key: string]: boolean } = {};
   private contextSubscription: Subscription | undefined;
+  // number series properties
+  isManualSeries:boolean = false;
+  mappedCargoSeriesCode:string ='';
 
   constructor(
     private masterItemService: MasterItemService,
     private masterTypeService: MasterTypeService,
+    private mappingService: MappingService,
+    private numberSeriesService: NumberSeriesService,
     private messageService: MessageService,
     private contextService: ContextService,
     private configService: ConfigService,
     private cdr: ChangeDetectorRef
   ) {}
 
+
+  loadMappedCargoSeriesCode(){
+    const context = this.contextService.getContext();
+    console.log('Loading Source Cargo code for context:', context);
+    
+    // Use context-based mapping with NumberSeriesRelation
+    this.mappingService.findMappingByContext(
+      'cargoCode',
+      context.companyCode || '',
+      context.branchCode || '',
+      context.departmentCode || '',
+      context.serviceType || undefined
+    ).subscribe({
+      next: (contextMapping: any) => {
+        console.log('source mapping relation response:', contextMapping);
+        this.mappedCargoSeriesCode = contextMapping.mapping;
+        if (this.mappedCargoSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList: any[]) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedCargoSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('cargo series code mapped:', this.mappedCargoSeriesCode, 'is Manual:', this.isManualSeries);
+            },
+            error: (error: any) => {
+              console.error('Error loading number series:', error);
+              this.isManualSeries = true;
+            }
+          });
+        } else {
+          this.isManualSeries = true;
+          console.log('No source series code mapping found for context');
+        }
+      },
+      error: (error: any) => {
+        console.error('Error loading cargo mapping relation:', error);
+        // Fallback to generic mapping if context-based mapping fails
+        console.log('Falling back to generic mapping method');
+        this.mappingService.getMapping().subscribe({
+          next: (mapping: any) => {
+            console.log('Fallback mapping response:', mapping);
+            this.mappedCargoSeriesCode = mapping.cargoCode || '';
+            if (this.mappedCargoSeriesCode) {
+              this.numberSeriesService.getAll().subscribe({
+                next: (seriesList: any[]) => {
+                  const found = seriesList.find((s: any) => s.code === this.mappedCargoSeriesCode);
+                  this.isManualSeries = !!(found && found.is_manual);
+                  console.log('source series code mapped (fallback):', this.mappedCargoSeriesCode, 'Manual:', this.isManualSeries);
+                },
+                error: (error: any) => {
+                  console.error('Error loading number series (fallback):', error);
+                  this.isManualSeries = true; // Default to manual if error
+                }
+              });
+            } else {
+              this.isManualSeries = true; // Default to manual if no mapping
+            }
+          },
+          error: (error: any) => {
+            console.error('Error loading fallback mapping:', error);
+            this.isManualSeries = true; // Default to manual if error
+          }
+        });
+      }
+    });
+  }
+
   ngOnInit() {
     this.refreshList();
     this.loadCargoTypeOptions();
+    // loading the mapped charges code
+    this.loadMappedCargoSeriesCode();
     
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
@@ -396,7 +471,7 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
     // If validation passes or no validation required, proceed with adding row
     this.selectedCargoType = {
       cargo_type: '',
-      code: '',
+      code: this.isManualSeries ? '':(this.mappedCargoSeriesCode || ''),
       name: '',
       hs_code: '',
       description: '',
@@ -438,7 +513,7 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
 
   isFormValid(): boolean {
     if (!this.selectedCargoType) return false;
-    const required = ['cargo_type', 'code', 'name'];
+    const required = ['cargo_type', 'name'];
     for (const f of required) {
       if (this.validateField(f, (this.selectedCargoType as any)[f])) return false;
     }
@@ -448,9 +523,10 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
   saveRow() {
     if (!this.selectedCargoType) return;
     // Validate all required fields on save
-    ['cargo_type', 'code', 'name'].forEach(f => {
+    ['cargo_type', 'name'].forEach(f => {
       this.onFieldChange(f, (this.selectedCargoType as any)[f]);
     });
+
     if (!this.isFormValid()) return;
     
     // Transform CargoType to master_item format
@@ -462,6 +538,11 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
       active: this.selectedCargoType.active,
       masterType: 'Cargo Type'
     };
+
+    // For automatic series, ensure code is empty so backend generates it (only for new records)
+    if (!this.isManualSeries && this.selectedCargoType.isNew) {
+      masterItemData.code = '';
+    }
     
     const req = this.selectedCargoType.isNew
       ? this.masterItemService.create(masterItemData)

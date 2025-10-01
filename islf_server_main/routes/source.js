@@ -105,10 +105,10 @@ router.post('/', async (req, res) => {
 
     const duplicateResult = await pool.query(duplicateCheckQuery, [
       cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.basis,
-      cleanData.itemName, cleanData.locationTypeFrom, cleanData.from,cleanData.currency,
+      cleanData.itemName, cleanData.locationTypeFrom, cleanData.from,
       cleanData.locationTypeTo, cleanData.to, cleanData.vendorType, cleanData.vendorName, cleanData.effectiveDate,
       cleanData.periodStartDate, cleanData.periodEndDate, cleanData.charges,
-      cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
+      cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code,cleanData.currency
     ]);
 
     if (duplicateResult.rows.length > 0) {

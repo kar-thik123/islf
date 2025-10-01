@@ -11,6 +11,8 @@ import { MessageService } from 'primeng/api';
 import { MasterTypeComponent } from './mastertype';
 import { MasterItemService, MasterItem } from '../../services/master-item.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import {MappingService} from '@/services/mapping.service';
+import {NumberSeriesService} from '@/services/number-series.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
@@ -204,7 +206,7 @@ interface ChargeType {
              </div>
             <div class="grid-item">
               <label for="code"> Code<span class="text-red-500">*</span></label>
-              <input #codeInput id="code" pInputText [(ngModel)]="selectedChargeType.code" [disabled]="!selectedChargeType.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
+              <input #codeInput id="code" pInputText [(ngModel)]="selectedChargeType.code" [disabled]="!isManualSeries || !selectedChargeType.isNew" required (input)="onFieldChange('code', codeInput.value)"/>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('code')">{{ getFieldError('code') }}</small>
             </div>
             <div class="grid-item">
@@ -293,6 +295,8 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
   fieldErrors: { [key: string]: string } = {};
   masterDialogLoading: { [key: string]: boolean } = {};
   showChargeTypeDialog = false;
+  isManualSeries: boolean = false;
+  mappedChargeSeriesCode: string = '';
   private contextSubscription: Subscription | undefined;
 
   constructor(
@@ -301,12 +305,81 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private contextService: ContextService,
     private configService: ConfigService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private mappingService: MappingService,
+    private numberSeriesService: NumberSeriesService
   ) {}
+
+  loadMappedChargeSeriesCode(){
+    const context = this.contextService.getContext();
+    console.log('Loading Source Charge code for context:', context);
+    
+    // Use context-based mapping with NumberSeriesRelation
+    this.mappingService.findMappingByContext(
+      'chargeCode',
+      context.companyCode || '',
+      context.branchCode || '',
+      context.departmentCode || '',
+      context.serviceType || undefined
+    ).subscribe({
+      next: (contextMapping: any) => {
+        console.log('source mapping relation response:', contextMapping);
+        this.mappedChargeSeriesCode = contextMapping.mapping;
+        if (this.mappedChargeSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList: any[]) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedChargeSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('charge series code mapped:', this.mappedChargeSeriesCode, 'is Manual:', this.isManualSeries);
+            },
+            error: (error: any) => {
+              console.error('Error loading number series:', error);
+              this.isManualSeries = true;
+            }
+          });
+        } else {
+          this.isManualSeries = true;
+          console.log('No source series code mapping found for context');
+        }
+      },
+      error: (error: any) => {
+        console.error('Error loading charg mapping relation:', error);
+        // Fallback to generic mapping if context-based mapping fails
+        console.log('Falling back to generic mapping method');
+        this.mappingService.getMapping().subscribe({
+          next: (mapping: any) => {
+            console.log('Fallback mapping response:', mapping);
+            this.mappedChargeSeriesCode = mapping.cargoCode || '';
+            if (this.mappedChargeSeriesCode) {
+              this.numberSeriesService.getAll().subscribe({
+                next: (seriesList: any[]) => {
+                  const found = seriesList.find((s: any) => s.code === this.mappedChargeSeriesCode);
+                  this.isManualSeries = !!(found && found.is_manual);
+                  console.log('source series code mapped (fallback):', this.mappedChargeSeriesCode, 'Manual:', this.isManualSeries);
+                },
+                error: (error: any) => {
+                  console.error('Error loading number series (fallback):', error);
+                  this.isManualSeries = true; // Default to manual if error
+                }
+              });
+            } else {
+              this.isManualSeries = true; // Default to manual if no mapping
+            }
+          },
+          error: (error: any) => {
+            console.error('Error loading fallback mapping:', error);
+            this.isManualSeries = true; // Default to manual if error
+          }
+        });
+      }
+    });
+  }
 
   ngOnInit() {
     this.refreshList();
     this.loadChargeTypeOptions();
+      // loading the mapped charges code
+    this.loadMappedChargeSeriesCode();
     
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
@@ -413,7 +486,7 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
      // If validation passes or no validation required, proceed with adding row
      this.selectedChargeType = {
        charge_type: this.chargeTypeOptions.length > 0 ? this.chargeTypeOptions[0].value : '',
-       code: '',
+       code: this.isManualSeries ? '':(this.mappedChargeSeriesCode || ''),
        name: '',
        description:'',
        active: true,
@@ -500,6 +573,11 @@ async editRow(chargeType: ChargeType) {
        active: this.selectedChargeType.active,
        masterType: 'Charge Type'
      };
+
+     // For automatic series, ensure code is empty so backend generates it (only for new records)
+    if (!this.isManualSeries && this.selectedChargeType.isNew) {
+      masterItemData.code = '';
+    }
     
     const req = this.selectedChargeType.isNew
       ? this.masterItemService.create(masterItemData)
