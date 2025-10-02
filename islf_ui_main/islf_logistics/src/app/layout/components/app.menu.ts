@@ -180,6 +180,11 @@ export class AppMenu {
                 label:'Sourcing',
                 icon:'fa-solid fa-globe',
                 routerLink: ['/master/sourcing']
+              },
+              {
+                label:'Service Area',
+                icon:'fa-solid fa-location-dot',
+                routerLink : ['/master/service_area']
               }
             ],
           },

@@ -573,10 +573,10 @@ router.put('/:code', async (req, res) => {
             await client.query(
                 `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
                  mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
-                 location_type_from = $11, location_type_to = $12, effective_date_from = $13, effective_date_to = $14, department = $15, service_type = $16, status = $17, remarks = $18
-                 WHERE id = $19`,
+                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16
+                 WHERE id = $17`,
                 [date, customer_id, customer_name, email, mobile, landline, company_name, contact_department,
-                 from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department, service_type, status, remarks, enquiryId]
+                 from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, enquiryId]
             );
 
             // Delete existing line items
@@ -1020,7 +1020,7 @@ router.post('/:code/sourcing', async (req, res) => {
             params.push(department);
             paramIndex++;
         }
-        
+
         if (from_location) {
             query += ` AND from_location = $${paramIndex}`;
             params.push(from_location);

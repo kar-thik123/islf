@@ -772,20 +772,8 @@ export class UserCreateComponent implements OnInit {
       this.masterTypeService.getAll().subscribe((types: any[]) => {
         console.log('Master Types:', types);
         
-        // Debug: Show detailed structure of ALL types
-        console.log('DEBUG: ALL Master Types structure:', types);
-        
-        // Debug: Show each master type individually
-        types.forEach((type, index) => {
-          console.log(`DEBUG: Master Type ${index + 1}:`, {
-            id: type.id,
-            key: type.key,
-            value: type.value,
-            status: type.status,
-            description: type.description,
-            fullObject: type
-          });
-        });
+        // Debug: Show detailed structure of first few types
+        console.log('DEBUG: First 3 Master Types structure:', types.slice(0, 3));
         
         // Debug: Check all USER_STATUS related types
         const userStatusTypes = (types || []).filter((t: any) => 

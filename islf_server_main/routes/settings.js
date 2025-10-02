@@ -239,6 +239,7 @@ router.get('/config', async (req, res) => {
         mappingFilter: config.validation_mapping_filter || '',
         basisFilter: config.validation_basis_filter || '',
         sourceFilter: config.validation_source_filter || '',
+        serviceAreaFilter: config.validation_service_area_filter || '',
       }
     };
     
@@ -253,19 +254,6 @@ router.get('/config', async (req, res) => {
 router.post('/config', async (req, res) => {
   try {
     const config = req.body;
-    
-    // Test database connectivity first
-    try {
-      const dbTest = await pool.query('SELECT NOW() as current_time');
-      console.log('Backend - Database connectivity test successful:', dbTest.rows[0]);
-    } catch (dbError) {
-      console.error('Backend - Database connectivity test FAILED:', dbError);
-      return res.status(500).json({ error: 'Database connection failed' });
-    }
-    
-    // Debug: Log the received config
-    console.log('Backend - Received config:', JSON.stringify(config, null, 2));
-    console.log('Backend - maxCompanies value:', config.system?.maxCompanies);
     
     // Debug: Log the backup time to see what we're receiving
     console.log('Received backup time:', config.backup?.backupTime, 'Type:', typeof config.backup?.backupTime);
@@ -397,38 +385,18 @@ router.post('/config', async (req, res) => {
       { key: 'validation_number_series_relation_filter', value: config.validation?.numberSeriesRelationFilter || '' },
       { key: 'validation_user_list_filter', value: config.validation?.userListFilter || '' },
       { key: 'validation_mapping_filter', value: config.validation?.mappingFilter || '' }, 
-      { key: 'validation_basis_filter', value: config.validation?.basisFilter || '' }
+      { key: 'validation_basis_filter', value: config.validation?.basisFilter || '' },
+      { key: 'validation_source_filter', value: config.validation?.sourceFilter || '' },
+      { key: 'validation_service_area_filter', value: config.validation?.serviceAreaFilter || '' },
     ];
     
-    // Debug: Log the flattened settings
-    console.log('Backend - Flattened settings:', settings);
-    
-    // Save all settings with detailed debugging
+    // Save all settings
     for (const setting of settings) {
-      try {
-        console.log(`Backend - Attempting to save setting: ${setting.key} = ${setting.value}`);
-        
-        const result = await pool.query(
-          `INSERT INTO settings (key, value) VALUES ($1, $2)
-           ON CONFLICT (key) DO UPDATE SET value = $2 RETURNING *`,
-          [setting.key, setting.value]
-        );
-        
-        console.log(`Backend - Successfully saved setting ${setting.key}:`, result.rows[0]);
-        
-        // Special logging for max_companies
-        if (setting.key === 'max_companies') {
-          console.log(`Backend - CRITICAL: max_companies saved with value: ${setting.value}`);
-          
-          // Verify it was actually saved by reading it back
-          const verification = await pool.query('SELECT * FROM settings WHERE key = $1', ['max_companies']);
-          console.log(`Backend - VERIFICATION: max_companies in database:`, verification.rows[0]);
-        }
-        
-      } catch (error) {
-        console.error(`Backend - ERROR saving setting ${setting.key}:`, error);
-        throw error; // Re-throw to trigger the catch block
-      }
+      await pool.query(
+        `INSERT INTO settings (key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = $2`,
+        [setting.key, setting.value]
+      );
     }
     
     res.json({ success: true });

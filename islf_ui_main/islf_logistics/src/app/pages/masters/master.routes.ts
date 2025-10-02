@@ -16,6 +16,7 @@ import { BasisComponent } from './basis';
 import { TariffViewComponent } from './tariff-view';
 import { CargoTypeMasterComponent } from './cargotype';
 import { ChargeTypeMasterComponent } from './chargetype';
+import { ServiceAreaComponent } from './servicearea';
 
 export default [
 
@@ -36,7 +37,8 @@ export default [
     {path:'tariff_view',component:TariffViewComponent, data:{breadcrumb: 'Masters   >>>   Tariff View',title:'Tariff View - ISLF'}},
     {path: 'sourcing',component:SourcingComponent, data:{breadcrumb: 'Masters   >>>   Sourcing',title:'Sourcing - ISLF'}},
     {path: 'cargo',component:CargoTypeMasterComponent, data:{breadcrumb: 'Masters   >>>   Cargo ',title:'Cargo- ISLF'}},
-    {path:'charges',component:ChargeTypeMasterComponent, data:{breadcrumb: 'Masters   >>>  Charges',title:'Charges-ISLF'}}
+    {path:'charges',component:ChargeTypeMasterComponent, data:{breadcrumb: 'Masters   >>>  Charges',title:'Charges-ISLF'}},
+    {path:'service_area',component:ServiceAreaComponent, data:{breadcrumb: 'Masters   >>>  Service Area',title:'Service Area-ISLF'}}
     
 ] as Routes;
 

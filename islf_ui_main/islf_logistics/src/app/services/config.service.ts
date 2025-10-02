@@ -121,7 +121,8 @@ export interface ValidationConfig {
   mappingFilter: string;
   manualCustomerFilter: string;
   basisFilter: string;
-  sourceFilter: string; // Add this line
+  sourceFilter: string; 
+  serviceAreaFilter:string// Add this line
 }
 
 export interface AppConfig {
@@ -251,7 +252,8 @@ export class ConfigService {
       mappingFilter: '',
       manualCustomerFilter: '',
       basisFilter: '',
-      sourceFilter: '' // Add this line
+      sourceFilter: '' ,
+      serviceAreaFilter:''// Add this line
     }
   };
 
@@ -313,13 +315,8 @@ export class ConfigService {
 
   // Save configuration to backend
   saveConfig(config: AppConfig): Observable<any> {
-    // Debug: Log the config being sent to backend
-    console.log('ConfigService - Saving config to backend:', config);
-    console.log('ConfigService - maxCompanies value:', config.system?.maxCompanies);
-    
     return this.http.post(`${environment.apiUrl}/api/settings/config`, config).pipe(
-      tap((response) => {
-        console.log('ConfigService - Backend response:', response);
+      tap(() => {
         this.configSubject.next(config);
         this.applyConfig(config);
       })
