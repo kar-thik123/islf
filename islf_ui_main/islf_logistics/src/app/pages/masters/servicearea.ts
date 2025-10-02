@@ -14,6 +14,9 @@ import { ContextService } from '@/services/context.service';
 import { ConfigService } from '@/services/config.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterTypeComponent } from './mastertype';
+import { MasterTypeService } from '../../services/mastertype.service';
+import { DialogModule } from 'primeng/dialog';
 
 @Component({
   selector: 'app-service-area',
@@ -28,7 +31,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     DropdownModule,
     ToastModule,
     ConfirmDialogModule,
-    CheckboxModule
+    CheckboxModule,
+    MasterTypeComponent,
+    DialogModule,
   ],
   template: `
     <p-toast></p-toast>
@@ -118,7 +123,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             </td>
             <td>
               <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else typeText">
-                <div class="flex flex-col">
+                <div class="flex align-items-center gap-2">
                   <p-dropdown
                     [options]="serviceAreaTypes"
                     [(ngModel)]="serviceArea.type"
@@ -132,7 +137,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                     [ngClass]="getFieldErrorClass(serviceArea, 'type')"
                     class="w-full"
                   ></p-dropdown>
-                  <small *ngIf="getFieldError(serviceArea, 'type')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(serviceArea, 'type') }}</small>
+                  <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('serviceAreaType')" [loading]="masterDialogLoading['ServiceAreaType']" title="Open Service Area Type Master"></button>
+          
                 </div>
               </ng-container>
               <ng-template #typeText>{{ serviceArea.type }}</ng-template>
@@ -192,42 +198,36 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
               </ng-template>
             </td>
             <td>
-              <div class="flex gap-2">
-                <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else actionButtons">
-                  <button 
-                    pButton 
-                    icon="pi pi-check" 
-                    class="p-button-rounded p-button-text p-button-success p-button-sm" 
-                    (click)="saveRow(serviceArea)"
-                    title="Save"
-                  ></button>
-                  <button 
-                    pButton 
-                    icon="pi pi-times" 
-                    class="p-button-rounded p-button-text p-button-danger p-button-sm" 
-                    (click)="cancelEdit(serviceArea)"
-                    title="Cancel"
-                  ></button>
-                </ng-container>
-                <ng-template #actionButtons>
-                  <button 
-                    pButton 
-                    icon="pi pi-pencil" 
-                    class="p-button-rounded p-button-text p-button-sm" 
-                    (click)="editRow(serviceArea)"
-                    title="Edit"
-                  ></button>
-                  <button 
-                    pButton 
-                    icon="pi pi-trash" 
-                    class="p-button-rounded p-button-text p-button-danger p-button-sm" 
-                    (click)="confirmDelete(serviceArea)"
-                    title="Delete"
-                  ></button>
-                </ng-template>
+              <div class="flex items-center space-x-[8px]">
+                <button
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-sm"
+                  (click)="editRow(serviceArea)"
+                  title="Edit"
+                  *ngIf="!serviceArea.isEditing && !serviceArea.isNew"
+                ></button>
+                <button
+                  pButton
+                  icon="pi pi-check"
+                  class="p-button-sm"
+                  (click)="saveRow(serviceArea)"
+                  title="Save"
+                  
+                  *ngIf="serviceArea.isEditing || serviceArea.isNew"
+                ></button>
+                <button
+                *ngIf="serviceArea.isNew"
+                  pButton
+                  icon="pi pi-trash"
+                  class="p-button-sm"
+                  severity="danger"
+                  (click)="deleteRow(serviceArea)"
+                  title="Delete"
+                ></button>
               </div>
             </td>
-          </tr>
+            </tr>
         </ng-template>
         <ng-template pTemplate="paginatorleft" let-state>
           <div class="text-sm text-gray-600">
@@ -236,6 +236,19 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         </ng-template>
       </p-table>
     </div>
+       <!-- Master Type Dialog -->
+    <p-dialog
+      header="Service Area Type Master"
+      [(visible)]="masterDialogVisible['serviceAreaType']"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('serviceAreaType')">
+      <master-type [filterByKey]="'SERVICE_AREA'"></master-type>
+    </p-dialog>
   `,
   styles: [`
     :host ::ng-deep .p-dropdown {
@@ -278,6 +291,9 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
   searchTerm: string = '';
   contextSubscription: Subscription | null = null;
   contextId: string = '';
+  masterDialogVisible: { [key: string]: boolean } = {};
+  masterDialogLoading: { [key: string]: boolean } = {};
+
   
   constructor(
     private serviceAreaService: ServiceAreaService,
@@ -285,7 +301,8 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     private confirmationService: ConfirmationService,
     private contextService: ContextService,
     private configService: ConfigService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private masterTypeService: MasterTypeService
   ) {}
   
   ngOnInit() {
@@ -339,16 +356,30 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     });
   }
   
-  loadServiceAreaTypes() {
-    // Filter for SERVICE_AREA type directly in the component
-    const serviceAreaTypes = [
-      { label: 'Freight', value: 'Freight' },
-      { label: 'Sub service', value: 'Sub service' }
-    ];
-    
-    this.serviceAreaTypes = serviceAreaTypes;
-  }
-  
+loadServiceAreaTypes() {
+  this.masterTypeService.getAll().subscribe({
+    next: (types: any[]) => {
+      
+      this.serviceAreaTypes = types
+        .filter(t => t.key === 'SERVICE_AREA' && t.status === 'Active' )
+        .map(t => ({
+          label: t.value,   // adjust based on actual field names
+          value: t.value    // could also use t.id or t.code
+        }));
+      console.log('DEBUG dropdown options:', this.serviceAreaTypes);
+    },
+    error: (error) => {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to load service area types'
+      });
+      console.error('Error loading service area types:', error);
+    }
+  });
+}
+
+
   addRow() {
     const newServiceArea = {
       id: 'new_' + new Date().getTime(),
@@ -484,6 +515,20 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
       }
     });
   }
+  openMaster(key: string) {
+    this.masterDialogLoading[key] = true;
+    setTimeout(() => {
+      this.masterDialogVisible[key] = true;
+      this.masterDialogLoading[key] = false;
+      this.cdr.detectChanges();
+    }, 200);
+  }
+  closeMasterDialog(key: string) {
+    this.masterDialogVisible[key] = false;
+    // Refresh dropdown after closing master
+    this.loadServiceAreaTypes();
+  }
+  
   
   validateServiceArea(serviceArea: any): boolean {
     serviceArea.errors = {};
@@ -524,6 +569,26 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
+    deleteRow(serviceArea: any) {
+    if (serviceArea.id && !serviceArea.isNew) {
+      this.serviceAreaService.deleteServiceArea(serviceArea.id).subscribe({
+        next: () => {
+          this.serviceAreas = this.serviceAreas.filter(m => m !== serviceArea);
+          this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Service Area deleted' });
+          this.loadServiceAreas();
+        },
+        error: (err) => {
+          console.error('Failed to delete master', err);
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Delete failed' });
+        }
+      });
+    } else {
+      this.serviceAreas = this.serviceAreas.filter(m => m !== serviceArea);
+      this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Service Area deleted' });
+      this.loadServiceAreas();
+    }
+  }
+  
   
   clear(table: Table) {
     table.clear();
