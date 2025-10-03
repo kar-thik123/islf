@@ -17,6 +17,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MasterTypeComponent } from './mastertype';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { DialogModule } from 'primeng/dialog';
+import {MappingService} from '@/services/mapping.service';
+import {NumberSeriesService} from '@/services/number-series.service';
 
 @Component({
   selector: 'app-service-area',
@@ -115,6 +117,7 @@ import { DialogModule } from 'primeng/dialog';
                   <input pInputText [(ngModel)]="serviceArea.code" (ngModelChange)="onFieldChange(serviceArea, 'code', serviceArea.code)"
                     [ngClass]="getFieldErrorClass(serviceArea, 'code')"
                     class="w-full"
+                    [disabled]="!isManualSeries || serviceArea.isNew"
                   />
                   <small *ngIf="getFieldError(serviceArea, 'code')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(serviceArea, 'code') }}</small>
                 </div>
@@ -293,7 +296,9 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
   contextId: string = '';
   masterDialogVisible: { [key: string]: boolean } = {};
   masterDialogLoading: { [key: string]: boolean } = {};
-
+  // number series properties
+  isManualSeries:boolean = false;
+  mappedSvcAreaSeriesCode:string ='';
   
   constructor(
     private serviceAreaService: ServiceAreaService,
@@ -302,8 +307,75 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     private contextService: ContextService,
     private configService: ConfigService,
     private cdr: ChangeDetectorRef,
-    private masterTypeService: MasterTypeService
+    private masterTypeService: MasterTypeService,
+    private mappingService: MappingService,
+    private numberSeriesService: NumberSeriesService,
   ) {}
+
+  loadMappedServiceAreaCode(){
+    const context = this.contextService.getContext();
+    console.log('Loading Source Cargo code for context:', context);
+    
+    // Use context-based mapping with NumberSeriesRelation
+    this.mappingService.findMappingByContext(
+      'serviceAreaCode',
+      context.companyCode || '',
+      context.branchCode || '',
+      context.departmentCode || '',
+      context.serviceType || undefined
+    ).subscribe({
+      next: (contextMapping: any) => {
+        console.log('source mapping relation response:', contextMapping);
+        this.mappedSvcAreaSeriesCode = contextMapping.mapping;
+        if (this.mappedSvcAreaSeriesCode) {
+          this.numberSeriesService.getAll().subscribe({
+            next: (seriesList: any[]) => {
+              const found = seriesList.find((s: any) => s.code === this.mappedSvcAreaSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              console.log('cargo series code mapped:', this.mappedSvcAreaSeriesCode, 'is Manual:', this.isManualSeries);
+            },
+            error: (error: any) => {
+              console.error('Error loading number series:', error);
+              this.isManualSeries = true;
+            }
+          });
+        } else {
+          this.isManualSeries = true;
+          console.log('No source series code mapping found for context');
+        }
+      },
+      error: (error: any) => {
+        console.error('Error loading cargo mapping relation:', error);
+        // Fallback to generic mapping if context-based mapping fails
+        console.log('Falling back to generic mapping method');
+        this.mappingService.getMapping().subscribe({
+          next: (mapping: any) => {
+            console.log('Fallback mapping response:', mapping);
+            this.mappedSvcAreaSeriesCode = mapping.cargoCode || '';
+            if (this.mappedSvcAreaSeriesCode) {
+              this.numberSeriesService.getAll().subscribe({
+                next: (seriesList: any[]) => {
+                  const found = seriesList.find((s: any) => s.code === this.mappedSvcAreaSeriesCode);
+                  this.isManualSeries = !!(found && found.is_manual);
+                  console.log('source series code mapped (fallback):', this.mappedSvcAreaSeriesCode, 'Manual:', this.isManualSeries);
+                },
+                error: (error: any) => {
+                  console.error('Error loading number series (fallback):', error);
+                  this.isManualSeries = true; // Default to manual if error
+                }
+              });
+            } else {
+              this.isManualSeries = true; // Default to manual if no mapping
+            }
+          },
+          error: (error: any) => {
+            console.error('Error loading fallback mapping:', error);
+            this.isManualSeries = true; // Default to manual if error
+          }
+        });
+      }
+    });
+  }
   
   ngOnInit() {
     this.loadServiceAreaTypes();
@@ -318,7 +390,8 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
           this.contextId = this.getContextId(context);
           this.loadServiceAreas();
         }
-      });
+    });
+    this.loadMappedServiceAreaCode();
   }
   
   ngOnDestroy() {
@@ -383,7 +456,7 @@ loadServiceAreaTypes() {
   addRow() {
     const newServiceArea = {
       id: 'new_' + new Date().getTime(),
-      code: '',
+      code: this.isManualSeries ? '':(this.mappedSvcAreaSeriesCode || ''),
       type: '',
       service_area: '',
       from_location: false,
@@ -427,6 +500,11 @@ loadServiceAreaTypes() {
       status: serviceArea.status,
       context_id: this.contextId
     };
+
+    if (!this.isManualSeries && serviceArea.isNew) {
+      serviceAreaData.code = '';
+    }
+    
     
     if (serviceArea.isNew) {
       this.serviceAreaService.createServiceArea(serviceAreaData).subscribe({

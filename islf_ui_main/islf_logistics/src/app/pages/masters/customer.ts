@@ -24,6 +24,7 @@ import { ContextService } from '../../services/context.service';
 import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import {Country, State, City} from 'country-state-city';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -709,9 +710,9 @@ export class CustomerComponent implements OnInit, OnDestroy {
     { label: 'Ship', value: 'Ship' },
     { label: 'All', value: 'All' }
   ];
-  countryOptions: any[] = [];
-  stateOptions: any[] = [];
-  cityOptions: any[] = [];
+  countryOptions: {label: string, value: string}[] = [];
+  stateOptions: {label: string, value: string}[] = [];
+  cityOptions: {label: string, value: string}[] = [];
   billToCustomerOptions: any[] = [];
   placeOfSupplyOptions: any[] = [];
   mappedCustomerSeriesCode: string | null = null;
@@ -1310,15 +1311,22 @@ export class CustomerComponent implements OnInit, OnDestroy {
   }
 
   loadLocations() {
+    this.countryOptions = Country.getAllCountries().map(country=>({
+      label: country.name,
+      value: country.name
+    }));
+    this.stateOptions=[];
+    this.cityOptions=[];
     this.masterLocationService.getAll().subscribe({
       next: (locations) => {
         this.allLocations = locations.filter(l => l.active);
-        // Unique countries - show ALL active locations regardless of type
+        
+        {/* // Unique countries - show ALL active locations regardless of type
         this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
           .map(c => ({ label: toTitleCase(c), value: c }));
         // Reset state and city options
         this.stateOptions = [];
-        this.cityOptions = [];
+        this.cityOptions = [];*/}
         // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
         const gstLocations = this.allLocations.filter(l => l.type === 'GST');
         this.placeOfSupplyOptions = uniqueCaseInsensitive(gstLocations.map(l => `${l.gst_state_code}-${l.name}`))
@@ -1347,8 +1355,26 @@ export class CustomerComponent implements OnInit, OnDestroy {
     
     console.log('Selected country:', this.selectedCustomer.country);
     console.log('All locations for debugging:', this.allLocations);
+
+    // getting the country object for retrieving state of corresponding country 
+    let country = Country.getAllCountries().find(
+        c=>c.name===this.selectedCustomer?.country);
     
-    // Show ALL states for the selected country regardless of location type (case-insensitive)
+    if(country){
+      this.stateOptions= State.getStatesOfCountry(country.isoCode).map(
+        state => ({
+          label: state.name,
+          value: state.name
+        })
+      );
+    }
+
+    // clear city options when city changes
+    this.cityOptions = [];
+    this.selectedCustomer.state = '';
+    this.selectedCustomer.city = '';
+
+    {/* // Show ALL states for the selected country regardless of location type (case-insensitive)
     const matchingLocations = this.allLocations.filter(l => 
       l.country && l.country.toLowerCase() === this.selectedCustomer!.country.toLowerCase()
     );
@@ -1360,11 +1386,9 @@ export class CustomerComponent implements OnInit, OnDestroy {
     console.log('All states found:', states);
     
     this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
-    console.log('Final state options:', this.stateOptions);
+    console.log('Final state options:', this.stateOptions);*/}
     
-    this.cityOptions = [];
-    this.selectedCustomer.state = '';
-    this.selectedCustomer.city = '';
+
   }
 
   onStateChange() {
@@ -1375,7 +1399,9 @@ export class CustomerComponent implements OnInit, OnDestroy {
       }
       return;
     }
-    // Show ALL cities for the selected country and state regardless of location type (case-insensitive)
+
+    // Previous Master based listing
+    {/*// Show ALL cities for the selected country and state regardless of location type (case-insensitive)
     const cities = this.allLocations
       .filter(l => 
         l.country && l.country.toLowerCase() === this.selectedCustomer!.country.toLowerCase() &&
@@ -1384,7 +1410,30 @@ export class CustomerComponent implements OnInit, OnDestroy {
       .map(l => l.city)
       .filter(Boolean);
     this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
-    this.selectedCustomer.city = '';
+    this.selectedCustomer.city = ''; */}
+        // Check if both country and state are from the database
+    const country = Country.getAllCountries().find(c => c.name === this.selectedCustomer!.country);
+    if (country) {
+      const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === this.selectedCustomer!.state);
+          
+        if (state) {
+          // Both country and state are valid, load cities
+           this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(city => ({
+            label: city.name,
+            value: city.name
+          }));
+        } else {
+            // State is manual entry, keep existing city options or clear them
+            // Don't clear city options for manual state entries
+          }
+        } else {
+          // Country is manual entry, keep existing city options or clear them
+          // Don't clear city options for manual country entries
+        }
+        
+        // Clear city selection when state changes
+        this.selectedCustomer!.city = '';
+    
   }
 
   // Validation methods

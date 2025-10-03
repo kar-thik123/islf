@@ -16,6 +16,8 @@ import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MasterLocationComponent } from './masterlocation';
 import { DialogModule } from 'primeng/dialog';
+import {State} from 'country-state-city';
+import { state } from '@angular/animations';
 
 interface GstRule {
   id?: number;
@@ -462,24 +464,28 @@ export class GstSetupComponent implements OnInit, OnDestroy {
   }
 
   private loadLocationDropdownOptions() {
-    this.masterLocationService.getAll().subscribe({
-      next: (locations) => {
-        const gstLocations = (locations || []).filter(l => l.type === 'GST' && l.active);
-        this.locationOptions = gstLocations.map(l => ({
-          label: `${l.gst_state_code} - ${l.name}`,
-          value: `${l.gst_state_code} - ${l.name}`
-        }));
-        console.log('GST locations loaded successfully:', this.locationOptions.length);
-      },
-      error: (error) => {
-        console.error('Error loading GST locations:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load GST locations' 
-        });
-        this.locationOptions = [];
-      }
-    });
+    this.locationOptions = State.getStatesOfCountry('IN').map(state=>({
+      label: state.name,
+      value: state.name
+    }));
+    // this.masterLocationService.getAll().subscribe({
+    //   next: (locations) => {
+    //     const gstLocations = (locations || []).filter(l => l.type === 'GST' && l.active);
+    //     this.locationOptions = gstLocations.map(l => ({
+    //       label: `${l.gst_state_code} - ${l.name}`,
+    //       value: `${l.gst_state_code} - ${l.name}`
+    //     }));
+    //     console.log('GST locations loaded successfully:', this.locationOptions.length);
+    //   },
+    //   error: (error) => {
+    //     console.error('Error loading GST locations:', error);
+    //     this.messageService.add({ 
+    //       severity: 'error', 
+    //       summary: 'Error', 
+    //       detail: 'Failed to load GST locations' 
+    //     });
+    //     this.locationOptions = [];
+    //   }
+    // });
   }
 }

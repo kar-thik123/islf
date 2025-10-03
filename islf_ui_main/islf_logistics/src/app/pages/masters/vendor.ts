@@ -22,7 +22,10 @@ import { DepartmentService } from '../../services/department.service';
 import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
 import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
+// import {} from '@angular/material/'
+import {Country, State, City} from 'country-state-city';
 import { Subscription } from 'rxjs';
+
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
   return arr.filter(val => {
@@ -1303,32 +1306,39 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   loadLocations() {
-    this.masterLocationService.getAll().subscribe({
-      next: (locations) => {
-        this.allLocations = locations.filter(l => l.active);
-        // Unique countries - show ALL active locations regardless of type
-        this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
-          .map(c => ({ label: toTitleCase(c), value: c }));
-        // Reset state and city options
-        this.stateOptions = [];
-        this.cityOptions = [];
-        // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
-        const gstLocations = this.allLocations.filter(l => l.type === 'GST');
-        this.placeOfSupplyOptions = uniqueCaseInsensitive(gstLocations.map(l => `${l.gst_state_code}-${l.name}`))
-          .map(val => ({ label: val, value: val }));
-        console.log('Locations loaded:', this.allLocations.length);
-        console.log('Countries loaded:', this.countryOptions.length);
-        console.log('Place of supply options loaded:', this.placeOfSupplyOptions.length);
-      },
-      error: (error) => {
-        console.error('Error loading locations:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load locations' });
-      }
-    });
+    this.countryOptions = Country.getAllCountries().map(country=>({
+          label: country.name,
+          value: country.name
+        }));
+        this.stateOptions=[];
+        this.cityOptions=[];
+        this.masterLocationService.getAll().subscribe({
+          next: (locations) => {
+            this.allLocations = locations.filter(l => l.active);
+            
+            {/* // Unique countries - show ALL active locations regardless of type
+            this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
+              .map(c => ({ label: toTitleCase(c), value: c }));
+            // Reset state and city options
+            this.stateOptions = [];
+            this.cityOptions = [];*/}
+            // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
+            const gstLocations = this.allLocations.filter(l => l.type === 'GST');
+            this.placeOfSupplyOptions = uniqueCaseInsensitive(gstLocations.map(l => `${l.gst_state_code}-${l.name}`))
+              .map(val => ({ label: val, value: val }));
+            console.log('Locations loaded:', this.allLocations.length);
+            console.log('Countries loaded:', this.countryOptions.length);
+            console.log('Place of supply options loaded:', this.placeOfSupplyOptions.length);
+          },
+          error: (error) => {
+            console.error('Error loading locations:', error);
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load locations' });
+          }
+        });
   }
 
   onCountryChange() {
-    if (!this.selectedVendor || !this.selectedVendor.country) {
+ if (!this.selectedVendor || !this.selectedVendor.country) {
       this.stateOptions = [];
       this.cityOptions = [];
       if (this.selectedVendor) {
@@ -1340,8 +1350,26 @@ export class VendorComponent implements OnInit, OnDestroy {
     
     console.log('Selected country:', this.selectedVendor.country);
     console.log('All locations for debugging:', this.allLocations);
+
+    // getting the country object for retrieving state of corresponding country 
+    let country = Country.getAllCountries().find(
+        c=>c.name===this.selectedVendor?.country);
     
-    // Show ALL states for the selected country regardless of location type (case-insensitive)
+    if(country){
+      this.stateOptions= State.getStatesOfCountry(country.isoCode).map(
+        state => ({
+          label: state.name,
+          value: state.name
+        })
+      );
+    }
+
+    // clear city options when city changes
+    this.cityOptions = [];
+    this.selectedVendor.state = '';
+    this.selectedVendor.city = '';
+
+    {/* // Show ALL states for the selected country regardless of location type (case-insensitive)
     const matchingLocations = this.allLocations.filter(l => 
       l.country && l.country.toLowerCase() === this.selectedVendor!.country.toLowerCase()
     );
@@ -1353,11 +1381,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     console.log('All states found:', states);
     
     this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
-    console.log('Final state options:', this.stateOptions);
-    
-    this.cityOptions = [];
-    this.selectedVendor.state = '';
-    this.selectedVendor.city = '';
+    console.log('Final state options:', this.stateOptions);*/}
   }
 
   onStateChange() {
@@ -1368,7 +1392,9 @@ export class VendorComponent implements OnInit, OnDestroy {
       }
       return;
     }
-    // Show ALL cities for the selected country and state regardless of location type (case-insensitive)
+
+    // Previous Master based listing
+    {/*// Show ALL cities for the selected country and state regardless of location type (case-insensitive)
     const cities = this.allLocations
       .filter(l => 
         l.country && l.country.toLowerCase() === this.selectedVendor!.country.toLowerCase() &&
@@ -1377,7 +1403,29 @@ export class VendorComponent implements OnInit, OnDestroy {
       .map(l => l.city)
       .filter(Boolean);
     this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
-    this.selectedVendor.city = '';
+    this.selectedVendor.city = ''; */}
+        // Check if both country and state are from the database
+    const country = Country.getAllCountries().find(c => c.name === this.selectedVendor!.country);
+    if (country) {
+      const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === this.selectedVendor!.state);
+          
+        if (state) {
+          // Both country and state are valid, load cities
+           this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(city => ({
+            label: city.name,
+            value: city.name
+          }));
+        } else {
+            // State is manual entry, keep existing city options or clear them
+            // Don't clear city options for manual state entries
+          }
+        } else {
+          // Country is manual entry, keep existing city options or clear them
+          // Don't clear city options for manual country entries
+        }
+        
+        // Clear city selection when state changes
+        this.selectedVendor!.city = '';    
   }
 
   // Validation methods

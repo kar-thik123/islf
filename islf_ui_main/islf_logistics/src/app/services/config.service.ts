@@ -122,7 +122,7 @@ export interface ValidationConfig {
   manualCustomerFilter: string;
   basisFilter: string;
   sourceFilter: string; 
-  serviceAreaFilter:string// Add this line
+  serviceAreaFilter: string// Add this line
 }
 
 export interface AppConfig {
