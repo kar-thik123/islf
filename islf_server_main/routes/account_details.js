@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get account details by entity
 router.get('/:entityType/:entityCode', async (req, res) => {
@@ -34,13 +35,14 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO account_details 
        (entity_type, entity_code, beneficiary, bank_address, bank_name, account_number, 
-        bank_branch_code, rtgs_neft_code, account_type, swift_code, is_primary) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        bank_branch_code, rtgs_neft_code, account_type, swift_code, is_primary, created_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,$12) RETURNING *`,
       [entity_type, entity_code, beneficiary, bank_address, bank_name, account_number,
-       bank_branch_code, rtgs_neft_code, account_type, swift_code, is_primary]
+       bank_branch_code, rtgs_neft_code, account_type, swift_code, is_primary,created_by]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

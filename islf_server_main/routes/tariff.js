@@ -2,18 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
-
-// 🔹 Extract username safely
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  console.log('User object from JWT:', req.user);
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // 🔹 Enforce hierarchy: company → branch → department
 function enforceHierarchy(companyCode, branchCode, departmentCode) {
@@ -236,14 +225,15 @@ router.post('/', async (req, res) => {
     }
 
     // 🔹 Insert new tariff
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO tariff (
         code, mode, shipping_type, cargo_type, tariff_type, basis, container_type, item_name, currency,
         location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, 
         charges, freight_charge_type, effective_date, period_start_date, period_end_date, is_mandatory,
-        company_code, branch_code, department_code
+        company_code, branch_code, department_code, created_by
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
       ) RETURNING *`,
       [
         code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
@@ -251,7 +241,7 @@ router.post('/', async (req, res) => {
         cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
         cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
         cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
-        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
+        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code, created_by
       ]
     );
 

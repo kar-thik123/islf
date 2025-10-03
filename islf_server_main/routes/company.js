@@ -2,7 +2,7 @@
   const pool = require('../db');
   const { logSetupEvent } = require('../log');
   const router = express.Router();
-
+  const { getUsernameFromToken } = require('../utils/context-helper');
   // Get all companies
   router.get('/', async (req, res) => {
     try {
@@ -30,9 +30,10 @@
   router.post('/', async (req, res) => {
     const { code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type } = req.body;
     try {
+      const created_by = getUsernameFromToken(req);
       const result = await pool.query(
-        'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14) RETURNING *',
-        [code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type]
+        'INSERT INTO companies (code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14,$15) RETURNING *',
+        [code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo,company_type,created_by]
       );
       
       // Log the setup event

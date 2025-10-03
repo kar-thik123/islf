@@ -2,20 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
-
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  
-  // Debug: log what's in the user object
-  console.log('User object from JWT:', req.user);
-  
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get all container codes with optional context filtering
 router.get('/', async (req, res) => {
@@ -81,11 +68,12 @@ router.get('/:code', async (req, res) => {
 router.post('/', async (req, res) => {
   const { code, description, status, company_code, branch_code, department_code } = req.body;
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      `INSERT INTO container_code (code, description, status, company_code, branch_code, department_code)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO container_code (code, description, status, company_code, branch_code, department_code,created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [code, description, status || 'Active', company_code, branch_code, department_code]
+      [code, description, status || 'Active', company_code, branch_code, department_code,created_by]
     );
     // Log the master event
     await logMasterEvent({

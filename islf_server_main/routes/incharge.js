@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { logSetupEvent } = require('../log');
 const router = express.Router();
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get all incharge records for an entity
 router.get('/:entityType/:entityCode', async (req, res) => {
@@ -35,6 +36,7 @@ router.get('/:entityType/:entityCode/active', async (req, res) => {
 
 // Create new incharge record
 router.post('/', async (req, res) => {
+  
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -48,17 +50,17 @@ router.post('/', async (req, res) => {
         ['inactive', entity_type, entity_code, 'active']
       );
     }
-    
+    const created_by = getUsernameFromToken(req);
     const result = await client.query(
-      'INSERT INTO incharge (entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9,$10,$11,$12,$13) RETURNING *',
-      [entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory]
+      'INSERT INTO incharge (entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9,$10,$11,$12,$13,$14) RETURNING *',
+      [entity_type, entity_code, incharge_name, phone_number, email, status, from_date, to_date,din_pan, designation,appointment_date,cessation_date,signatory,created_by]
     );
     
     await client.query('COMMIT');
     
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req) ,
       action: 'CREATE',
       setupType: 'Incharge',
       entityType: entity_type,

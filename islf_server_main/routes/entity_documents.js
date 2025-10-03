@@ -4,6 +4,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Test route to verify the router is working
 router.get('/test', (req, res) => {
@@ -296,11 +297,12 @@ router.post('/upload', upload.single('document'), async (req, res) => {
     fs.renameSync(file.path, finalPath);
 
     // Insert into DB
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO entity_documents (
-        entity_type, entity_code, doc_type, document_number, valid_from, valid_till,
+        entity_type, entity_code, doc_type, document_number, valid_from, valid_till,created_by
         file_path, file_name, file_size, mime_type
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,$11) RETURNING *`,
       [
         entity_type,
         entity_code,
@@ -308,6 +310,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
         document_number || null,
         valid_from || null,
         valid_till || null,
+        created_by,
         finalPath,
         file.originalname,
         file.size,

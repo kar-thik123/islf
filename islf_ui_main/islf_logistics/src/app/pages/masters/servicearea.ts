@@ -117,7 +117,7 @@ import {NumberSeriesService} from '@/services/number-series.service';
                   <input pInputText [(ngModel)]="serviceArea.code" (ngModelChange)="onFieldChange(serviceArea, 'code', serviceArea.code)"
                     [ngClass]="getFieldErrorClass(serviceArea, 'code')"
                     class="w-full"
-                    [disabled]="!isManualSeries || serviceArea.isNew"
+                    [disabled]="!isManualSeries && serviceArea.isNew"
                   />
                   <small *ngIf="getFieldError(serviceArea, 'code')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(serviceArea, 'code') }}</small>
                 </div>
@@ -163,7 +163,7 @@ import {NumberSeriesService} from '@/services/number-series.service';
                 <p-checkbox [(ngModel)]="serviceArea.from_location" [binary]="true" (onChange)="onFieldChange(serviceArea, 'from_location', serviceArea.from_location)"></p-checkbox>
               </ng-container>
               <ng-template #fromText>
-                <i [ngClass]="{'pi pi-check text-green-500': serviceArea.from_location, 'pi pi-times text-red-500': !serviceArea.from_location}"></i>
+                <span>{{ serviceArea.from_location ? '✓' : '✗' }}</span>
               </ng-template>
             </td>
             <td>
@@ -171,7 +171,7 @@ import {NumberSeriesService} from '@/services/number-series.service';
                 <p-checkbox [(ngModel)]="serviceArea.to_location" [binary]="true" (onChange)="onFieldChange(serviceArea, 'to_location', serviceArea.to_location)"></p-checkbox>
               </ng-container>
               <ng-template #toText>
-                <i [ngClass]="{'pi pi-check text-green-500': serviceArea.to_location, 'pi pi-times text-red-500': !serviceArea.to_location}"></i>
+                <span>{{ serviceArea.to_location ? '✓' : '✗' }}</span>
               </ng-template>
             </td>
             <td>
@@ -493,6 +493,7 @@ loadServiceAreaTypes() {
     
     const serviceAreaData = {
       code: serviceArea.code,
+      seriesCode: this.mappedSvcAreaSeriesCode,  
       type: serviceArea.type,
       service_area: serviceArea.service_area,
       from_location: serviceArea.from_location,

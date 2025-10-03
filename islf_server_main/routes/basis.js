@@ -2,20 +2,9 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
+const { getUsernameFromToken } = require('../utils/context-helper');
 
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  
-  // Debug: log what's in the user object
-  console.log('User object from JWT:', req.user);
-  
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+
 
 // Get all basis codes with optional context filtering
 router.get('/', async (req, res) => {
@@ -79,13 +68,14 @@ router.get('/:code', async (req, res) => {
 
 // CREATE new basis code
 router.post('/', async (req, res) => {
+  const created_by= getUsernameFromToken(req);
   const { code, description, status, company_code, branch_code, department_code } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO basis (code, description, status, company_code, branch_code, department_code, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `INSERT INTO basis (code, description, status, company_code, branch_code, department_code, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [code, description, status || 'Active', company_code, branch_code, department_code]
+      [code, description, status || 'Active', company_code, branch_code, department_code, created_by]
     );
     // Log the master event
     await logMasterEvent({

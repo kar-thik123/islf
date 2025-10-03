@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { logSetupEvent } = require('../log');
 const router = express.Router();
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get all departments, optionally filtered by branch_code
 router.get('/', async (req, res) => {
@@ -41,9 +42,10 @@ router.get('/:code', async (req, res) => {
 router.post('/', async (req, res) => {
   const { code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst = null } = req.body;
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      'INSERT INTO departments (code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-      [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst]
+      'INSERT INTO departments (code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,$13) RETURNING *',
+      [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst,created_by]
     );
     
     // Log the setup event

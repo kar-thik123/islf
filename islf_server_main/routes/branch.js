@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { logSetupEvent } = require('../log');
 const router = express.Router();
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get all branches, optionally filtered by company_code
 router.get('/', async (req, res) => {
@@ -45,6 +46,7 @@ router.post('/', async (req, res) => {
     if (!code) {
       return res.status(400).json({ error: 'Branch code is required' });
     }
+    const created_by = getUsernameFromToken(req);
     
     // Check if branch code already exists
     const existingBranch = await pool.query('SELECT code FROM branches WHERE code = $1', [code]);
@@ -53,8 +55,8 @@ router.post('/', async (req, res) => {
     }
     
     const result = await pool.query(
-      'INSERT INTO branches (code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-      [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks]
+      'INSERT INTO branches (code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,$13) RETURNING *',
+      [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date ||null, close_date||null, remarks,created_by]
     );
     
     // Log the setup event
