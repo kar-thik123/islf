@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { logSetupEvent } = require('../log');
 const router = express.Router();
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get all service types
 router.get('/', async (req, res) => {
@@ -52,16 +53,17 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO service_types 
-       (code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+       (code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
        RETURNING *`,
-      [code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks]
+      [code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by]
     );
 
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: getUsernameFromToken(req),
       action: 'CREATE',
       setupType: 'ServiceType',
       entityCode: code,

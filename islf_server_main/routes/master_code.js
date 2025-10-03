@@ -65,9 +65,10 @@ router.post('/', async (req, res) => {
   const { code, description, reference, status,company_code,branch_code,department_code } = req.body;
 
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      'INSERT INTO master_code (code, description, reference, status,company_code,branch_code,department_code) VALUES ($1, $2, $3, $4,$5,$6,$7) RETURNING *',
-      [code, description, reference, status,company_code,branch_code,department_code]
+      'INSERT INTO master_code (code, description, reference, status,company_code,branch_code,department_code,created_by) VALUES ($1, $2, $3, $4,$5,$6,$7,$8) RETURNING *',
+      [code, description, reference, status,company_code,branch_code,department_code,created_by]
     );
  
    // Log the master event

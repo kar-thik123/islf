@@ -108,12 +108,14 @@ router.post('/', async (req, res) => {
     if (endingDate && !endingNo) {
       finalEndingNo = 0;
     }
-    
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, ending_date, prefix, last_no_used, increment_by, company_code, branch_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, branch_code, department_code]
+      'INSERT INTO number_relation (number_series, starting_date, starting_no, ending_no, ending_date, prefix, last_no_used, increment_by, company_code, branch_code, department_code,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+      [numberSeries, processedStartingDate, startingNo, finalEndingNo, processedEndingDate, prefix, lastNoUsed, incrementBy, finalCompanyCode, branch_code, department_code, created_by]
     );
-    await logSetupEvent({username:getUsernameFromToken(req)||'System',action:'CREATE',
+    await logSetupEvent({
+      username:getUsernameFromToken(req),
+      action:'CREATE',
       setupType: 'No.Series Relation',
       entityCode: company_code,
       details: `New No.Series Relation ${numberSeries} Created`

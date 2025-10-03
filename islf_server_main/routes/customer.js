@@ -2,20 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { logMasterEvent } = require('../log');
 const router = express.Router();
-
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  
-  // Debug: log what's in the user object
-  console.log('User object from JWT:', req.user);
-  
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+  const { getUsernameFromToken } = require('../utils/context-helper');
 
 // GET all customers with optional context-based filtering
 router.get('/', async (req, res) => {
@@ -86,7 +73,7 @@ router.post('/', async (req, res) => {
   let {
     seriesCode, customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
     bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, contacts,
-    company_code, branch_code, department_code, service_type_code // <-- Use snake_case
+    company_code, branch_code, department_code, service_type_code, // <-- Use snake_case
   } = req.body;
   // Debug: log the request body
   console.log('REQ BODY:', req.body);
@@ -201,20 +188,20 @@ router.post('/', async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
+      const created_by = getUsernameFromToken(req);
       // Insert customer without contacts field
       const result = await client.query(
         `INSERT INTO customer (
           customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
           bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no,
-          company_code, branch_code, department_code, service_type_code
+          company_code, branch_code, department_code, service_type_code,created_by
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-          $18, $19, $20, $21 ) RETURNING *`,
+          $18, $19, $20, $21,$22 ) RETURNING *`,
         [
           customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
           bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no,
-          company_code, branch_code, department_code, service_type_code
+          company_code, branch_code, department_code, service_type_code,created_by
         ]
       );
       

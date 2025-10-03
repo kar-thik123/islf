@@ -2,20 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { logMasterEvent } = require('../log');
-
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request');
-    return 'system';
-  }
-  
-  // Debug: log what's in the user object
-  console.log('User object from JWT:', req.user);
-  
-  const username = req.user.name || req.user.username || req.user.email || 'system';
-  console.log('Extracted username:', username);
-  return username;
-}
+const {getUsernameFromToken}=require('../utils/context-helper')
 
 // Get all master UOMs with optional context filtering
 router.get('/', async (req, res) => {
@@ -64,11 +51,12 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { uom_type, code, description, active, company_code, branch_code, department_code } = req.body;
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      `INSERT INTO master_uom (uom_type, code, description, active, company_code, branch_code, department_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO master_uom (uom_type, code, description, active, company_code, branch_code, department_code, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7,$8)
        RETURNING *`,
-      [uom_type, code, description, active, company_code, branch_code, department_code]
+      [uom_type, code, description, active, company_code, branch_code, department_code, created_by]
     );
     // Log the master event
     await logMasterEvent({

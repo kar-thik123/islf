@@ -70,9 +70,10 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   const { code, description, basecode, is_default, is_manual, is_primary, company_code, branch_code, department_code } = req.body;
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      'INSERT INTO number_series (code, description, basecode, is_default, is_manual, is_primary, company_code, branch_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [code, description, basecode, is_default, is_manual, is_primary, company_code, branch_code, department_code]
+      'INSERT INTO number_series (code, description, basecode, is_default, is_manual, is_primary, company_code, branch_code, department_code,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10) RETURNING *',
+      [code, description, basecode, is_default, is_manual, is_primary, company_code, branch_code, department_code, created_by]
     );
     
     await logSetupEvent({username: getUsernameFromToken(req) || 'System', action: 'CREATE', setupType:'Number Series' , entityCode: company_code || 'None', details:`Number Series Created for Base Code: ${basecode}`} );

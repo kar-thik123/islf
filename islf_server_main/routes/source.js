@@ -221,15 +221,15 @@ router.post('/', async (req, res) => {
     } else if (!code || code === '') {
       code = 'SRC-' + Date.now();
     }
-
+    const created_by = getUsernameFromToken(req);
     // 🔹 Insert new tariff
     const result = await pool.query(
       `INSERT INTO sourcing (
         code, mode, shipping_type, cargo_type, basis, item_name, location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, currency,
         charges, effective_date, period_start_date, period_end_date, is_mandatory,
-        company_code, branch_code, department_code
+        company_code, branch_code, department_code,created_by
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, $21,$22
       ) RETURNING *`,
       [
         code, cleanData.mode, cleanData.shippingType, cleanData.cargoType,
@@ -237,7 +237,7 @@ router.post('/', async (req, res) => {
         cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
         cleanData.vendorType, cleanData.vendorName, cleanData.currency,
         cleanData.charges, cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
-        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
+        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code,created_by
       ]
     );
 

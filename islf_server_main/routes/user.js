@@ -249,11 +249,12 @@ router.post('/', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO users (
-        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, company_code, branch_code, department_code, created_at
+        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, company_code, branch_code, department_code,created_by, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25, NOW()
       ) RETURNING *`,
       [
         username,
@@ -279,7 +280,8 @@ router.post('/', async (req, res) => {
         permission,
         company_code,
         branch_code,
-        department_code
+        department_code,
+        created_by
       ]
     );
     await logSetupEvent({username:getUsernameFromToken(req)||'System',

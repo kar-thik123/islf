@@ -1,6 +1,8 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
+const { logMasterEvent } = require('../log');
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // GET mapping (fetch most recent mapping relation)
 router.get('/', async (req, res) => {
@@ -47,13 +49,15 @@ router.post('/', async (req, res) => {
     serviceTypeCode
   } = req.body;
   try {
+    const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      `INSERT INTO mapping_relations (code_type, mapping, company_code, branch_code, department_code, service_type_code)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO mapping_relations (code_type, mapping, company_code, branch_code, department_code, service_type_code,created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [codeType, mapping, companyCode, branchCode, departmentCode, serviceTypeCode]
+      [codeType, mapping, companyCode, branchCode, departmentCode, serviceTypeCode, created_by]
     );
     res.status(201).json(result.rows[0]);
+    
   } catch (err) {
     console.error('Error saving mapping:', err);
     res.status(500).json({ error: 'Failed to save mapping' });
