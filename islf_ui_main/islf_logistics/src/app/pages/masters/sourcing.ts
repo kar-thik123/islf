@@ -19,8 +19,8 @@ import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
-import { forkJoin, Subscription } from 'rxjs';
-import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { forkJoin, Subscription, of } from 'rxjs';
+import { tap, debounceTime, distinctUntilChanged, catchError } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { VendorService } from '@/services/vendor.service';
 import { ContextService } from '../../services/context.service';
@@ -44,6 +44,8 @@ import { NumberSeriesRelationService } from '@/services/number-series-relation.s
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { ChargeTypeMasterComponent } from './chargetype';
+import { ServiceAreaService } from '@/services/service-area.service';
+import { ServiceAreaComponent } from './servicearea';
 
 
 @Component({
@@ -70,7 +72,8 @@ import { ChargeTypeMasterComponent } from './chargetype';
     MasterLocationComponent,
     MasterItemComponent,
     InputSwitchModule,
-    ChargeTypeMasterComponent
+    ChargeTypeMasterComponent,
+    ServiceAreaComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -268,6 +271,18 @@ import { ChargeTypeMasterComponent } from './chargetype';
               <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select Shipping Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
               <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
             </div>
+              <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Service Area</label>
+              <div class="flex gap-2">
+                <p-dropdown [options]="serviceAreaOptions" [(ngModel)]="selectedTariff.serviceArea" (ngModelChange)="onFieldChange('serviceArea', selectedTariff.serviceArea)" [ngClass]="getFieldErrorClass('serviceArea')" [ngStyle]="getFieldErrorStyle('serviceArea')" placeholder="Select Service Area" class="flex-1" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['serviceArea'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['serviceArea']"
+                  (click)="openMaster('serviceArea')"></button>
+              </div>
+              <small *ngIf="fieldErrors['serviceArea']" class="p-error">{{ fieldErrors['serviceArea'] }}</small>
+            </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Vendor Type</label>
               <div class="flex gap-2">
@@ -348,6 +363,7 @@ import { ChargeTypeMasterComponent } from './chargetype';
               </div>
               <small *ngIf="fieldErrors['basis']" class="p-error">{{ fieldErrors['basis'] }}</small>
             </div>
+          
           </div>
           
           <!-- 3. Location Details -->
@@ -569,6 +585,24 @@ import { ChargeTypeMasterComponent } from './chargetype';
         <master-location></master-location>
       </ng-template>
     </p-dialog>
+     <p-dialog
+      header="Service Area Master"
+      [(visible)]="showServiceAreaDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('serviceArea')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <app-service-area *ngIf="showServiceAreaDialog" (onClose)="closeMasterDialog('serviceArea')"></app-service-area>
+      </ng-template>
+    </p-dialog>
+
   `,
  styles: [`
     .form-sections {
@@ -769,6 +803,7 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
   currencyCodeOptions: any[] = [];
   itemCodeOptions: any[] = [];
   uomOptions: any[]=[];
+  serviceAreaOptions: any[] = [];
   
   // Number series properties
   isManualSeries: boolean = false;
@@ -792,6 +827,7 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
   showMasterTypeDialog = false;
   showMasterItemDialog = false;
   showMasterLocationDialog = false;
+  showServiceAreaDialog = false;
   masterTypeFilter = '';
   masterDialogLoading: { [key: string]: boolean } = {};
   mandatoryOptions = [
@@ -825,6 +861,7 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private numberSeriesRelationService: NumberSeriesRelationService,
+    private serviceAreaService: ServiceAreaService,
     private cdr: ChangeDetectorRef,
     private router: Router
   ) {}
@@ -1331,6 +1368,21 @@ loadBasisOptions() {
     );
   }
   
+  loadServiceAreaOptions() {
+    return this.serviceAreaService.getServiceAreas().pipe(
+      tap((serviceAreas: any[]) => {
+        this.serviceAreaOptions = (serviceAreas || [])
+          .filter(sa => sa.status === 'active')
+          .map(sa => ({ label: sa.service_area, value: sa.service_area }));
+        console.log('Service area options:', this.serviceAreaOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading service areas:', error);
+        return of([]);
+      })
+    );
+  }
+  
   loadVendorTypeOptions() {
     return this.masterTypeService.getAll().pipe(
       tap((types: any[]) => {
@@ -1665,7 +1717,8 @@ loadBasisOptions() {
       // this.loadCurrencyOptions(),
       this.loadItemOptions(),
       this.loadVendorTypeOptions(),
-      this.loadVendorOptions()
+      this.loadVendorOptions(),
+      this.loadServiceAreaOptions()
     ]).subscribe(() => {
       this.updateFormValidity();
       this.cdr.detectChanges();
@@ -1916,6 +1969,8 @@ loadBasisOptions() {
       this.showMasterTypeDialog = true;
     } else if (type === 'from' || type === 'to') {
       this.showMasterLocationDialog = true;
+    } else if (type === 'serviceArea') {
+      this.showServiceAreaDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -1998,6 +2053,13 @@ loadBasisOptions() {
             // Even on error, attempt to refresh UI
             this.cdr.detectChanges();
           }
+        });
+        break;
+      case 'serviceArea':
+        this.showServiceAreaDialog = false;
+        this.loadServiceAreaOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
         });
         break;
       default:

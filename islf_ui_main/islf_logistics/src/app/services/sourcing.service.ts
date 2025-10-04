@@ -19,6 +19,7 @@ export interface Source {
   currency: string;
   vendorType: string;
   vendorName: string;
+  serviceArea: string;
   charges: number;
   effectiveDate: string;
   periodStartDate: string;
