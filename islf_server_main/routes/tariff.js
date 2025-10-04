@@ -102,6 +102,7 @@ router.post('/', async (req, res) => {
         AND company_code = $21
         AND (branch_code = $22 OR (branch_code IS NULL AND $22 IS NULL))
         AND (department_code = $23 OR (department_code IS NULL AND $23 IS NULL))
+        AND (service_area = $24 OR (service_area IS NULL AND $24 IS NULL))
       LIMIT 1
     `;
 
@@ -110,7 +111,7 @@ router.post('/', async (req, res) => {
       cleanData.containerType, cleanData.itemName, cleanData.currency, cleanData.locationTypeFrom, cleanData.from,
       cleanData.locationTypeTo, cleanData.to, cleanData.vendorType, cleanData.vendorName, cleanData.effectiveDate,
       cleanData.periodStartDate, cleanData.periodEndDate, cleanData.charges, cleanData.freightChargeType,
-      cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code
+      cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code, cleanData.serviceArea
     ]);
 
     if (duplicateResult.rows.length > 0) {
@@ -231,9 +232,9 @@ router.post('/', async (req, res) => {
         code, mode, shipping_type, cargo_type, tariff_type, basis, container_type, item_name, currency,
         location_type_from, location_type_to, from_location, to_location, vendor_type, vendor_name, 
         charges, freight_charge_type, effective_date, period_start_date, period_end_date, is_mandatory,
-        company_code, branch_code, department_code, created_by
+        company_code, branch_code, department_code, service_area, created_by
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
       ) RETURNING *`,
       [
         code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
@@ -241,7 +242,7 @@ router.post('/', async (req, res) => {
         cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
         cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
         cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
-        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code, created_by
+        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code, cleanData.serviceArea, created_by
       ]
     );
 
@@ -280,15 +281,16 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE tariff SET
         code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
-        location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20, is_mandatory = $21
-      WHERE id = $22 RETURNING *`,
+        location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20, is_mandatory = $21,
+        company_code = $22, branch_code = $23, department_code = $24, service_area = $25
+      WHERE id = $26 RETURNING *`,
       [
         cleanData.code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
         cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
         cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
         cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
         cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
-        cleanData.isMandatory || false, id
+        cleanData.isMandatory || false, cleanData.serviceArea,id
       ]
     );
 
@@ -318,7 +320,8 @@ router.put('/:id', async (req, res) => {
       effective_date: { newVal: cleanData.effectiveDate, db: 'effective_date' },
       period_start_date: { newVal: cleanData.periodStartDate, db: 'period_start_date' },
       period_end_date: { newVal: cleanData.periodEndDate, db: 'period_end_date' },
-      is_mandatory: { newVal: cleanData.isMandatory || false, db: 'is_mandatory' }
+      is_mandatory: { newVal: cleanData.isMandatory || false, db: 'is_mandatory' },
+      service_area: { newVal: cleanData.serviceArea, db: 'service_area' }
     };
 
     const normalize = (value) => {

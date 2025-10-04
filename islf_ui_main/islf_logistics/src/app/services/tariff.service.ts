@@ -22,6 +22,7 @@ export interface Tariff {
   to: string;
   vendorType: string;
   vendorName: string;
+  serviceArea: string;
   charges: number;
   freightChargeType: string;
   effectiveDate: string;
