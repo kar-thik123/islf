@@ -1,16 +1,16 @@
-const express = require('express');
-const pool = require('../db');
+const express = require("express");
+const pool = require("../db");
 const router = express.Router();
-const { logMasterEvent } = require('../log');
-const { getUsernameFromToken } = require('../utils/context-helper');
+const { logMasterEvent } = require("../log");
+const { getUsernameFromToken } = require("../utils/context-helper");
 
 // 🔹 Enforce hierarchy: company → branch → department
 function enforceHierarchy(companyCode, branchCode, departmentCode) {
   if (!companyCode && (branchCode || departmentCode)) {
-    throw new Error('Branch/Department cannot be used without Company.');
+    throw new Error("Branch/Department cannot be used without Company.");
   }
   if (!branchCode && departmentCode) {
-    throw new Error('Department cannot be used without Branch.');
+    throw new Error("Department cannot be used without Branch.");
   }
 }
 
@@ -21,7 +21,7 @@ function buildWhereClause(filters) {
   let index = 1;
 
   for (const [key, value] of Object.entries(filters)) {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && value !== "") {
       conditions.push(`${key} = $${index}`);
       values.push(value);
       index++;
@@ -29,13 +29,13 @@ function buildWhereClause(filters) {
   }
 
   return {
-    clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
-    values
+    clause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
+    values,
   };
 }
 
 // GET all tariffs
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
     enforceHierarchy(companyCode, branchCode, departmentCode);
@@ -43,9 +43,9 @@ router.get('/', async (req, res) => {
     const filters = {
       company_code: companyCode,
       branch_code: branchCode,
-      department_code: departmentCode
+      department_code: departmentCode,
     };
-    console.log("tariff Filter:",filters);
+    console.log("tariff Filter:", filters);
     const { clause, values } = buildWhereClause(filters);
 
     const query = `
@@ -55,26 +55,30 @@ router.get('/', async (req, res) => {
       ORDER BY id ASC
     `;
 
-    console.log("tariff query:",query,"tariff Value", values)
+    console.log("tariff query:", query, "tariff Value", values);
     const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching tariffs:', err);
-    res.status(400).json({ error: err.message || 'Failed to fetch tariffs' });
+    console.error("Error fetching tariffs:", err);
+    res.status(400).json({ error: err.message || "Failed to fetch tariffs" });
   }
 });
 
 // CREATE new tariff
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   const data = req.body;
 
   // 🔹 Convert empty strings → null
   const cleanData = Object.fromEntries(
-    Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
+    Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
   );
 
   try {
-    enforceHierarchy(cleanData.company_code, cleanData.branch_code, cleanData.department_code);
+    enforceHierarchy(
+      cleanData.company_code,
+      cleanData.branch_code,
+      cleanData.department_code
+    );
 
     // 🔹 Duplicate check
     const duplicateCheckQuery = `
@@ -107,28 +111,47 @@ router.post('/', async (req, res) => {
     `;
 
     const duplicateResult = await pool.query(duplicateCheckQuery, [
-      cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType, cleanData.basis,
-      cleanData.containerType, cleanData.itemName, cleanData.currency, cleanData.locationTypeFrom, cleanData.from,
-      cleanData.locationTypeTo, cleanData.to, cleanData.vendorType, cleanData.vendorName, cleanData.effectiveDate,
-      cleanData.periodStartDate, cleanData.periodEndDate, cleanData.charges, cleanData.freightChargeType,
-      cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code, cleanData.serviceArea
+      cleanData.mode,
+      cleanData.shippingType,
+      cleanData.cargoType,
+      cleanData.tariffType,
+      cleanData.basis,
+      cleanData.containerType,
+      cleanData.itemName,
+      cleanData.currency,
+      cleanData.locationTypeFrom,
+      cleanData.from,
+      cleanData.locationTypeTo,
+      cleanData.to,
+      cleanData.vendorType,
+      cleanData.vendorName,
+      cleanData.effectiveDate,
+      cleanData.periodStartDate,
+      cleanData.periodEndDate,
+      cleanData.charges,
+      cleanData.freightChargeType,
+      cleanData.isMandatory || false,
+      cleanData.company_code,
+      cleanData.branch_code,
+      cleanData.department_code,
+      cleanData.serviceArea,
     ]);
 
     if (duplicateResult.rows.length > 0) {
       return res.status(400).json({
-        error: 'Duplicate tariff found',
+        error: "Duplicate tariff found",
         message: `A tariff with the same combination of fields already exists (Code: ${duplicateResult.rows[0].code})`,
-        duplicateCode: duplicateResult.rows[0].code
+        duplicateCode: duplicateResult.rows[0].code,
       });
     }
-
+    console.log("DEBUG: req body,", cleanData);
     let code = cleanData.code;
     let seriesCode;
 
     // 🔹 Number series lookup
-    if ((!code || code === '') && cleanData.company_code) {
-      let whereConditions = ['code_type = $1', 'company_code = $2'];
-      let queryParams = ['tariffCode', cleanData.company_code];
+    if ((!code || code === "") && cleanData.company_code) {
+      let whereConditions = ["code_type = $1", "company_code = $2"];
+      let queryParams = ["tariffCode", cleanData.company_code];
       let paramIndex = 3;
 
       if (cleanData.branch_code) {
@@ -136,19 +159,21 @@ router.post('/', async (req, res) => {
         queryParams.push(cleanData.branch_code);
         paramIndex++;
       } else {
-        whereConditions.push('(branch_code IS NULL OR branch_code = \'\')');
+        whereConditions.push("(branch_code IS NULL OR branch_code = '')");
       }
 
       if (cleanData.department_code) {
         whereConditions.push(`department_code = $${paramIndex}`);
         queryParams.push(cleanData.department_code);
       } else {
-        whereConditions.push('(department_code IS NULL OR department_code = \'\')');
+        whereConditions.push(
+          "(department_code IS NULL OR department_code = '')"
+        );
       }
 
       const mappingQuery = `
         SELECT mapping FROM mapping_relations
-        WHERE ${whereConditions.join(' AND ')}
+        WHERE ${whereConditions.join(" AND ")}
         ORDER BY id DESC
         LIMIT 1
       `;
@@ -156,6 +181,7 @@ router.post('/', async (req, res) => {
       const mappingRes = await pool.query(mappingQuery, queryParams);
       if (mappingRes.rows.length > 0) {
         seriesCode = mappingRes.rows[0].mapping;
+        console.log("DEBUG: Series Code,", seriesCode);
       }
     }
 
@@ -163,66 +189,76 @@ router.post('/', async (req, res) => {
     if (seriesCode) {
       const client = await pool.connect();
       try {
-        await client.query('BEGIN');
+        await client.query("BEGIN");
 
         const seriesResult = await client.query(
-          'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
+          "SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1",
           [seriesCode]
         );
 
         if (seriesResult.rows.length === 0) {
-          await client.query('ROLLBACK');
+          await client.query("ROLLBACK");
           client.release();
-          return res.status(400).json({ error: 'Number series not found' });
+          return res.status(400).json({ error: "Number series not found" });
         }
 
         const series = seriesResult.rows[0];
         if (series.is_manual) {
-          if (!code || code.trim() === '') {
-            await client.query('ROLLBACK');
+          if (!code || code.trim() === "") {
+            await client.query("ROLLBACK");
             client.release();
-            return res.status(400).json({ error: 'Manual code entry required for this series' });
+            return res
+              .status(400)
+              .json({ error: "Manual code entry required for this series" });
           }
-          const exists = await client.query('SELECT 1 FROM tariff WHERE code = $1', [code]);
+          const exists = await client.query(
+            "SELECT 1 FROM tariff WHERE code = $1",
+            [code]
+          );
           if (exists.rows.length > 0) {
-            await client.query('ROLLBACK');
+            await client.query("ROLLBACK");
             client.release();
-            return res.status(400).json({ error: 'Tariff code already exists' });
+            return res
+              .status(400)
+              .json({ error: "Tariff code already exists" });
           }
         } else {
           const relResult = await client.query(
-            'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
+            "SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE",
             [seriesCode]
           );
 
           if (relResult.rows.length === 0) {
-            await client.query('ROLLBACK');
+            await client.query("ROLLBACK");
             client.release();
-            return res.status(400).json({ error: 'Number series relation not found' });
+            return res
+              .status(400)
+              .json({ error: "Number series relation not found" });
           }
 
           const rel = relResult.rows[0];
-          let nextNo = rel.last_no_used === 0
-            ? Number(rel.starting_no)
-            : Number(rel.last_no_used) + Number(rel.increment_by);
+          let nextNo =
+            rel.last_no_used === 0
+              ? Number(rel.starting_no)
+              : Number(rel.last_no_used) + Number(rel.increment_by);
 
-          code = `${rel.prefix || ''}${nextNo}`;
-
+          code = `${rel.prefix || ""}${nextNo}`;
+          console.log("Debug Code value if is not manual,", code);
           await client.query(
-            'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
+            "UPDATE number_relation SET last_no_used = $1 WHERE id = $2",
             [nextNo, rel.id]
           );
         }
 
-        await client.query('COMMIT');
+        await client.query("COMMIT");
         client.release();
       } catch (error) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         client.release();
         throw error;
       }
-    } else if (!code || code === '') {
-      code = 'TAR-' + Date.now();
+    } else if (!code || code === "") {
+      code = "TAR-" + Date.now();
     }
 
     // 🔹 Insert new tariff
@@ -237,45 +273,68 @@ router.post('/', async (req, res) => {
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
       ) RETURNING *`,
       [
-        code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
-        cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
-        cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
-        cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
-        cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
-        cleanData.isMandatory || false, cleanData.company_code, cleanData.branch_code, cleanData.department_code, cleanData.serviceArea, created_by
+        code,
+        cleanData.mode,
+        cleanData.shippingType,
+        cleanData.cargoType,
+        cleanData.tariffType,
+        cleanData.basis,
+        cleanData.containerType,
+        cleanData.itemName,
+        cleanData.currency,
+        cleanData.locationTypeFrom,
+        cleanData.locationTypeTo,
+        cleanData.from,
+        cleanData.to,
+        cleanData.vendorType,
+        cleanData.vendorName,
+        cleanData.charges,
+        cleanData.freightChargeType,
+        cleanData.effectiveDate,
+        cleanData.periodStartDate,
+        cleanData.periodEndDate,
+        cleanData.isMandatory || false,
+        cleanData.company_code,
+        cleanData.branch_code,
+        cleanData.department_code,
+        cleanData.serviceArea,
+        created_by,
       ]
     );
 
     await logMasterEvent({
       username: getUsernameFromToken(req),
-      action: 'CREATE',
-      masterType: 'Tariff',
+      action: "CREATE",
+      masterType: "Tariff",
       recordId: code,
-      details: `New Tariff "${code}" has been created successfully.`
+      details: `New Tariff "${code}" has been created successfully.`,
     });
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error creating tariff:', err);
-    res.status(400).json({ error: err.message || 'Failed to create tariff' });
+    console.error("Error creating tariff:", err);
+    res.status(400).json({ error: err.message || "Failed to create tariff" });
   }
 });
 
 // UPDATE tariff by ID
-router.put('/:id', async (req, res) => {
+router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid ID format' });
+    return res.status(400).json({ error: "Invalid ID format" });
   }
 
   const data = req.body;
   const cleanData = Object.fromEntries(
-    Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
+    Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
   );
 
   try {
-    const oldResult = await pool.query('SELECT * FROM tariff WHERE id = $1', [id]);
-    if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const oldResult = await pool.query("SELECT * FROM tariff WHERE id = $1", [
+      id,
+    ]);
+    if (oldResult.rows.length === 0)
+      return res.status(404).json({ error: "Not found" });
     const oldTariff = oldResult.rows[0];
 
     const result = await pool.query(
@@ -285,49 +344,85 @@ router.put('/:id', async (req, res) => {
         company_code = $22, branch_code = $23, department_code = $24, service_area = $25
       WHERE id = $26 RETURNING *`,
       [
-        cleanData.code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
-        cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
-        cleanData.locationTypeFrom, cleanData.locationTypeTo, cleanData.from, cleanData.to,
-        cleanData.vendorType, cleanData.vendorName, cleanData.charges, cleanData.freightChargeType,
-        cleanData.effectiveDate, cleanData.periodStartDate, cleanData.periodEndDate,
-        cleanData.isMandatory || false, cleanData.serviceArea,id
+        cleanData.code,
+        cleanData.mode,
+        cleanData.shippingType,
+        cleanData.cargoType,
+        cleanData.tariffType,
+        cleanData.basis,
+        cleanData.containerType,
+        cleanData.itemName,
+        cleanData.currency,
+        cleanData.locationTypeFrom,
+        cleanData.locationTypeTo,
+        cleanData.from,
+        cleanData.to,
+        cleanData.vendorType,
+        cleanData.vendorName,
+        cleanData.charges,
+        cleanData.freightChargeType,
+        cleanData.effectiveDate,
+        cleanData.periodStartDate,
+        cleanData.periodEndDate,
+        cleanData.isMandatory || false,
+        cleanData.serviceArea,
+        id,
       ]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Tariff not found' });
+      return res.status(404).json({ error: "Tariff not found" });
     }
 
     const changedFields = [];
     const fieldMap = {
-      code: { newVal: cleanData.code, db: 'code' },
-      mode: { newVal: cleanData.mode, db: 'mode' },
-      shipping_type: { newVal: cleanData.shippingType, db: 'shipping_type' },
-      cargo_type: { newVal: cleanData.cargoType, db: 'cargo_type' },
-      tariff_type: { newVal: cleanData.tariffType, db: 'tariff_type' },
-      basis: { newVal: cleanData.basis, db: 'basis' },
-      container_type: { newVal: cleanData.containerType, db: 'container_type' },
-      item_name: { newVal: cleanData.itemName, db: 'item_name' },
-      currency: { newVal: cleanData.currency, db: 'currency' },
-      location_type_from: { newVal: cleanData.locationTypeFrom, db: 'location_type_from' },
-      location_type_to: { newVal: cleanData.locationTypeTo, db: 'location_type_to' },
-      from_location: { newVal: cleanData.from, db: 'from_location' },
-      to_location: { newVal: cleanData.to, db: 'to_location' },
-      vendor_type: { newVal: cleanData.vendorType, db: 'vendor_type' },
-      vendor_name: { newVal: cleanData.vendorName, db: 'vendor_name' },
-      charges: { newVal: cleanData.charges, db: 'charges' },
-      freight_charge_type: { newVal: cleanData.freightChargeType, db: 'freight_charge_type' },
-      effective_date: { newVal: cleanData.effectiveDate, db: 'effective_date' },
-      period_start_date: { newVal: cleanData.periodStartDate, db: 'period_start_date' },
-      period_end_date: { newVal: cleanData.periodEndDate, db: 'period_end_date' },
-      is_mandatory: { newVal: cleanData.isMandatory || false, db: 'is_mandatory' },
-      service_area: { newVal: cleanData.serviceArea, db: 'service_area' }
+      code: { newVal: cleanData.code, db: "code" },
+      mode: { newVal: cleanData.mode, db: "mode" },
+      shipping_type: { newVal: cleanData.shippingType, db: "shipping_type" },
+      cargo_type: { newVal: cleanData.cargoType, db: "cargo_type" },
+      tariff_type: { newVal: cleanData.tariffType, db: "tariff_type" },
+      basis: { newVal: cleanData.basis, db: "basis" },
+      container_type: { newVal: cleanData.containerType, db: "container_type" },
+      item_name: { newVal: cleanData.itemName, db: "item_name" },
+      currency: { newVal: cleanData.currency, db: "currency" },
+      location_type_from: {
+        newVal: cleanData.locationTypeFrom,
+        db: "location_type_from",
+      },
+      location_type_to: {
+        newVal: cleanData.locationTypeTo,
+        db: "location_type_to",
+      },
+      from_location: { newVal: cleanData.from, db: "from_location" },
+      to_location: { newVal: cleanData.to, db: "to_location" },
+      vendor_type: { newVal: cleanData.vendorType, db: "vendor_type" },
+      vendor_name: { newVal: cleanData.vendorName, db: "vendor_name" },
+      charges: { newVal: cleanData.charges, db: "charges" },
+      freight_charge_type: {
+        newVal: cleanData.freightChargeType,
+        db: "freight_charge_type",
+      },
+      effective_date: { newVal: cleanData.effectiveDate, db: "effective_date" },
+      period_start_date: {
+        newVal: cleanData.periodStartDate,
+        db: "period_start_date",
+      },
+      period_end_date: {
+        newVal: cleanData.periodEndDate,
+        db: "period_end_date",
+      },
+      is_mandatory: {
+        newVal: cleanData.isMandatory || false,
+        db: "is_mandatory",
+      },
+      service_area: { newVal: cleanData.serviceArea, db: "service_area" },
     };
 
     const normalize = (value) => {
-      if (value === null || value === undefined) return '';
+      if (value === null || value === undefined) return "";
       if (value instanceof Date) return value.toISOString();
-      if (typeof value === 'number') return Number.isNaN(value) ? '' : String(value);
+      if (typeof value === "number")
+        return Number.isNaN(value) ? "" : String(value);
       return String(value).trim();
     };
 
@@ -336,26 +431,29 @@ router.put('/:id', async (req, res) => {
       const newValue = normalize(mapping.newVal);
       const oldValue = normalize(oldTariff[mapping.db]);
       if (newValue !== oldValue) {
-        changedFields.push(`Field "${label}" changed from "${oldValue}" to "${newValue}".`);
+        changedFields.push(
+          `Field "${label}" changed from "${oldValue}" to "${newValue}".`
+        );
       }
     }
 
-    const details = changedFields.length > 0
-      ? `Changes detected:\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
+    const details =
+      changedFields.length > 0
+        ? `Changes detected:\n` + changedFields.join("\n")
+        : "No actual changes detected.";
 
     await logMasterEvent({
       username: getUsernameFromToken(req),
-      action: 'UPDATE',
-      masterType: 'Tariff',
+      action: "UPDATE",
+      masterType: "Tariff",
       recordId: cleanData.code,
-      details
+      details,
     });
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error updating tariff:', err);
-    res.status(500).json({ error: 'Failed to update tariff' });
+    console.error("Error updating tariff:", err);
+    res.status(500).json({ error: "Failed to update tariff" });
   }
 });
 

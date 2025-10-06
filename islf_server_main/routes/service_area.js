@@ -485,7 +485,7 @@ router.put('/:id', async (req, res) => {
       [
         code, type, service_area, from_location, to_location, status,
         company_code || null, branch_code || null, department_code || null, service_type_code || null,
-        context.username, id
+        username, id
       ]
     );
     
