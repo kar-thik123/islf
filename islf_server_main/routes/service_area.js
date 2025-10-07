@@ -412,10 +412,10 @@ router.post('/', async (req, res) => {
 // });
 
 // Update service area
-router.put('/:id', async (req, res) => {
+router.put('/:code', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { code, type, service_area, from_location, to_location, status, company_code, branch_code, department_code, service_type_code } = req.body;
+    const { code } = req.params;
+    const {  type, service_area, from_location, to_location, status, company_code, branch_code, department_code, service_type_code } = req.body;
     // const context = getContextFromRequest(req);
     const username = await getUsernameFromToken(req);
     
@@ -451,8 +451,8 @@ router.put('/:id', async (req, res) => {
     
     // Check if service area exists
     const serviceAreaCheck = await pool.query(
-      'SELECT * FROM master_service_area WHERE id = $1',
-      [id]
+      'SELECT * FROM master_service_area WHERE code = $1',
+      [code]
     );
     
     if (serviceAreaCheck.rows.length === 0) {
@@ -462,11 +462,12 @@ router.put('/:id', async (req, res) => {
     // Check if updated code already exists for another record
     if (code !== serviceAreaCheck.rows[0].code) {
       const codeCheck = await pool.query(
-        'SELECT * FROM master_service_area WHERE code = $1 AND id != $2',
-        [code, id]
+        'SELECT * FROM master_service_area WHERE code = $1',
+        [code]
       );
       
-      if (codeCheck.rows.length > 0) {
+      // check for duplicates
+      if (codeCheck.rows.length > 1) {
         return res.status(400).json({ error: 'Service area code already exists' });
       }
     }
@@ -477,15 +478,15 @@ router.put('/:id', async (req, res) => {
     // Update service area
     const result = await pool.query(
       `UPDATE master_service_area 
-       SET code = $1, type = $2, service_area = $3, from_location = $4, to_location = $5, status = $6, 
+       SET  type = $2, service_area = $3, from_location = $4, to_location = $5, status = $6, 
            company_code = $7, branch_code = $8, department_code = $9, service_type_code = $10,
            updated_by = $11, updated_at = NOW() 
-       WHERE id = $12 
+       WHERE code = $1 
        RETURNING *`,
       [
         code, type, service_area, from_location, to_location, status,
         company_code || null, branch_code || null, department_code || null, service_type_code || null,
-        username, id
+        username
       ]
     );
     
@@ -501,7 +502,7 @@ router.put('/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).send({msg:'Server error', err: err.message});
   }
 });
 

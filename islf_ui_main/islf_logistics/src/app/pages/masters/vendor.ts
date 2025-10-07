@@ -8,6 +8,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { MenuModule, Menu } from 'primeng/menu';
+import { NgSelectComponent } from '@ng-select/ng-select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService, MenuItem } from 'primeng/api';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -76,6 +77,7 @@ function toTitleCase(str: string): string {
     MenuModule,
     Menu,
     MasterLocationComponent,
+    NgSelectComponent,
   ],
   template: `
     <p-toast></p-toast>
@@ -437,29 +439,40 @@ function toTitleCase(str: string): string {
               <label for="type"
                 >Vendor Type <span class="text-red-500">*</span></label
               >
-              <div class="flex align-items-center gap-2">
-                <p-dropdown
-                  id="type"
-                  [options]="vendorTypeOptions"
-                  [(ngModel)]="selectedVendor.type"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select Vendor Type"
-                  (onChange)="onFieldChange('type', $event.value)"
-                  (onBlur)="onFieldBlur('type')"
-                  required
-                  class="flex-1"
-                ></p-dropdown>
-                <button
-                  pButton
-                  type="button"
-                  icon="pi pi-ellipsis-h"
-                  class="p-button-sm"
-                  (click)="openMaster('vendorType')"
-                  [loading]="masterDialogLoading['vendorType']"
-                  title="Open Vendor Type Master"
-                ></button>
-              </div>
+              <ng-select
+                *ngIf="isDuplicate; else vendorTypeRef"
+                [(ngModel)]="selectedVendorType"
+                [items]="duplicationVendorTypeOptions"
+                bindLabel="label"
+                bindValue="value"
+              >
+              </ng-select>
+              <!-- render this if isDuplicate is false -->
+              <ng-template #vendorTypeRef>
+                <div class="flex align-items-center gap-2">
+                  <p-dropdown
+                    id="type"
+                    [options]="vendorTypeOptions"
+                    [(ngModel)]="selectedVendor.type"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select Vendor Type"
+                    (onChange)="onFieldChange('type', $event.value)"
+                    (onBlur)="onFieldBlur('type')"
+                    required
+                    class="flex-1"
+                  ></p-dropdown>
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-ellipsis-h"
+                    class="p-button-sm"
+                    (click)="openMaster('vendorType')"
+                    [loading]="masterDialogLoading['vendorType']"
+                    title="Open Vendor Type Master"
+                  ></button>
+                </div>
+              </ng-template>
               <small
                 class="p-error text-red-500 text-xs ml-2"
                 *ngIf="getFieldError('type')"
@@ -561,7 +574,7 @@ function toTitleCase(str: string): string {
                   class="flex-1"
                 ></p-dropdown>
                 <button
-                  *ngif="!isDuplicate"
+                  *ngIf="!isDuplicate"
                   pButton
                   type="button"
                   icon="pi pi-ellipsis-h"
@@ -598,7 +611,7 @@ function toTitleCase(str: string): string {
                   class="flex-1"
                 ></p-dropdown>
                 <button
-                  *ngif="!isDuplicate"
+                  *ngIf="!isDuplicate"
                   pButton
                   type="button"
                   icon="pi pi-ellipsis-h"
@@ -633,7 +646,7 @@ function toTitleCase(str: string): string {
                   class="flex-1"
                 ></p-dropdown>
                 <button
-                  *ngif="!isDuplicate"
+                  *ngIf="!isDuplicate"
                   pButton
                   type="button"
                   icon="pi pi-ellipsis-h"
@@ -697,7 +710,7 @@ function toTitleCase(str: string): string {
                   class="flex-1"
                 ></p-dropdown>
                 <button
-                  *ngif="!isDuplicate"
+                  *ngIf="!isDuplicate"
                   pButton
                   type="button"
                   icon="pi pi-ellipsis-h"
@@ -761,7 +774,7 @@ function toTitleCase(str: string): string {
               </tr>
             </ng-template>
             <ng-template pTemplate="footer">
-              <tr *ngif="!isDuplicate">
+              <tr *ngIf="!isDuplicate">
                 <td colspan="7">
                   <button
                     pButton
@@ -809,7 +822,7 @@ function toTitleCase(str: string): string {
                         class="flex-1"
                       ></p-dropdown>
                       <button
-                        *ngif="!isDuplicate"
+                        *ngIf="!isDuplicate"
                         pButton
                         type="button"
                         icon="pi pi-ellipsis-h"
@@ -886,7 +899,7 @@ function toTitleCase(str: string): string {
                 </tr>
               </ng-template>
               <ng-template pTemplate="footer">
-                <tr *ngif="!isDuplicate">
+                <tr *ngIf="!isDuplicate">
                   <td colspan="6">
                     <button
                       [disabled]="isDuplicate"
@@ -966,7 +979,7 @@ function toTitleCase(str: string): string {
               </tr>
             </ng-template>
             <ng-template pTemplate="footer">
-              <tr *ngif="!isDuplicate">
+              <tr *ngIf="!isDuplicate">
                 <td colspan="8">
                   <button
                     pButton
@@ -996,7 +1009,13 @@ function toTitleCase(str: string): string {
           ></button>
           <button
             pButton
-            label="{{isDuplicate ? 'Duplicate' : selectedVendor?.isNew ? 'Add' : 'Update' }}"
+            label="{{
+              isDuplicate
+                ? 'Duplicate'
+                : selectedVendor?.isNew
+                ? 'Add'
+                : 'Update'
+            }}"
             icon="pi pi-check"
             (click)="saveRow()"
             [disabled]="!isFormValid()"
@@ -1328,6 +1347,9 @@ export class VendorComponent implements OnInit, OnDestroy {
   vendors: Vendor[] = [];
   isDuplicate: boolean = false;
   vendorTypeOptions: any[] = [];
+  duplicationVendorTypeOptions: any[] = [];
+  selectedVendorType: string = '';
+  selectedVendorRecords: Vendor[] = [];
   blockedOptions = [
     { label: 'Recieve', value: 'Recieve' },
     { label: 'All', value: 'All' },
@@ -1756,7 +1778,12 @@ export class VendorComponent implements OnInit, OnDestroy {
     const config = this.configService.getConfig();
     const vendorFilter = config?.validation?.vendorFilter || '';
 
-    console.log('Vendor filter:', vendorFilter);
+    console.log(
+      'Vendor filter:',
+      vendorFilter,
+      'is Duplicate,',
+      this.isDuplicate
+    );
 
     // Check if we need to validate context
     if (vendorFilter) {
@@ -1841,17 +1868,43 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   duplicateVendor(vendor: Vendor) {
+    this.isDuplicate = true;
     this.selectedVendor = { ...vendor, isNew: false };
     // Always set Bill-to Vendor Name to the real value on edit
     if (this.selectedVendor.vendor_no && this.selectedVendor.name) {
       this.selectedVendor.bill_to_vendor_name = `${this.selectedVendor.vendor_no} - ${this.selectedVendor.name}`;
     }
+
+    console.log('Selected Vendor,', this.selectedVendor);
+
+    this.selectedVendorRecords = this.vendors.filter(
+      (v) => v.vendor_no === this.selectedVendor?.vendor_no
+    );
+    console.log(
+      'selected vendor records matching the vendor,',
+      this.selectedVendor.vendor_no,
+      'are:',
+      this.selectedVendorRecords
+    );
+    this.selectedVendorType = this.selectedVendor.type;
+    this.duplicationVendorTypeOptions = this.vendorTypeOptions.map((option) => {
+      const isAsigned = this.selectedVendorRecords.some(
+        (selectedVendorRecord) => selectedVendorRecord.type === option.value
+      );
+
+      return isAsigned ? { ...option, disabled: true } : option;
+    });
+
+    console.log(
+      'Duplication vendor type options,',
+      this.duplicationVendorTypeOptions
+    );
+
     this.isDialogVisible = true;
   }
 
   // get Menu items
   getMenuItems(vendor: Vendor): MenuItem[] {
-    this.isDuplicate = true;
     return [
       {
         label: 'Duplicate',
@@ -2009,6 +2062,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   hideDialog() {
+    this.isDuplicate = false;
     this.isDialogVisible = false;
     this.selectedVendor = null;
     this.fieldErrors = {};

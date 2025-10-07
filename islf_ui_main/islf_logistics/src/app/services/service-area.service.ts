@@ -68,7 +68,7 @@ export class ServiceAreaService {
     return this.http.post<ServiceArea>(`${this.apiUrl}`, body);
   }
 
-  updateServiceArea(id: number, serviceArea: ServiceArea): Observable<ServiceArea> {
+  updateServiceArea(code: string, serviceArea: ServiceArea): Observable<ServiceArea> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig(); // Get current config to check validation settings
     const customerFilter = config?.validation?.serviceAreaFilter || '';
@@ -94,7 +94,7 @@ export class ServiceAreaService {
       ...serviceArea
     } 
 
-    return this.http.put<ServiceArea>(`${this.apiUrl}/${id}`, body);
+    return this.http.put<ServiceArea>(`${this.apiUrl}/${code}`, body);
   }
 
   deleteServiceArea(id: number): Observable<any> {
