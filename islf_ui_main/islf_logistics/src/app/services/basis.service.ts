@@ -50,7 +50,8 @@ export class BasisService {
     return this.http.post<Basis>(this.apiUrl, this.contextPayload.withContext(data, context));
   }
 
-  update(id: number, data: Partial<Basis>): Observable<Basis> {
+  update(id: string, data: Partial<Basis>): Observable<Basis> {
+    console.log("DEBUG Update Basis called with id: ", id, " and data: ", data);
     const context = this.contextService.getContext();
     return this.http.put<Basis>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, context));
   }
@@ -69,7 +70,7 @@ export class BasisService {
   }
 
   updateBasis(id: string, data: any): Observable<Basis> {
-    return this.update(Number(id), data);
+    return this.update(id, data);
   }
 
   deleteBasis(id: string): Observable<any> {

@@ -282,8 +282,8 @@ router.put('/:id', async (req, res) => {
       `UPDATE tariff SET
         code = $1, mode = $2, shipping_type = $3, cargo_type = $4, tariff_type = $5, basis = $6, container_type = $7, item_name = $8, currency = $9,
         location_type_from = $10, location_type_to = $11, from_location = $12, to_location = $13, vendor_type = $14, vendor_name = $15, charges = $16, freight_charge_type = $17, effective_date = $18, period_start_date = $19, period_end_date = $20, is_mandatory = $21,
-        company_code = $22, branch_code = $23, department_code = $24, service_area = $25
-      WHERE id = $26 RETURNING *`,
+      service_area = $22
+      WHERE id = $23 RETURNING *`,
       [
         cleanData.code, cleanData.mode, cleanData.shippingType, cleanData.cargoType, cleanData.tariffType,
         cleanData.basis, cleanData.containerType, cleanData.itemName, cleanData.currency,
