@@ -95,6 +95,7 @@ router.post('/', async (req, res) => {
 // UPDATE basis code
 router.put('/:code', async (req, res) => {
   const { description, status } = req.body;
+  const code = req.params.code;
   try {
     const oldResult = await pool.query('SELECT * FROM basis WHERE code = $1', [req.params.code]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });

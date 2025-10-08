@@ -1,4 +1,3 @@
-
 import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -39,6 +38,11 @@ import { BasisComponent } from '../masters/basis';
 import { MasterTypeComponent } from '../masters/mastertype';
 import { forkJoin, from } from 'rxjs';
 import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { ServiceAreaService, ServiceArea } from '../../services/service-area.service';
+import { catchError} from 'rxjs/operators';
+import { of } from 'rxjs';
+import { ServiceAreaComponent } from '../masters/servicearea';
+
 
 
 @Component({
@@ -70,7 +74,8 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
     AccordionModule,
     MasterLocationComponent,
     BasisComponent,
-    MasterTypeComponent
+    MasterTypeComponent,
+    ServiceAreaComponent
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -611,12 +616,14 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
               styleClass="p-datatable-sm">
               <ng-template pTemplate="header">
                 <tr>
-                  <th style="width: 80px">S.No.</th>
-                  <th style="width: 150px">Quantity</th>
-                  <th style="width: 350px">Basis</th>
+                  <th >S.No.</th>
+                  <th >Quantity</th>
+                  <th>Type</th>
+                  <th >Service Area</th>
+                  <th >Basis</th>
                   <th>Remarks</th>
-                  <th style="width: 120px">Status</th>
-                  <th style="width: 120px">Actions</th>
+                  <th >Status</th>
+                  <th style>Actions</th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-item let-i="rowIndex">
@@ -629,6 +636,46 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
                       [maxFractionDigits]="4"
                       placeholder="0.0000">
                     </p-inputNumber>
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                    <p-dropdown
+                      [(ngModel)]="item.type"
+                      [options]="masterTypeOptions"
+                        optionLabel="label"
+                        optionValue="value" 
+                        placeholder="Select type"
+                        class="flex-1"
+                        appendTo="body">
+                    </p-dropdown>
+                      <button pButton 
+                        [icon]="masterDialogLoading['masterType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                        class="p-button-sm"
+                        [disabled]="masterDialogLoading['masterType']"
+                        (click)="openMaster('masterType')"
+                        appendTo="body">
+                      </button>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                    <p-dropdown
+                      [(ngModel)]="item.service_area"
+                      [options]="serviceAreaDropdownOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Select service area"
+                        class="flex-1"
+                        appendTo="body">
+                    </p-dropdown>
+                      <button pButton 
+                        [icon]="masterDialogLoading['serviceArea'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                        class="p-button-sm"
+                        [disabled]="masterDialogLoading['serviceArea']"
+                        (click)="openMaster('serviceArea')"
+                        appendTo="body">
+                      </button>
+                    </div>
                   </td>
                   <td>
                     <div class="flex gap-2">
@@ -1018,7 +1065,24 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <basis-code></basis-code>
         </ng-template>
       </p-dialog>
-
+      <!--Master Type Dialog-->
+      <p-dialog
+       header="Service Type Master"
+        [(visible)]="showServiceTypeDialog"
+        [modal]="true"
+        [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+        [contentStyle]="{ overflow: 'visible' }"
+        [baseZIndex]="10000"
+        [closable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="closeMasterDialog('serviceType')"
+        [closeOnEscape]="true"
+      >
+        <ng-template pTemplate="content">
+        <master-type [filterByKey]="'SERVICE_AREA'"></master-type>
+        </ng-template>
+      </p-dialog>
       <!-- Master Type Dialog -->
       <p-dialog
         header="Master Type"
@@ -1037,6 +1101,25 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <master-type [filterByKey]="masterTypeFilter"></master-type>
         </ng-template>
       </p-dialog>
+    <!--serviceAreaMaster-->
+      <p-dialog
+        header="Service Area Master"
+        [(visible)]="showServiceAreaDialog"
+        [modal]="true"
+        [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+        [contentStyle]="{ overflow: 'visible' }"
+        [baseZIndex]="10000"
+        [closable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="closeMasterDialog('serviceArea')"
+        [closeOnEscape]="true"
+      > 
+        <ng-template pTemplate="content">
+          <app-service-area></app-service-area>    
+        </ng-template>
+      </p-dialog>
+
   `,
   styles: [`
     .vendor-card {
@@ -1088,6 +1171,9 @@ import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
   `]
 })
 export class EnquiryComponent implements OnInit {
+  showServiceAreaDialog = false;
+  serviceAreaDropdownOptions: { label: string, value: string }[] = [];
+  selectedServiceArea: string = '';
   enquiryForm!: FormGroup;
   lineItems: EnquiryLineItem[] = [];
   vendorCards: EnquiryVendorCard[] = [];
@@ -1123,6 +1209,7 @@ export class EnquiryComponent implements OnInit {
   
   // Basis options
   basisOptions: any[] = [];
+  serviceAreaOptions: any[] = [];
 
   // Service type options
   serviceTypeOptions: any[] = [];
@@ -1157,6 +1244,8 @@ export class EnquiryComponent implements OnInit {
   showMasterLocationDialog = false;
   showBasisDialog = false;
   showMasterTypeDialog = false;
+ 
+  showServiceTypeDialog = false;
   masterTypeFilter = '';
   masterDialogLoading: { [key: string]: boolean } = {};
 
@@ -1215,6 +1304,7 @@ export class EnquiryComponent implements OnInit {
     private masterLocationService: MasterLocationService,
     private departmentService: DepartmentService,
     private basisService: BasisService,
+    private serviceAreaService: ServiceAreaService,
     private serviceTypeService: ServiceTypeService,
     private masterTypeService: MasterTypeService,
     private cdr: ChangeDetectorRef,
@@ -1224,9 +1314,11 @@ export class EnquiryComponent implements OnInit {
   }
 
   ngOnInit() {
+  this.loadServiceAreaOptions().subscribe();
     // console.log("Debug: obtaining username from the auth service during enquiry on Init", this.authService.getUserName())
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
+    this.loadMasterTypeOptions();
   }
 
   initializeForm() {
@@ -1353,6 +1445,31 @@ export class EnquiryComponent implements OnInit {
       })
     );
   }
+  loadServiceAreaOptions() {
+  return this.serviceAreaService.getServiceAreas().pipe(
+    tap((serviceAreas: any[]) => {
+      // Extract unique, non-empty "Service Area" names dynamically
+      const uniqueAreas = Array.from(
+        new Set(
+          (serviceAreas || [])
+            .filter(sa => sa.service_area && sa.service_area.trim() !== '')
+            .map(sa => sa.service_area.trim())
+        )
+      );
+
+      // Create dropdown-friendly format
+      this.serviceAreaDropdownOptions = uniqueAreas.map(area => ({
+        label: area,
+        value: area
+      }));
+    }),
+    catchError(error => {
+      this.serviceAreaDropdownOptions = [];
+      return of([]);
+    })
+  );
+}
+
 
   // Load customers from the enquiry service
   loadCustomers() {
@@ -1396,6 +1513,19 @@ export class EnquiryComponent implements OnInit {
         console.log('Location type options loaded:', this.locationTypeFromOptions.length, this.locationTypeFromOptions);
       })
     );
+  }
+
+  // Master type options property
+  masterTypeOptions: { label: string; value: string }[] = [];
+
+  // Load master type options
+  loadMasterTypeOptions() {
+    this.masterTypeService.getAll().subscribe((types: any[]) => {
+      // Filter by SERVICE_AREA key
+      this.masterTypeOptions = (types || [])
+        .filter(t => t.key === 'SERVICE_AREA')
+        .map(t => ({ label: t.value, value: t.value }));
+    });
   }
 
   // Filter service types based on department
@@ -1513,23 +1643,23 @@ export class EnquiryComponent implements OnInit {
     if (this.masterDialogLoading[type]) {
       return;
     }
-    
     this.masterDialogLoading[type] = true;
-    
     // Open dialog immediately for better user experience
     if (type === 'from' || type === 'to') {
       this.showMasterLocationDialog = true;
     } else if (type === 'basis') {
       this.showBasisDialog = true;
     } else if (type === 'locationTypeFrom' || type === 'locationTypeTo') {
-      // Open Master Type Dialog with LOCATION filter
       this.masterTypeFilter = 'LOCATION';
       this.showMasterTypeDialog = true;
+    } else if (type === 'masterType') {
+      this.masterTypeFilter = 'SERVICE_AREA';
+      this.showMasterTypeDialog = true;
+    } else if (type === 'serviceArea') {
+      this.showServiceAreaDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
-    
-    // Reset loading state immediately since dialog is now open
     this.masterDialogLoading[type] = false;
     this.cdr.detectChanges();
   }
@@ -1859,6 +1989,7 @@ export class EnquiryComponent implements OnInit {
               this.isManualLandline = false;
             } else {
               // Data doesn't match, keep existing data and set manual flags
+
               this.selectedContact = null;
               this.isManualName = !!this.selectedEnquiry.customer_name;
               this.isManualEmail = !!this.selectedEnquiry.email;
@@ -1893,7 +2024,7 @@ export class EnquiryComponent implements OnInit {
           // No contacts found
           this.showContactDropdown = false;
           this.selectedContact = null;
-          this.isManualName = true;
+                   this.isManualName = true;
           this.isManualEmail = true;
           this.isManualMobile = true;
           this.isManualLandline = true;
@@ -1984,7 +2115,9 @@ export class EnquiryComponent implements OnInit {
     const newItem: EnquiryLineItem = {
       s_no: this.lineItems.length + 1,
       quantity: 0,
-      basis: this.basisOptions[0]?.value || '',
+      type:'',
+      service_area:'',
+      basis:  '',
       remarks: '',
       status: 'Active'
     };
@@ -2181,7 +2314,8 @@ export class EnquiryComponent implements OnInit {
         vendor_name: vendor.vendor_name,
         vendor_type: vendor.vendor_type,
         is_active: false,
-        charges: chargeValue, // Store as simple numeric value
+        charges: chargeValue // Store as simple numeric value
+        ,
         source_type: this.currentVendorSource,
         source_id: vendor.id,
         // Store additional sourcing details for display

@@ -7,7 +7,7 @@ import { ContextService } from './context.service';
 import { ConfigService } from './config.service';
 
 export interface MasterLocation {
-  id?: number;
+ 
   type: string;
   code: string;
   name: string;
@@ -17,6 +17,7 @@ export interface MasterLocation {
   gst_state_code: string;
   pin_code: string;
   active: boolean;
+  
 }
 
 @Injectable({ providedIn: 'root' })
