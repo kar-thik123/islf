@@ -8,7 +8,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { MenuModule, Menu } from 'primeng/menu';
-import { NgSelectComponent } from '@ng-select/ng-select';
+import { NgSelectComponent, NgOptionComponent } from '@ng-select/ng-select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService, MenuItem } from 'primeng/api';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -78,6 +78,7 @@ function toTitleCase(str: string): string {
     Menu,
     MasterLocationComponent,
     NgSelectComponent,
+    NgOptionComponent,
   ],
   template: `
     <p-toast></p-toast>
@@ -439,13 +440,28 @@ function toTitleCase(str: string): string {
               <label for="type"
                 >Vendor Type <span class="text-red-500">*</span></label
               >
-              <ng-select
+              <!-- <ng-select
                 *ngIf="isDuplicate; else vendorTypeRef"
                 [(ngModel)]="selectedVendorType"
                 [items]="duplicationVendorTypeOptions"
                 bindLabel="label"
                 bindValue="value"
               >
+              </ng-select> -->
+              <ng-select
+                *ngIf="isDuplicate; else vendorTypeRef"
+                [multiple]="true"
+                [(ngModel)]="selectedVendorType"
+              >
+                @for (dupVendorTypeOption of duplicationVendorTypeOptions; track
+                dupVendorTypeOption) {
+                <ng-option
+                  [value]="dupVendorTypeOption.value"
+                  [disabled]="dupVendorTypeOption.disabled"
+                >
+                  {{ dupVendorTypeOption.label }}</ng-option
+                >
+                }
               </ng-select>
               <!-- render this if isDuplicate is false -->
               <ng-template #vendorTypeRef>
