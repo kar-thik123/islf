@@ -18,7 +18,7 @@ export interface VendorContact {
 export interface Vendor {
   id?: number;
   vendor_no: string;
-  type: string;
+  type?: string;
   name: string;
   name2: string;
   blocked: boolean;
@@ -52,9 +52,9 @@ export class VendorService {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const vendorFilter = config?.validation?.vendorFilter || '';
-    
+
     let params: any = {};
-    
+
     // Only send context parameters based on the IT setup validation/filter settings
     if (vendorFilter.includes('C') && context.companyCode) {
       params.company_code = context.companyCode;
@@ -68,7 +68,7 @@ export class VendorService {
     if (vendorFilter.includes('ST') && context.serviceType) {
       params.service_type_code = context.serviceType;
     }
-    
+
     return this.http.get<Vendor[]>(this.apiUrl, { params });
   }
 
@@ -76,31 +76,63 @@ export class VendorService {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const vendorFilter = config?.validation?.vendorFilter || '';
-    
+
     // Add serviceType to context if needed
     const contextWithServiceType = {
       ...context,
-      serviceType: vendorFilter.includes('ST') ? context.serviceType : undefined
+      serviceType: vendorFilter.includes('ST')
+        ? context.serviceType
+        : undefined,
     };
-    
-    return this.http.post<Vendor>(this.apiUrl, this.contextPayload.withContext(data, contextWithServiceType));
+
+    return this.http.post<Vendor>(
+      this.apiUrl,
+      this.contextPayload.withContext(data, contextWithServiceType)
+    );
+  }
+
+  createDuplicate(
+    data: Partial<Vendor[]> & { seriesCode?: string }
+  ): Observable<Vendor> {
+    console.log('Creating duplicate vendors with data:', data);
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const vendorFilter = config?.validation?.vendorFilter || '';
+
+    // Add serviceType to context if needed
+    const contextWithServiceType = {
+      ...context,
+      serviceType: vendorFilter.includes('ST')
+        ? context.serviceType
+        : undefined,
+    };
+
+    return this.http.post<Vendor>(
+      `${this.apiUrl}/duplicate`,
+      this.contextPayload.withContext(data, contextWithServiceType)
+    );
   }
 
   update(id: number, data: Partial<Vendor>): Observable<Vendor> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const vendorFilter = config?.validation?.vendorFilter || '';
-    
+
     // Add serviceType to context if needed
     const contextWithServiceType = {
       ...context,
-      serviceType: vendorFilter.includes('ST') ? context.serviceType : undefined
+      serviceType: vendorFilter.includes('ST')
+        ? context.serviceType
+        : undefined,
     };
-    
-    return this.http.put<Vendor>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, contextWithServiceType));
+
+    return this.http.put<Vendor>(
+      `${this.apiUrl}/${id}`,
+      this.contextPayload.withContext(data, contextWithServiceType)
+    );
   }
 
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
-} 
+}

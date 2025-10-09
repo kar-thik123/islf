@@ -220,12 +220,18 @@ function toTitleCase(str: string): string {
                   (click)="editRow(vendor)"
                   class="p-button-sm"
                 ></button>
-                <p-menu #menu [model]="getMenuItems(vendor)" [popup]="true" />
+                <!-- <p-menu #menu [model]="getMenuItems(vendor)" [popup]="true" />
                 <p-button
                   class="p-button-sm"
                   (click)="menu.toggle($event)"
                   icon="pi pi-ellipsis-v"
-                />
+                /> -->
+                <button
+                  pButton
+                  icon="pi pi-clone"
+                  (click)="duplicateVendor(vendor)"
+                  class="p-button-sm"
+                ></button>
               </div>
             </td>
           </tr>
@@ -442,7 +448,9 @@ function toTitleCase(str: string): string {
               >
               <!-- <ng-select
                 *ngIf="isDuplicate; else vendorTypeRef"
-                [(ngModel)]="selectedVendorType"
+                [multiple]="true"
+                placeholder="Select Vendor Type(s)"
+                [(ngModel)]="selectedVendorTypes"
                 [items]="duplicationVendorTypeOptions"
                 bindLabel="label"
                 bindValue="value"
@@ -1365,6 +1373,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   vendorTypeOptions: any[] = [];
   duplicationVendorTypeOptions: any[] = [];
   selectedVendorType: string = '';
+  selectedVendorTypes: string[] = [];
   selectedVendorRecords: Vendor[] = [];
   blockedOptions = [
     { label: 'Recieve', value: 'Recieve' },
@@ -1891,18 +1900,23 @@ export class VendorComponent implements OnInit, OnDestroy {
       this.selectedVendor.bill_to_vendor_name = `${this.selectedVendor.vendor_no} - ${this.selectedVendor.name}`;
     }
 
-    console.log('Selected Vendor,', this.selectedVendor);
+    console.log(
+      'Selected Vendor,',
+      this.selectedVendor,
+      'selectedVendorType,',
+      this.selectedVendorType
+    );
 
     this.selectedVendorRecords = this.vendors.filter(
       (v) => v.vendor_no === this.selectedVendor?.vendor_no
     );
-    console.log(
-      'selected vendor records matching the vendor,',
-      this.selectedVendor.vendor_no,
-      'are:',
-      this.selectedVendorRecords
-    );
-    this.selectedVendorType = this.selectedVendor.type;
+    // console.log(
+    //   'selected vendor records matching the vendor,',
+    //   this.selectedVendor.vendor_no,
+    //   'are:',
+    //   this.selectedVendorRecords
+    // );
+    this.selectedVendorType = this.selectedVendor.type!;
     this.duplicationVendorTypeOptions = this.vendorTypeOptions.map((option) => {
       const isAsigned = this.selectedVendorRecords.some(
         (selectedVendorRecord) => selectedVendorRecord.type === option.value
@@ -2018,8 +2032,77 @@ export class VendorComponent implements OnInit, OnDestroy {
     }));
   }
 
+  // displays show confirmation dialog if the duplicate vendor type is selected
+  showGstConfirmationforVendorDuplication(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.confirmationService.confirm({
+        message:
+          'Do you want to copy GST details from the original vendor type to the duplicated vendor type(s)?',
+        header: 'Copy GST Details',
+        icon: 'pi pi-info-circle',
+        rejectButtonProps: {
+          label: 'No',
+          severity: 'secondary',
+          outlined: true,
+        },
+        acceptButtonProps: { label: 'Yes', severity: 'sucess' },
+        reject: () => {
+          // this.selectedVendor!.vat_gst_no = '';
+          this.messageService.add({
+            severity: 'info',
+            summary: 'Info',
+            detail: 'GST details will not be copied.',
+            life: 3000,
+          });
+          resolve(false);
+        },
+        accept: () => {
+          // this.selectedVendorTypes = [];
+          this.messageService.add({
+            severity: 'info',
+            summary: 'Info',
+            detail: 'GST details will be copied.',
+          });
+          resolve(true);
+        },
+      });
+    });
+  }
+
   async saveRow() {
     if (!this.selectedVendor) return;
+let dupVendorPayload: Vendor[] = [];
+    if (this.isDuplicate) {
+      if (this.selectedVendorTypes.length === 0) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Validation Error',
+          detail: 'Minimum one vendor type must be selected for duplication',
+        });
+        return;
+      }
+      const copyGstDupVendor =
+        await this.showGstConfirmationforVendorDuplication();
+       dupVendorPayload = this.selectedVendorTypes.map(
+        (type) => {
+          return {
+            ...(this.selectedVendor as Vendor),
+            type,
+            vendor_no: '',
+            vat_gst_no: copyGstDupVendor ? this.selectedVendor!.vat_gst_no : '',
+            seriesCode: this.mappedVendorSeriesCode
+          };
+        }
+      );
+      console.log('Duplicate vendor payload:', dupVendorPayload);
+    }
+
+    console.log(
+      'Saving vendor:',
+      this.selectedVendor,
+      'if duplicate selected vendor type,',
+      this.selectedVendorTypes
+    );
 
     if (!this.validateForm()) {
       this.messageService.add({
@@ -2040,8 +2123,11 @@ export class VendorComponent implements OnInit, OnDestroy {
 
     try {
       let savedVendor;
-      if (this.selectedVendor.isNew) {
+      if (this.selectedVendor.isNew && !this.isDuplicate) {
         savedVendor = await this.vendorService.create(payload).toPromise();
+      } else if (this.isDuplicate) {
+        console.log('Creating duplicate vendors:', dupVendorPayload);
+        const dupVendor = await this.vendorService.createDuplicate(dupVendorPayload).toPromise();
       } else {
         savedVendor = await this.vendorService
           .update(this.selectedVendor.id!, this.selectedVendor)
@@ -2052,7 +2138,7 @@ export class VendorComponent implements OnInit, OnDestroy {
       if (savedVendor && savedVendor.vendor_no && savedVendor.name) {
         this.selectedVendor!.bill_to_vendor_name = `${savedVendor.vendor_no} - ${savedVendor.name}`;
       }
-      const msg = this.selectedVendor?.isNew
+      const msg = this.isDuplicate? 'Vendor Duplicated': this.selectedVendor?.isNew
         ? 'Vendor created'
         : 'Vendor updated';
       this.messageService.add({
@@ -2065,7 +2151,6 @@ export class VendorComponent implements OnInit, OnDestroy {
       if (savedVendor && savedVendor.vendor_no) {
         await this.saveDocuments(savedVendor);
       }
-
       this.refreshList();
       this.hideDialog();
     } catch (error) {
@@ -2081,6 +2166,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.isDuplicate = false;
     this.isDialogVisible = false;
     this.selectedVendor = null;
+    this.selectedVendorTypes = [];
     this.fieldErrors = {};
     this.touchedFields = {};
     this.vendorDocuments = [];

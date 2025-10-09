@@ -1,7 +1,8 @@
-  @use 'primeicons/primeicons.css';
-  @use './tailwind.css';
-  @use './assets/layout/layout.scss';
-  @use './assets/demo/demo.scss';
+@use "primeicons/primeicons.css";
+@use "./tailwind.css";
+@use "./assets/layout/layout.scss";
+@use "./assets/demo/demo.scss";
+@import "@ng-select/ng-select/themes/default.theme.css";
 
 /* Fix PrimeNG toast visibility and opacity */
 
@@ -23,12 +24,11 @@
   font-size: 1.125rem;
   font-weight: bold;
   margin-bottom: 1.5rem;
-  
+
   width: 100%;
   grid-column: span 12 / span 12;
   padding: 1.4rem 1rem;
   border-radius: 0.5rem 0.5rem 0 0;
-  
 }
 .branch-header {
   @apply grid grid-cols-2 items-center; /* two columns: left & right */
@@ -41,5 +41,3 @@
   padding: 1.4rem 1rem;
   border-radius: 0.5rem 0.5rem 0 0;
 }
-
-  
