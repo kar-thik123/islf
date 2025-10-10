@@ -367,7 +367,7 @@ import { SourceSalesComponent } from './sourceSales';
               <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Item Name</label>
+              <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
                 <button pButton 
