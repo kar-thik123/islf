@@ -297,7 +297,9 @@ router.post('/', async (req, res) => {
             line_items = [],
             is_new_customer = false,
             code,
-            name
+            name,
+            source_sales_code,
+            
         } = req.body;
 
         // Get user context
@@ -477,11 +479,11 @@ router.post('/', async (req, res) => {
             const enquiryResult = await client.query(
                 `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
                  company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING id`,
+                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code, source_sales_code)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25) RETURNING id`,
                 [enquiryNo, enquiryCode, date, finalCustomerId, customer_name, email, mobile, landline,
                  company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
+                 service_type, status, remarks, userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code, source_sales_code]
             );
 
             console.log("Debug: Create enquiry result",enquiryResult);
@@ -554,6 +556,7 @@ router.put('/:code', async (req, res) => {
             service_type,
             status,
             remarks,
+            source_sales_code,
             line_items = [],
             username = 'System'
         } = req.body;
@@ -574,10 +577,10 @@ router.put('/:code', async (req, res) => {
             await client.query(
                 `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
                  mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
-                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16
-                 WHERE id = $17`,
+                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17
+                 WHERE id = $18`,
                 [date, customer_id, customer_name, email, mobile, landline, company_name, contact_department,
-                 from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, enquiryId]
+                 from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, source_sales_code, enquiryId]
             );
 
             // Delete existing line items

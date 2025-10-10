@@ -42,7 +42,8 @@ import { ServiceAreaService, ServiceArea } from '../../services/service-area.ser
 import { catchError} from 'rxjs/operators';
 import { of } from 'rxjs';
 import { ServiceAreaComponent } from '../masters/servicearea';
-
+import { SourceSalesService } from '@/services/source-sales.service';
+import { SourceSalesComponent } from '../masters/sourceSales';
 
 
 @Component({
@@ -75,7 +76,8 @@ import { ServiceAreaComponent } from '../masters/servicearea';
     MasterLocationComponent,
     BasisComponent,
     MasterTypeComponent,
-    ServiceAreaComponent
+    ServiceAreaComponent,
+    SourceSalesComponent
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -571,7 +573,30 @@ import { ServiceAreaComponent } from '../masters/servicearea';
                 </p-calendar>
                 <small *ngIf="fieldErrors['effective_date_to']" class="p-error text-red-500 text-xs ml-2">{{ fieldErrors['effective_date_to'] }}</small>
               </div>
-
+              <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Source/Sales Person</label>
+              <div class="flex gap-2">
+                <p-dropdown 
+                  [options]="sourceSalesOptions" 
+                  [(ngModel)]="selectedEnquiry.source_sales_code" 
+                  (ngModelChange)="onSourceSalesChange()" 
+                  [ngClass]="getFieldErrorClass('source_sales_code')" 
+                  [ngStyle]="getFieldErrorStyle('source_sales_code')" 
+                  placeholder="Select Source/Sales Person" 
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  filterBy="label"
+                  class="flex-1">
+                </p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['sourceSales'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['sourceSales']"
+                  (click)="openMaster('sourceSales')"></button>
+              </div>
+              <small *ngIf="fieldErrors['sourceSalesCode']" class="p-error">{{ fieldErrors['sourceSalesCode'] }}</small>
+            </div>         
               
 
               <div class="col-span-12 md:col-span-6">
@@ -1119,6 +1144,24 @@ import { ServiceAreaComponent } from '../masters/servicearea';
           <app-service-area></app-service-area>    
         </ng-template>
       </p-dialog>
+       <!-- Source Sales Dialog -->
+    <p-dialog
+      header="Source Sales Master"
+      [(visible)]="showSourceSalesDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('sourceSales')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
+      </ng-template>
+    </p-dialog>
 
   `,
   styles: [`
@@ -1178,13 +1221,14 @@ export class EnquiryComponent implements OnInit {
   lineItems: EnquiryLineItem[] = [];
   vendorCards: EnquiryVendorCard[] = [];
   allLocations: any[] = [];
-  
+  sourceSalesOptions: any[] = [];
+  showSourceSalesDialog = false;
   // Table data
   enquiries: Enquiry[] = [];
   selectedEnquiry: Enquiry | null = null;
   isDialogVisible = false;
   fieldErrors: { [key: string]: string } = {};
-  
+ 
   // Options
   statusOptions = [
     { label: 'Open', value: 'Open' },
@@ -1247,7 +1291,9 @@ export class EnquiryComponent implements OnInit {
  
   showServiceTypeDialog = false;
   masterTypeFilter = '';
-  masterDialogLoading: { [key: string]: boolean } = {};
+  masterDialogLoading: { [key: string]: boolean } = {
+    sourceSales:false
+  };
 
   // Contact management
   customerContacts: CustomerContact[] = [];
@@ -1308,7 +1354,8 @@ export class EnquiryComponent implements OnInit {
     private serviceTypeService: ServiceTypeService,
     private masterTypeService: MasterTypeService,
     private cdr: ChangeDetectorRef,
-    private authService: AuthService
+    private authService: AuthService,
+    private sourceSalesService: SourceSalesService,
   ) {
     this.initializeForm();
   }
@@ -1350,7 +1397,9 @@ export class EnquiryComponent implements OnInit {
       basis: this.loadBasisOptions(),
       customers: this.loadCustomers(),
       serviceTypes: this.loadServiceTypes(),
-      locationTypes: this.loadLocationTypes()
+      locationTypes: this.loadLocationTypes(),
+      serviceAreas:this.loadServiceAreaOptions(),
+      sourceSales:this.loadSourceSalesOptions(),
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
@@ -1445,30 +1494,48 @@ export class EnquiryComponent implements OnInit {
       })
     );
   }
-  loadServiceAreaOptions() {
-  return this.serviceAreaService.getServiceAreas().pipe(
-    tap((serviceAreas: any[]) => {
-      // Extract unique, non-empty "Service Area" names dynamically
-      const uniqueAreas = Array.from(
-        new Set(
-          (serviceAreas || [])
-            .filter(sa => sa.service_area && sa.service_area.trim() !== '')
-            .map(sa => sa.service_area.trim())
-        )
-      );
+loadServiceAreaOptions() {
+    return this.serviceAreaService.getServiceAreas().pipe(
+      tap((serviceAreas: any[]) => {
+        this.serviceAreaOptions = (serviceAreas || [])
+          .filter(sa => sa.status === 'active')
+          .map(sa => ({ label: sa.service_area, value: sa.service_area }));
+        console.log('Service area options:', this.serviceAreaOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading service areas:', error);
+        return of([]);
+      })
+    );
+  }
+  
+  loadSourceSalesOptions() {
+    return this.sourceSalesService.getSourceSales().pipe(
+      tap((sourceSales: any[]) => {
+        this.sourceSalesOptions = (sourceSales || [])
+          .filter(s => s.status === 'active' || s.status === 'Active')
+          .map(s => ({ label: `${s.code} - ${s.name}`, value: s.code }));
+        console.log('Source sales options loaded:', this.sourceSalesOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading source sales:', error);
+        return of([]);
+      })
+    );
+  }
+  
+  // Property to store source sales person name
+  sourceSalesPersonName: string = '';
 
-      // Create dropdown-friendly format
-      this.serviceAreaDropdownOptions = uniqueAreas.map(area => ({
-        label: area,
-        value: area
-      }));
-    }),
-    catchError(error => {
-      this.serviceAreaDropdownOptions = [];
-      return of([]);
-    })
-  );
-}
+  onSourceSalesChange() {
+    if (this.selectedEnquiry && this.selectedEnquiry?.source_sales_code) {
+      const selected = this.sourceSalesOptions.find(option => option.value === this.selectedEnquiry?.source_sales_code);
+      if (selected) {
+        // Store the label in a local property since sourceSalesPerson doesn't exist on Enquiry
+        this.sourceSalesPersonName = selected.label;
+      }
+    }
+  }
 
 
   // Load customers from the enquiry service
@@ -1657,6 +1724,8 @@ export class EnquiryComponent implements OnInit {
       this.showMasterTypeDialog = true;
     } else if (type === 'serviceArea') {
       this.showServiceAreaDialog = true;
+    } else if (type === 'sourceSales') {
+      this.showSourceSalesDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -1688,6 +1757,20 @@ export class EnquiryComponent implements OnInit {
       case 'basis':
         this.showBasisDialog = false;
         this.loadBasisOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      case 'serviceArea':
+        this.showServiceAreaDialog = false;
+        this.loadServiceAreaOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      case 'sourceSales':
+        this.showSourceSalesDialog = false;
+        this.loadSourceSalesOptions().subscribe({
           next: () => this.cdr.detectChanges(),
           error: () => this.cdr.detectChanges()
         });
