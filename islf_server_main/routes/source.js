@@ -230,7 +230,7 @@ router.post('/', async (req, res) => {
         charges, effective_date, period_start_date, period_end_date, is_mandatory,
         company_code, branch_code, department_code,created_by,service_area
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, $21,$22,$23,$24
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, $21,$22,$23
       ) RETURNING *`,
       [
         code, cleanData.mode, cleanData.shippingType, cleanData.cargoType,

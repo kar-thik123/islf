@@ -1364,6 +1364,7 @@ loadBasisOptions() {
         this.itemNameOptions = (items || [])
           .filter(i => i.item_type === 'CHARGE_TYPE' && i.active)
           .map(i => ({ label: `${i.code} - ${i.name}`, value: i.code }));
+          
       })
     );
   }

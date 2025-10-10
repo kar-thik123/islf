@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const jwt = require('jsonwebtoken');
-const {getUsernameFromToken}=require('../utils/context-helper');
+const { getUsernameFromToken } = require('../utils/context-helper');
 const { logMasterEvent } = require('../log');
 // GET /enquiry - Fetch all enquiries with context filtering
 // router.get('/', async (req, res) => {
@@ -117,6 +117,7 @@ router.get('/', async (req, res) => {
         // if (!username) {
         //     return res.status(401).json({ error: 'Unauthorized' });
         // }
+        console.log("👤 [DEBUG] Authenticated user:", username || 'system');
         const { page = 1, limit = 10, search = '', status = '' } = req.query;
         const offset = (page - 1) * limit;
         console.log("📄 [DEBUG] Pagination => page:", page, "limit:", limit, "offset:", offset);
@@ -491,9 +492,9 @@ router.post('/', async (req, res) => {
             for (let i = 0; i < line_items.length; i++) {
                 const item = line_items[i];
                 await client.query(
-                    `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [enquiryId, i + 1, item.quantity, item.basis, item.remarks, item.status || 'Active']
+                    `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [enquiryId, i + 1, item.quantity, item.type, item.service_area, item.basis, item.remarks, item.status || 'Active']
                 );
             }
 
@@ -586,9 +587,9 @@ router.put('/:code', async (req, res) => {
             for (let i = 0; i < line_items.length; i++) {
                 const item = line_items[i];
                 await client.query(
-                    `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [enquiryId, i + 1, item.quantity, item.basis, item.remarks, item.status || 'Active']
+                    `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [enquiryId, i + 1, item.quantity, item.type, item.service_area, item.basis, item.remarks, item.status || 'Active']
                 );
             }
 

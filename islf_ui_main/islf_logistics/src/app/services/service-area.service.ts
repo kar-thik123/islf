@@ -24,6 +24,7 @@ export interface ServiceArea {
 export class ServiceAreaService {
 
   private apiUrl = `${environment.apiUrl}/api/service_area`;
+
   constructor(
     private http: HttpClient,
     private contextPayloadService: ContextPayloadService,
@@ -32,7 +33,17 @@ export class ServiceAreaService {
   ) {}
 
   getServiceAreas(): Observable<ServiceArea[]> {
-    return this.http.get<ServiceArea[]>(this.apiUrl);
+    const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.serviceAreaFilter || '';
+    
+    let params: any = {};
+    if (filter.includes('C') && context.companyCode) params.company_code = context.companyCode;
+    if (filter.includes('B') && context.branchCode) params.branch_code = context.branchCode;
+    if (filter.includes('D') && context.departmentCode) params.department_code = context.departmentCode;
+    if (filter.includes('ST') && context.serviceType) params.service_type_code = context.serviceType;
+    
+    return this.http.get<ServiceArea[]>(this.apiUrl, { params });
   }
 
   getServiceAreaById(id: number): Observable<ServiceArea> {
@@ -41,31 +52,10 @@ export class ServiceAreaService {
 
   createServiceArea(serviceArea: ServiceArea): Observable<ServiceArea> {
     const context = this.contextService.getContext();
-    const config = this.configService.getConfig(); // Get current config to check validation settings
-    const customerFilter = config?.validation?.serviceAreaFilter || '';
-    
-    let contextBody: any = {};
-    
-    // Only send context parameters based on the IT setup validation/filter settings
-    if (customerFilter.includes('C') && context.companyCode) {
-      contextBody.company_code = context.companyCode;
-    }
-    if (customerFilter.includes('B') && context.branchCode) {
-      contextBody.branch_code = context.branchCode;
-    }
-    if (customerFilter.includes('D') && context.departmentCode) {
-      contextBody.department_code = context.departmentCode;
-    }
-    if (customerFilter.includes('ST') && context.serviceType) {
-      contextBody.service_type_code = context.serviceType;
-    }
-    
-    let body: {} ={
-      ...contextBody,
-      ...serviceArea
-    } 
-
-    return this.http.post<ServiceArea>(`${this.apiUrl}`, body);
+    return this.http.post<ServiceArea>(
+      `${this.apiUrl}`,
+      this.contextPayloadService.withContext(serviceArea, context)
+    );
   }
 
   updateServiceArea(code: string, serviceArea: ServiceArea): Observable<ServiceArea> {

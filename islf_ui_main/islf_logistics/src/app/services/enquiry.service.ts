@@ -10,6 +10,8 @@ export interface EnquiryLineItem {
   id?: number;
   s_no: number;
   quantity: number;
+  type: string;
+  service_area: string;
   basis: string;
   remarks: string;
   status: string;

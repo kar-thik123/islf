@@ -8,6 +8,7 @@ async function logAuthEvent({ username, action, details }) {
 }
 
 async function logMasterEvent({ username, action, masterType, recordId, details }) {
+  console.log("log master Event values UN: ", username, " Acti: ", action, " masterType: ", masterType, " recordId: ", recordId, " details: ", details);
   await pool.query(
     'INSERT INTO master_logs (username, action, master_type, record_id, details) VALUES ($1, $2, $3, $4, $5)',
     [username, action, masterType, recordId, details]
