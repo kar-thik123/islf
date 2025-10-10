@@ -845,6 +845,16 @@ interface DocumentPaths {
                     class="w-full">
                   </p-dropdown> 
                   </div>
+                  <div>
+                  <label class="block mb-2 font-medium">Source Sales:</label>
+                  <p-dropdown
+                  [(ngModel)]="validationSettings.sourceSalesFilter"
+                  [options]="vesselFilterOptions"
+                   optionValue="value"
+                  placeholder="Select Source Sales filter"
+                  class="w-full">
+                  </p-dropdown> 
+                  </div>
 
 
               </div>
@@ -1013,6 +1023,7 @@ export class ITSetupComponent implements OnInit {
     basisFilter:'',
     sourceFilter: '',
     serviceAreaFilter:'',
+    sourceSalesFilter:'',
 
 
 

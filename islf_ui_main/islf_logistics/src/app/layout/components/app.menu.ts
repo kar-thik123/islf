@@ -185,6 +185,11 @@ export class AppMenu {
                 label:'Service Area',
                 icon:'fa-solid fa-location-dot',
                 routerLink : ['/master/service_area']
+              },
+              {
+                label:'Source/Sales Person',
+                icon:'fa-solid fa-hand-holding-usd',
+                routerLink : ['/master/source_sales']
               }
             ],
           },

@@ -286,6 +286,8 @@ export class mappingComponent implements OnInit, OnDestroy {
     { label: 'Cargo Code No Series', value: 'cargoCode'},
     { label: 'Charge Code No Series', value: 'chargeCode'},
     { label: 'Service Area Code No Series', value: 'serviceAreaCode'},
+    { label:'Sales/Source Person No Series', value:'salesSourcePersonCode'}
+    
   ];
 
   // Replace signals with plain properties for form fields

@@ -240,6 +240,7 @@ router.get('/config', async (req, res) => {
         basisFilter: config.validation_basis_filter || '',
         sourceFilter: config.validation_source_filter || '',
         serviceAreaFilter: config.validation_service_area_filter || '',
+        sourceSalesFilter: config.validation_source_sales_filter || '',
       }
     };
     
@@ -388,6 +389,7 @@ router.post('/config', async (req, res) => {
       { key: 'validation_basis_filter', value: config.validation?.basisFilter || '' },
       { key: 'validation_source_filter', value: config.validation?.sourceFilter || '' },
       { key: 'validation_service_area_filter', value: config.validation?.serviceAreaFilter || '' },
+      { key: 'validation_source_sales_filter', value: config.validation?.sourceSalesFilter || '' },
     ];
     
     // Save all settings

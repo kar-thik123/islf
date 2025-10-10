@@ -65,6 +65,8 @@ export interface Enquiry {
   vendor_cards?: EnquiryVendorCard[];
   isNew?: boolean;
   is_new_customer?: boolean;
+  source_sales_code?: string;
+  service_area?: string;
 }
 
 export interface CustomerContact {
