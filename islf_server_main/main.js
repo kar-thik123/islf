@@ -115,6 +115,8 @@ app.use('/api/tariff', tariffRouter);
 const sourceRouter = require('./routes/source');
 app.use('/api/source', sourceRouter);
 
+const sourceSalesRouter = require('./routes/source_sales');
+app.use('/api/source_sales', sourceSalesRouter);
 // Add account details route
 const accountDetailsRoutes = require('./routes/account_details');
 app.use('/api/account_details', accountDetailsRoutes);

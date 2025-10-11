@@ -454,6 +454,7 @@ loadServiceAreaTypes() {
 
 
   addRow() {
+    
     const newServiceArea = {
       id: 'new_' + new Date().getTime(),
       code: this.isManualSeries ? '':(this.mappedSvcAreaSeriesCode || ''),

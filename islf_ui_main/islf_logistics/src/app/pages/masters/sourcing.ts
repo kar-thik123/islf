@@ -46,6 +46,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { ChargeTypeMasterComponent } from './chargetype';
 import { ServiceAreaService } from '@/services/service-area.service';
 import { ServiceAreaComponent } from './servicearea';
+import { SourceSalesService } from '@/services/source-sales.service';
+import { SourceSalesComponent } from './sourceSales';
 
 
 @Component({
@@ -73,7 +75,8 @@ import { ServiceAreaComponent } from './servicearea';
     MasterItemComponent,
     InputSwitchModule,
     ChargeTypeMasterComponent,
-    ServiceAreaComponent
+    ServiceAreaComponent,
+    SourceSalesComponent
   ],
   template: `
     <p-toast></p-toast>
@@ -318,6 +321,30 @@ import { ServiceAreaComponent } from './servicearea';
               </div>
               <small *ngIf="fieldErrors['vendorName']" class="p-error">{{ fieldErrors['vendorName'] }}</small>
             </div>
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Source/Sales Person</label>
+              <div class="flex gap-2">
+                <p-dropdown 
+                  [options]="sourceSalesOptions" 
+                  [(ngModel)]="selectedTariff.sourceSalesCode" 
+                  (ngModelChange)="onSourceSalesChange()" 
+                  [ngClass]="getFieldErrorClass('sourceSalesCode')" 
+                  [ngStyle]="getFieldErrorStyle('sourceSalesCode')" 
+                  placeholder="Select Source/Sales Person" 
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  filterBy="label"
+                  class="flex-1">
+                </p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['sourceSales'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['sourceSales']"
+                  (click)="openMaster('sourceSales')"></button>
+              </div>
+              <small *ngIf="fieldErrors['sourceSalesCode']" class="p-error">{{ fieldErrors['sourceSalesCode'] }}</small>
+            </div>
           </div>
           <!-- 2. General Information -->
           <h3 class="section-header">2. General Information</h3>
@@ -340,7 +367,7 @@ import { ServiceAreaComponent } from './servicearea';
               <small *ngIf="fieldErrors['cargoType']" class="p-error">{{ fieldErrors['cargoType'] }}</small>
             </div>
             <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Item Name</label>
+              <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
                 <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
                 <button pButton 
@@ -602,6 +629,25 @@ import { ServiceAreaComponent } from './servicearea';
         <app-service-area *ngIf="showServiceAreaDialog" (onClose)="closeMasterDialog('serviceArea')"></app-service-area>
       </ng-template>
     </p-dialog>
+    
+    <!-- Source Sales Dialog -->
+    <p-dialog
+      header="Source Sales Master"
+      [(visible)]="showSourceSalesDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('sourceSales')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
+      </ng-template>
+    </p-dialog>
 
   `,
  styles: [`
@@ -809,6 +855,10 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
   isManualSeries: boolean = false;
   mappedTariffSeriesCode: string = '';
   
+  // Properties for source sales
+  sourceSalesOptions: any[] = [];
+  showSourceSalesDialog = false;
+  
   vendorTypeOptions: any[] = [];
   vendorOptions: any[] = [];
   allVendors: any[] = []; // Add this property to store all vendors
@@ -829,7 +879,17 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
   showMasterLocationDialog = false;
   showServiceAreaDialog = false;
   masterTypeFilter = '';
-  masterDialogLoading: { [key: string]: boolean } = {};
+  masterDialogLoading: { [key: string]: boolean } = {
+    currency: false,
+    container: false,
+    vendor: false,
+    basis: false,
+    masterType: false,
+    masterItem: false,
+    masterLocation: false,
+    serviceArea: false,
+    sourceSales: false
+  };
   mandatoryOptions = [
     { label: 'Yes', value: true },
     { label: 'No', value: false }
@@ -862,6 +922,7 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
     private numberSeriesService: NumberSeriesService,
     private numberSeriesRelationService: NumberSeriesRelationService,
     private serviceAreaService: ServiceAreaService,
+    private sourceSalesService: SourceSalesService,
     private cdr: ChangeDetectorRef,
     private router: Router
   ) {}
@@ -1171,7 +1232,9 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
       // currencies: this.loadCurrencyOptions(),
       items: this.loadItemOptions(),
       vendorTypes: this.loadVendorTypeOptions(),
-      vendors: this.loadVendorOptions()
+      vendors: this.loadVendorOptions(),
+      serviceAreas: this.loadServiceAreaOptions(),
+      sourceSales: this.loadSourceSalesOptions()
     }).subscribe({
       next: () => {
         console.log('All master data loaded, now loading tariff list...');
@@ -1384,6 +1447,30 @@ loadBasisOptions() {
     );
   }
   
+  loadSourceSalesOptions() {
+    return this.sourceSalesService.getSourceSales().pipe(
+      tap((sourceSales: any[]) => {
+        this.sourceSalesOptions = (sourceSales || [])
+          .filter(s => s.status === 'active' || s.status === 'Active')
+          .map(s => ({ label: `${s.code} - ${s.name}`, value: s.code }));
+        console.log('Source sales options loaded:', this.sourceSalesOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading source sales:', error);
+        return of([]);
+      })
+    );
+  }
+  
+  onSourceSalesChange() {
+    if (this.selectedTariff && this.selectedTariff.sourceSalesCode) {
+      const selected = this.sourceSalesOptions.find(option => option.value === this.selectedTariff.sourceSalesCode);
+      if (selected) {
+        this.selectedTariff.sourceSalesPerson = selected.label;
+      }
+    }
+  }
+  
   loadVendorTypeOptions() {
     return this.masterTypeService.getAll().pipe(
       tap((types: any[]) => {
@@ -1466,6 +1553,7 @@ loadBasisOptions() {
             periodStartDate: source.period_start_date,
             periodEndDate: source.period_end_date,
             isMandatory: source.is_mandatory,
+            
           }
            const startDate = this.parseDate(source.period_start_date);
           const endDate = this.parseDate(source.period_end_date);
@@ -1719,7 +1807,8 @@ loadBasisOptions() {
       this.loadItemOptions(),
       this.loadVendorTypeOptions(),
       this.loadVendorOptions(),
-      this.loadServiceAreaOptions()
+      this.loadServiceAreaOptions(),
+      this.loadSourceSalesOptions()
     ]).subscribe(() => {
       this.updateFormValidity();
       this.cdr.detectChanges();
@@ -1972,6 +2061,8 @@ loadBasisOptions() {
       this.showMasterLocationDialog = true;
     } else if (type === 'serviceArea') {
       this.showServiceAreaDialog = true;
+    } else if (type === 'sourceSales') {
+      this.showSourceSalesDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
@@ -2059,6 +2150,13 @@ loadBasisOptions() {
       case 'serviceArea':
         this.showServiceAreaDialog = false;
         this.loadServiceAreaOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      case 'sourceSales':
+        this.showSourceSalesDialog = false;
+        this.loadSourceSalesOptions().subscribe({
           next: () => this.cdr.detectChanges(),
           error: () => this.cdr.detectChanges()
         });

@@ -29,6 +29,7 @@ export interface Tariff {
   periodStartDate: string;
   periodEndDate: string;
   isMandatory: boolean;
+  sourceSalesCode: string;
     // New field for accounting purposes
 }
 

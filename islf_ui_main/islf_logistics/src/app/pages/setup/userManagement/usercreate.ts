@@ -32,6 +32,10 @@ import { NumberSeriesService } from '../../../services/number-series.service';
 import { MappingService } from '../../../services/mapping.service';
 import { ContextService } from '../../../services/context.service';
 import { NumberSeriesRelationService } from '../../../services/number-series-relation.service';
+import { SourceSalesService } from '@/services/source-sales.service';
+import { SourceSalesComponent } from '../../masters/sourceSales';
+import { of } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 
 
 @Component({
@@ -56,6 +60,7 @@ import { NumberSeriesRelationService } from '../../../services/number-series-rel
     TableModule,
     DialogModule,
     ToastModule,
+    SourceSalesComponent,
   ],
   providers: [ConfirmationService],
   template: `
@@ -151,6 +156,7 @@ import { NumberSeriesRelationService } from '../../../services/number-series-rel
         <label class="block font-semibold mb-1">Department</label>
         <p-multiSelect [options]="departmentOptions" optionLabel="label" defaultLabel="Select Departments" class="w-full" [(ngModel)]="user.department" name="department"></p-multiSelect>
       </div>
+     
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Designation</label>
         <p-dropdown [options]="designationOptions" optionLabel="value" optionValue="value" placeholder="Select Designation" class="w-full" [(ngModel)]="user.designation" name="designation" [filter]="true" filterBy="value"></p-dropdown>
@@ -214,6 +220,17 @@ import { NumberSeriesRelationService } from '../../../services/number-series-rel
       <div class="col-span-12 md:col-span-6">
         <label class="block font-semibold mb-1">Status</label>
         <p-dropdown [options]="statusOptions" optionLabel="value" optionValue="value" placeholder="Select Status" class="w-full" [(ngModel)]="user.status" name="status" [filter]="true" filterBy="value"></p-dropdown>
+      </div>
+       <div class="col-span-12 md:col-span-6">
+        <label class="block font-semibold mb-1">Source/Sales Person</label>
+        <div class="flex gap-2">
+          <p-dropdown [options]="sourceSalesOptions" [(ngModel)]="user.source_sales_code" 
+            placeholder="Select Source/Sales Person" class="w-full" name="source_sales_code"
+            (onChange)="onSourceSalesChange()" [filter]="true" filterBy="label">
+          </p-dropdown>
+          <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" 
+            (click)="openMaster('sourceSales')"></button>
+        </div>
       </div>
     </div>
 
@@ -444,6 +461,25 @@ import { NumberSeriesRelationService } from '../../../services/number-series-rel
   </ng-template>
 </p-dialog>
 
+    <!-- Source Sales Dialog -->
+    <p-dialog
+      header="Source Sales Master"
+      [(visible)]="showSourceSalesDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('sourceSales')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
+      </ng-template>
+    </p-dialog>
+
   `
 })
 export class UserCreateComponent implements OnInit {
@@ -475,7 +511,8 @@ export class UserCreateComponent implements OnInit {
     vehicleAssigned: '',
     shiftTiming: '',
     bio: '',
-    avatar: null
+    avatar: null,
+    source_sales_code: ''
   };
   genders = [
     { label: 'Male', value: 'M' },
@@ -551,6 +588,13 @@ export class UserCreateComponent implements OnInit {
   safeDocumentViewerUrl: SafeResourceUrl | null = null;
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
+  
+  // Source Sales properties
+  sourceSalesOptions: any[] = [];
+  showSourceSalesDialog: boolean = false;
+  masterDialogLoading: boolean = false;
+  sourceSalesCode: string = '';
+  sourceSalesPersonName: string = '';
 
   onRoleChange(event: any) {
     this.selectedRole = event.value;
@@ -590,6 +634,7 @@ export class UserCreateComponent implements OnInit {
       branch: [],
       department: [],
       designation: '',
+      source_sales_code:'',
       reportingManager: '',
       username: '',
       password: '',
@@ -627,8 +672,52 @@ export class UserCreateComponent implements OnInit {
     private numberSeriesService: NumberSeriesService,
     private mappingService: MappingService,
     private contextService: ContextService,
-    private numberSeriesRelationService: NumberSeriesRelationService
+    private numberSeriesRelationService: NumberSeriesRelationService,
+    private sourceSalesService: SourceSalesService
   ) {}
+
+  // Load source sales options for dropdown
+  loadSourceSalesOptions() {
+    return this.sourceSalesService.getSourceSales().pipe(
+      tap((sourceSales: any[]) => {
+        this.sourceSalesOptions = (sourceSales || [])
+          .filter(s => s.status === 'active' || s.status === 'Active')
+          .map(s => ({ label: `${s.code} - ${s.name}`, value: s.code }));
+        console.log('Source sales options loaded:', this.sourceSalesOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading source sales:', error);
+        return of([]);
+      })
+    );
+  }
+
+  // Open source sales master dialog
+  openMaster(type: string) {
+    if (type === 'sourceSales') {
+      this.showSourceSalesDialog = true;
+      this.masterDialogLoading = true;
+    }
+  }
+
+  // Close master dialog
+  closeMasterDialog(type: string) {
+    if (type === 'sourceSales') {
+      this.showSourceSalesDialog = false;
+      // Reload source sales options when dialog is closed
+      this.loadSourceSalesOptions().subscribe();
+    }
+  }
+
+  // Handle source sales change
+  onSourceSalesChange() {
+    if (this.user.source_sales_code) {
+      const selectedOption = this.sourceSalesOptions.find(option => option.value === this.user.source_sales_code);
+      if (selectedOption) {
+        this.sourceSalesPersonName = selectedOption.label;
+      }
+    }
+  }
 
   // Helper to map codes to option objects
   private mapCodesToOptions(codes: string[], options: any[]): any[] {
@@ -644,6 +733,9 @@ export class UserCreateComponent implements OnInit {
     
     // Load employee number series configuration with context-based mapping
     this.loadMappedEmployeeSeriesCode();
+    
+    // Load source sales options
+    this.loadSourceSalesOptions();
     
     // Fetch branches and departments first
     let branchesLoaded = false;

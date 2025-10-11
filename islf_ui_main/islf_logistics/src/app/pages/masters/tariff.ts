@@ -45,6 +45,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { ChargeTypeMasterComponent } from './chargetype';
 import { ServiceAreaService } from '@/services/service-area.service';
 import { ServiceAreaComponent } from './servicearea';
+import { SourceSalesService } from '@/services/source-sales.service';
+import { SourceSalesComponent } from './sourceSales';
 
 @Component({
   selector: 'app-tariff',
@@ -71,7 +73,8 @@ import { ServiceAreaComponent } from './servicearea';
     MasterItemComponent,
     ChargeTypeMasterComponent,
     InputSwitchModule,
-    ServiceAreaComponent
+    ServiceAreaComponent,
+    SourceSalesComponent,
   ],
   template: `
     <p-toast></p-toast>
@@ -325,6 +328,30 @@ import { ServiceAreaComponent } from './servicearea';
                   (click)="openMaster('vendor')"></button>
               </div>
               <small *ngIf="fieldErrors['vendorName']" class="p-error">{{ fieldErrors['vendorName'] }}</small>
+            </div>
+             <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Source/Sales Person</label>
+              <div class="flex gap-2">
+                <p-dropdown 
+                  [options]="sourceSalesOptions" 
+                  [(ngModel)]="selectedTariff.sourceSalesCode" 
+                  (ngModelChange)="onSourceSalesChange()" 
+                  [ngClass]="getFieldErrorClass('sourceSalesCode')" 
+                  [ngStyle]="getFieldErrorStyle('sourceSalesCode')" 
+                  placeholder="Select Source/Sales Person" 
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  filterBy="label"
+                  class="flex-1">
+                </p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['sourceSales'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['sourceSales']"
+                  (click)="openMaster('sourceSales')"></button>
+              </div>
+              <small *ngIf="fieldErrors['sourceSalesCode']" class="p-error">{{ fieldErrors['sourceSalesCode'] }}</small>
             </div>
           </div>
           <!-- 2. General Information -->
@@ -662,6 +689,24 @@ import { ServiceAreaComponent } from './servicearea';
         <app-service-area *ngIf="showServiceAreaDialog" (onClose)="closeMasterDialog('serviceArea')"></app-service-area>
       </ng-template>
     </p-dialog>
+    <!-- Source Sales Dialog -->
+    <p-dialog
+      header="Source Sales Master"
+      [(visible)]="showSourceSalesDialog"
+      [modal]="true"
+      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('sourceSales')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
+      </ng-template>
+    </p-dialog>
     
   `,
  styles: [`
@@ -873,7 +918,8 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   // Number series properties
   isManualSeries: boolean = false;
   mappedTariffSeriesCode: string = '';
-  
+  sourceSalesOptions: any[] = [];
+  showSourceSalesDialog = false;
   vendorTypeOptions: any[] = [];
   vendorOptions: any[] = [];
   allVendors: any[] = []; // Add this property to store all vendors
@@ -894,7 +940,15 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   showMasterItemDialog = false;
   showMasterLocationDialog = false;
   masterTypeFilter = '';
-  masterDialogLoading: { [key: string]: boolean } = {};
+  masterDialogLoading: { [key: string]: boolean } = {
+    'serviceArea': false,
+    'sourceSales': false,
+    'vendor': false,
+    'basis': false,
+    'masterType': false,
+    'masterItem': false,
+    'masterLocation': false,
+  };
     mandatoryOptions = [
     { label: 'Yes', value: true },
     { label: 'No', value: false }
@@ -926,6 +980,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     private numberSeriesService: NumberSeriesService,
     private numberSeriesRelationService: NumberSeriesRelationService,
     private serviceAreaService: ServiceAreaService,
+    private sourceSalesService: SourceSalesService,
     private cdr: ChangeDetectorRef,
     private router: Router
   ) {}
@@ -1232,7 +1287,10 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       currencies: this.loadCurrencyOptions(),
       items: this.loadItemOptions(),
       vendorTypes: this.loadVendorTypeOptions(),
-      vendors: this.loadVendorOptions()
+      vendors: this.loadVendorOptions(),
+      
+      sourceSales: this.loadSourceSalesOptions(),
+    
     }).subscribe({
       next: () => {
         console.log('All master data loaded, now loading tariff list...');
@@ -1281,7 +1339,29 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       })
     );
   }
-
+  loadSourceSalesOptions() {
+    return this.sourceSalesService.getSourceSales().pipe(
+      tap((sourceSales: any[]) => {
+        this.sourceSalesOptions = (sourceSales || [])
+          .filter(s => s.status === 'active' || s.status === 'Active')
+          .map(s => ({ label: `${s.code} - ${s.name}`, value: s.code }));
+        console.log('Source sales options loaded:', this.sourceSalesOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading source sales:', error);
+        return of([]);
+      })
+    );
+  }
+  
+  onSourceSalesChange() {
+    if (this.selectedTariff && this.selectedTariff.sourceSalesCode) {
+      const selected = this.sourceSalesOptions.find(option => option.value === this.selectedTariff.sourceSalesCode);
+      if (selected) {
+        this.selectedTariff.sourceSalesPerson = selected.label;
+      }
+    }
+  }
   // Updated method to load unique service type values with case-insensitive deduplication
   loadShippingTypeOptions() {
     const context = this.contextService.getContext();
@@ -1967,7 +2047,10 @@ loadBasisOptions() {
       this.showMasterTypeDialog = true;
     } else if (type === 'from' || type === 'to') {
       this.showMasterLocationDialog = true;
-    } else {
+    }  else if (type === 'sourceSales') {
+      this.showSourceSalesDialog = true;
+    } 
+    else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
     
@@ -2012,6 +2095,13 @@ loadBasisOptions() {
       case 'serviceArea':
         this.showServiceAreaDialog = false;
         this.loadServiceAreaOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+        break;
+      case 'sourceSales':
+        this.showSourceSalesDialog = false;
+        this.loadSourceSalesOptions().subscribe({
           next: () => this.cdr.detectChanges(),
           error: () => this.cdr.detectChanges()
         });
