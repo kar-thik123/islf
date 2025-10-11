@@ -333,9 +333,9 @@ router.post("/", async (req, res) => {
     const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO users (
-        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, company_code, branch_code, department_code,created_by, created_at
+        username, password, email, phone, full_name, employee_id, gender, date_of_birth, branch, department, designation, reporting_manager, role, status, joining_date, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission, company_code, branch_code, department_code,source_sales_code,created_by, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25,$26, NOW()
       ) RETURNING *`,
       [
         username,
@@ -362,7 +362,9 @@ router.post("/", async (req, res) => {
         company_code,
         branch_code,
         department_code,
+        source_sales_code,
         created_by,
+
       ]
     );
     await logSetupEvent({
@@ -443,7 +445,7 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT id, full_name, employee_id, designation, joining_date, status, email, phone, gender, date_of_birth, branch, department, designation, reporting_manager, username, role, employment_type, vehicle_assigned, shift_timing, bio, avatar_url, permission FROM users WHERE id = $1`,
+      `SELECT id, full_name, employee_id, designation, joining_date, status, email, phone, gender, date_of_birth, branch, department, designation, reporting_manager, username, role, employment_type, vehicle_assigned, shift_timing, bio, avatar_url,source_sales_code, permission FROM users WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) {
@@ -500,6 +502,7 @@ router.put("/:id", async (req, res) => {
       bio,
       avatar,
       permission,
+      source_sales_code
     } = req.body;
 
     // Debug: log received permission
@@ -529,8 +532,9 @@ router.put("/:id", async (req, res) => {
         shift_timing = $17,
         bio = $18,
         avatar_url = $19,
-        permission = $20
-      WHERE id = $21
+        permission = $20,
+        source_sales_code = $21
+      WHERE id = $22
       RETURNING *`,
       [
         fullName,
@@ -553,7 +557,8 @@ router.put("/:id", async (req, res) => {
         bio,
         avatar,
         permission,
-        id,
+        source_sales_code,
+        id
       ]
     );
     if (result.rows.length === 0) {
