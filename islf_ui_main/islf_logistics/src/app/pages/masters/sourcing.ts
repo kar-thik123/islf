@@ -369,7 +369,7 @@ import { SourceSalesComponent } from './sourceSales';
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
-                <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                <p-dropdown [options]="itemNameOptions" optionLabel="label" optionValue="value" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
                 <button pButton 
                   [icon]="masterDialogLoading['itemName'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
                   class="p-button-sm" 
@@ -1547,7 +1547,11 @@ loadBasisOptions() {
             locationTypeFrom: source.location_type_from,
             fromLocation: source.from_location,
             locationTypeTo: source.location_type_to,
+            sourceSalesCode: source.source_sales_code,
+            serviceArea: source.service_area,
             toLocation: source.to_location,
+            from: source.from_location,
+            to: source.to_location,
             charges: source.charges,
             effectiveDate: source.effective_date,
             periodStartDate: source.period_start_date,
@@ -1767,7 +1771,7 @@ loadBasisOptions() {
       tariffType: '',
       basis: '',
       containerType: '',
-      itemName: '',
+      itemName: null,
       currency: '',
       locationTypeFrom: '',
       locationTypeTo: '',

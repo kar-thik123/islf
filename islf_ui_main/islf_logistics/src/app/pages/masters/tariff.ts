@@ -402,7 +402,20 @@ import { SourceSalesComponent } from './sourceSales';
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
-                <p-dropdown [options]="itemNameOptions" [(ngModel)]="selectedTariff.itemName" (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)" [ngClass]="getFieldErrorClass('itemName')" [ngStyle]="getFieldErrorStyle('itemName')" placeholder="Select Item Name" [filter]="true" filterBy="label" [showClear]="true" class="flex-1"></p-dropdown>
+                 <p-dropdown
+                  [options]="itemNameOptions"
+                 optionLabel="label"
+                  optionValue="value"
+                  [(ngModel)]="selectedTariff.itemName"
+                  (ngModelChange)="onFieldChange('itemName', selectedTariff.itemName)"
+                  [ngClass]="getFieldErrorClass('itemName')"
+                  [ngStyle]="getFieldErrorStyle('itemName')"
+                  placeholder="Select Item Name"
+                  [filter]="true"
+                  filterBy="label"
+                  [showClear]="true"
+                 class="flex-1">
+                </p-dropdown>
                 <button pButton 
                   [icon]="masterDialogLoading['itemName'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
                   class="p-button-sm" 
@@ -1585,6 +1598,9 @@ loadBasisOptions() {
             itemName: tariff.item_name,
             fromLocation: tariff.from_location,
             toLocation: tariff.to_location,
+            // Ensure edit dialog binds to the correct model properties
+            from: tariff.from_location,
+            to: tariff.to_location,
             vendorType: tariff.vendor_type,
             vendorName: tariff.vendor_name,
             locationTypeFrom: tariff.location_type_from,
@@ -1594,6 +1610,9 @@ loadBasisOptions() {
             currency: tariff.currency,
             charges: tariff.charges,
             mode: tariff.mode,
+            // Map new master fields used by the form
+            serviceArea: tariff.service_area,
+            sourceSalesCode: tariff.source_sales_code,
             effectiveDate: tariff.effective_date,
             periodStartDate: tariff.period_start_date,
             periodEndDate: tariff.period_end_date,
@@ -1757,7 +1776,7 @@ loadBasisOptions() {
       tariffType: '',
       basis: '',
       containerType: '',
-      itemName: '',
+      itemName: null,
       currency: '',
       locationTypeFrom: '',
       locationTypeTo: '',
@@ -1770,6 +1789,7 @@ loadBasisOptions() {
       effectiveDate: '',
       periodStartDate: '',
       periodEndDate: '',
+      
       isNew: true
     };
     this.isDialogVisible = true;
@@ -1898,7 +1918,11 @@ loadBasisOptions() {
       this.loadCurrencyOptions(),
       this.loadItemOptions(),
       this.loadVendorTypeOptions(),
-      this.loadVendorOptions()
+      this.loadVendorOptions(),
+      this.loadSourceSalesOptions(),
+      this.loadServiceAreaOptions(),
+
+
     ]).subscribe(() => {
       this.updateFormValidity();
       this.cdr.detectChanges();

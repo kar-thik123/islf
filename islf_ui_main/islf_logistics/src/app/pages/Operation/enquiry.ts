@@ -1948,7 +1948,16 @@ loadServiceAreaOptions() {
         // Apply location filtering based on selected location types
         this.filterFromLocations();
         this.filterToLocations();
-        
+
+        // Ensure context-filtered dropdowns contain the saved values when editing
+        forkJoin({
+          sourceSales: this.loadSourceSalesOptions(),
+          serviceAreas: this.loadServiceAreaOptions()
+        }).subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+
         this.isDialogVisible = true;
       },
       error: (error: any) => {
@@ -2954,6 +2963,7 @@ loadServiceAreaOptions() {
     }
     console.log('From location options:', this.fromLocationOptions.length);
   }
+  
 
   filterToLocations() {
     console.log('Filtering to locations for type:', this.selectedEnquiry?.location_type_to);
