@@ -38,6 +38,14 @@ export interface EnquiryVendorCard {
   remarks?: string;
 }
 
+// Enquiry summary master interface
+export interface EnquirySummary {
+  master_type: string;
+  selected_no: number;
+  vendor_name: string;
+  charge: number;
+}
+
 export interface Enquiry {
   id?: number;
   enquiry_no?: string;
