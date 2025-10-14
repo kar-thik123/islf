@@ -2487,6 +2487,15 @@ export class EnquiryComponent implements OnInit {
         this.filterFromLocations();
         this.filterToLocations();
 
+        // Ensure context-filtered dropdowns contain the saved values when editing
+        forkJoin({
+          sourceSales: this.loadSourceSalesOptions(),
+          serviceAreas: this.loadServiceAreaOptions()
+        }).subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges()
+        });
+
         this.isDialogVisible = true;
       },
       error: (error: any) => {
@@ -3864,6 +3873,7 @@ export class EnquiryComponent implements OnInit {
     }
     console.log('From location options:', this.fromLocationOptions.length);
   }
+  
 
   filterToLocations() {
     console.log(

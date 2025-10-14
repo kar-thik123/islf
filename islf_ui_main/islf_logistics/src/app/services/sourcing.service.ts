@@ -25,8 +25,7 @@ export interface Source {
   periodStartDate: string;
   periodEndDate: string;
   isMandatory: boolean;
-  sourceSalesCode?: string;
-  sourceSalesPerson?: string;
+    // New field for accounting purposes
 }
 
 @Injectable({ providedIn: 'root' })

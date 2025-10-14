@@ -453,23 +453,77 @@ loadServiceAreaTypes() {
 }
 
 
-  addRow() {
-    
-    const newServiceArea = {
-      id: 'new_' + new Date().getTime(),
-      code: this.isManualSeries ? '':(this.mappedSvcAreaSeriesCode || ''),
-      type: '',
-      service_area: '',
-      from_location: false,
-      to_location: false,
-      status: 'active',
-      isNew: true,
-      isEditing: false,
-      errors: {}
-    };
-    
-    this.serviceAreas = [newServiceArea, ...this.serviceAreas];
+addRow() {
+  console.log('Add Service Area button clicked - starting addServiceArea method');
+
+ 
+  const config = this.configService.getConfig();
+  const serviceAreaFilter = config?.validation?.serviceAreaFilter || '';
+
+  console.log('Service Area filter:', serviceAreaFilter);
+
+
+  if (serviceAreaFilter) {
+    const context = this.contextService.getContext();
+    console.log('Current context:', context);
+
+ 
+    if (serviceAreaFilter.includes('C') && !context.companyCode) {
+      console.log('Company context required but not set');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Context Required',
+        detail: 'Please select a Company before adding a new Service Area.'
+      });
+      this.contextService.showContextSelector();
+      return;
+    }
+
+    if (serviceAreaFilter.includes('B') && !context.branchCode) {
+      console.log('Branch context required but not set');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Context Required',
+        detail: 'Please select a Branch before adding a new Service Area.'
+      });
+      this.contextService.showContextSelector();
+      return;
+    }
+
+    if (serviceAreaFilter.includes('D') && !context.departmentCode) {
+      console.log('Department context required but not set');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Context Required',
+        detail: 'Please select a Department before adding a new Service Area.'
+      });
+      this.contextService.showContextSelector();
+      return;
+    }
   }
+
+  console.log('Context validation passed - proceeding to add new Service Area');
+
+
+  const newServiceArea = {
+    id: 'new_' + new Date().getTime(),
+    code: this.isManualSeries ? '' : (this.mappedSvcAreaSeriesCode || ''),
+    type: '',
+    service_area: '',
+    from_location: false,
+    to_location: false,
+    status: 'active',
+    isNew: true,
+    isEditing: false,
+    errors: {}
+  };
+
+
+  this.serviceAreas = [newServiceArea, ...this.serviceAreas];
+
+  console.log('New Service Area added successfully');
+}
+
   
   editRow(serviceArea: any) {
     serviceArea.isEditing = true;

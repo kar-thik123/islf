@@ -32,16 +32,15 @@ export class SourceSalesService {
   ) {}
 
   getSourceSales(): Observable<SourceSales[]> {
+    // Always filter by the currently selected context when available
     const context = this.contextService.getContext();
-    const config = this.configService.getConfig();
-    const filter = config?.validation?.sourceFilter || '';
-    
-    let params: any = {};
-    if (filter.includes('C') && context.companyCode) params.company_code = context.companyCode;
-    if (filter.includes('B') && context.branchCode) params.branch_code = context.branchCode;
-    if (filter.includes('D') && context.departmentCode) params.department_code = context.departmentCode;
-    if (filter.includes('ST') && context.serviceType) params.service_type_code = context.serviceType;
-    
+    const params: any = {};
+
+    if (context.companyCode) params.company_code = context.companyCode;
+    if (context.branchCode) params.branch_code = context.branchCode;
+    if (context.departmentCode) params.department_code = context.departmentCode;
+    if (context.serviceType) params.service_type_code = context.serviceType;
+
     return this.http.get<SourceSales[]>(this.apiUrl, { params });
   }
 

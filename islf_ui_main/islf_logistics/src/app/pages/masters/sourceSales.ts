@@ -46,7 +46,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
     <div class="card">
-      <div class="font-semibold text-xl mb-4">Source Sales</div>
+      <div class="font-semibold text-xl mb-4">Source/Sales Person</div>
       <p-table
         #dt
         [value]="sourceSales"
@@ -73,7 +73,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
             <button
               pButton
               type="button"
-              label="Add Source Sales"
+              label="Add Person"
               icon="pi pi-plus"
               class="p-button"
               (click)="addRow()"
@@ -273,42 +273,49 @@ import { InputNumberModule } from 'primeng/inputnumber';
                 </span>
               </ng-template>
             </td>
-            <td>
-              <div class="flex items-center space-x-[8px]">
-                <button
-                  pButton
-                  icon="pi pi-pencil"
-                  class="p-button-sm"
-                  (click)="editRow(sourceSale)"
-                  title="Edit"
-                  *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
-                ></button>
-                <button
-                  pButton
-                  icon="pi pi-check"
-                  class="p-button-sm p-button-success"
-                  (click)="saveRow(sourceSale)"
-                  title="Save"
-                  *ngIf="sourceSale.isEditing || sourceSale.isNew"
-                ></button>
-                <button
-                  pButton
-                  icon="pi pi-times"
-                  class="p-button-sm p-button-danger"
-                  (click)="cancelEdit(sourceSale)"
-                  title="Cancel"
-                  *ngIf="sourceSale.isEditing || sourceSale.isNew"
-                ></button>
-                <button
-                  pButton
-                  icon="pi pi-trash"
-                  class="p-button-sm p-button-danger"
-                  (click)="confirmDelete(sourceSale)"
-                  title="Delete"
-                  *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
-                ></button>
-              </div>
+            <td class="actions-column flex items-center space-x-[8px]">
+  
+              <button
+                pButton
+                icon="pi pi-pencil"
+                class="p-button-sm"
+                (click)="editRow(sourceSale)"
+                title="Edit"
+                *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
+              ></button>
+
+              <!-- Save button (only show when editing or adding new) -->
+              <button
+                pButton
+                icon="pi pi-check"
+                class="p-button-sm"
+                (click)="saveRow(sourceSale)"
+                title="Save"
+                *ngIf="sourceSale.isEditing || sourceSale.isNew"
+              ></button>
+
+              <!-- Cancel button (only show when editing or adding new) -->
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-sm"
+                severity="danger"
+                (click)="cancelEdit(sourceSale)"
+                title="Cancel"
+                *ngIf="sourceSale.isEditing || sourceSale.isNew"
+              ></button>
+
+              <!-- Delete button (only show when not editing or adding new) -->
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-sm p-button-danger"
+                (click)="confirmDelete(sourceSale)"
+                title="Delete"
+                *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
+              ></button>
             </td>
+
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
@@ -374,6 +381,14 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    // 1) Immediately load using the current context if already selected
+    const initialContext = this.contextService.getContext();
+    if (initialContext) {
+      this.contextId = this.getContextId(initialContext);
+      this.loadSourceSales();
+    }
+
+    // 2) Also react to any subsequent context changes
     this.contextSubscription = this.contextService.context$
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((context) => {
@@ -471,22 +486,75 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
     });
   }
 
-  addRow() {
-    const newSourceSale = {
-      id: 'new_' + new Date().getTime(),
-      code: this.isManualSeries ? '' : this.mappedSourceSalesSeriesCode || '',
-      name: '',
-      commission_percentage: 0,
-      email: '',
-      phone: '',
-      status: 'active',
-      isNew: true,
-      isEditing: true,
-      errors: {},
-    };
+ addRow() {
+  console.log('Add Source Sale button clicked - starting addRow method');
 
-    this.sourceSales = [newSourceSale, ...this.sourceSales];
+
+  const config = this.configService.getConfig();
+  const sourceSalesFilter = config?.validation?.sourceSalesFilter || '';
+
+  console.log('Source Sales filter:', sourceSalesFilter);
+
+
+  if (sourceSalesFilter) {
+    const context = this.contextService.getContext();
+    console.log('Current context:', context);
+
+  
+    if (sourceSalesFilter.includes('C') && !context.companyCode) {
+      console.log('Company context required but not set');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Context Required',
+        detail: 'Please select a Company before adding a new Source Sale.'
+      });
+      this.contextService.showContextSelector();
+      return;
+    }
+
+    if (sourceSalesFilter.includes('B') && !context.branchCode) {
+      console.log('Branch context required but not set');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Context Required',
+        detail: 'Please select a Branch before adding a new Source Sale.'
+      });
+      this.contextService.showContextSelector();
+      return;
+    }
+
+    if (sourceSalesFilter.includes('D') && !context.departmentCode) {
+      console.log('Department context required but not set');
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Context Required',
+        detail: 'Please select a Department before adding a new Source Sale.'
+      });
+      this.contextService.showContextSelector();
+      return;
+    }
   }
+
+  console.log('Context validation passed - proceeding to add new Source Sale');
+
+ 
+  const newSourceSale = {
+    id: 'new_' + new Date().getTime(),
+    code: this.isManualSeries ? '' : (this.mappedSourceSalesSeriesCode || ''),
+    name: '',
+    commission_percentage: 0,
+    email: '',
+    phone: '',
+    status: 'active',
+    isNew: true,
+    isEditing: true,
+    errors: {},
+  };
+
+ 
+  this.sourceSales = [newSourceSale, ...this.sourceSales];
+  console.log('New Source Sale row added successfully');
+}
 
   editRow(sourceSale: any) {
     sourceSale.isEditing = true;
