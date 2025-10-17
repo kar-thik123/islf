@@ -446,30 +446,16 @@ function toTitleCase(str: string): string {
               <label for="type"
                 >Vendor Type <span class="text-red-500">*</span></label
               >
-              <!-- <ng-select
+              <ng-select
                 *ngIf="isDuplicate; else vendorTypeRef"
                 [multiple]="true"
                 placeholder="Select Vendor Type(s)"
                 [(ngModel)]="selectedVendorTypes"
+                [closeOnSelect]="false"
                 [items]="duplicationVendorTypeOptions"
                 bindLabel="label"
                 bindValue="value"
               >
-              </ng-select> -->
-              <ng-select
-                *ngIf="isDuplicate; else vendorTypeRef"
-                [multiple]="true"
-                [(ngModel)]="selectedVendorType"
-              >
-                @for (dupVendorTypeOption of duplicationVendorTypeOptions; track
-                dupVendorTypeOption) {
-                <ng-option
-                  [value]="dupVendorTypeOption.value"
-                  [disabled]="dupVendorTypeOption.disabled"
-                >
-                  {{ dupVendorTypeOption.label }}</ng-option
-                >
-                }
               </ng-select>
               <!-- render this if isDuplicate is false -->
               <ng-template #vendorTypeRef>
@@ -1908,18 +1894,20 @@ export class VendorComponent implements OnInit, OnDestroy {
     );
 
     this.selectedVendorRecords = this.vendors.filter(
-      (v) => v.vendor_no === this.selectedVendor?.vendor_no
+      //since vendor no are always unique will use vendor name
+      // (v) => v.vendor_no === this.selectedVendor?.vendor_no
+      (v) => v.name === this.selectedVendor?.name 
     );
-    // console.log(
-    //   'selected vendor records matching the vendor,',
-    //   this.selectedVendor.vendor_no,
-    //   'are:',
-    //   this.selectedVendorRecords
-    // );
+    console.log(
+      'selected vendor records matching the vendor,',
+      this.selectedVendor.vendor_no,
+      'are:',
+      this.selectedVendorRecords
+    );
     this.selectedVendorType = this.selectedVendor.type!;
     this.duplicationVendorTypeOptions = this.vendorTypeOptions.map((option) => {
       const isAsigned = this.selectedVendorRecords.some(
-        (selectedVendorRecord) => selectedVendorRecord.type === option.value
+        (selectedVendorRecord) => selectedVendorRecord.type === option.value 
       );
 
       return isAsigned ? { ...option, disabled: true } : option;
@@ -2071,7 +2059,8 @@ export class VendorComponent implements OnInit, OnDestroy {
 
   async saveRow() {
     if (!this.selectedVendor) return;
-let dupVendorPayload: Vendor[] = [];
+    // let dupVendorPayload: Vendor[] = [];
+    let dupVendorPayload  ={};
     if (this.isDuplicate) {
       if (this.selectedVendorTypes.length === 0) {
         this.messageService.add({
@@ -2083,18 +2072,19 @@ let dupVendorPayload: Vendor[] = [];
       }
       const copyGstDupVendor =
         await this.showGstConfirmationforVendorDuplication();
-       dupVendorPayload = this.selectedVendorTypes.map(
-        (type) => {
-          return {
-            ...(this.selectedVendor as Vendor),
-            type,
-            vendor_no: '',
-            vat_gst_no: copyGstDupVendor ? this.selectedVendor!.vat_gst_no : '',
-            seriesCode: this.mappedVendorSeriesCode
-          };
-        }
-      );
-      console.log('Duplicate vendor payload:', dupVendorPayload);
+      const dupVendorList = this.selectedVendorTypes.map((type) => {
+        return {
+          ...(this.selectedVendor as Vendor),
+          type,
+          vendor_no: '',
+          vat_gst_no: copyGstDupVendor ? this.selectedVendor!.vat_gst_no : '',
+          seriesCode: this.mappedVendorSeriesCode,
+        };
+      });
+      dupVendorPayload = {
+        vendors: dupVendorList
+      }
+      console.log('Duplicate vendor payload:', dupVendorPayload,'vendors list,',this.vendors);
     }
 
     console.log(
@@ -2127,7 +2117,9 @@ let dupVendorPayload: Vendor[] = [];
         savedVendor = await this.vendorService.create(payload).toPromise();
       } else if (this.isDuplicate) {
         console.log('Creating duplicate vendors:', dupVendorPayload);
-        const dupVendor = await this.vendorService.createDuplicate(dupVendorPayload).toPromise();
+        const dupVendor = await this.vendorService
+          .createDuplicate(dupVendorPayload)
+          .toPromise();
       } else {
         savedVendor = await this.vendorService
           .update(this.selectedVendor.id!, this.selectedVendor)
@@ -2138,7 +2130,9 @@ let dupVendorPayload: Vendor[] = [];
       if (savedVendor && savedVendor.vendor_no && savedVendor.name) {
         this.selectedVendor!.bill_to_vendor_name = `${savedVendor.vendor_no} - ${savedVendor.name}`;
       }
-      const msg = this.isDuplicate? 'Vendor Duplicated': this.selectedVendor?.isNew
+      const msg = this.isDuplicate
+        ? 'Vendor Duplicated'
+        : this.selectedVendor?.isNew
         ? 'Vendor created'
         : 'Vendor updated';
       this.messageService.add({

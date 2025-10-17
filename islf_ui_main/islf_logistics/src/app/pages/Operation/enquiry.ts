@@ -2515,9 +2515,9 @@ export class EnquiryComponent implements OnInit {
   }
 
   /**
-+   * Fetch and show tree table inline under the given line index.
-+   * type: 'sourcing' | 'tariff' | 'both'
-+   */
+   * Fetch and show tree table inline under the given line index.
+   * type: 'sourcing' | 'tariff' | 'both'
+   */
   openVendorTreeForLineWithType(
     lineIndex: number,
     type: 'sourcing' | 'tariff' | 'both' = 'both'

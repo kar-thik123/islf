@@ -92,7 +92,7 @@ export class VendorService {
   }
 
   createDuplicate(
-    data: Partial<Vendor[]> & { seriesCode?: string }
+    data: Partial<Vendor> & { seriesCode?: string }
   ): Observable<Vendor> {
     console.log('Creating duplicate vendors with data:', data);
     const context = this.contextService.getContext();
