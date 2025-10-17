@@ -44,6 +44,7 @@ import {
   CustomerContact,
   SourcingOption,
   TariffOption,
+  EnquirySummary,
 } from '../../services/enquiry.service';
 import { ContextService } from '../../services/context.service';
 import { MappingService } from '../../services/mapping.service';
@@ -68,6 +69,7 @@ import { of } from 'rxjs';
 import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../masters/sourceSales';
+import { Tree } from 'primeng/tree';
 
 @Component({
   selector: 'app-enquiry',
@@ -195,12 +197,12 @@ import { SourceSalesComponent } from '../masters/sourceSales';
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Company Name
+                Customer Name
                 <p-columnFilter
                   type="text"
                   field="company_name"
                   display="menu"
-                  placeholder="Search by company"
+                  placeholder="Search by Customer Name"
                 ></p-columnFilter>
               </div>
             </th>
@@ -319,7 +321,7 @@ import { SourceSalesComponent } from '../masters/sourceSales';
       [draggable]="false"
       [resizable]="false"
       [closeOnEscape]="true"
-      [style]="{ width: '1500px', height: '90vh' }"
+      [style]="{ width: '95vw', maxWidth: '1700px', height: '90vh' }"
       [contentStyle]="{ overflow: 'auto', maxHeight: '75vh' }"
       (onHide)="hideDialog()"
     >
@@ -876,248 +878,173 @@ import { SourceSalesComponent } from '../masters/sourceSales';
               ></button>
             </div>
 
-            <p-table
-              [value]="lineItems"
-              [responsive]="true"
-              [paginator]="false"
-              styleClass="p-datatable-sm"
-            >
-              <ng-template pTemplate="header">
-                <tr>
-                  <th>S.No.</th>
-                  <th>Quantity</th>
-                  <th>Type</th>
-                  <th>Service Area</th>
-                  <th>Basis</th>
-                  <th>Remarks</th>
-                  <th>Status</th>
-                  <th style>Actions</th>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-item let-i="rowIndex">
-                <tr>
-                  <td>{{ i + 1 }}</td>
-                  <td>
-                    <p-inputNumber
-                      [(ngModel)]="item.quantity"
-                      [min]="0"
-                      [maxFractionDigits]="4"
-                      placeholder="0.0000"
-                    >
-                    </p-inputNumber>
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <p-dropdown
-                        [(ngModel)]="item.type"
-                        [options]="masterTypeOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Select type"
-                        class="flex-1"
-                        appendTo="body"
+            <div class="card">
+              <p-treetable
+                [value]="lineItemsNode"
+                [paginator]="false"
+                styleClass="p-datatable-sm"
+              >
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>S.No.</th>
+                    <th>Quantity</th>
+                    <th>Type</th>
+                    <th>Service Area</th>
+                    <th>Basis</th>
+                    <th>Remarks</th>
+                    <th>Status</th>
+                    <th style>Actions</th>
+                  </tr>
+                </ng-template>
+                <ng-template
+                  pTemplate="body"
+                  let-rowNode
+                  let-rowData="rowData"
+                  let-i="rowIndex"
+                >
+                  <tr [ttRow]="rowNode">
+                    <td>
+                      <p-treetable-toggler [rowNode]="rowNode" />
+                      {{ rowData ? rowData.sNo : '0' }}
+                    </td>
+                    <td>
+                      <p-inputNumber
+                        [(ngModel)]="rowData.quantity"
+                        [min]="0"
+                        [maxFractionDigits]="4"
+                        placeholder="0.0000"
                       >
-                      </p-dropdown>
-                      <button
-                        pButton
-                        [icon]="
-                          masterDialogLoading['masterType']
-                            ? 'pi pi-spin pi-spinner'
-                            : 'pi pi-ellipsis-h'
-                        "
-                        class="p-button-sm"
-                        [disabled]="masterDialogLoading['masterType']"
-                        (click)="openMaster('masterType')"
-                        appendTo="body"
-                      ></button>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <p-dropdown
-                        [(ngModel)]="item.service_area"
-                        [options]="serviceAreaDropdownOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Select service area"
-                        class="flex-1"
-                        appendTo="body"
-                      >
-                      </p-dropdown>
-                      <button
-                        pButton
-                        [icon]="
-                          masterDialogLoading['serviceArea']
-                            ? 'pi pi-spin pi-spinner'
-                            : 'pi pi-ellipsis-h'
-                        "
-                        class="p-button-sm"
-                        [disabled]="masterDialogLoading['serviceArea']"
-                        (click)="openMaster('serviceArea')"
-                        appendTo="body"
-                      ></button>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <p-dropdown
-                        [(ngModel)]="item.basis"
-                        [options]="basisOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Select basis"
-                        class="flex-1"
-                        appendTo="body"
-                      >
-                      </p-dropdown>
-                      <button
-                        pButton
-                        [icon]="
-                          masterDialogLoading['basis']
-                            ? 'pi pi-spin pi-spinner'
-                            : 'pi pi-ellipsis-h'
-                        "
-                        class="p-button-sm"
-                        [disabled]="masterDialogLoading['basis']"
-                        (click)="openMaster('basis')"
-                        appendTo="body"
-                      ></button>
-                    </div>
-                  </td>
-                  <td>
-                    <input
-                      pInputText
-                      [(ngModel)]="item.remarks"
-                      placeholder="Remarks"
-                      class="w-full"
-                    />
-                  </td>
-                  <td>
-                    <p-dropdown
-                      [(ngModel)]="item.status"
-                      [options]="lineItemStatusOptions"
-                      optionLabel="label"
-                      optionValue="value"
-                      appendTo="body"
-                    >
-                    </p-dropdown>
-                  </td>
-                  <td>
-                    <p-menu
-                      #lineMenu
-                      [popup]="true"
-                      appendTo="body"
-                      [model]="getLineItemMenu(i)"
-                      styleClass="line-item-menu"
-                      [baseZIndex]="10000"
-                    ></p-menu>
-                    <button
-                      pButton
-                      type="button"
-                      icon="pi pi-ellipsis-v"
-                      class="p-button-sm p-button-text"
-                      (click)="lineMenu.toggle($event)"
-                      pTooltip="Actions"
-                      aria-label="Line item actions"
-                    ></button>
-                    <!--<div class="flex gap-1">
-                      <button
-                        pButton
-                        icon="pi pi-pencil"
-                        (click)="editLineItem(i)"
-                        class="p-button-warning p-button-sm p-button-text"
-                        pTooltip="Edit Row"
-                      ></button>
-                      <button
-                        pButton
-                        icon="pi pi-trash"
-                        (click)="deleteLineItem(i)"
-                        class="p-button-danger p-button-sm p-button-text"
-                        pTooltip="Delete Row"
-                      ></button>
-                    </div> -->
-                  </td>
-                </tr>
-                <tr *ngIf="openTreeIndex === i">
-                  <td colspan="9" class="p-0">
-                    <div class="p-3 border-t">
-                      <div class="flex justify-between items-center mb-2">
-                        <div class="font-semibold">Sourcing & Tariff</div>
-                        <div class="flex gap-2">
-                          <button
-                            pButton
-                            type="button"
-                            label="Add Selected"
-                            icon="pi pi-check"
-                            (click)="addSelectedFromTreeForLine(i)"
-                          ></button>
-                          <button
-                            pButton
-                            type="button"
-                            label="Close"
-                            class="p-button-text"
-                            (click)="openTreeIndex = -1"
-                          ></button>
-                        </div>
+                      </p-inputNumber>
+                    </td>
+                    <td>
+                      <div class="flex gap-2">
+                        <p-dropdown
+                          [(ngModel)]="rowData.type"
+                          [options]="masterTypeOptions"
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="Select type"
+                          class="flex-1"
+                          appendTo="body"
+                        >
+                        </p-dropdown>
+                        <button
+                          pButton
+                          [icon]="
+                            masterDialogLoading['masterType']
+                              ? 'pi pi-spin pi-spinner'
+                              : 'pi pi-ellipsis-h'
+                          "
+                          class="p-button-sm"
+                          [disabled]="masterDialogLoading['masterType']"
+                          (click)="openMaster('masterType')"
+                          appendTo="body"
+                        ></button>
                       </div>
-                      <p-treeTable
-                        [value]="vendorTreeNodesByLine[i]"
-                        selectionMode="checkbox"
-                        [(selectionKeys)]="selectedTreeKeysByLine[i]"
-                        (onNodeSelect)="
-                          $event && onVendorNodeSelectForLine($event, i)
-                        "
-                        (onNodeUnselect)="
-                          $event && onVendorNodeUnselectForLine($event, i)
-                        "
+                    </td>
+                    <td>
+                      <div class="flex gap-2">
+                        <p-dropdown
+                          [(ngModel)]="rowData.service_area"
+                          [options]="serviceAreaDropdownOptions"
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="Select service area"
+                          class="flex-1"
+                          appendTo="body"
+                        >
+                        </p-dropdown>
+                        <button
+                          pButton
+                          [icon]="
+                            masterDialogLoading['serviceArea']
+                              ? 'pi pi-spin pi-spinner'
+                              : 'pi pi-ellipsis-h'
+                          "
+                          class="p-button-sm"
+                          [disabled]="masterDialogLoading['serviceArea']"
+                          (click)="openMaster('serviceArea')"
+                          appendTo="body"
+                        ></button>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="flex gap-2">
+                        <p-dropdown
+                          [(ngModel)]="rowData.basis"
+                          [options]="basisOptions"
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="Select basis"
+                          class="flex-1"
+                          appendTo="body"
+                        >
+                        </p-dropdown>
+                        <button
+                          pButton
+                          [icon]="
+                            masterDialogLoading['basis']
+                              ? 'pi pi-spin pi-spinner'
+                              : 'pi pi-ellipsis-h'
+                          "
+                          class="p-button-sm"
+                          [disabled]="masterDialogLoading['basis']"
+                          (click)="openMaster('basis')"
+                          appendTo="body"
+                        ></button>
+                      </div>
+                    </td>
+                    <td>
+                      <input
+                        pInputText
+                        [(ngModel)]="rowData.remarks"
+                        placeholder="Remarks"
+                        class="w-full"
+                      />
+                    </td>
+                    <td>
+                      <p-dropdown
+                        [(ngModel)]="rowData.status"
+                        [options]="lineItemStatusOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        appendTo="body"
                       >
-                        <ng-template pTemplate="header">
-                          <tr>
-                            <th style="width:3rem"></th>
-                            <th>Vendor / Group</th>
-                            <th>Type</th>
-                            <th>Mode</th>
-                            <th>Route</th>
-                            <th>Basis</th>
-                            <th>Charges</th>
-                          </tr>
-                        </ng-template>
-                        <ng-template pTemplate="body" let-rowNode>
-                          <tr>
-                            <td>
-                              <p-treeTableToggler
-                                [rowNode]="rowNode"
-                              ></p-treeTableToggler>
-                            </td>
-                            <td>{{ rowNode.data.label }}</td>
-                            <td>{{ rowNode.data.vendor_type || '' }}</td>
-                            <td>{{ rowNode.data.mode || '' }}</td>
-                            <td>
-                              {{
-                                rowNode.data.from_location
-                                  ? rowNode.data.from_location +
-                                    ' → ' +
-                                    rowNode.data.to_location
-                                  : ''
-                              }}
-                            </td>
-                            <td>{{ rowNode.data.basis || '' }}</td>
-                            <td>{{ rowNode.data.charges || '' }}</td>
-                          </tr>
-                        </ng-template>
-                      </p-treeTable>
-                    </div>
-                  </td>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="emptymessage">
-                <tr>
-                  <td colspan="6" class="text-center py-4">
-                    No line items added yet. Click "Add Line Item" to start.
-                  </td>
-                </tr>
-              </ng-template>
-            </p-table>
+                      </p-dropdown>
+                    </td>
+                    <td>
+                      <div class="flex gap-2 items-center ">
+                        <button
+                          pButton
+                          type="button"
+                          label="Get Sourcing"
+                          icon="pi pi-search"
+                          (click)="getSourcing()"
+                          class="p-button-info"
+                          pTooltip="Query Sourcing Table with matching conditions"
+                        ></button>
+                        <button
+                          pButton
+                          type="button"
+                          label="Get Tariff"
+                          icon="pi pi-calculator"
+                          (click)="getTariff()"
+                          class="p-button-secondary"
+                          pTooltip="Fetch directly from Tariff Table"
+                        ></button>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                  <tr>
+                    <td colspan="6" class="text-center py-4">
+                      No line items added yet. Click "Add Line Item" to start.
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-treetable>
+            </div>
 
             <!-- commenting out for now -->
             <!-- Action Buttons -->
@@ -1144,7 +1071,7 @@ import { SourceSalesComponent } from '../masters/sourceSales';
           </div>
 
           <!-- Vendor Cards Section -->
-          <div *ngIf="vendorCards.length > 0" class="mb-4">
+          <!--<div *ngIf="vendorCards.length > 0" class="mb-4">
             <h3 class="text-lg font-semibold mb-3">Vendor Cards</h3>
             <div class="vendor-cards-container">
               <p-table
@@ -1224,7 +1151,7 @@ import { SourceSalesComponent } from '../masters/sourceSales';
                 </ng-template>
               </p-table>
             </div>
-          </div>
+          </div> -->
 
           <!-- Final Actions -->
           <div *ngIf="vendorCards.length > 0" class="border-t pt-4">
@@ -1691,6 +1618,21 @@ export class EnquiryComponent implements OnInit {
   selectedServiceArea: string = '';
   enquiryForm!: FormGroup;
   lineItems: EnquiryLineItem[] = [];
+  lineItemsNode: TreeNode[] = [];
+  enquirySummaryList: EnquirySummary[] = [
+    {
+      master_type: 'sourcing',
+      selected_no: 0,
+      vendor_name: '',
+      charge: 0,
+    },
+    {
+      master_type: 'tariff',
+      selected_no: 0,
+      vendor_name: '',
+      charge: 0,
+    },
+  ];
   vendorCards: EnquiryVendorCard[] = [];
   allLocations: any[] = [];
   sourceSalesOptions: any[] = [];
@@ -2317,6 +2259,17 @@ export class EnquiryComponent implements OnInit {
     // Force change detection to ensure UI updates
     this.cdr.detectChanges();
   }
+  // Line of Items Hierarchy Mapping
+  lineOfItemsHierarchyMapping(): TreeNode[] {
+    this.lineItemsNode = this.lineItems.map((item, index) => {
+      const nodeItem: TreeNode = {
+        key: `item-${index}`,
+        data: { ...item, sNo: `${index + 1}` },
+      };
+      return nodeItem;
+    });
+    return this.lineItemsNode;
+  }
 
   addEnquiry() {
     const today = new Date();
@@ -2459,6 +2412,7 @@ export class EnquiryComponent implements OnInit {
         this.lineItems = enquiry.line_items || [];
         this.vendorCards = enquiry.vendor_cards || [];
 
+        this.lineOfItemsHierarchyMapping();
         // Process vendor cards to ensure charges are in proper format
         this.vendorCards = this.vendorCards.map((card) =>
           this.processVendorCardCharges(card)
@@ -2486,6 +2440,15 @@ export class EnquiryComponent implements OnInit {
         // Apply location filtering based on selected location types
         this.filterFromLocations();
         this.filterToLocations();
+
+        // Ensure context-filtered dropdowns contain the saved values when editing
+        forkJoin({
+          sourceSales: this.loadSourceSalesOptions(),
+          serviceAreas: this.loadServiceAreaOptions(),
+        }).subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
+        });
 
         this.isDialogVisible = true;
       },
@@ -2851,9 +2814,10 @@ export class EnquiryComponent implements OnInit {
   }
 
   onCustomerSelect(event: any) {
+    console.log('Customer selected event:', event);
     const customerId = event?.value;
     const customer = this.customerOptions.find((c) => c.id === customerId);
-
+    console.log('Customer selected:', customer);
     if (customer && customer.id && this.selectedEnquiry) {
       // Existing customer - set company and load contacts to decide autofill/dropdown
       this.selectedEnquiry.company_name =
@@ -2895,13 +2859,25 @@ export class EnquiryComponent implements OnInit {
               c.mobile === this.selectedEnquiry?.mobile ||
               c.landline === this.selectedEnquiry?.landline
           );
-
+          console.log(
+            'Matching contact found:',
+            matchingContact,
+            'amongcontacts:',
+            contacts,
+            'for enquiry data:',
+            this.selectedEnquiry
+          );
           if (contacts.length === 1) {
             // Single contact - check if enquiry data matches
             const only = contacts[0];
             this.showContactDropdown = false;
-
-            if (matchingContact) {
+            this.selectedEnquiry.customer_name = only.name || '';
+            this.selectedEnquiry.email = only.email || '';
+            this.selectedEnquiry.mobile = only.mobile || '';
+            this.selectedEnquiry.landline = only.landline || '';
+            // commenting this out temproarily to always show the single contact in dropdown
+            {
+              /* if (matchingContact) {
               // Data matches, use contact data
               this.selectedContact = only;
               this.isManualName = false;
@@ -2916,35 +2892,39 @@ export class EnquiryComponent implements OnInit {
               this.isManualEmail = !!this.selectedEnquiry.email;
               this.isManualMobile = !!this.selectedEnquiry.mobile;
               this.isManualLandline = !!this.selectedEnquiry.landline;
+            } */
             }
-          } else {
+          } else if (contacts && contacts.length > 1) {
             // Multiple contacts
             this.showContactDropdown = true;
 
-            if (matchingContact) {
+            {
+              /*  if (matchingContact) {
               // Found matching contact
               this.selectedContact = matchingContact;
               this.onContactSelect({ value: matchingContact });
-            } else {
-              // No matching contact, try primary contact or set manual
-              const primaryContact = contacts.find((c) => c.is_primary);
-              if (primaryContact && !this.selectedEnquiry.customer_name) {
-                this.selectedContact = primaryContact;
-                this.onContactSelect({ value: primaryContact });
-              } else {
-                // Keep existing data and set manual flags
-                this.selectedContact = null;
-                this.isManualName = !!this.selectedEnquiry.customer_name;
-                this.isManualEmail = !!this.selectedEnquiry.email;
-                this.isManualMobile = !!this.selectedEnquiry.mobile;
-                this.isManualLandline = !!this.selectedEnquiry.landline;
-              }
+            } else { */
             }
+            // No matching contact, try primary contact or set manual
+            const primaryContact = contacts.find((c) => c.is_primary);
+            if (primaryContact && !this.selectedEnquiry.customer_name) {
+              this.selectedContact = primaryContact;
+              this.onContactSelect({ value: primaryContact });
+            } else {
+              // Keep existing data and set manual flags
+              this.selectedContact = null;
+              this.isManualName = !!this.selectedEnquiry.customer_name;
+              this.isManualEmail = !!this.selectedEnquiry.email;
+              this.isManualMobile = !!this.selectedEnquiry.mobile;
+              this.isManualLandline = !!this.selectedEnquiry.landline;
+            }
+            // }
           }
         } else {
           // No contacts found
           this.showContactDropdown = false;
           this.selectedContact = null;
+          this.onContactSelect({ value: null }); // Clear contact fields
           this.isManualName = true;
           this.isManualEmail = true;
           this.isManualMobile = true;
@@ -2965,11 +2945,17 @@ export class EnquiryComponent implements OnInit {
 
   onContactSelect(event: any) {
     const contact = event.value;
+    console.log('Contact selected:', contact);
     if (contact && this.selectedEnquiry) {
       this.selectedEnquiry.customer_name = contact.name || '';
       this.selectedEnquiry.email = contact.email || '';
       this.selectedEnquiry.mobile = contact.mobile || '';
       this.selectedEnquiry.landline = contact.landline || '';
+    } else {
+      this.selectedEnquiry!.customer_name = '';
+      this.selectedEnquiry!.email = '';
+      this.selectedEnquiry!.mobile = '';
+      this.selectedEnquiry!.landline = '';
     }
   }
 
@@ -3048,6 +3034,8 @@ export class EnquiryComponent implements OnInit {
       status: 'Active',
     };
     this.lineItems.push(newItem);
+    // calling the hierarchy mapping function to update the tree nodes
+    this.lineOfItemsHierarchyMapping();
   }
 
   editLineItem(index: number) {
@@ -3060,6 +3048,7 @@ export class EnquiryComponent implements OnInit {
       message: 'Are you sure you want to delete this line item?',
       accept: () => {
         this.lineItems.splice(index, 1);
+        this.lineOfItemsHierarchyMapping();
         // Renumber items
         this.lineItems.forEach((item, i) => {
           item.s_no = i + 1;
