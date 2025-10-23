@@ -259,23 +259,146 @@ router.get("/:code", async (req, res) => {
     }
 
     const enquiry = enquiryResult.rows[0];
+    const enquiry_id = enquiry.id;
+    let line_items = [];
 
     // Get line items
-    const lineItemsResult = await pool.query(
+    const { rows: lineItemsResult } = await pool.query(
       "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no",
-      [enquiry.id]
+      [enquiry_id]
     );
-    console.log("enquiry line Item Result,", lineItemsResult);
+    // console.log("enquiry line Item Result,", lineItemsResult);
     // Get vendor cards
-    const vendorCardsResult = await pool.query(
-      "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
-      [enquiry.id]
-    );
+    // const vendorCardsResult = await pool.query(
+    //   "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
+    //   [enquiry_id]
+    // );
+
+    // let nested_line_item = lineItemsResult.rows.forEach(lineItem => {
+    for (let lineItem of lineItemsResult) {
+      let line_item_id = lineItem.s_no;
+      let enquiry_summary = [
+        {
+          id: "1",
+          summary_type: "sourcing",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          sourced_list: [],
+        },
+        {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          sourced_list: [],
+        },
+      ];
+      const { rows: vendorCardsResult } = await pool.query(
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC;",
+        [enquiry_id, line_item_id]
+      );
+      // console.log("list of vendor cards,", vendorCardsResult);
+      let source_list = [];
+      let tariff_list = [];
+      vendorCardsResult.forEach((vendorCard) => {
+        if (vendorCard.source_type.toLowerCase() == "tariff") {
+          tariff_list.push(vendorCard);
+        } else if (vendorCard.source_type.toLowerCase() == "sourcing") {
+          source_list.push(vendorCard);
+        }
+      });
+      // console.log(
+      //   "vendor card source list:",
+      //   source_list,
+      //   "tariff list",
+      //   tariff_list
+      // );
+
+      if (source_list.length != 0) {
+        // removes the first element in enquiry summary list
+        enquiry_summary.splice(0, 1);
+        let selected_sourcing =
+          source_list.find((source) => source.is_selected) || {};
+        // eliminating null value with
+        selected_sourcing["charges"] =
+          selected_sourcing.charges == null ? 0 : selected_sourcing.charges;
+        selected_sourcing["negotiated_amount"] =
+          selected_sourcing.negotiated_amount == null
+            ? 0
+            : selected_sourcing.negotiated_amount;
+        console.log(
+          "Selected sourcing at line item id",
+          line_item_id,
+          "is:",
+          selected_sourcing
+        );
+
+        let source_summary = {
+          id: 1,
+          summary_type: "sourcing",
+          sourced_no: selected_sourcing.sourced_no || "--",
+          vendor_name: selected_sourcing.vendor_name || "--",
+          currency_code: selected_sourcing.currency_code || "--",
+          charge:
+            Math.max(
+              selected_sourcing.charges,
+              selected_sourcing.negotiated_amount
+            ) || "--",
+          sourced_time: selected_sourcing.created_at,
+          remarks: selected_sourcing.remarks || "--",
+          sourced_list: source_list,
+        };
+        // enquiry_summary.push(source_summary);
+        enquiry_summary.splice(0, 0, source_summary);
+      }
+
+      if (tariff_list.length != 0) {
+        // removing the last element in the enquiry summary
+        enquiry_summary.splice(1, 1);
+        let selected_tariff =
+          tariff_list.find((tariff) => tariff.is_selected) || {};
+        console.log(
+          "Selected tariff at line item id",
+          line_item_id,
+          "is:",
+          selected_tariff
+        );
+        let tariff_summary = {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: selected_tariff.sourced_no || "--",
+          vendor_name: selected_tariff.vendor_name || "--",
+          currency_code: selected_tariff.currency_code || "--",
+          charge:
+            Math.max(
+              selected_tariff.charges,
+              selected_tariff.negotiated_amount
+            ) || "--",
+          sourced_time: selected_tariff.created_at,
+          remarks: selected_tariff.remarks || "--",
+          sourced_list: tariff_list,
+        };
+        // enquiry_summary.push(tariff_summary);
+        enquiry_summary.splice(1, 0, tariff_summary);
+      }
+
+      let nested_line_item = { ...lineItem, enquiry_summary: enquiry_summary };
+      console.log("enquiry summary,", enquiry_summary);
+      line_items.push(nested_line_item);
+    }
 
     res.json({
       ...enquiry,
-      line_items: lineItemsResult.rows,
-      vendor_cards: vendorCardsResult.rows,
+      line_items: line_items,
+      // vendor_cards: vendorCardsResult.rows,
     });
   } catch (error) {
     console.error("Error fetching enquiry:", error);

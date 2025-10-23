@@ -880,12 +880,15 @@ import { Tree } from 'primeng/tree';
 
             <p-table
               [value]="lineItems"
+              dataKey="id"
               [responsive]="true"
               [paginator]="false"
               styleClass="p-datatable-sm"
             >
               <ng-template pTemplate="header">
                 <tr>
+                  <th style="width: 2vw"></th>
+                  <th style="width: 2vw"><p-tableHeaderCheckbox /></th>
                   <th>S.No.</th>
                   <th>Quantity</th>
                   <th>Type</th>
@@ -896,8 +899,29 @@ import { Tree } from 'primeng/tree';
                   <th style>Actions</th>
                 </tr>
               </ng-template>
-              <ng-template pTemplate="body" let-item let-i="rowIndex">
+              <ng-template
+                pTemplate="body"
+                let-item
+                let-i="rowIndex"
+                let-expanded="expanded"
+              >
                 <tr>
+                  <td>
+                    <p-button
+                      type="button"
+                      pRipple
+                      [pRowToggler]="item"
+                      [text]="true"
+                      severity="secondary"
+                      [rounded]="true"
+                      [icon]="
+                        expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'
+                      "
+                    />
+                  </td>
+                  <td>
+                    <p-tableCheckbox [value]="item" />
+                  </td>
                   <td>{{ i + 1 }}</td>
                   <td class="px-1">
                     <p-inputNumber
@@ -1010,7 +1034,7 @@ import { Tree } from 'primeng/tree';
                       <button
                         pButton
                         type="button"
-                        label="Get Sourcing"
+                        label="Sourcing"
                         icon="pi pi-search"
                         (click)="getSourcing(i + 1)"
                         class="p-button-info"
@@ -1019,7 +1043,7 @@ import { Tree } from 'primeng/tree';
                       <button
                         pButton
                         type="button"
-                        label="Get Tariff"
+                        label="Tariff"
                         icon="pi pi-calculator"
                         (click)="getTariff(i + 1)"
                         class="p-button-secondary"
@@ -1039,6 +1063,149 @@ import { Tree } from 'primeng/tree';
                         class="p-button-danger p-button-sm p-button-text"
                         pTooltip="Delete Row"
                       ></button> -->
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template #expandedrow let-item>
+                <tr>
+                  <td colspan="7">
+                    <div class="p-4 w-full">
+                      <h5>Line Item summary {{ item.s_no }}</h5>
+                      <p-table [value]="item.enquiry_summary" dataKey="id">
+                        <ng-template #header>
+                          <tr>
+                            <th style="width: 3rem"></th>
+                            <th pSortableColumn="summary_type">
+                              <div class="flex items-center gap-2">
+                                Type
+                                <p-sortIcon field="price" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="sourced_no">
+                              <div class="flex items-center gap-2">
+                                Source No
+                                <p-sortIcon field="price" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="vendor_name">
+                              <div class="flex items-center gap-2">
+                                Vendor Name
+                                <p-sortIcon field="customer" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="currency_code">
+                              <div class="flex items-center gap-2">
+                                Currency Code
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="charge">
+                              <div class="flex items-center gap-2">
+                                Charge
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="sourced_time">
+                              <div class="flex items-center gap-2">
+                                Sourced Time
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="remarks">
+                              <div class="flex items-center gap-2">
+                                Remarks
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                          </tr>
+                        </ng-template>
+                        <ng-template #body let-summary let-expanded="expanded">
+                          <tr>
+                            <td>
+                              <p-button
+                                type="button"
+                                pRipple
+                                [pRowToggler]="summary"
+                                [text]="true"
+                                severity="secondary"
+                                [rounded]="true"
+                                [icon]="
+                                  expanded
+                                    ? 'pi pi-chevron-down'
+                                    : 'pi pi-chevron-right'
+                                "
+                              />
+                            </td>
+                            <td>{{ summary.summary_type }}</td>
+                            <td>{{ summary.sourced_no }}</td>
+                            <td>{{ summary.vendor_name }}</td>
+                            <td>{{ summary.currency_code }}</td>
+                            <td>{{ summary.charge }}</td>
+                            <td>{{ summary.sourced_time }}</td>
+                            <td>{{ summary.remarks }}</td>
+                          </tr>
+                        </ng-template>
+                        <ng-template #expandedrow let-source>
+                          <tr>
+                            <td colspan="7">
+                              <div class="p-4 w-full">
+                                <h5>{{ source.summary_type }} List</h5>
+                                <p-table
+                                  [value]="source.sourced_list"
+                                  dataKey="id"
+                                >
+                                  <ng-template #header>
+                                    <tr>
+                                      <th style="width: 3rem">
+                                        <p-tableHeaderCheckbox />
+                                      </th>
+                                      <th>Source No</th>
+                                      <th>Vendor Name</th>
+                                      <th>currency</th>
+                                      <th>Buy Price</th>
+                                      <th>Sell Price</th>
+                                      <th>Remarks</th>
+                                      <th>Sourced Time</th>
+                                    </tr>
+                                  </ng-template>
+                                  <ng-template #body let-source>
+                                    <tr>
+                                      <td>
+                                        <p-tableCheckbox [value]="source" />
+                                      </td>
+                                      <td>{{ source.sourced_no }}</td>
+                                      <td>{{ source.vendor_name }}</td>
+                                      <td>{{ source.currency }}</td>
+                                      <td>{{ source.charges }}</td>
+                                      <td>
+                                        <input
+                                          type="text"
+                                          pInputText
+                                          [(ngModel)]="value"
+                                          placeHolder="
+                                            source.negotiated_charges
+                                          "
+                                        />
+                                      </td>
+                                      <td>{{ source.negotiated_remarks }}</td>
+                                      <td>{{ source.created_at }}</td>
+                                    </tr>
+                                  </ng-template>
+                                  <ng-template #emptymessage>
+                                    <tr>
+                                      <td colspan="6">
+                                        There are no sourced for this Line Item
+                                        yet.
+                                      </td>
+                                    </tr>
+                                  </ng-template>
+                                </p-table>
+                              </div>
+                            </td>
+                          </tr>
+                        </ng-template>
+                      </p-table>
                     </div>
                   </td>
                 </tr>
@@ -1285,6 +1452,13 @@ import { Tree } from 'primeng/tree';
             </td>
           </tr>
         </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="5" class="text-center py-4">
+              No Vendors found for provided combination at the moment
+            </td>
+          </tr>
+        </ng-template>
       </p-table>
 
       <ng-template pTemplate="footer">
@@ -1300,81 +1474,6 @@ import { Tree } from 'primeng/tree';
           icon="pi pi-check"
           (onClick)="addSelectedVendors()"
           [disabled]="!selectedVendors || selectedVendors.length === 0"
-        >
-        </p-button>
-      </ng-template>
-    </p-dialog>
-
-    <!-- Edit Vendor Card Dialog -->
-    <p-dialog
-      header="Edit Vendor Card"
-      [(visible)]="showEditVendorDialog"
-      [modal]="true"
-      [style]="{ width: '70vw' }"
-    >
-      <div *ngIf="editingCard">
-        <h4>{{ editingCard.vendor_name }}</h4>
-
-        <!-- Sourcing Details Section -->
-        <div class="grid grid-cols-12 gap-4 mb-4">
-          <div class="col-span-12">
-            <h5 class="font-semibold mb-3">Sourcing Details</h5>
-          </div>
-
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Mode</label>
-            <input
-              pInputText
-              [(ngModel)]="editingCard.mode"
-              placeholder="Transportation mode"
-              class="w-full"
-            />
-          </div>
-
-          <div class="col-span-12 md:col-span-4">
-            <label class="block font-semibold mb-1">From Location</label>
-            <input
-              pInputText
-              [(ngModel)]="editingCard.from_location"
-              placeholder="Origin location"
-              class="w-full"
-            />
-          </div>
-
-          <div class="col-span-12 md:col-span-4">
-            <label class="block font-semibold mb-1">To Location</label>
-            <input
-              pInputText
-              [(ngModel)]="editingCard.to_location"
-              placeholder="Destination location"
-              class="w-full"
-            />
-          </div>
-
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Basis</label>
-            <input
-              pInputText
-              [(ngModel)]="editingCard.basis"
-              placeholder="Pricing basis"
-              class="w-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      <ng-template pTemplate="footer">
-        <p-button
-          label="Cancel"
-          icon="pi pi-times"
-          (onClick)="cancelVendorCardEdit()"
-          class="p-button-text"
-        >
-        </p-button>
-        <p-button
-          label="Save Changes"
-          icon="pi pi-check"
-          (onClick)="saveVendorCardEdit()"
         >
         </p-button>
       </ng-template>
@@ -1617,6 +1716,7 @@ export class EnquiryComponent implements OnInit {
   serviceAreaDropdownOptions: { label: string; value: string }[] = [];
   // Tree Table Properties
   openTreeIndex: number = -1;
+  value = '';
   vendorTreeNodesByLine: { [index: number]: TreeNode[] } = {};
   selectedTreeKeysByLine: { [index: number]: { [key: string]: boolean } } = {};
   vendorNodeMapByLine: { [index: number]: { [key: string]: any } } = {};
@@ -1733,7 +1833,7 @@ export class EnquiryComponent implements OnInit {
 
   // Dialog states
   showVendorSelectionDialog = false;
-  showEditVendorDialog = false;
+  // showEditVendorDialog = false;
   showMailDialog = false;
 
   // Vendor management
@@ -2406,6 +2506,7 @@ export class EnquiryComponent implements OnInit {
           : null;
 
         this.lineItems = enquiry.line_items || [];
+
         this.vendorCards = enquiry.vendor_cards || [];
 
         // Process vendor cards to ensure charges are in proper format
@@ -2655,105 +2756,6 @@ export class EnquiryComponent implements OnInit {
     const nodeKey: string = event.node?.key;
     if (!nodeKey) return;
     delete this.selectedTreeKeysByLine[lineIndex][nodeKey];
-  }
-
-  addSelectedFromTreeForLine(lineIndex: number) {
-    const keysObj = this.selectedTreeKeysByLine[lineIndex] || {};
-    const selectedKeys = Object.keys(keysObj).filter(
-      (k) => keysObj[k] && !k.endsWith('root')
-    );
-
-    if (selectedKeys.length === 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'No selection',
-        detail: 'Please select at least one vendor',
-      });
-      return;
-    }
-
-    const selectedVendors = selectedKeys
-      .map((k) => this.vendorNodeMapByLine[lineIndex]?.[k])
-      .filter(Boolean);
-
-    selectedVendors.forEach((vendor: any) => {
-      // normalize charge value (reuse logic from addSelectedVendors)
-      let chargeValue = 0;
-      if (vendor?.charges) {
-        try {
-          if (Array.isArray(vendor.charges) && vendor.charges.length > 0) {
-            chargeValue = parseFloat(vendor.charges[0].amount) || 0;
-          } else if (typeof vendor.charges === 'string') {
-            const parsed = JSON.parse(vendor.charges);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              chargeValue = parseFloat(parsed[0].amount) || 0;
-            } else {
-              chargeValue = parseFloat(vendor.charges) || 0;
-            }
-          } else if (
-            typeof vendor.charges === 'object' &&
-            !Array.isArray(vendor.charges) &&
-            vendor.charges.amount
-          ) {
-            chargeValue = parseFloat(vendor.charges.amount) || 0;
-          } else if (typeof vendor.charges === 'number') {
-            chargeValue = vendor.charges;
-          }
-        } catch (e) {
-          chargeValue = parseFloat(vendor.charges) || 0;
-        }
-      }
-
-      const vendorBasis = vendor?.basis || '';
-      let mappedQuantity = 0;
-      if (vendorBasis && this.lineItems?.length > 0) {
-        const matchingLineItems = this.lineItems.filter(
-          (li) =>
-            li.basis &&
-            li.basis.toString().toLowerCase() ===
-              vendorBasis.toString().toLowerCase()
-        );
-        mappedQuantity = matchingLineItems.reduce(
-          (t, li) => t + (li.quantity || 0),
-          0
-        );
-      }
-
-      const sourceType = selectedKeys.find((k) => k.startsWith('sourcing'))
-        ? 'sourcing'
-        : 'tariff';
-
-      const vendorCard: EnquiryVendorCard = {
-        vendor_name: vendor.vendor_name,
-        vendor_type: vendor.vendor_type,
-        is_active: false,
-        charges: chargeValue,
-        source_type: sourceType as 'sourcing' | 'tariff',
-        source_id: vendor.id,
-        mode: vendor.mode,
-        from_location: vendor.from_location,
-        to_location: vendor.to_location,
-        basis: vendorBasis,
-        vendor_code: vendor.vendor_code || '',
-        effective_date: vendor.effective_date || '',
-        expiry_date: vendor.expiry_date || vendor.end_date || '',
-        currency: vendor.currency || 'N/A',
-        quantity: mappedQuantity,
-        remarks: '',
-      };
-
-      this.vendorCards.push(vendorCard);
-    });
-
-    // persist and close inline tree
-    this.saveVendorCards();
-    this.openTreeIndex = -1;
-
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: `${selectedVendors.length} vendor(s) added`,
-    });
   }
 
   hideDialog() {
@@ -3032,8 +3034,11 @@ export class EnquiryComponent implements OnInit {
       this.selectedEnquiry.landline = this.selectedContact.landline || '';
     }
   }
-
-  // Line Items methods
+  /*
+  ------------------------
+   Line Items methods
+  ------------------------
+*/
   addLineItem() {
     const newItem: EnquiryLineItem = {
       s_no: this.lineItems.length + 1,
@@ -3072,7 +3077,11 @@ export class EnquiryComponent implements OnInit {
     });
   }
 
-  // Sourcing and Tariff methods
+  /*
+  -----------------------------
+   Sourcing and Tariff methods
+  -----------------------------
+*/
   canGetSourcing(): boolean {
     const firstBasis = this.lineItems[0]?.basis;
     const enq = this.selectedEnquiry;
@@ -3404,62 +3413,6 @@ export class EnquiryComponent implements OnInit {
 
     // Format without unnecessary decimal places
     return numValue % 1 === 0 ? numValue.toString() : numValue.toFixed(2);
-  }
-
-  editVendorCard(card: EnquiryVendorCard, index: number) {
-    // Open edit dialog for vendor card
-    this.editingCard = { ...card };
-    this.editingCardIndex = index;
-    this.showEditVendorDialog = true;
-  }
-
-  saveVendorCardEdit() {
-    if (this.editingCard && this.editingCardIndex >= 0) {
-      // Update the vendor card with edited values
-      this.vendorCards[this.editingCardIndex] = { ...this.editingCard };
-
-      // Close the dialog
-      this.showEditVendorDialog = false;
-      this.editingCard = null;
-      this.editingCardIndex = -1;
-
-      // Show success message
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Vendor card updated successfully',
-      });
-    }
-  }
-
-  cancelVendorCardEdit() {
-    this.showEditVendorDialog = false;
-    this.editingCard = null;
-    this.editingCardIndex = -1;
-  }
-
-  removeVendorCard(index: number) {
-    this.confirmationService.confirm({
-      message: 'Are you sure you want to remove this vendor card?',
-      header: 'Confirm Removal',
-      icon: 'pi pi-exclamation-triangle',
-      accept: () => {
-        this.vendorCards.splice(index, 1);
-
-        // Adjust active vendor index if needed
-        if (this.activeVendorIndex === index) {
-          this.activeVendorIndex = -1;
-        } else if (this.activeVendorIndex > index) {
-          this.activeVendorIndex--;
-        }
-
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Vendor card removed successfully',
-        });
-      },
-    });
   }
 
   // Mail methods
