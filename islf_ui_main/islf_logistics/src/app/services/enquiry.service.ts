@@ -15,6 +15,7 @@ export interface EnquiryLineItem {
   basis: string;
   remarks: string;
   status: string;
+  enquiry_summary: EnquirySummary[];
 }
 
 export interface EnquiryVendorCard {
@@ -26,6 +27,7 @@ export interface EnquiryVendorCard {
   source_type: string;
   source_id: number;
   quantity?: number;
+  enquiry_line_item_id?: number;
   // Additional sourcing details
   mode?: string;
   from_location?: string;
@@ -44,6 +46,9 @@ export interface EnquirySummary {
   selected_no: number;
   vendor_name: string;
   charge: number;
+  sourced_no: number;
+  sourced_time: string;
+  sourced_list: SourcingOption[] | TariffOption[]
 }
 
 export interface Enquiry {
@@ -109,9 +114,11 @@ export interface SourcingOption {
   from_location: string;
   to_location: string;
   currency: string;
-  
+  enquiry_line_item_id?: number;
   basis: string;
   charges: any[];
+  buy_rate: number;
+  sell_rate: number;
   start_date: string;
   end_date: string;
   effective_date: string;
@@ -128,6 +135,7 @@ export interface TariffOption {
   charges: any[];
   effective_date: string;
   expiry_date: string;
+  enquiry_line_item_id?: number;
   mandatory: boolean;
 }
 

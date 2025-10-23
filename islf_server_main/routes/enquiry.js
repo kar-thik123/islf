@@ -265,7 +265,7 @@ router.get("/:code", async (req, res) => {
       "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no",
       [enquiry.id]
     );
-
+    console.log("enquiry line Item Result,", lineItemsResult);
     // Get vendor cards
     const vendorCardsResult = await pool.query(
       "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
@@ -1169,7 +1169,7 @@ router.post("/:code/sourcing", async (req, res) => {
 
     // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
     query += `ORDER BY code, id DESC`;
-    console.log(`DEBUG: /code/sourcing query ${query}, Params ${params}`);
+
     const result = await pool.query(query, params);
 
     res.json(result.rows);
@@ -1196,7 +1196,7 @@ router.post("/:code/tariff", async (req, res) => {
             SELECT t.*, v.name as vendor_name, v.type as vendor_type
             FROM tariff t
             LEFT JOIN vendor v ON t.vendor_name = v.vendor_no
-            WHERE t.active = true
+            WHERE t.is_mandatory = true
         `;
 
     const params = [];
@@ -1227,8 +1227,8 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY t.vendor_name, t.is_mandatory DESC, t.created_at DESC`;
-
+    query += ` ORDER BY t.vendor_name, t.created_at DESC`;
+    console.log("get tariff query params", query, params);
     const result = await pool.query(query, params);
 
     res.json(result.rows);
@@ -1287,8 +1287,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
             : null;
 
         await client.query(
-          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
           [
             enquiryId,
             card.vendor_name,
@@ -1307,6 +1307,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
             card.currency,
             card.quantity,
             card.remarks,
+            card.enquiry_line_item_id,
           ]
         );
       }
