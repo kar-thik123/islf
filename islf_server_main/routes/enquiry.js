@@ -1343,9 +1343,16 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex++;
     }
 
+    // // Date range check
+    // if (effective_date_from && effective_date_to) {
+    //   query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
+    //   params.push(effective_date_to);
+    //   paramIndex++;
+    // }
+
     // Date range check
     if (effective_date_from && effective_date_to) {
-      query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
+      query += ` AND t.period_start_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
       params.push(effective_date_to);
       paramIndex++;
     }
@@ -1392,10 +1399,10 @@ router.post("/:code/vendor-cards", async (req, res) => {
       await client.query("BEGIN");
 
       // Clear existing vendor cards
-      await client.query(
-        "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
-        [enquiryId]
-      );
+      // await client.query(
+      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
 
       // Add new vendor cards
       for (const card of vendorCards) {
