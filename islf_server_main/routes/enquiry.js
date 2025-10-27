@@ -287,6 +287,7 @@ router.get("/:code", async (req, res) => {
           charge: "--",
           sourced_time: "--",
           remarks: "--",
+          selected_source_items: [],
           sourced_list: [],
         },
         {
@@ -298,6 +299,7 @@ router.get("/:code", async (req, res) => {
           charge: "--",
           sourced_time: "--",
           remarks: "--",
+          selected_tariff_items: [],
           sourced_list: [],
         },
       ];
@@ -307,11 +309,19 @@ router.get("/:code", async (req, res) => {
       );
       // console.log("list of vendor cards,", vendorCardsResult);
       let source_list = [];
+      let selected_source_list = [];
       let tariff_list = [];
+      let selected_tariff_list = [];
       vendorCardsResult.forEach((vendorCard) => {
         if (vendorCard.source_type.toLowerCase() == "tariff") {
+          if (vendorCard.is_selected) {
+            selected_tariff_list.push(vendorCard);
+          }
           tariff_list.push(vendorCard);
         } else if (vendorCard.source_type.toLowerCase() == "sourcing") {
+          if (vendorCard.is_selected) {
+            selected_source_list.push(vendorCard);
+          }
           source_list.push(vendorCard);
         }
       });
@@ -354,6 +364,7 @@ router.get("/:code", async (req, res) => {
             ) || "--",
           sourced_time: selected_sourcing.created_at,
           remarks: selected_sourcing.remarks || "--",
+          selected_source_items: selected_source_list,
           sourced_list: source_list,
         };
         // enquiry_summary.push(source_summary);
@@ -384,6 +395,7 @@ router.get("/:code", async (req, res) => {
             ) || "--",
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
+          selected_tariff_items: selected_tariff_list,
           sourced_list: tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
@@ -406,6 +418,176 @@ router.get("/:code", async (req, res) => {
   }
 });
 
+// GET /enquiry/:code/preview - Fetch the preview list of  line items and vendor cards for single enquiry
+router.get("/:code/preview", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    // Get enquiry details
+    const enquiryResult = await pool.query(
+      "SELECT e.*, c.name as customer_display_name FROM enquiry e LEFT JOIN customer c ON e.customer_id = c.id WHERE e.code = $1",
+      [code]
+    );
+
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+
+    const enquiry = enquiryResult.rows[0];
+    const enquiry_id = enquiry.id;
+    let line_items = [];
+
+    // Get line items
+    const { rows: lineItemsResult } = await pool.query(
+      "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 AND is_selected = true ORDER BY s_no",
+      [enquiry_id]
+    );
+    console.log("enquiry line Item Result,", lineItemsResult);
+    // Get vendor cards
+    // const vendorCardsResult = await pool.query(
+    //   "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
+    //   [enquiry_id]
+    // );
+
+    // let nested_line_item = lineItemsResult.rows.forEach(lineItem => {
+    for (let lineItem of lineItemsResult) {
+      let line_item_id = lineItem.s_no;
+      let enquiry_summary = [
+        {
+          id: "1",
+          summary_type: "sourcing",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          selected_source_items: [],
+          sourced_list: [],
+        },
+        {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          selected_tariff_items: [],
+          sourced_list: [],
+        },
+      ];
+      const { rows: vendorCardsResult } = await pool.query(
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC;",
+        [enquiry_id, line_item_id]
+      );
+      // console.log("list of vendor cards,", vendorCardsResult);
+      let selected_source_list = [];
+      let selected_tariff_list = [];
+      vendorCardsResult.forEach((vendorCard) => {
+        if (
+          vendorCard.source_type.toLowerCase() == "tariff" &&
+          vendorCard.is_selected
+        ) {
+          selected_tariff_list.push(vendorCard);
+        } else if (
+          vendorCard.source_type.toLowerCase() == "sourcing" &&
+          vendorCard.is_selected
+        ) {
+          selected_source_list.push(vendorCard);
+        }
+      });
+      // console.log(
+      //   "vendor card source list:",
+      //   source_list,
+      //   "tariff list",
+      //   tariff_list
+      // );
+
+      if (selected_source_list.length != 0) {
+        // removes the first element in enquiry summary list
+        enquiry_summary.splice(0, 1);
+        let selected_sourcing = selected_source_list[0] || {};
+        // eliminating null value with
+        selected_sourcing["charges"] =
+          selected_sourcing.charges == null ? 0 : selected_sourcing.charges;
+        selected_sourcing["negotiated_amount"] =
+          selected_sourcing.negotiated_amount == null
+            ? 0
+            : selected_sourcing.negotiated_amount;
+        console.log(
+          "Selected sourcing at line item id",
+          line_item_id,
+          "is:",
+          selected_sourcing
+        );
+
+        let source_summary = {
+          id: 1,
+          summary_type: "sourcing",
+          sourced_no: selected_sourcing.sourced_no || "--",
+          vendor_name: selected_sourcing.vendor_name || "--",
+          currency_code: selected_sourcing.currency_code || "--",
+          charge:
+            Math.max(
+              selected_sourcing.charges,
+              selected_sourcing.negotiated_amount
+            ) || "--",
+          sourced_time: selected_sourcing.created_at,
+          remarks: selected_sourcing.remarks || "--",
+          selected_source_items: selected_source_list,
+          sourced_list: source_list,
+        };
+        // enquiry_summary.push(source_summary);
+        enquiry_summary.splice(0, 0, source_summary);
+      }
+
+      if (selected_tariff_list.length != 0) {
+        // removing the last element in the enquiry summary
+        enquiry_summary.splice(1, 1);
+        let selected_tariff = selected_tariff_list[0] || {};
+        console.log(
+          "Selected tariff at line item id",
+          line_item_id,
+          "is:",
+          selected_tariff
+        );
+        let tariff_summary = {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: selected_tariff.sourced_no || "--",
+          vendor_name: selected_tariff.vendor_name || "--",
+          currency_code: selected_tariff.currency_code || "--",
+          charge:
+            Math.max(
+              selected_tariff.charges,
+              selected_tariff.negotiated_amount
+            ) || "--",
+          sourced_time: selected_tariff.created_at,
+          remarks: selected_tariff.remarks || "--",
+          selected_tariff_items: selected_tariff_list,
+          sourced_list: tariff_list,
+        };
+        // enquiry_summary.push(tariff_summary);
+        enquiry_summary.splice(1, 0, tariff_summary);
+      }
+
+      let nested_line_item = { ...lineItem, enquiry_summary: enquiry_summary };
+      console.log("enquiry summary,", enquiry_summary);
+      line_items.push(nested_line_item);
+    }
+
+    res.json({
+      ...enquiry,
+      line_items: line_items,
+      // vendor_cards: vendorCardsResult.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 // POST /enquiry - Create new enquiry
 router.post("/", async (req, res) => {
   try {
@@ -425,6 +607,7 @@ router.post("/", async (req, res) => {
       effective_date_from,
       effective_date_to,
       department,
+      cargo_type,
       service_type,
       status = "Open",
       remarks,
@@ -651,8 +834,8 @@ router.post("/", async (req, res) => {
       const enquiryResult = await client.query(
         `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
                  company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code, source_sales_code)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25) RETURNING id`,
+                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code, source_sales_code, cargo_type)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25,$26) RETURNING id`,
         [
           enquiryNo,
           enquiryCode,
@@ -679,6 +862,7 @@ router.post("/", async (req, res) => {
           userContext.department_code,
           userContext.service_type_code,
           source_sales_code,
+          cargo_type,
         ]
       );
 
@@ -690,8 +874,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
           [
             enquiryId,
             i + 1,
@@ -759,6 +943,7 @@ router.put("/:code", async (req, res) => {
       remarks,
       source_sales_code,
       line_items = [],
+      cargo_type,
       username = "System",
     } = req.body;
 
@@ -781,8 +966,8 @@ router.put("/:code", async (req, res) => {
       await client.query(
         `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
                  mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
-                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17
-                 WHERE id = $18`,
+                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17,
+                 cargo_type= $19 WHERE id = $18`,
         [
           date,
           customer_id,
@@ -802,6 +987,7 @@ router.put("/:code", async (req, res) => {
           remarks,
           source_sales_code,
           enquiryId,
+          cargo_type,
         ]
       );
 
@@ -1235,6 +1421,12 @@ router.post("/:code/sourcing", async (req, res) => {
   try {
     const { code } = req.params;
     const {
+      line_item_type,
+      service_area,
+      basis,
+      service_type,
+      from_location_type,
+      to_location_type,
       department,
       from_location,
       to_location,
@@ -1259,6 +1451,8 @@ router.post("/:code/sourcing", async (req, res) => {
         `;
     const params = [];
     let paramIndex = 1;
+    let saFromLoc = true;
+    let saToLoc = true;
 
     if (department) {
       query += ` AND mode = $${paramIndex}`;
@@ -1266,16 +1460,46 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    if (from_location) {
-      query += ` AND from_location = $${paramIndex}`;
-      params.push(from_location);
-      paramIndex++;
+    // retriving the location type based on the service Area
+    if (service_area) {
+      const serviceAreaResult = await pool.query(
+        `SELECT * FROM master_service_area WHERE service_area=$1`,
+        [service_area]
+      );
+      [{ from_location: saFromLoc, to_location: saToLoc }] =
+        serviceAreaResult.rows;
+
+      console.log(
+        "values from ,",
+        saFromLoc,
+        "and to",
+        saToLoc,
+        "Service Area",
+        service_area,
+        "Service Area Result",
+        serviceAreaResult.rows[0]
+      );
+
+      if (saFromLoc === false && saToLoc === false) {
+        saFromLoc = true;
+        saToLoc = true;
+      }
     }
 
-    if (to_location) {
-      query += ` AND to_location = $${paramIndex}`;
-      params.push(to_location);
-      paramIndex++;
+    if (from_location && saFromLoc) {
+      query += ` AND from_location = $${paramIndex} AND location_type_from = $${
+        paramIndex + 1
+      }`;
+      params.push(from_location, from_location_type);
+      paramIndex += 2;
+    }
+
+    if (to_location && saToLoc) {
+      query += ` AND to_location = $${paramIndex} AND location_type_to= $${
+        paramIndex + 1
+      }`;
+      params.push(to_location, to_location_type);
+      paramIndex += 2;
     }
 
     // Date range check
@@ -1293,6 +1517,7 @@ router.post("/:code/sourcing", async (req, res) => {
     // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
     query += `ORDER BY code, id DESC`;
 
+    console.log("get sourcing final query,", query, "params,", params);
     const result = await pool.query(query, params);
 
     res.json(result.rows);
@@ -1343,9 +1568,16 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex++;
     }
 
+    // // Date range check
+    // if (effective_date_from && effective_date_to) {
+    //   query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
+    //   params.push(effective_date_to);
+    //   paramIndex++;
+    // }
+
     // Date range check
     if (effective_date_from && effective_date_to) {
-      query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
+      query += ` AND t.period_start_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
       params.push(effective_date_to);
       paramIndex++;
     }
@@ -1392,10 +1624,10 @@ router.post("/:code/vendor-cards", async (req, res) => {
       await client.query("BEGIN");
 
       // Clear existing vendor cards
-      await client.query(
-        "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
-        [enquiryId]
-      );
+      // await client.query(
+      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
 
       // Add new vendor cards
       for (const card of vendorCards) {
@@ -1575,6 +1807,70 @@ router.post("/:code/confirm", async (req, res) => {
   } catch (error) {
     console.error("Error confirming enquiry:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
   }
 });
 
