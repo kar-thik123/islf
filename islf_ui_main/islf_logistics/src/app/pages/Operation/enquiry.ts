@@ -52,6 +52,7 @@ import { NumberSeriesService } from '../../services/number-series.service';
 import { MasterLocationService } from '../../services/master-location.service';
 import { DepartmentService } from '../../services/department.service';
 import { BasisService } from '../../services/basis.service';
+import { MasterItemService } from '../../services/master-item.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { AuthService } from '../../services/auth.service';
@@ -69,8 +70,7 @@ import { of } from 'rxjs';
 import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../masters/sourceSales';
-import { Tree } from 'primeng/tree';
-
+import { CargoTypeMasterComponent } from '../masters/cargotype';
 @Component({
   selector: 'app-enquiry',
   standalone: true,
@@ -103,6 +103,7 @@ import { Tree } from 'primeng/tree';
     MasterTypeComponent,
     ServiceAreaComponent,
     SourceSalesComponent,
+    CargoTypeMasterComponent,
     MenuModule,
     TreeTableModule,
   ],
@@ -563,6 +564,33 @@ import { Tree } from 'primeng/tree';
                       : 'Enable manual entry'
                   "
                   class="p-button-sm p-button-outlined"
+                ></button>
+              </div>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Cargo Type</label>
+              <div class="flex gap-2">
+                <p-dropdown
+                  appendTo="body"
+                  [options]="cargoTypeOptions"
+                  [(ngModel)]="selectedEnquiry.cargo_type"
+                  placeholder="Select Cargo Type"
+                  [filter]="true"
+                  filterBy="label"
+                  [showClear]="true"
+                  class="flex-1"
+                >
+                </p-dropdown>
+                <button
+                  pButton
+                  [icon]="
+                    masterDialogLoading['cargoType']
+                      ? 'pi pi-spin pi-spinner'
+                      : 'pi pi-ellipsis-h'
+                  "
+                  class="p-button-sm"
+                  [disabled]="masterDialogLoading['cargoType']"
+                  (click)="openMaster('cargoType')"
                 ></button>
               </div>
             </div>
@@ -1639,6 +1667,30 @@ import { Tree } from 'primeng/tree';
         <basis-code></basis-code>
       </ng-template>
     </p-dialog>
+    <!--Cargo Type Dialog -->
+    <p-dialog
+      header="Cargo Type Master"
+      [(visible)]="showCargoTypeDialog"
+      [modal]="true"
+      [style]="{
+        width: 'auto',
+        minWidth: '60vw',
+        maxWidth: '95vw',
+        height: 'auto',
+        maxHeight: '90vh'
+      }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('serviceType')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <cargo-type></cargo-type>
+      </ng-template>
+    </p-dialog>
     <!--Master Type Dialog-->
     <p-dialog
       header="Service Type Master"
@@ -1955,6 +2007,9 @@ export class EnquiryComponent implements OnInit {
   // Department options
   departmentOptions: any[] = [];
 
+  // Cargo Type options
+  cargoTypeOptions: any[] = [];
+
   // Basis options
   basisOptions: any[] = [];
   serviceAreaOptions: any[] = [];
@@ -1992,6 +2047,7 @@ export class EnquiryComponent implements OnInit {
   showMasterLocationDialog = false;
   showBasisDialog = false;
   showMasterTypeDialog = false;
+  showCargoTypeDialog = false;
 
   showServiceTypeDialog = false;
   masterTypeFilter = '';
@@ -2058,7 +2114,8 @@ export class EnquiryComponent implements OnInit {
     private masterTypeService: MasterTypeService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
-    private sourceSalesService: SourceSalesService
+    private sourceSalesService: SourceSalesService,
+    private masterItemService: MasterItemService
   ) {
     this.initializeForm();
   }
@@ -2081,6 +2138,7 @@ export class EnquiryComponent implements OnInit {
       mobile: [''],
       landline: [''],
       company_name: [''],
+      cargo_type: [''],
       from_location: ['', Validators.required],
       to_location: ['', Validators.required],
       effective_date_from: ['', Validators.required],
@@ -2104,6 +2162,7 @@ export class EnquiryComponent implements OnInit {
       locationTypes: this.loadLocationTypes(),
       serviceAreas: this.loadServiceAreaOptions(),
       sourceSales: this.loadSourceSalesOptions(),
+      cargoType: this.loadCargoTypeOptions(),
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
@@ -2208,6 +2267,23 @@ export class EnquiryComponent implements OnInit {
           }));
 
         console.log('Basis options:', this.basisOptions);
+      })
+    );
+  }
+  loadCargoTypeOptions() {
+    return this.masterItemService.getAll().pipe(
+      tap((cargoTypes: any[]) => {
+        this.cargoTypeOptions = (cargoTypes || [])
+          .filter(
+            (cargoType) =>
+              cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+          )
+          .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
+        console.log('Cargo Type options,', this.cargoTypeOptions);
+      }),
+      catchError((error) => {
+        console.error('Error loading cargo type options', error);
+        return of([]);
       })
     );
   }
@@ -2466,6 +2542,8 @@ export class EnquiryComponent implements OnInit {
       this.showServiceAreaDialog = true;
     } else if (type === 'sourceSales') {
       this.showSourceSalesDialog = true;
+    } else if (type === 'cargoType') {
+      this.showCargoTypeDialog = true;
     } else {
       this.messageService.add({
         severity: 'info',
@@ -2567,6 +2645,7 @@ export class EnquiryComponent implements OnInit {
       name: '',
       department: '',
       basis: '',
+      cargo_type: '',
       from_location: '',
       to_location: '',
       location_type_from: '',
@@ -3488,15 +3567,29 @@ export class EnquiryComponent implements OnInit {
       });
       // return;
     }
-
+    let lineItemIndex = --lineItemId;
+    console.log(
+      'selected enquiry value during get sourcing,',
+      this.selectedEnquiry
+    );
+    console.log(
+      'selected enquiry line item,',
+      this.lineItems,
+      'lineItem Id',
+      lineItemId
+    );
     const enq = this.selectedEnquiry!;
     const criteria = {
+      // mandatory Criteria
+      line_item_type: this.lineItems[lineItemIndex]?.type,
+      service_area: this.lineItems[lineItemIndex]?.service_area,
+      basis: this.lineItems[lineItemIndex]?.basis,
+      // Optional Creteria
       department: enq.department,
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
-      basis: this.lineItems[0]?.basis,
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
       to_location_type: enq.location_type_to,
@@ -4021,6 +4114,7 @@ export class EnquiryComponent implements OnInit {
             landline: '',
             department: '',
             basis: '',
+            cargo_type: '',
             from_location: '',
             to_location: '',
             location_type_from: '',

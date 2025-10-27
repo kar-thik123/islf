@@ -690,8 +690,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
           [
             enquiryId,
             i + 1,
@@ -1235,6 +1235,12 @@ router.post("/:code/sourcing", async (req, res) => {
   try {
     const { code } = req.params;
     const {
+      line_item_type,
+      service_area,
+      basis,
+      service_type,
+      from_location_type,
+      to_location_type,
       department,
       from_location,
       to_location,
@@ -1266,13 +1272,34 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    if (from_location) {
+    // retriving the location type based on the service Area
+    if (service_area) {
+      const serviceAreaResult = await pool.query(
+        `SELECT * FROM master_service_area WHERE service_area=$1`,
+        [service_area]
+      );
+      const [{ from_location: saFromLoc, to_location: saToLoc }] =
+        serviceAreaResult.rows;
+
+      console.log(
+        "values from ,",
+        saFromLoc,
+        "and to",
+        saToLoc,
+        "Service Area",
+        service_area,
+        "Service Area Result",
+        serviceAreaResult.rows[0]
+      );
+    }
+
+    if (from_location && saFromLoc) {
       query += ` AND from_location = $${paramIndex}`;
       params.push(from_location);
       paramIndex++;
     }
 
-    if (to_location) {
+    if (to_location && saToLoc) {
       query += ` AND to_location = $${paramIndex}`;
       params.push(to_location);
       paramIndex++;
@@ -1582,6 +1609,70 @@ router.post("/:code/confirm", async (req, res) => {
   } catch (error) {
     console.error("Error confirming enquiry:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
   }
 });
 
