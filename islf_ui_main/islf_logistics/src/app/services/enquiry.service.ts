@@ -227,6 +227,7 @@ export class EnquiryService {
       enquiry,
       this.contextService.getContext()
     );
+    console.log('Update enquiry payload,', payload);
     return this.http.put<Enquiry>(`${this.baseUrl}/${code}`, payload);
   }
 

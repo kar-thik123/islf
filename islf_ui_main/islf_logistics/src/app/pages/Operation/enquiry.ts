@@ -904,6 +904,14 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 (click)="addLineItem()"
                 class="p-button-success p-button-sm"
               ></button>
+              <button
+                pButton
+                type="button"
+                label="Preview"
+                icon="pi pi-eye"
+                (click)="showEnquiryPreview()"
+                class="p-button-warn p-button-sm"
+              ></button>
               <p-button
                 *ngIf="finalizedVendors && finalizedVendors.length > 0"
                 label="View Finalized Vendors ({{ finalizedVendors.length }})"
@@ -915,11 +923,13 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
 
             <p-table
               [value]="lineItems"
-              dataKey="id"
+              dataKey="s_no"
               [responsive]="true"
               [paginator]="false"
+              [(selection)]="selectedLineItems"
               styleClass="p-datatable-sm line-items-table"
               [scrollable]="true"
+              (selectionChange)="onSelectionLineItemChange($event)"
               scrollHeight="400px"
             >
               <ng-template pTemplate="header">
@@ -1847,15 +1857,15 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
   `,
   styles: [
     `
-  .vendor-card {
-      border: 2px solid #e9ecef;
-      transition: all 0.3s ease;
-    }
+      .vendor-card {
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+      }
 
-    .vendor-card.active-vendor {
-      border-color: #007ad9;
-      box-shadow: 0 0 10px rgba(0, 122, 217, 0.3);
-    }
+      .vendor-card.active-vendor {
+        border-color: #007ad9;
+        box-shadow: 0 0 10px rgba(0, 122, 217, 0.3);
+      }
 
       .vendor-cards-container {
         margin-top: 1rem;
@@ -1874,17 +1884,17 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
         max-width: 200px;
       }
 
-    .charges-display .text-sm {
-      margin-bottom: 2px;
-    }
+      .charges-display .text-sm {
+        margin-bottom: 2px;
+      }
 
-    .mail-preview {
-      background: #f8f9fa;
-      padding: 1rem;
-      border-radius: 4px;
-      max-height: 400px;
-      overflow-y: auto;
-    }
+      .mail-preview {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 4px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
 
       .mail-preview pre {
         white-space: pre-wrap;
@@ -1942,7 +1952,6 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
       }
     `,
   ],
- 
 })
 export class EnquiryComponent implements OnInit {
   showServiceAreaDialog = false;
@@ -1957,10 +1966,15 @@ export class EnquiryComponent implements OnInit {
   // Finalized vendors preview
   finalizedVendors: any[] = [];
   showFinalizedVendorsDialog: boolean = false;
+  showPreviewDialog: boolean = false;
 
   selectedServiceArea: string = '';
   enquiryForm!: FormGroup;
   lineItems: EnquiryLineItem[] = [];
+
+  // selected LineItem Array
+  selectedLineItems: EnquiryLineItem[] = [];
+
   // enquirySummaryList: EnquirySummary[] = [
   //   {
   //     master_type: 'sourcing',
@@ -2256,6 +2270,12 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+  // show enquiry preview function
+  showEnquiryPreview() {
+    
+    this.showPreviewDialog = true;
+  }
+
   // Load basis options from the basis service
   loadBasisOptions() {
     return this.basisService.getAll().pipe(
@@ -2317,6 +2337,17 @@ export class EnquiryComponent implements OnInit {
         return of([]);
       })
     );
+  }
+
+  onSelectionLineItemChange(event: any) {
+    console.log('Line Item Selection changed event,', event);
+    console.log(
+      'Selected Line Item for enquiry,',
+      this.selectedEnquiry!.id,
+      'list',
+      this.selectedLineItems
+    );
+    // event.
   }
 
   // Property to store source sales person name
@@ -2949,6 +2980,7 @@ export class EnquiryComponent implements OnInit {
     if (!source.selectedItems) {
       source.selectedItems = [];
     }
+    console.log('source selection change,', source.selectedItems);
 
     // Update the summary with selected items data
     if (source.selectedItems && source.selectedItems.length > 0) {
@@ -3496,6 +3528,7 @@ export class EnquiryComponent implements OnInit {
       status: 'Active',
       enquiry_summary: [],
     };
+    console.log('add Line Item is clicked and the new item value is,', newItem);
     this.lineItems.push(newItem);
     // calling the hierarchy mapping function to update the tree nodes
   }
@@ -3753,7 +3786,8 @@ export class EnquiryComponent implements OnInit {
         currency: (vendor as any).currency || 'N/A',
         quantity: mappedQuantity,
         remarks: '',
-        enquiry_line_item_id: (vendor as any).enquiry_line_item_id || '',
+        enquiry_line_item_id:
+          Number(`${(vendor as any).enquiry_line_item_id + 1}`) || -1,
       };
       this.vendorCards.push(vendorCard);
     });
