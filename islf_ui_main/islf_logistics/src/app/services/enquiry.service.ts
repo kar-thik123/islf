@@ -50,6 +50,8 @@ export interface EnquirySummary {
   sourced_no: number;
   sourced_time: string;
   sourced_list: SourcingOption[] | TariffOption[];
+  summary_type: string;
+  items: any[];
 }
 
 export interface Enquiry {
