@@ -1575,7 +1575,7 @@ router.post("/:code/tariff", async (req, res) => {
     let saToLoc = false;
 
     if (department) {
-      query += ` AND t.mode = $${paramIndex}`;
+      query += ` AND t.mode = $${paramIndex} `;
       params.push(department);
       paramIndex++;
     }
@@ -1583,7 +1583,7 @@ router.post("/:code/tariff", async (req, res) => {
     // service Area check
     if (service_area) {
       const serviceAreaResult = await pool.query(
-        `SELECT * FROM master_service_area WHERE service_area=$1`,
+        `SELECT * FROM master_service_area WHERE service_area= $1 `,
         [service_area]
       );
       [{ from_location: saFromLoc, to_location: saToLoc }] =
@@ -1597,9 +1597,9 @@ router.post("/:code/tariff", async (req, res) => {
     }
 
     if (from_location && from_location_type && saFromLoc) {
-      query += ` AND t.from_location = $${paramIndex} AND t.location_type_from = $${
+      query += ` AND t.from_location = $${paramIndex}  AND t.location_type_from = $${
         paramIndex + 1
-      }`;
+      } `;
       params.push(from_location, from_location_type);
       paramIndex += 2;
     }
@@ -1607,19 +1607,19 @@ router.post("/:code/tariff", async (req, res) => {
     if (to_location && to_location_type && saToLoc) {
       query += ` AND t.to_location = $${paramIndex} AND t.location_type_to= $${
         paramIndex + 1
-      }`;
+      } `;
       params.push(to_location, to_location_type);
       paramIndex += 2;
     }
 
     if (basis) {
-      query += `AND t.basis = $${paramIndex}`;
+      query += ` AND t.basis = $${paramIndex} `;
       params.push(basis);
       paramIndex++;
     }
 
     if (cargo_type) {
-      query += `AND t.cargo_type = $${paramIndex}`;
+      query += `AND t.cargo_type = $${paramIndex} `;
       params.push(cargo_type);
       paramIndex++;
     }
