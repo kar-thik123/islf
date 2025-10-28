@@ -874,8 +874,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             enquiryId,
             i + 1,
@@ -1457,14 +1457,14 @@ router.post("/:code/sourcing", async (req, res) => {
     let saFromLoc = true;
     let saToLoc = true;
 
-    if (department) {
+    if (department && department.trim() !== "") {
       query += ` AND mode = $${paramIndex}  `;
       params.push(department);
       paramIndex++;
     }
 
     // retriving the location type based on the service Area
-    if (service_area) {
+    if (service_area && service_area.trim() !== "") {
       const serviceAreaResult = await pool.query(
         `SELECT * FROM master_service_area WHERE service_area=$1`,
         [service_area]
@@ -1489,7 +1489,13 @@ router.post("/:code/sourcing", async (req, res) => {
       }
     }
 
-    if (from_location && saFromLoc) {
+    if (
+      from_location &&
+      from_location_type &&
+      from_location.trim() !== "" &&
+      from_location_type.trim() !== "" &&
+      saFromLoc
+    ) {
       query += ` AND from_location = $${paramIndex} AND location_type_from = $${
         paramIndex + 1
       }`;
@@ -1497,7 +1503,13 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex += 2;
     }
 
-    if (to_location && saToLoc) {
+    if (
+      to_location &&
+      to_location_type &&
+      to_location.trim() !== "" &&
+      to_location_type.trim() !== "" &&
+      saToLoc
+    ) {
       query += ` AND to_location = $${paramIndex} AND location_type_to= $${
         paramIndex + 1
       }`;
@@ -1505,20 +1517,25 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex += 2;
     }
 
-    if (cargo_type !== null) {
-      query += `AND cargo_type = $${paramIndex}  `;
+    if (cargo_type && cargo_type.trim() !== "") {
+      query += ` AND cargo_type = $${paramIndex}  `;
       params.push(cargo_type);
       paramIndex++;
     }
 
     // Basis check
-    if (basis) {
+    if (basis && basis.trim() !== "") {
       query += `AND basis=$${paramIndex}  `;
       params.push(basis);
       paramIndex++;
     }
     // Date range check
-    if (effective_date_from && effective_date_to) {
+    if (
+      effective_date_from &&
+      effective_date_to &&
+      effective_date_from.trim() !== "" &&
+      effective_date_to.trim() !== ""
+    ) {
       query += ` AND (
                 (period_start_date <= $${paramIndex} AND period_end_date >= $${paramIndex}) OR
                 (effective_date <= $${
@@ -1530,7 +1547,7 @@ router.post("/:code/sourcing", async (req, res) => {
     }
 
     // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
-    query += `ORDER BY code, id DESC`;
+    query += ` ORDER BY code, id DESC`;
 
     console.log("get sourcing final query,", query, "params,", params);
     const result = await pool.query(query, params);
@@ -1574,14 +1591,14 @@ router.post("/:code/tariff", async (req, res) => {
     let saFromLoc = false;
     let saToLoc = false;
 
-    if (department) {
+    if (department && department.trim() !== "") {
       query += ` AND t.mode = $${paramIndex} `;
       params.push(department);
       paramIndex++;
     }
 
     // service Area check
-    if (service_area) {
+    if (service_area && service_area.trim() !== "") {
       const serviceAreaResult = await pool.query(
         `SELECT * FROM master_service_area WHERE service_area= $1 `,
         [service_area]
@@ -1596,7 +1613,13 @@ router.post("/:code/tariff", async (req, res) => {
       }
     }
 
-    if (from_location && from_location_type && saFromLoc) {
+    if (
+      from_location &&
+      from_location_type &&
+      from_location.trim() !== "" &&
+      from_location_type.trim() !== "" &&
+      saFromLoc
+    ) {
       query += ` AND t.from_location = $${paramIndex}  AND t.location_type_from = $${
         paramIndex + 1
       } `;
@@ -1604,7 +1627,13 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex += 2;
     }
 
-    if (to_location && to_location_type && saToLoc) {
+    if (
+      to_location &&
+      to_location_type &&
+      to_location.trim() !== "" &&
+      to_location_type.trim() !== "" &&
+      saToLoc
+    ) {
       query += ` AND t.to_location = $${paramIndex} AND t.location_type_to= $${
         paramIndex + 1
       } `;
@@ -1612,20 +1641,20 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex += 2;
     }
 
-    if (basis) {
+    if (basis && basis.trim() !== "") {
       query += ` AND t.basis = $${paramIndex} `;
       params.push(basis);
       paramIndex++;
     }
 
-    if (cargo_type) {
-      query += `AND t.cargo_type = $${paramIndex} `;
+    if (cargo_type && cargo_type.trim() !== "") {
+      query += ` AND t.cargo_type = $${paramIndex} `;
       params.push(cargo_type);
       paramIndex++;
     }
 
-    if (service_type) {
-      query += `AND t.service_type = $${paramIndex}`;
+    if (service_type && service_type.trim() !== "") {
+      query += ` AND t.service_type = $${paramIndex}`;
       params.push(service_type);
       paramIndex++;
     }
@@ -1638,7 +1667,12 @@ router.post("/:code/tariff", async (req, res) => {
     // }
 
     // Date range check
-    if (effective_date_from && effective_date_to) {
+    if (
+      effective_date_from &&
+      effective_date_to &&
+      effective_date_from.trim() !== "" &&
+      effective_date_to.trim() !== ""
+    ) {
       query += ` AND t.period_start_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
       params.push(effective_date_to);
       paramIndex++;
