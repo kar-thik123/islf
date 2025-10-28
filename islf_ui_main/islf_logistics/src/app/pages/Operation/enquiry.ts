@@ -3793,7 +3793,7 @@ export class EnquiryComponent implements OnInit {
         quantity: mappedQuantity,
         remarks: '',
         enquiry_line_item_id:
-          Number(`${(vendor as any).enquiry_line_item_id + 1}`) || -1,
+          Number(`${(vendor as any).enquiry_line_item_id}`) || -1,
       };
       this.vendorCards.push(vendorCard);
     });
