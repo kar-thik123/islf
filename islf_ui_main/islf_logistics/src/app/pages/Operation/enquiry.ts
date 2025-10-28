@@ -149,7 +149,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
-                <i class="pi pi-search"></i>
+                
                 <input
                   pInputText
                   type="text"
@@ -902,7 +902,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 label="Add Line Item"
                 icon="pi pi-plus"
                 (click)="addLineItem()"
-                class="p-button-success p-button-sm"
+                class="p-button-sm"
               ></button>
               <button
                 pButton
@@ -910,7 +910,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 label="Preview"
                 icon="pi pi-eye"
                 (click)="showEnquiryPreview()"
-                class="p-button-warn p-button-sm"
+                class=" p-button-sm"
               ></button>
               <p-button
                 *ngIf="finalizedVendors && finalizedVendors.length > 0"
@@ -1251,7 +1251,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                         (click)="
                                           finalizeVendorSelection(source)
                                         "
-                                        class="p-button-success"
+                                        class="p-button-sm"
                                       ></button>
                                     </div>
                                   </ng-template>
@@ -1451,7 +1451,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 icon="pi pi-envelope"
                 (click)="generateMail()"
                 [disabled]="!canGenerateMail()"
-                class="p-button-help"
+                class="p-button-sm"
                 pTooltip="Generate Mail Template based on Active Vendor Card + Customer Details"
               ></button>
               <button
@@ -1470,7 +1470,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 icon="pi pi-check-circle"
                 (click)="confirmEnquiry()"
                 [disabled]="!canConfirmEnquiry()"
-                class="p-button-primary"
+                class="p-button-sm"
                 pTooltip="Save all details into Booking Table. If customer is new, also save to Customer Table."
               ></button>
             </div>
@@ -1492,7 +1492,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               icon="pi pi-times"
               [text]="true"
               (click)="hideDialog()"
-              severity="secondary"
+              class="p-button-sm"
               size="small"
             >
             </p-button>
@@ -1501,7 +1501,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               label="Save Draft"
               icon="pi pi-save"
               (click)="saveEnquiry()"
-              severity="info"
+              class="p-button-sm"
               size="small"
             >
             </p-button>
@@ -1510,7 +1510,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               label="Update"
               icon="pi pi-check"
               (click)="saveEnquiry()"
-              severity="success"
+              class="p-button-sm"
               size="small"
             >
             </p-button>
@@ -1797,6 +1797,84 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
         <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
       </ng-template>
     </p-dialog>
+    <!-- Enquiry Preview Dialog -->
+    <p-dialog
+      [(visible)]="showPreviewDialog"
+      header="Enquiry Preview"
+      [modal]="true"
+      [style]="{ width: '90vw', maxHeight: '90vh' }"
+      [draggable]="false"
+      [resizable]="false"
+    >
+      <div class="p-4">
+        <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
+        
+        <div class="mb-4 p-4 border rounded bg-gray-50">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p><span class="font-semibold">Enquiry Code:</span> {{ currentEnquiry?.code || '--' }}</p>
+              <p><span class="font-semibold">Customer:</span> {{ currentEnquiry?.customer_name || '--' }}</p>
+              <p><span class="font-semibold">From:</span> {{ currentEnquiry?.from_location || '--' }}</p>
+              <p><span class="font-semibold">To:</span> {{ currentEnquiry?.to_location || '--' }}</p>
+            </div>
+            <div>
+              <p><span class="font-semibold">Service Type:</span> {{ currentEnquiry?.service_type || '--' }}</p>
+              <p><span class="font-semibold">Cargo Type:</span> {{ currentEnquiry?.cargo_type || '--' }}</p>
+              <p><span class="font-semibold">Department:</span> {{ currentEnquiry?.department || '--' }}</p>
+              <p><span class="font-semibold">Status:</span> {{ currentEnquiry?.status || '--' }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <h4 class="text-lg font-bold mb-2">Finalized Line Items</h4>
+        <div *ngIf="lineItems && lineItems.length > 0" class="mb-4">
+          <p-accordion>
+            <p-accordionTab *ngFor="let item of lineItems" [header]="'Line Item ' + item.s_no + ' - ' + item.type">
+              <div class="mb-3">
+                <p><span class="font-semibold">Type:</span> {{ item.type }}</p>
+                <p><span class="font-semibold">Service Area:</span> {{ item.service_area }}</p>
+                <p><span class="font-semibold">Basis:</span> {{ item.basis }}</p>
+                <p><span class="font-semibold">Quantity:</span> {{ item.quantity }}</p>
+                <p><span class="font-semibold">Remarks:</span> {{ item.remarks || '--' }}</p>
+              </div>
+              
+              <h5 class="text-md font-bold mb-2">Finalized Sources</h5>
+              <p-table [value]="item.enquiry_summary || []" styleClass="p-datatable-sm">
+                 <ng-template pTemplate="header">
+                   <tr>
+                     <th>Type</th>
+                     <th>Source No</th>
+                     <th>Vendor</th>
+                     <th>Currency</th>
+                     <th>Charge</th>
+                     <th>Remarks</th>
+                   </tr>
+                 </ng-template>
+                 <ng-template pTemplate="body" let-summary>
+                   <tr>
+                     <td>{{ summary.summary_type | titlecase }}</td>
+                     <td>{{ summary.sourced_no }}</td>
+                     <td>{{ summary.vendor_name }}</td>
+                     <td>{{ summary.currency_code }}</td>
+                     <td>{{ summary.charge }}</td>
+                     <td>{{ summary.remarks }}</td>
+                   </tr>
+                 </ng-template>
+                 <ng-template pTemplate="emptymessage">
+                   <tr>
+                     <td colspan="6" class="text-center">No finalized sources for this line item.</td>
+                   </tr>
+                 </ng-template>
+               </p-table>
+            </p-accordionTab>
+          </p-accordion>
+        </div>
+        <div *ngIf="!lineItems || lineItems.length === 0" class="p-4 text-center">
+          <p>No line items available for preview.</p>
+        </div>
+      </div>
+    </p-dialog>
+    
     <!-- Finalized Vendors Preview Dialog -->
     <p-dialog
       [(visible)]="showFinalizedVendorsDialog"
@@ -4034,6 +4112,14 @@ export class EnquiryComponent implements OnInit {
         }
 
         this.loadEnquiries(); // Refresh the table
+        this.loadEnquiries().subscribe({
+          next: () => {
+            this.cdr.detectChanges();
+          },
+          error:(err)=>{
+            console.error('Error reloading enquiries after save:', err);       
+          },
+        });
 
         // Don't hide dialog immediately for new enquiries so user can see the generated number
         if (this.selectedEnquiry?.code) {
