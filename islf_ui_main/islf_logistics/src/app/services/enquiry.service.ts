@@ -82,6 +82,7 @@ export interface Enquiry {
   is_new_customer?: boolean;
   source_sales_code?: string;
   service_area?: string;
+  source_updates?: any[]; 
 }
 
 export interface CustomerContact {
