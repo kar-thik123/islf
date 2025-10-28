@@ -15,6 +15,7 @@ export interface EnquiryLineItem {
   basis: string;
   remarks: string;
   status: string;
+  enquiry_id?: string | number;
   enquiry_summary?: EnquirySummary[];
 }
 
@@ -206,6 +207,18 @@ export class EnquiryService {
     return this.update(code, enquiry);
   }
 
+  /** Update Line Item  Selection**/
+  updateEnquiryLineItemSelection(
+    code: string,
+    lineItemList: Partial<EnquiryLineItem[]>
+  ) {
+    console.log('Enquiry Line Item Selection list,', lineItemList);
+    return this.http.put<EnquiryLineItem[]>(
+      `${this.baseUrl}/${code}`,
+      lineItemList
+    );
+  }
+
   /** Create enquiry */
   create(enquiry: Partial<Enquiry>): Observable<Enquiry> {
     const payload = this.contextPayload.withContext(
@@ -298,6 +311,12 @@ export class EnquiryService {
     enquiryCode: string,
     criteria: any
   ): Observable<TariffOption[]> {
+    console.log(
+      'get Tariff options payload for code:',
+      enquiryCode,
+      'is:',
+      criteria
+    );
     return this.http.post<TariffOption[]>(
       `${this.baseUrl}/${enquiryCode}/tariff`,
       criteria

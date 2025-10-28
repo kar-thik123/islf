@@ -2272,7 +2272,6 @@ export class EnquiryComponent implements OnInit {
 
   // show enquiry preview function
   showEnquiryPreview() {
-    
     this.showPreviewDialog = true;
   }
 
@@ -3526,6 +3525,7 @@ export class EnquiryComponent implements OnInit {
       basis: '',
       remarks: '',
       status: 'Active',
+      enquiry_id: this.selectedEnquiry!.id || '',
       enquiry_summary: [],
     };
     console.log('add Line Item is clicked and the new item value is,', newItem);
@@ -3601,7 +3601,7 @@ export class EnquiryComponent implements OnInit {
       });
       // return;
     }
-    let lineItemIndex = --lineItemId;
+    let lineItemIndex = Number(lineItemId) - 1;
     console.log(
       'selected enquiry value during get sourcing,',
       this.selectedEnquiry
@@ -3618,8 +3618,9 @@ export class EnquiryComponent implements OnInit {
       line_item_type: this.lineItems[lineItemIndex]?.type,
       service_area: this.lineItems[lineItemIndex]?.service_area,
       basis: this.lineItems[lineItemIndex]?.basis,
-      // Optional Creteria
+      // Optional Criteria
       department: enq.department,
+      cargo_type: enq.cargo_type,
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
@@ -3664,15 +3665,20 @@ export class EnquiryComponent implements OnInit {
       });
       return;
     }
-
+    let lineItemIndex = Number(lineItemId) - 1;
     const enq = this.selectedEnquiry!;
     const criteria = {
+      // mandatory Criteria
+      line_item_type: this.lineItems[lineItemIndex]?.type,
+      service_area: this.lineItems[lineItemIndex]?.service_area,
+      basis: this.lineItems[lineItemIndex]?.basis,
+      // Optional Criteria
       department: enq.department,
+      cargo_type: enq.cargo_type,
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
-      basis: this.lineItems[0]?.basis,
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
       to_location_type: enq.location_type_to,
@@ -3951,6 +3957,12 @@ export class EnquiryComponent implements OnInit {
   saveEnquiry() {
     if (!this.selectedEnquiry) return;
 
+    console.log(
+      'Selected Line Items for enquiry Id,',
+      this.selectedEnquiry.id,
+      'is,',
+      this.selectedLineItems
+    );
     console.log(
       'DEBUG: selected enquiry value from save enquiry',
       this.selectedEnquiry
