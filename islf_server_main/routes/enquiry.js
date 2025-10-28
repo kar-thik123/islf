@@ -967,7 +967,7 @@ router.put("/:code", async (req, res) => {
         `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
                  mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
                  effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17,
-                 cargo_type= $19 WHERE id = $18`,
+                 cargo_type= $19, location_type_from= $20, location_type_to= $21 WHERE id = $18`,
         [
           date,
           customer_id,
@@ -988,6 +988,8 @@ router.put("/:code", async (req, res) => {
           source_sales_code,
           enquiryId,
           cargo_type,
+          location_type_from,
+          location_type_to,
         ]
       );
 
@@ -1428,6 +1430,7 @@ router.post("/:code/sourcing", async (req, res) => {
       from_location_type,
       to_location_type,
       department,
+      cargo_type,
       from_location,
       to_location,
       effective_date_from,
@@ -1444,7 +1447,7 @@ router.post("/:code/sourcing", async (req, res) => {
 
     let query = `
             SELECT * FROM ( SELECT *, CASE
-            WHEN period_end_date = NULL THEN 'Active'
+            WHEN period_end_date IS NULL THEN 'Active'
             WHEN NOW() > period_end_date::DATE  THEN 'Expired'
             ELSE 'Active' END AS source_status
             FROM sourcing) WHERE source_status = 'Active'
@@ -1455,7 +1458,7 @@ router.post("/:code/sourcing", async (req, res) => {
     let saToLoc = true;
 
     if (department) {
-      query += ` AND mode = $${paramIndex}`;
+      query += ` AND mode = $${paramIndex}  `;
       params.push(department);
       paramIndex++;
     }
@@ -1502,6 +1505,18 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex += 2;
     }
 
+    if (cargo_type !== null) {
+      query += `AND cargo_type = $${paramIndex}  `;
+      params.push(cargo_type);
+      paramIndex++;
+    }
+
+    // Basis check
+    if (basis) {
+      query += `AND basis=$${paramIndex}  `;
+      params.push(basis);
+      paramIndex++;
+    }
     // Date range check
     if (effective_date_from && effective_date_to) {
       query += ` AND (
@@ -1533,8 +1548,15 @@ router.post("/:code/tariff", async (req, res) => {
     const { code } = req.params;
     const {
       department,
+      basis,
+      cargo_type,
+      service_area,
+      service_type,
+      line_item_type,
       from_location,
+      from_location_type,
       to_location,
+      to_location_type,
       effective_date_from,
       effective_date_to,
     } = req.body;
@@ -1542,13 +1564,15 @@ router.post("/:code/tariff", async (req, res) => {
     // Get tariff options based on criteria
     let query = `
             SELECT t.*, v.name as vendor_name, v.type as vendor_type
-            FROM tariff t
-            LEFT JOIN vendor v ON t.vendor_name = v.vendor_no
+            FROM tariff AS t
+            LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
             WHERE t.is_mandatory = true
         `;
 
     const params = [];
     let paramIndex = 1;
+    let saFromLoc = false;
+    let saToLoc = false;
 
     if (department) {
       query += ` AND t.mode = $${paramIndex}`;
@@ -1556,15 +1580,53 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex++;
     }
 
-    if (from_location) {
-      query += ` AND t.from_location = $${paramIndex}`;
-      params.push(from_location);
+    // service Area check
+    if (service_area) {
+      const serviceAreaResult = await pool.query(
+        `SELECT * FROM master_service_area WHERE service_area=$1`,
+        [service_area]
+      );
+      [{ from_location: saFromLoc, to_location: saToLoc }] =
+        serviceAreaResult.rows;
+
+      // including the from & to location if service area false for both case
+      if (saFromLoc === false && saToLoc === false) {
+        saFromLoc = true;
+        saToLoc = true;
+      }
+    }
+
+    if (from_location && from_location_type && saFromLoc) {
+      query += ` AND t.from_location = $${paramIndex} AND t.location_type_from = $${
+        paramIndex + 1
+      }`;
+      params.push(from_location, from_location_type);
+      paramIndex += 2;
+    }
+
+    if (to_location && to_location_type && saToLoc) {
+      query += ` AND t.to_location = $${paramIndex} AND t.location_type_to= $${
+        paramIndex + 1
+      }`;
+      params.push(to_location, to_location_type);
+      paramIndex += 2;
+    }
+
+    if (basis) {
+      query += `AND t.basis = $${paramIndex}`;
+      params.push(basis);
       paramIndex++;
     }
 
-    if (to_location) {
-      query += ` AND t.to_location = $${paramIndex}`;
-      params.push(to_location);
+    if (cargo_type) {
+      query += `AND t.cargo_type = $${paramIndex}`;
+      params.push(cargo_type);
+      paramIndex++;
+    }
+
+    if (service_type) {
+      query += `AND t.service_type = $${paramIndex}`;
+      params.push(service_type);
       paramIndex++;
     }
 
@@ -1871,6 +1933,23 @@ router.post("/:code/lineItem", async (req, res) => {
       message: "Internal Server Error.",
       error: error.message,
     });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { lineItems } = req.body;
+    console.log("lineItems", lineItems);
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
   }
 });
 
