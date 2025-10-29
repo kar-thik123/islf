@@ -1327,12 +1327,19 @@ getSourceStatus(tariff: { periodEndDate?: string | Date }): string {
     );
   }
   loadCargoTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
-      // @ts-ignore
-      tap((types: any[]) => {
-      this.cargoTypeOptions = (types || [])
-        .filter(t => t.key === 'CARGO_TYPE' && t.status === 'Active')
-        .map(t => ({ label: t.value, value: t.value }));
+    return this.masterItemService.getAll().pipe(
+      tap((cargoTypes: any[]) => {
+        this.cargoTypeOptions = (cargoTypes || [])
+          .filter(
+            (cargoType) =>
+              cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+          )
+          .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
+        console.log('Cargo Type options,', this.cargoTypeOptions);
+      }),
+      catchError((error) => {
+        console.error('Error loading cargo type options', error);
+        return of([]);
       })
     );
   }
