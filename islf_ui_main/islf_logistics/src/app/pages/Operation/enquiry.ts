@@ -149,6 +149,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
+                
                 <input
                   pInputText
                   type="text"
@@ -931,172 +932,160 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               (selectionChange)="onSelectionLineItemChange($event)"
               scrollHeight="400px"
             >
-              <ng-template pTemplate="header">
-                <tr>
-                  <th style="width: 3%"></th>
-                  <!-- Toggle -->
-                  <th style="width: 3%"><p-tableHeaderCheckbox /></th>
-                  <!-- Checkbox -->
-                  <th style="width: 5%">S.No.</th>
-                  <th style="width: 8%">Quantity</th>
-                  <th style="width: 15%">Type</th>
-                  <th style="width: 15%">Service Area</th>
-                  <th style="width: 15%">Basis</th>
-                  <th style="width: 15%">Remarks</th>
-                  <th style="width: 10%">Status</th>
-                  <th style="width: 15%">Actions</th>
-                </tr>
-              </ng-template>
-              <ng-template
-                pTemplate="body"
-                let-item
-                let-i="rowIndex"
-                let-expanded="expanded"
-              >
-                <tr>
-                  <td>
-                    <p-button
-                      type="button"
-                      pRipple
-                      [pRowToggler]="item"
-                      [text]="true"
-                      severity="secondary"
-                      [rounded]="true"
-                      [icon]="
-                        expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'
-                      "
-                    />
-                  </td>
-                  <td>
-                    <p-tableCheckbox [value]="item" />
-                  </td>
-                  <td>{{ i + 1 }}</td>
-                  <td class="px-1">
-                    <p-inputNumber
-                      [(ngModel)]="item.quantity"
-                      [min]="0"
-                      [maxFractionDigits]="0"
-                      placeholder="0"
-                      [style]="{ width: '60px' }"
-                    >
-                    </p-inputNumber>
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <p-dropdown
-                        [(ngModel)]="item.type"
-                        [options]="masterTypeOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Select type"
-                        class="flex-1"
-                        appendTo="body"
-                      >
-                      </p-dropdown>
-                      <button
-                        pButton
-                        [icon]="
-                          masterDialogLoading['masterType']
-                            ? 'pi pi-spin pi-spinner'
-                            : 'pi pi-ellipsis-h'
-                        "
-                        class="p-button-sm"
-                        [disabled]="masterDialogLoading['masterType']"
-                        (click)="openMaster('masterType')"
-                        appendTo="body"
-                      ></button>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <p-dropdown
-                        [(ngModel)]="item.service_area"
-                        [options]="serviceAreaDropdownOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Select service area"
-                        class="flex-1"
-                        appendTo="body"
-                      >
-                      </p-dropdown>
-                      <button
-                        pButton
-                        [icon]="
-                          masterDialogLoading['serviceArea']
-                            ? 'pi pi-spin pi-spinner'
-                            : 'pi pi-ellipsis-h'
-                        "
-                        class="p-button-sm"
-                        [disabled]="masterDialogLoading['serviceArea']"
-                        (click)="openMaster('serviceArea')"
-                        appendTo="body"
-                      ></button>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <p-dropdown
-                        [(ngModel)]="item.basis"
-                        [options]="basisOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Select basis"
-                        class="flex-1"
-                        appendTo="body"
-                      >
-                      </p-dropdown>
-                      <button
-                        pButton
-                        [icon]="
-                          masterDialogLoading['basis']
-                            ? 'pi pi-spin pi-spinner'
-                            : 'pi pi-ellipsis-h'
-                        "
-                        class="p-button-sm"
-                        [disabled]="masterDialogLoading['basis']"
-                        (click)="openMaster('basis')"
-                        appendTo="body"
-                      ></button>
-                    </div>
-                  </td>
-                  <td>
-                    <input
-                      pInputText
-                      [(ngModel)]="item.remarks"
-                      placeholder="Remarks"
-                      class="w-full"
-                    />
-                  </td>
-                  <td>
-                    <p-dropdown
-                      [(ngModel)]="item.status"
-                      [options]="lineItemStatusOptions"
-                      optionLabel="label"
-                      optionValue="value"
-                      appendTo="body"
-                    >
-                    </p-dropdown>
-                  </td>
-                  <td style="width: 300px; min-width: 300px">
-                    <div class="flex gap-1 action-buttons">
-                      <button
-                        pButton
-                        type="button"
-                        label="Sourcing"
-                        icon="pi pi-search"
-                        (click)="getSourcing(i + 1)"
-                        class="sourcing-btn"
-                        pTooltip="Query Sourcing Table with matching conditions"
-                      ></button>
-                      <button
-                        pButton
-                        type="button"
-                        label="Tariff"
-                        icon="pi pi-calculator"
-                        (click)="getTariff(i + 1)"
-                        class="tariff-btn"
-                        pTooltip="Fetch directly from Tariff Table"
-                      ></button>
+             <ng-template pTemplate="header">
+  <tr>
+    <th style="width: 3%"></th>
+    <!-- Toggle -->
+    <th style="width: 3%"><p-tableHeaderCheckbox /></th>
+    <!-- Checkbox -->
+    <th style="width: 5%">S.No.</th>
+    <th style="width: 10%">Quantity</th>
+    <th style="width: 15%">Type</th>
+    <th style="width: 15%">Service Area</th>
+    <th style="width: 15%">Basis</th>
+    <th style="width: 20%">Remarks</th>
+    <th style="width: 10%">Status</th>
+    <th style="width: 8%">Actions</th>
+  </tr>
+</ng-template>
+
+<ng-template
+  pTemplate="body"
+  let-item
+  let-i="rowIndex"
+  let-expanded="expanded"
+>
+  <tr>
+    <td>
+      <p-button
+        type="button"
+        pRipple
+        [pRowToggler]="item"
+        [text]="true"
+        severity="secondary"
+        [rounded]="true"
+        [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+      />
+    </td>
+    <td>
+      <p-tableCheckbox [value]="item" />
+    </td>
+    <td>{{ i + 1 }}</td>
+    <td class="px-1">
+      <p-inputNumber
+        [(ngModel)]="item.quantity"
+        [min]="0"
+        [maxFractionDigits]="0"
+        placeholder="0"
+        [style]="{ width: '100%' }"
+      >
+      </p-inputNumber>
+    </td>
+    <!-- REMOVED the invalid <br> tag -->
+    <td>
+      <div class="flex gap-2">
+        <p-dropdown
+          [(ngModel)]="item.type"
+          [options]="masterTypeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select type"
+          class="flex-1"
+          appendTo="body"
+        >
+        </p-dropdown>
+        <button
+          pButton
+          [icon]="masterDialogLoading['masterType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'"
+          class="p-button-sm"
+          [disabled]="masterDialogLoading['masterType']"
+          (click)="openMaster('masterType')"
+          appendTo="body"
+        ></button>
+      </div>
+    </td>
+    <td>
+      <div class="flex gap-2">
+        <p-dropdown
+          [(ngModel)]="item.service_area"
+          [options]="serviceAreaDropdownOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select service area"
+          class="flex-1"
+          appendTo="body"
+        >
+        </p-dropdown>
+        <button
+          pButton
+          [icon]="masterDialogLoading['serviceArea'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'"
+          class="p-button-sm"
+          [disabled]="masterDialogLoading['serviceArea']"
+          (click)="openMaster('serviceArea')"
+          appendTo="body"
+        ></button>
+      </div>
+    </td>
+    <td>
+      <div class="flex gap-2">
+        <p-dropdown
+          [(ngModel)]="item.basis"
+          [options]="basisOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select basis"
+          class="flex-1"
+          appendTo="body"
+        >
+        </p-dropdown>
+        <button
+          pButton
+          [icon]="masterDialogLoading['basis'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'"
+          class="p-button-sm"
+          [disabled]="masterDialogLoading['basis']"
+          (click)="openMaster('basis')"
+          appendTo="body"
+        ></button>
+      </div>
+    </td>
+    <td>
+      <input
+        pInputText
+        [(ngModel)]="item.remarks"
+        placeholder="Remarks"
+        class="w-full"
+      />
+    </td>
+    <td>
+      <p-dropdown
+        [(ngModel)]="item.status"
+        [options]="lineItemStatusOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+      >
+      </p-dropdown>
+    </td>
+    <td>
+      <div class="flex gap-1 action-buttons">
+        <button
+          pButton
+          type="button"
+          label="Sourcing"
+          icon="pi pi-search"
+          (click)="getSourcing(i + 1)"
+          class="sourcing-btn"
+          pTooltip="Query Sourcing Table with matching conditions"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Tariff"
+          icon="pi pi-calculator"
+          (click)="getTariff(i + 1)"
+          class="tariff-btn"
+          pTooltip="Fetch directly from Tariff Table"
+        ></button>
 
                       <!--<button
                         pButton
@@ -1212,7 +1201,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                             <td>{{ summary.vendor_name }}</td>
                             <td>{{ summary.currency_code }}</td>
                             <td>{{ summary.charge }}</td>
-                            <td>{{ summary.sourced_time }}</td>
+                            <td>{{ formatDateTime(summary.sourced_time) }}</td>
                             <td>{{ summary.remarks }}</td>
                           </tr>
                         </ng-template>
@@ -1268,12 +1257,12 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                       <th style="width: 180px">Sourced Time</th>
                                     </tr>
                                   </ng-template>
-                                  <ng-template #body let-source>
+                                  <ng-template #body let-source let-i="rowIndex">
                                     <tr>
                                       <td>
                                         <p-tableCheckbox [value]="source" />
                                       </td>
-                                      <td>{{ source.sourced_no }}</td>
+                                     <td>{{ getSourceNumber(source, i) }}</td>
                                       <td>{{ source.vendor_name }}</td>
                                       <td>{{ source.currency }}</td>
                                       <td>{{ source.charges }}</td>
@@ -1281,9 +1270,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                         <input
                                           type="text"
                                           pInputText
-                                          [(ngModel)]="
-                                            source.negotiated_charges
-                                          "
+                                          [(ngModel)]="value"
                                           placeholder="{{
                                             source.negotiated_charges
                                           }}"
@@ -1301,7 +1288,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                           style="width: 100%"
                                         />
                                       </td>
-                                      <td>{{ source.created_at }}</td>
+                                      <td>{{ formatDateTime(source.created_at) }}</td>
                                     </tr>
                                   </ng-template>
                                   <ng-template #emptymessage>
@@ -1799,189 +1786,248 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
       </ng-template>
     </p-dialog>
     <!-- Enquiry Preview Dialog -->
-    <p-dialog
-      [(visible)]="showPreviewDialog"
-      header="Enquiry Preview"
-      [modal]="true"
-      [style]="{ width: '90vw', maxHeight: '90vh' }"
-      [draggable]="false"
-      [resizable]="false"
-    >
-      <div class="p-4">
-        <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
-
-        <div class="mb-4 p-4 border rounded bg-gray-50">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p>
-                <span class="font-semibold">Enquiry Code:</span>
-                {{ currentEnquiry?.code || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Customer:</span>
-                {{ currentEnquiry?.customer_name || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">From:</span>
-                {{ currentEnquiry?.from_location || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">To:</span>
-                {{ currentEnquiry?.to_location || '--' }}
-              </p>
-            </div>
-            <div>
-              <p>
-                <span class="font-semibold">Service Type:</span>
-                {{ currentEnquiry?.service_type || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Cargo Type:</span>
-                {{ currentEnquiry?.cargo_type || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Department:</span>
-                {{ currentEnquiry?.department || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Status:</span>
-                {{ currentEnquiry?.status || '--' }}
-              </p>
-            </div>
-          </div>
+<p-dialog
+  [(visible)]="showPreviewDialog"
+  header="Enquiry Preview"
+  [modal]="true"
+  [style]="{ width: '95vw', maxHeight: '90vh' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="p-4 preview-container">
+    <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
+    
+    <!-- General Enquiry Details -->
+    <div class="mb-6 p-4 border rounded bg-gray-50">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p><span class="font-semibold">Enquiry Code:</span> {{ currentEnquiry?.code || '--' }}</p>
+          <p><span class="font-semibold">Customer:</span> {{ currentEnquiry?.customer_name || '--' }}</p>
+          <p><span class="font-semibold">Company:</span> {{ currentEnquiry?.company_name || '--' }}</p>
+          <p><span class="font-semibold">From:</span> {{ currentEnquiry?.from_location || '--' }}</p>
+          <p><span class="font-semibold">To:</span> {{ currentEnquiry?.to_location || '--' }}</p>
         </div>
-
-        <h4 class="text-lg font-bold mb-2">Finalized Line Items</h4>
-        <div *ngIf="lineItems && lineItems.length > 0" class="mb-4">
-          <p-accordion>
-            <p-accordionTab
-              *ngFor="let item of lineItems"
-              [header]="'Line Item ' + item.s_no + ' - ' + item.type"
-            >
-              <div class="mb-3">
-                <p><span class="font-semibold">Type:</span> {{ item.type }}</p>
-                <p>
-                  <span class="font-semibold">Service Area:</span>
-                  {{ item.service_area }}
-                </p>
-                <p>
-                  <span class="font-semibold">Basis:</span> {{ item.basis }}
-                </p>
-                <p>
-                  <span class="font-semibold">Quantity:</span>
-                  {{ item.quantity }}
-                </p>
-                <p>
-                  <span class="font-semibold">Remarks:</span>
-                  {{ item.remarks || '--' }}
-                </p>
-              </div>
-
-              <h5 class="text-md font-bold mb-2">Finalized Sources</h5>
-              <p-table
-                [value]="item.enquiry_summary || []"
-                styleClass="p-datatable-sm"
-              >
-                <ng-template pTemplate="header">
-                  <tr>
-                    <th>Type</th>
-                    <th>Source No</th>
-                    <th>Vendor</th>
-                    <th>Currency</th>
-                    <th>Charge</th>
-                    <th>Remarks</th>
-                  </tr>
-                </ng-template>
-                <ng-template pTemplate="body" let-summary>
-                  <tr>
-                    <td>{{ summary.summary_type | titlecase }}</td>
-                    <td>{{ summary.sourced_no }}</td>
-                    <td>{{ summary.vendor_name }}</td>
-                    <td>{{ summary.currency_code }}</td>
-                    <td>{{ summary.charge }}</td>
-                    <td>{{ summary.remarks }}</td>
-                  </tr>
-                </ng-template>
-                <ng-template pTemplate="emptymessage">
-                  <tr>
-                    <td colspan="6" class="text-center">
-                      No finalized sources for this line item.
-                    </td>
-                  </tr>
-                </ng-template>
-              </p-table>
-            </p-accordionTab>
-          </p-accordion>
-        </div>
-        <div
-          *ngIf="!lineItems || lineItems.length === 0"
-          class="p-4 text-center"
-        >
-          <p>No line items available for preview.</p>
+        <div>
+          <p><span class="font-semibold">Service Type:</span> {{ currentEnquiry?.service_type || '--' }}</p>
+          <p><span class="font-semibold">Cargo Type:</span> {{ currentEnquiry?.cargo_type || '--' }}</p>
+          <p><span class="font-semibold">Department:</span> {{ currentEnquiry?.department || '--' }}</p>
+          <p><span class="font-semibold">Status:</span> {{ currentEnquiry?.status || '--' }}</p>
+          <p><span class="font-semibold">Date:</span> {{ formatDate(currentEnquiry?.date) || '--' }}</p>
         </div>
       </div>
-    </p-dialog>
+    </div>
+    
+   <!-- Line Items Display - Horizontal Layout -->
+      <h4 class="text-lg font-bold mb-4">Line Items</h4>
+      <div *ngIf="getLineItemsWithSources() && getLineItemsWithSources().length > 0" class="mb-6">
+        <div class="grid grid-cols-1 gap-6">
+          <div *ngFor="let item of getLineItemsWithSources(); let i = index" 
+              class="line-item-card p-4 border rounded-lg bg-white shadow-sm">
+          
+          <!-- Line Item Header -->
+          <div class="flex justify-between items-start mb-4 pb-3 border-b">
+            <div>
+              <h5 class="font-bold text-lg">Line Item {{ i + 1 }}</h5>
+              <p class="text-sm text-gray-600">{{ item.type || 'No type specified' }}</p>
+            </div>
+            <div class="text-right">
+              <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="{
+                      'bg-green-100 text-green-800': item.status === 'Active',
+                      'bg-gray-100 text-gray-800': item.status === 'Inactive',
+                      'bg-yellow-100 text-yellow-800': item.status === 'Pending'
+                    }">
+                {{ item.status || 'Active' }}
+              </span>
+            </div>
+          </div>
 
-    <!-- Finalized Vendors Preview Dialog -->
-    <p-dialog
-      [(visible)]="showFinalizedVendorsDialog"
-      header="Finalized Vendors"
-      [modal]="true"
-      [style]="{ width: '80vw' }"
-      [draggable]="false"
-      [resizable]="false"
-    >
-      <p-table
-        [value]="finalizedVendors"
-        [paginator]="true"
-        [rows]="10"
-        [rowsPerPageOptions]="[5, 10, 20]"
-        styleClass="p-datatable-sm"
-      >
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Line Item</th>
-            <th>Type</th>
-            <th>Source No</th>
-            <th>Vendor Name</th>
-            <th>Currency</th>
-            <th>Charge</th>
-            <th>Remarks</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-vendor>
-          <tr>
-            <td>{{ vendor.lineItemNo }}</td>
-            <td>{{ vendor.type }}</td>
-            <td>{{ vendor.sourceNo }}</td>
-            <td>{{ vendor.vendorName }}</td>
-            <td>{{ vendor.currency }}</td>
-            <td>{{ vendor.charge }}</td>
-            <td>{{ vendor.remarks }}</td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="7" class="text-center p-4">
-              No finalized vendors found.
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
-      <ng-template pTemplate="footer">
-        <div class="flex justify-content-end">
-          <button
-            pButton
-            label="Close"
-            icon="pi pi-times"
-            (click)="showFinalizedVendorsDialog = false"
-          ></button>
+          <!-- Line Item Details - Horizontal Layout -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div class="detail-item">
+              <label class="font-semibold text-sm text-gray-600">Service Area</label>
+              <p class="mt-1">{{ item.service_area || '--' }}</p>
+            </div>
+            <div class="detail-item">
+              <label class="font-semibold text-sm text-gray-600">Basis</label>
+              <p class="mt-1">{{ item.basis || '--' }}</p>
+            </div>
+            <div class="detail-item">
+              <label class="font-semibold text-sm text-gray-600">Quantity</label>
+              <p class="mt-1">{{ item.quantity || 0 }}</p>
+            </div>
+            <div class="detail-item">
+              <label class="font-semibold text-sm text-gray-600">Remarks</label>
+              <p class="mt-1">{{ item.remarks || '--' }}</p>
+            </div>
+          </div>
+
+          <!-- Sourcing Lists -->
+          <div *ngIf="item.enquiry_summary && item.enquiry_summary.length > 0" class="mt-4">
+            <div class="space-y-4">
+              <div *ngFor="let summary of item.enquiry_summary" class="source-section">
+                <h6 class="font-semibold mb-2 text-blue-700 capitalize">
+                  {{ summary.summary_type }} List
+                </h6>
+                
+                <!-- Full Sourcing/Tariff List -->
+                <div class="source-list-container">
+                  <p-table [value]="getFullSourceList(summary)" 
+                          styleClass="p-datatable-sm w-full source-list-table"
+                          [scrollable]="true" scrollHeight="200px">
+                    <ng-template pTemplate="header">
+                      <tr>
+                        <th style="width: 120px">Source No</th>
+                        <th style="width: 200px">Vendor Name</th>
+                        <th style="width: 100px">Currency</th>
+                        <th style="width: 120px">Charge</th>
+                        <th style="width: 150px">Sourced Time</th>
+                        <th style="width: 250px">Remarks</th>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-source let-i="rowIndex">
+                      <tr>
+                        <td>{{ getSourceNumber(source, i) }}</td>
+                        <td class="font-medium">{{ source.vendor_name }}</td>
+                        <td>{{ source.currency || source.currency_code || '--' }}</td>
+                        <td>
+                          <span class="font-semibold">
+                            {{ source.charge || source.charges || '--' }}
+                          </span>
+                        </td>
+                        <td>{{ formatDateTime(source.created_at) || source.sourced_time || '--' }}</td>
+                        <td class="remarks-cell">
+                          {{ source.remarks || source.negotiated_remarks || '--' }}
+                        </td>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="emptymessage">
+                      <tr>
+                        <td colspan="6" class="text-center p-4 text-gray-500">
+                          No {{ summary.summary_type }} items available
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Sources Message -->
+          <div *ngIf="!item.enquiry_summary || item.enquiry_summary.length === 0" 
+               class="mt-4 p-4 text-center border rounded bg-gray-50">
+            <p class="text-gray-500">No sourcing or tariff data available for this line item.</p>
+          </div>
+
         </div>
-      </ng-template>
-    </p-dialog>
+      </div>
+    </div>
+
+      <!-- No Line Items Message -->
+    <div *ngIf="!getLineItemsWithSources() || getLineItemsWithSources().length === 0" class="p-8 text-center border rounded bg-gray-50">
+      <p class="text-gray-500 text-lg">No line items with sourcing/tariff data available for preview.</p>
+    </div>
+
+    <!-- Finalized Vendors Summary -->
+    <div *ngIf="finalizedVendors && finalizedVendors.length > 0" class="mt-6">
+      <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
+      <div class="p-4 border rounded bg-blue-50">
+        <p class="font-semibold">Total Finalized Vendors: {{ finalizedVendors.length }}</p>
+        <button pButton 
+                label="View Detailed List" 
+                icon="pi pi-list"
+                (click)="showFinalizedVendorsDialog = true"
+                class="p-button-sm p-button-info mt-2">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-between items-center">
+     
+      <div>
+        <button
+          pButton
+          label="Close"
+          icon="pi pi-times"
+          (click)="showPreviewDialog = false"
+          class="p-button-sm"
+        ></button>
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>
   `,
   styles: [
     `
+       /* Preview Dialog Styles */
+    .preview-container {
+      max-height: calc(90vh - 100px);
+      overflow-y: auto;
+    }
+
+    .line-item-card {
+      transition: all 0.3s ease;
+    }
+
+    .line-item-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .detail-item {
+      padding: 8px 0;
+    }
+
+    .source-section {
+      border-left: 3px solid #3b82f6;
+      padding-left: 12px;
+    }
+
+    .source-list-container {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .source-list-table .p-datatable-wrapper {
+      border-radius: 6px;
+    }
+
+    .source-list-table .p-datatable-thead > tr > th {
+      background-color: #f8fafc;
+      color: #374151;
+      font-weight: 600;
+      padding: 12px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .source-list-table .p-datatable-tbody > tr > td {
+      padding: 12px;
+      vertical-align: top;
+    }
+    
+    .source-list-table .p-datatable-tbody > tr:hover {
+      background-color: #f9fafb;
+    }
+
+    .remarks-cell {
+      max-width: 250px;
+      word-wrap: break-word;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .detail-item {
+        border-bottom: 1px solid #f3f4f6;
+        padding: 12px 0;
+      }
+
+      .detail-item:last-child {
+        border-bottom: none;
+      }
+    }
       .vendor-card {
         border: 2px solid #e9ecef;
         transition: all 0.3s ease;
@@ -2785,6 +2831,29 @@ export class EnquiryComponent implements OnInit {
     // Force change detection to ensure UI updates
     this.cdr.detectChanges();
   }
+  formatDateTime(date: string | Date | undefined | null): string {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '';
+    
+    // Format date as dd/mm/yyyy
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    
+    // Format time as hh:mm
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch {
+    return '';
+  }
+}
 
   addEnquiry() {
     const today = new Date();
@@ -3097,6 +3166,32 @@ export class EnquiryComponent implements OnInit {
       },
     });
   }
+  // Filter line items to only show those with sourcing or tariff data
+// Filter line items to only show those with sourcing or tariff data
+getLineItemsWithSources(): EnquiryLineItem[] {
+  if (!this.lineItems || this.lineItems.length === 0) {
+    return [];
+  }
+
+  return this.lineItems.filter(item => {
+    // Check if item has enquiry_summary with data
+    if (item.enquiry_summary && item.enquiry_summary.length > 0) {
+      // Check if any summary has sourced_list with actual vendor data
+      const hasValidSources = item.enquiry_summary.some(summary => {
+        if (summary.sourced_list && summary.sourced_list.length > 0) {
+          // Further filter: check if sourced_list has actual vendor names (not just empty objects)
+          return summary.sourced_list.some(source => 
+            source.vendor_name && source.vendor_name.trim() !== ''
+          );
+        }
+        return false;
+      });
+      
+      return hasValidSources;
+    }
+    return false;
+  });
+}
 
   // Handle selection change in sourcing or tariff lists
   onSelectionChange(source: any) {
@@ -3388,13 +3483,31 @@ export class EnquiryComponent implements OnInit {
         return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
     }
   }
-
-  formatDate(date: Date | string): string {
-    if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleDateString('en-GB');
+formatDate(date: string | Date | undefined | null): string {
+  if (!date) return '--';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '--';
+    
+    // Format the date as needed
+    return dateObj.toLocaleDateString('en-GB'); // Using en-GB for dd/mm/yyyy format
+  } catch {
+    return '--';
   }
-
+}
+getSourceNumber(source: any, index: number): string {
+  // If source already has a sourced_no, use it
+  if (source.sourced_no && source.sourced_no !== '--') {
+    return source.sourced_no;
+  }
+  
+  // Otherwise generate simple sequential number (1, 2, 3...)
+  // Adding 1 because index starts from 0
+  return (index + 1).toString();
+}
   onDateChange(date: Date | null) {
     if (this.selectedEnquiry && date) {
       this.selectedEnquiry.date = this.formatDateForAPI(date);
@@ -3412,6 +3525,27 @@ export class EnquiryComponent implements OnInit {
       this.selectedEnquiry.effective_date_to = this.formatDateForAPI(date);
     }
   }
+  getFullSourceList(summary: any): any[] {
+  // Return the full sourced_list if available, otherwise return summary as single item array
+  if (summary.sourced_list && summary.sourced_list.length > 0) {
+    return summary.sourced_list;
+  }
+  
+  // If no sourced_list, create an array with the summary data for display
+  return [{
+    sourced_no: summary.sourced_no,
+    vendor_name: summary.vendor_name,
+    currency: summary.currency_code,
+    charge: summary.charge,
+    sourced_time: summary.sourced_time,
+    remarks: summary.remarks,
+    // Include additional fields that might be in sourced_list items
+    currency_code: summary.currency_code,
+    charges: summary.charge,
+    created_at: summary.sourced_time,
+    negotiated_remarks: summary.remarks
+  }];
+}
 
   onCustomerSelect(event: any) {
     console.log('Customer selected event:', event);
@@ -4131,15 +4265,7 @@ export class EnquiryComponent implements OnInit {
             : 'Enquiry created successfully',
         });
 
-        console.log(
-          'save operation response for save enquiry,',
-          response,
-          'selected enquiry model 2 way data binding value,',
-          this.selectedEnquiry
-        );
-
-        if (this.selectedEnquiry?.code === 'MAA_FF_ENQ' && response.code) {
-          console.log('updating the value selected enquiry value');
+        if (!this.selectedEnquiry?.code && response.code) {
           // New enquiry created, update the selectedEnquiry with auto-generated values
           this.selectedEnquiry!.id = response.id;
           this.selectedEnquiry!.enquiry_no = response.enquiry_no;
@@ -4171,8 +4297,8 @@ export class EnquiryComponent implements OnInit {
           next: () => {
             this.cdr.detectChanges();
           },
-          error: (err) => {
-            console.error('Error reloading enquiries after save:', err);
+          error:(err)=>{
+            console.error('Error reloading enquiries after save:', err);       
           },
         });
 
@@ -4247,12 +4373,7 @@ export class EnquiryComponent implements OnInit {
     if (!this.currentEnquiry?.code || this.vendorCards.length === 0) return;
 
     console.log('Save vendor cards vendor Cards list,', this.vendorCards);
-    console.log(
-      'current enquiry,',
-      this.currentEnquiry,
-      'Selected Enquiry vendor card,',
-      this.selectedEnquiry
-    );
+
     this.enquiryService
       .addVendorCards(this.currentEnquiry.code, this.vendorCards)
       .subscribe({
