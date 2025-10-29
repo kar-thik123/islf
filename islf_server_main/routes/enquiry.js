@@ -288,6 +288,7 @@ router.get("/:code", async (req, res) => {
           sourced_time: "--",
           remarks: "--",
           selected_source_items: [],
+          selected_source_items: [],
           sourced_list: [],
         },
         {
@@ -874,8 +875,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
           [
             enquiryId,
             i + 1,
@@ -1550,6 +1551,7 @@ router.post("/:code/sourcing", async (req, res) => {
     query += ` ORDER BY code, id DESC`;
 
     console.log("get sourcing final query,", query, "params,", params);
+    console.log("get sourcing final query,", query, "params,", params);
     const result = await pool.query(query, params);
 
     res.json(result.rows);
@@ -1720,6 +1722,10 @@ router.post("/:code/vendor-cards", async (req, res) => {
       await client.query("BEGIN");
 
       // Clear existing vendor cards
+      // await client.query(
+      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
       // await client.query(
       //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
       //   [enquiryId]
@@ -1903,6 +1909,411 @@ router.post("/:code/confirm", async (req, res) => {
   } catch (error) {
     console.error("Error confirming enquiry:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { lineItems } = req.body;
+    console.log("lineItems", lineItems);
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { lineItems } = req.body;
+    console.log("lineItems", lineItems);
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { lineItems } = req.body;
+    console.log("lineItems", lineItems);
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { lineItems } = req.body;
+    console.log("lineItems", lineItems);
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const {
+      rows: { id: enquiry_id },
+    } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { lineItems } = req.body;
+    console.log("lineItems", lineItems);
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
   }
 });
 

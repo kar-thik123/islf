@@ -17,6 +17,8 @@ export interface EnquiryLineItem {
   status: string;
   enquiry_id?: string | number;
   enquiry_summary?: EnquirySummary[];
+  enquiry_id?: string | number;
+  enquiry_summary?: EnquirySummary[];
 }
 
 export interface EnquiryVendorCard {
@@ -50,6 +52,8 @@ export interface EnquirySummary {
   sourced_no: number;
   sourced_time: string;
   sourced_list: SourcingOption[] | TariffOption[];
+  summary_type: string;
+  items: any[];
 }
 
 export interface Enquiry {
