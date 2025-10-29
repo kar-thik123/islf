@@ -52,6 +52,7 @@ export interface EnquirySummary {
   sourced_list: SourcingOption[] | TariffOption[];
   summary_type: string;
   items: any[];
+  finalizedItems?: any[];
 }
 
 export interface Enquiry {
