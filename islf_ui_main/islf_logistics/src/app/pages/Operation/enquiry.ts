@@ -53,7 +53,6 @@ import { MasterLocationService } from '../../services/master-location.service';
 import { DepartmentService } from '../../services/department.service';
 import { BasisService } from '../../services/basis.service';
 import { MasterItemService } from '../../services/master-item.service';
-import { MasterItemService } from '../../services/master-item.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { AuthService } from '../../services/auth.service';
@@ -150,7 +149,6 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
-                
                 <input
                   pInputText
                   type="text"
@@ -1801,250 +1799,335 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
       </ng-template>
     </p-dialog>
     <!-- Enhanced Enquiry Preview Dialog -->
-<p-dialog
-  [(visible)]="showPreviewDialog"
-  header="Enquiry Preview"
-  [modal]="true"
-  [style]="{ width: '95vw', maxHeight: '90vh' }"
-  [draggable]="false"
-  [resizable]="false"
->
-  <div class="p-4 preview-container">
-    <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
-    
-    <!-- General Enquiry Details -->
-    <div class="mb-6 p-4 border rounded bg-gray-50">
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <p><span class="font-semibold">Enquiry Code:</span> {{ currentEnquiry?.code || '--' }}</p>
-          <p><span class="font-semibold">Customer:</span> {{ currentEnquiry?.customer_name || '--' }}</p>
-          <p><span class="font-semibold">Company:</span> {{ currentEnquiry?.company_name || '--' }}</p>
-          <p><span class="font-semibold">From:</span> {{ currentEnquiry?.from_location || '--' }}</p>
-          <p><span class="font-semibold">To:</span> {{ currentEnquiry?.to_location || '--' }}</p>
-        </div>
-        <div>
-          <p><span class="font-semibold">Service Type:</span> {{ currentEnquiry?.service_type || '--' }}</p>
-          <p><span class="font-semibold">Cargo Type:</span> {{ currentEnquiry?.cargo_type || '--' }}</p>
-          <p><span class="font-semibold">Department:</span> {{ currentEnquiry?.department || '--' }}</p>
-          <p><span class="font-semibold">Status:</span> {{ currentEnquiry?.status || '--' }}</p>
-          <p><span class="font-semibold">Date:</span> {{ formatDate(currentEnquiry?.date) || '--' }}</p>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Line Items Display - Horizontal Layout -->
-    <h4 class="text-lg font-bold mb-4">Line Items</h4>
-    <div *ngIf="lineItems && lineItems.length > 0" class="mb-6">
-      <div class="grid grid-cols-1 gap-6">
-        <div *ngFor="let item of lineItems; let i = index" 
-             class="line-item-card p-4 border rounded-lg bg-white shadow-sm">
-          
-          <!-- Line Item Header -->
-          <div class="flex justify-between items-start mb-4 pb-3 border-b">
+    <p-dialog
+      [(visible)]="showPreviewDialog"
+      header="Enquiry Preview"
+      [modal]="true"
+      [style]="{ width: '95vw', maxHeight: '90vh' }"
+      [draggable]="false"
+      [resizable]="false"
+    >
+      <div class="p-4 preview-container">
+        <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
+
+        <!-- General Enquiry Details -->
+        <div class="mb-6 p-4 border rounded bg-gray-50">
+          <div class="grid grid-cols-2 gap-4">
             <div>
-              <h5 class="font-bold text-lg">Line Item {{ i + 1 }}</h5>
-              <p class="text-sm text-gray-600">{{ item.type || 'No type specified' }}</p>
+              <p>
+                <span class="font-semibold">Enquiry Code:</span>
+                {{ currentEnquiry?.code || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Customer:</span>
+                {{ currentEnquiry?.customer_name || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Company:</span>
+                {{ currentEnquiry?.company_name || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">From:</span>
+                {{ currentEnquiry?.from_location || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">To:</span>
+                {{ currentEnquiry?.to_location || '--' }}
+              </p>
             </div>
-            <div class="text-right">
-              <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+            <div>
+              <p>
+                <span class="font-semibold">Service Type:</span>
+                {{ currentEnquiry?.service_type || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Cargo Type:</span>
+                {{ currentEnquiry?.cargo_type || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Department:</span>
+                {{ currentEnquiry?.department || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Status:</span>
+                {{ currentEnquiry?.status || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Date:</span>
+                {{ formatDate(currentEnquiry?.date) || '--' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Line Items Display - Horizontal Layout -->
+        <h4 class="text-lg font-bold mb-4">Line Items</h4>
+        <div *ngIf="lineItems && lineItems.length > 0" class="mb-6">
+          <div class="grid grid-cols-1 gap-6">
+            <div
+              *ngFor="let item of lineItems; let i = index"
+              class="line-item-card p-4 border rounded-lg bg-white shadow-sm"
+            >
+              <!-- Line Item Header -->
+              <div class="flex justify-between items-start mb-4 pb-3 border-b">
+                <div>
+                  <h5 class="font-bold text-lg">Line Item {{ i + 1 }}</h5>
+                  <p class="text-sm text-gray-600">
+                    {{ item.type || 'No type specified' }}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <span
+                    class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
                     [ngClass]="{
                       'bg-green-100 text-green-800': item.status === 'Active',
                       'bg-gray-100 text-gray-800': item.status === 'Inactive',
                       'bg-yellow-100 text-yellow-800': item.status === 'Pending'
-                    }">
-                {{ item.status || 'Active' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Line Item Details - Horizontal Layout -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div class="detail-item">
-              <label class="font-semibold text-sm text-gray-600">Service Area</label>
-              <p class="mt-1">{{ item.service_area || '--' }}</p>
-            </div>
-            <div class="detail-item">
-              <label class="font-semibold text-sm text-gray-600">Basis</label>
-              <p class="mt-1">{{ item.basis || '--' }}</p>
-            </div>
-            <div class="detail-item">
-              <label class="font-semibold text-sm text-gray-600">Quantity</label>
-              <p class="mt-1">{{ item.quantity || 0 }}</p>
-            </div>
-            <div class="detail-item">
-              <label class="font-semibold text-sm text-gray-600">Remarks</label>
-              <p class="mt-1">{{ item.remarks || '--' }}</p>
-            </div>
-          </div>
-
-          <!-- Sourcing Lists -->
-          <div *ngIf="item.enquiry_summary && item.enquiry_summary.length > 0" class="mt-4">
-            <div class="space-y-4">
-              <div *ngFor="let summary of item.enquiry_summary" class="source-section">
-                <h6 class="font-semibold mb-2 text-blue-700 capitalize">
-                  {{ summary.summary_type }} List
-                </h6>
-                
-                <!-- Full Sourcing/Tariff List -->
-                <div class="source-list-container">
-                  <p-table [value]="getFullSourceList(summary)" 
-                          styleClass="p-datatable-sm w-full source-list-table"
-                          [scrollable]="true" scrollHeight="200px">
-                    <ng-template pTemplate="header">
-                      <tr>
-                        <th style="width: 120px">Source No</th>
-                        <th style="width: 200px">Vendor Name</th>
-                        <th style="width: 100px">Currency</th>
-                        <th style="width: 120px">Charge</th>
-                        <th style="width: 150px">Sourced Time</th>
-                        <th style="width: 250px">Remarks</th>
-                      </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-source>
-                      <tr>
-                        <td>{{ source.sourced_no || '--' }}</td>
-                        <td class="font-medium">{{ source.vendor_name }}</td>
-                        <td>{{ source.currency || source.currency_code || '--' }}</td>
-                        <td>
-                          <span class="font-semibold">
-                            {{ source.charge || source.charges || '--' }}
-                          </span>
-                        </td>
-                        <td>{{ source.sourced_time || source.created_at || '--' }}</td>
-                        <td class="remarks-cell">
-                          {{ source.remarks || source.negotiated_remarks || '--' }}
-                        </td>
-                      </tr>
-                    </ng-template>
-                    <ng-template pTemplate="emptymessage">
-                      <tr>
-                        <td colspan="6" class="text-center p-4 text-gray-500">
-                          No {{ summary.summary_type }} items available
-                        </td>
-                      </tr>
-                    </ng-template>
-                  </p-table>
+                    }"
+                  >
+                    {{ item.status || 'Active' }}
+                  </span>
                 </div>
+              </div>
+
+              <!-- Line Item Details - Horizontal Layout -->
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Service Area</label
+                  >
+                  <p class="mt-1">{{ item.service_area || '--' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Basis</label
+                  >
+                  <p class="mt-1">{{ item.basis || '--' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Quantity</label
+                  >
+                  <p class="mt-1">{{ item.quantity || 0 }}</p>
+                </div>
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Remarks</label
+                  >
+                  <p class="mt-1">{{ item.remarks || '--' }}</p>
+                </div>
+              </div>
+
+              <!-- Sourcing Lists -->
+              <div
+                *ngIf="item.enquiry_summary && item.enquiry_summary.length > 0"
+                class="mt-4"
+              >
+                <div class="space-y-4">
+                  <div
+                    *ngFor="let summary of item.enquiry_summary"
+                    class="source-section"
+                  >
+                    <h6 class="font-semibold mb-2 text-blue-700 capitalize">
+                      {{ summary.summary_type }} List
+                    </h6>
+
+                    <!-- Full Sourcing/Tariff List -->
+                    <div class="source-list-container">
+                      <p-table
+                        [value]="getFullSourceList(summary)"
+                        styleClass="p-datatable-sm w-full source-list-table"
+                        [scrollable]="true"
+                        scrollHeight="200px"
+                      >
+                        <ng-template pTemplate="header">
+                          <tr>
+                            <th style="width: 120px">Source No</th>
+                            <th style="width: 200px">Vendor Name</th>
+                            <th style="width: 100px">Currency</th>
+                            <th style="width: 120px">Charge</th>
+                            <th style="width: 150px">Sourced Time</th>
+                            <th style="width: 250px">Remarks</th>
+                          </tr>
+                        </ng-template>
+                        <ng-template pTemplate="body" let-source>
+                          <tr>
+                            <td>{{ source.sourced_no || '--' }}</td>
+                            <td class="font-medium">
+                              {{ source.vendor_name }}
+                            </td>
+                            <td>
+                              {{
+                                source.currency || source.currency_code || '--'
+                              }}
+                            </td>
+                            <td>
+                              <span class="font-semibold">
+                                {{ source.charge || source.charges || '--' }}
+                              </span>
+                            </td>
+                            <td>
+                              {{
+                                source.sourced_time || source.created_at || '--'
+                              }}
+                            </td>
+                            <td class="remarks-cell">
+                              {{
+                                source.remarks ||
+                                  source.negotiated_remarks ||
+                                  '--'
+                              }}
+                            </td>
+                          </tr>
+                        </ng-template>
+                        <ng-template pTemplate="emptymessage">
+                          <tr>
+                            <td
+                              colspan="6"
+                              class="text-center p-4 text-gray-500"
+                            >
+                              No {{ summary.summary_type }} items available
+                            </td>
+                          </tr>
+                        </ng-template>
+                      </p-table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- No Sources Message -->
+              <div
+                *ngIf="
+                  !item.enquiry_summary || item.enquiry_summary.length === 0
+                "
+                class="mt-4 p-4 text-center border rounded bg-gray-50"
+              >
+                <p class="text-gray-500">
+                  No sourcing or tariff data available for this line item.
+                </p>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- No Sources Message -->
-          <div *ngIf="!item.enquiry_summary || item.enquiry_summary.length === 0" 
-               class="mt-4 p-4 text-center border rounded bg-gray-50">
-            <p class="text-gray-500">No sourcing or tariff data available for this line item.</p>
+        <!-- No Line Items Message -->
+        <div
+          *ngIf="!lineItems || lineItems.length === 0"
+          class="p-8 text-center border rounded bg-gray-50"
+        >
+          <p class="text-gray-500 text-lg">
+            No line items available for preview.
+          </p>
+        </div>
+
+        <!-- Finalized Vendors Summary -->
+        <div
+          *ngIf="finalizedVendors && finalizedVendors.length > 0"
+          class="mt-6"
+        >
+          <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
+          <div class="p-4 border rounded bg-blue-50">
+            <p class="font-semibold">
+              Total Finalized Vendors: {{ finalizedVendors.length }}
+            </p>
+            <button
+              pButton
+              label="View Detailed List"
+              icon="pi pi-list"
+              (click)="showFinalizedVendorsDialog = true"
+              class="p-button-sm p-button-info mt-2"
+            ></button>
           </div>
-
         </div>
       </div>
-    </div>
 
-    <!-- No Line Items Message -->
-    <div *ngIf="!lineItems || lineItems.length === 0" class="p-8 text-center border rounded bg-gray-50">
-      <p class="text-gray-500 text-lg">No line items available for preview.</p>
-    </div>
-
-    <!-- Finalized Vendors Summary -->
-    <div *ngIf="finalizedVendors && finalizedVendors.length > 0" class="mt-6">
-      <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
-      <div class="p-4 border rounded bg-blue-50">
-        <p class="font-semibold">Total Finalized Vendors: {{ finalizedVendors.length }}</p>
-        <button pButton 
-                label="View Detailed List" 
-                icon="pi pi-list"
-                (click)="showFinalizedVendorsDialog = true"
-                class="p-button-sm p-button-info mt-2">
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <ng-template pTemplate="footer">
-    <div class="flex justify-between items-center">
-      <div class="text-sm text-gray-600">
-        Showing {{ lineItems?.length || 0 }} line items
-      </div>
-      <div>
-        <button
-          pButton
-          label="Close"
-          icon="pi pi-times"
-          (click)="showPreviewDialog = false"
-          class="p-button-sm"
-        ></button>
-      </div>
-    </div>
-  </ng-template>
-</p-dialog>
+      <ng-template pTemplate="footer">
+        <div class="flex justify-between items-center">
+          <div class="text-sm text-gray-600">
+            Showing {{ lineItems.length || 0 }} line items
+          </div>
+          <div>
+            <button
+              pButton
+              label="Close"
+              icon="pi pi-times"
+              (click)="showPreviewDialog = false"
+              class="p-button-sm"
+            ></button>
+          </div>
+        </div>
+      </ng-template>
+    </p-dialog>
   `,
   styles: [
     `
-       /* Preview Dialog Styles */
-    .preview-container {
-      max-height: calc(90vh - 100px);
-      overflow-y: auto;
-    }
+      /* Preview Dialog Styles */
+      .preview-container {
+        max-height: calc(90vh - 100px);
+        overflow-y: auto;
+      }
 
-    .line-item-card {
-      transition: all 0.3s ease;
-    }
+      .line-item-card {
+        transition: all 0.3s ease;
+      }
 
-    .line-item-card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+      .line-item-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
 
-    .detail-item {
-      padding: 8px 0;
-    }
-
-    .source-section {
-      border-left: 3px solid #3b82f6;
-      padding-left: 12px;
-    }
-
-    .source-list-container {
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    .source-list-table .p-datatable-wrapper {
-      border-radius: 6px;
-    }
-
-    .source-list-table .p-datatable-thead > tr > th {
-      background-color: #f8fafc;
-      color: #374151;
-      font-weight: 600;
-      padding: 12px;
-      border-bottom: 2px solid #e5e7eb;
-    }
-
-    .source-list-table .p-datatable-tbody > tr > td {
-      padding: 12px;
-      vertical-align: top;
-    }
-
-    .source-list-table .p-datatable-tbody > tr:hover {
-      background-color: #f9fafb;
-    }
-
-    .remarks-cell {
-      max-width: 250px;
-      word-wrap: break-word;
-    }
-
-    /* Responsive design */
-    @media (max-width: 768px) {
       .detail-item {
-        border-bottom: 1px solid #f3f4f6;
-        padding: 12px 0;
+        padding: 8px 0;
       }
 
-      .detail-item:last-child {
-        border-bottom: none;
+      .source-section {
+        border-left: 3px solid #3b82f6;
+        padding-left: 12px;
       }
-    }
+
+      .source-list-container {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .source-list-table .p-datatable-wrapper {
+        border-radius: 6px;
+      }
+
+      .source-list-table .p-datatable-thead > tr > th {
+        background-color: #f8fafc;
+        color: #374151;
+        font-weight: 600;
+        padding: 12px;
+        border-bottom: 2px solid #e5e7eb;
+      }
+
+      .source-list-table .p-datatable-tbody > tr > td {
+        padding: 12px;
+        vertical-align: top;
+      }
+
+      .source-list-table .p-datatable-tbody > tr:hover {
+        background-color: #f9fafb;
+      }
+
+      .remarks-cell {
+        max-width: 250px;
+        word-wrap: break-word;
+      }
+
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .detail-item {
+          border-bottom: 1px solid #f3f4f6;
+          padding: 12px 0;
+        }
+
+        .detail-item:last-child {
+          border-bottom: none;
+        }
+      }
       .vendor-card {
         border: 2px solid #e9ecef;
         transition: all 0.3s ease;
@@ -2282,6 +2365,7 @@ export class EnquiryComponent implements OnInit {
   // Vendor management
   availableVendors: (SourcingOption | TariffOption)[] = [];
   selectedVendors: (SourcingOption | TariffOption)[] = [];
+  selectedVendorType = {};
   currentVendorSource: 'sourcing' | 'tariff' = 'sourcing';
 
   // Edit vendor card properties
@@ -2989,7 +3073,21 @@ export class EnquiryComponent implements OnInit {
           : null;
 
         this.lineItems = enquiry.line_items || [];
+        console.log(
+          'line items list loaded for the enquiry code,',
+          enquiryCode,
+          'is,',
+          this.lineItems
+        );
 
+        this.selectedLineItems = this.lineItems.filter(
+          (lineItem) => lineItem?.is_selected
+        );
+
+        console.log(
+          'Selected LineItems loaded during the load enquiry,',
+          this.selectedLineItems
+        );
         //
         this.vendorCards = enquiry.vendor_cards || [];
 
@@ -3451,21 +3549,21 @@ export class EnquiryComponent implements OnInit {
         return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
     }
   }
-formatDate(date: string | Date | undefined | null): string {
-  if (!date) return '--';
-  
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) return '--';
-    
-    // Format the date as needed
-    return dateObj.toLocaleDateString('en-GB'); // Using en-GB for dd/mm/yyyy format
-  } catch {
-    return '--';
+  formatDate(date: string | Date | undefined | null): string {
+    if (!date) return '--';
+
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) return '--';
+
+      // Format the date as needed
+      return dateObj.toLocaleDateString('en-GB'); // Using en-GB for dd/mm/yyyy format
+    } catch {
+      return '--';
+    }
   }
-}
 
   onDateChange(date: Date | null) {
     if (this.selectedEnquiry && date) {
@@ -3485,26 +3583,28 @@ formatDate(date: string | Date | undefined | null): string {
     }
   }
   getFullSourceList(summary: any): any[] {
-  // Return the full sourced_list if available, otherwise return summary as single item array
-  if (summary.sourced_list && summary.sourced_list.length > 0) {
-    return summary.sourced_list;
+    // Return the full sourced_list if available, otherwise return summary as single item array
+    if (summary.sourced_list && summary.sourced_list.length > 0) {
+      return summary.sourced_list;
+    }
+
+    // If no sourced_list, create an array with the summary data for display
+    return [
+      {
+        sourced_no: summary.sourced_no,
+        vendor_name: summary.vendor_name,
+        currency: summary.currency_code,
+        charge: summary.charge,
+        sourced_time: summary.sourced_time,
+        remarks: summary.remarks,
+        // Include additional fields that might be in sourced_list items
+        currency_code: summary.currency_code,
+        charges: summary.charge,
+        created_at: summary.sourced_time,
+        negotiated_remarks: summary.remarks,
+      },
+    ];
   }
-  
-  // If no sourced_list, create an array with the summary data for display
-  return [{
-    sourced_no: summary.sourced_no,
-    vendor_name: summary.vendor_name,
-    currency: summary.currency_code,
-    charge: summary.charge,
-    sourced_time: summary.sourced_time,
-    remarks: summary.remarks,
-    // Include additional fields that might be in sourced_list items
-    currency_code: summary.currency_code,
-    charges: summary.charge,
-    created_at: summary.sourced_time,
-    negotiated_remarks: summary.remarks
-  }];
-}
 
   onCustomerSelect(event: any) {
     console.log('Customer selected event:', event);
@@ -3810,7 +3910,10 @@ formatDate(date: string | Date | undefined | null): string {
   }
 
   getSourcing(lineItemId: number) {
-    if (!this.currentEnquiry?.code) {
+    if (
+      !this.currentEnquiry?.code ||
+      this.currentEnquiry?.code === 'MAA_FF_ENQ'
+    ) {
       this.saveEnquiry();
       this.messageService.add({
         severity: 'info',
@@ -3859,6 +3962,10 @@ formatDate(date: string | Date | undefined | null): string {
           }));
           this.currentVendorSource = 'sourcing';
           this.selectedVendors = [];
+          this.selectedVendorType = {
+            sourcingType: this.currentVendorSource,
+            lineItemId: lineItemId,
+          };
           this.showVendorSelectionDialog = true;
         },
         error: (error) => {
@@ -3917,6 +4024,10 @@ formatDate(date: string | Date | undefined | null): string {
           );
           this.currentVendorSource = 'tariff';
           this.selectedVendors = [];
+          this.selectedVendorType = {
+            sourcingType: this.currentVendorSource,
+            lineItemId: lineItemId,
+          };
           this.showVendorSelectionDialog = true;
         },
         error: (error) => {
@@ -4254,10 +4365,24 @@ formatDate(date: string | Date | undefined | null): string {
             life: 5000,
           });
 
-          if (this.vendorCards.length > 0) {
-            this.saveVendorCards();
-          }
+          // if (this.vendorCards.length > 0) {
+          //   this.saveVendorCards();
+          // }
         }
+
+        this.enquiryService
+          .updateEnquiryLineItemSelection(this.selectedEnquiry?.code || '', {
+            selectedLineItems: this.selectedLineItems,
+          })
+          .subscribe({
+            next: (response: any) => {
+              console.log(
+                'Update Enquiry Line Item Selection response,',
+                response
+              );
+            },
+            error: (error: any) => {},
+          });
 
         this.loadEnquiries(); // Refresh the table
         this.loadEnquiries().subscribe({
@@ -4347,7 +4472,11 @@ formatDate(date: string | Date | undefined | null): string {
       this.selectedEnquiry
     );
     this.enquiryService
-      .addVendorCards(this.currentEnquiry.code, this.vendorCards)
+      .addVendorCards(
+        this.currentEnquiry.code,
+        this.vendorCards,
+        this.selectedVendorType
+      )
       .subscribe({
         next: () => {
           this.messageService.add({
@@ -4355,6 +4484,8 @@ formatDate(date: string | Date | undefined | null): string {
             summary: 'Success',
             detail: 'Vendor cards saved successfully',
           });
+          // removing all the selected vendor type
+          this.selectedVendorType = {};
           this.loadEnquiry(this.currentEnquiry?.code!);
         },
         error: (error) => {

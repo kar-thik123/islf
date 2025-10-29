@@ -17,8 +17,7 @@ export interface EnquiryLineItem {
   status: string;
   enquiry_id?: string | number;
   enquiry_summary?: EnquirySummary[];
-  enquiry_id?: string | number;
-  enquiry_summary?: EnquirySummary[];
+  is_selected?: boolean;
 }
 
 export interface EnquiryVendorCard {
@@ -86,7 +85,7 @@ export interface Enquiry {
   is_new_customer?: boolean;
   source_sales_code?: string;
   service_area?: string;
-  source_updates?: any[]; 
+  source_updates?: any[];
 }
 
 export interface CustomerContact {
@@ -215,11 +214,11 @@ export class EnquiryService {
   /** Update Line Item  Selection**/
   updateEnquiryLineItemSelection(
     code: string,
-    lineItemList: Partial<EnquiryLineItem[]>
+    lineItemList: Partial<{ [key: string]: EnquiryLineItem[] }>
   ) {
     console.log('Enquiry Line Item Selection list,', lineItemList);
     return this.http.put<EnquiryLineItem[]>(
-      `${this.baseUrl}/${code}`,
+      `${this.baseUrl}/${code}/line-items/selection`,
       lineItemList
     );
   }
@@ -336,10 +335,12 @@ export class EnquiryService {
   /** Vendor card operations */
   addVendorCards(
     enquiryCode: string,
-    vendorCards: EnquiryVendorCard[]
+    vendorCards: EnquiryVendorCard[],
+    vendorContext: {}
   ): Observable<any> {
     const payload = this.contextPayload.withContext(
-      { vendorCards },
+      { vendorCards, ...vendorContext },
+
       this.contextService.getContext()
     );
     console.log('add Vendor Cards payload,', payload);
