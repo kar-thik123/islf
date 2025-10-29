@@ -149,7 +149,6 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
-                
                 <input
                   pInputText
                   type="text"
@@ -1282,7 +1281,9 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                         <input
                                           type="text"
                                           pInputText
-                                          [(ngModel)]="value"
+                                          [(ngModel)]="
+                                            source.negotiated_charges
+                                          "
                                           placeholder="{{
                                             source.negotiated_charges
                                           }}"
@@ -1808,73 +1809,119 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
     >
       <div class="p-4">
         <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
-        
+
         <div class="mb-4 p-4 border rounded bg-gray-50">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p><span class="font-semibold">Enquiry Code:</span> {{ currentEnquiry?.code || '--' }}</p>
-              <p><span class="font-semibold">Customer:</span> {{ currentEnquiry?.customer_name || '--' }}</p>
-              <p><span class="font-semibold">From:</span> {{ currentEnquiry?.from_location || '--' }}</p>
-              <p><span class="font-semibold">To:</span> {{ currentEnquiry?.to_location || '--' }}</p>
+              <p>
+                <span class="font-semibold">Enquiry Code:</span>
+                {{ currentEnquiry?.code || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Customer:</span>
+                {{ currentEnquiry?.customer_name || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">From:</span>
+                {{ currentEnquiry?.from_location || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">To:</span>
+                {{ currentEnquiry?.to_location || '--' }}
+              </p>
             </div>
             <div>
-              <p><span class="font-semibold">Service Type:</span> {{ currentEnquiry?.service_type || '--' }}</p>
-              <p><span class="font-semibold">Cargo Type:</span> {{ currentEnquiry?.cargo_type || '--' }}</p>
-              <p><span class="font-semibold">Department:</span> {{ currentEnquiry?.department || '--' }}</p>
-              <p><span class="font-semibold">Status:</span> {{ currentEnquiry?.status || '--' }}</p>
+              <p>
+                <span class="font-semibold">Service Type:</span>
+                {{ currentEnquiry?.service_type || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Cargo Type:</span>
+                {{ currentEnquiry?.cargo_type || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Department:</span>
+                {{ currentEnquiry?.department || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Status:</span>
+                {{ currentEnquiry?.status || '--' }}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <h4 class="text-lg font-bold mb-2">Finalized Line Items</h4>
         <div *ngIf="lineItems && lineItems.length > 0" class="mb-4">
           <p-accordion>
-            <p-accordionTab *ngFor="let item of lineItems" [header]="'Line Item ' + item.s_no + ' - ' + item.type">
+            <p-accordionTab
+              *ngFor="let item of lineItems"
+              [header]="'Line Item ' + item.s_no + ' - ' + item.type"
+            >
               <div class="mb-3">
                 <p><span class="font-semibold">Type:</span> {{ item.type }}</p>
-                <p><span class="font-semibold">Service Area:</span> {{ item.service_area }}</p>
-                <p><span class="font-semibold">Basis:</span> {{ item.basis }}</p>
-                <p><span class="font-semibold">Quantity:</span> {{ item.quantity }}</p>
-                <p><span class="font-semibold">Remarks:</span> {{ item.remarks || '--' }}</p>
+                <p>
+                  <span class="font-semibold">Service Area:</span>
+                  {{ item.service_area }}
+                </p>
+                <p>
+                  <span class="font-semibold">Basis:</span> {{ item.basis }}
+                </p>
+                <p>
+                  <span class="font-semibold">Quantity:</span>
+                  {{ item.quantity }}
+                </p>
+                <p>
+                  <span class="font-semibold">Remarks:</span>
+                  {{ item.remarks || '--' }}
+                </p>
               </div>
-              
+
               <h5 class="text-md font-bold mb-2">Finalized Sources</h5>
-              <p-table [value]="item.enquiry_summary || []" styleClass="p-datatable-sm">
-                 <ng-template pTemplate="header">
-                   <tr>
-                     <th>Type</th>
-                     <th>Source No</th>
-                     <th>Vendor</th>
-                     <th>Currency</th>
-                     <th>Charge</th>
-                     <th>Remarks</th>
-                   </tr>
-                 </ng-template>
-                 <ng-template pTemplate="body" let-summary>
-                   <tr>
-                     <td>{{ summary.summary_type | titlecase }}</td>
-                     <td>{{ summary.sourced_no }}</td>
-                     <td>{{ summary.vendor_name }}</td>
-                     <td>{{ summary.currency_code }}</td>
-                     <td>{{ summary.charge }}</td>
-                     <td>{{ summary.remarks }}</td>
-                   </tr>
-                 </ng-template>
-                 <ng-template pTemplate="emptymessage">
-                   <tr>
-                     <td colspan="6" class="text-center">No finalized sources for this line item.</td>
-                   </tr>
-                 </ng-template>
-               </p-table>
+              <p-table
+                [value]="item.enquiry_summary || []"
+                styleClass="p-datatable-sm"
+              >
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>Type</th>
+                    <th>Source No</th>
+                    <th>Vendor</th>
+                    <th>Currency</th>
+                    <th>Charge</th>
+                    <th>Remarks</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-summary>
+                  <tr>
+                    <td>{{ summary.summary_type | titlecase }}</td>
+                    <td>{{ summary.sourced_no }}</td>
+                    <td>{{ summary.vendor_name }}</td>
+                    <td>{{ summary.currency_code }}</td>
+                    <td>{{ summary.charge }}</td>
+                    <td>{{ summary.remarks }}</td>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                  <tr>
+                    <td colspan="6" class="text-center">
+                      No finalized sources for this line item.
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
             </p-accordionTab>
           </p-accordion>
         </div>
-        <div *ngIf="!lineItems || lineItems.length === 0" class="p-4 text-center">
+        <div
+          *ngIf="!lineItems || lineItems.length === 0"
+          class="p-4 text-center"
+        >
           <p>No line items available for preview.</p>
         </div>
       </div>
     </p-dialog>
-    
+
     <!-- Finalized Vendors Preview Dialog -->
     <p-dialog
       [(visible)]="showFinalizedVendorsDialog"
@@ -4084,7 +4131,15 @@ export class EnquiryComponent implements OnInit {
             : 'Enquiry created successfully',
         });
 
-        if (!this.selectedEnquiry?.code && response.code) {
+        console.log(
+          'save operation response for save enquiry,',
+          response,
+          'selected enquiry model 2 way data binding value,',
+          this.selectedEnquiry
+        );
+
+        if (this.selectedEnquiry?.code === 'MAA_FF_ENQ' && response.code) {
+          console.log('updating the value selected enquiry value');
           // New enquiry created, update the selectedEnquiry with auto-generated values
           this.selectedEnquiry!.id = response.id;
           this.selectedEnquiry!.enquiry_no = response.enquiry_no;
@@ -4116,8 +4171,8 @@ export class EnquiryComponent implements OnInit {
           next: () => {
             this.cdr.detectChanges();
           },
-          error:(err)=>{
-            console.error('Error reloading enquiries after save:', err);       
+          error: (err) => {
+            console.error('Error reloading enquiries after save:', err);
           },
         });
 
@@ -4192,7 +4247,12 @@ export class EnquiryComponent implements OnInit {
     if (!this.currentEnquiry?.code || this.vendorCards.length === 0) return;
 
     console.log('Save vendor cards vendor Cards list,', this.vendorCards);
-
+    console.log(
+      'current enquiry,',
+      this.currentEnquiry,
+      'Selected Enquiry vendor card,',
+      this.selectedEnquiry
+    );
     this.enquiryService
       .addVendorCards(this.currentEnquiry.code, this.vendorCards)
       .subscribe({
