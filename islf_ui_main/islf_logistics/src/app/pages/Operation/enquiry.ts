@@ -1785,17 +1785,17 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
         <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
       </ng-template>
     </p-dialog>
-    <!-- Enquiry Preview Dialog -->
+<!-- Enquiry Preview Dialog -->
 <p-dialog
   [(visible)]="showPreviewDialog"
-  header="Enquiry Preview"
+  header="Enquiry Preview "
   [modal]="true"
   [style]="{ width: '95vw', maxHeight: '90vh' }"
   [draggable]="false"
   [resizable]="false"
 >
   <div class="p-4 preview-container">
-    <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
+    <h3 class="text-xl font-bold mb-4">Enquiry Summary </h3>
     
     <!-- General Enquiry Details -->
     <div class="mb-6 p-4 border rounded bg-gray-50">
@@ -1817,13 +1817,13 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
       </div>
     </div>
     
-   <!-- Line Items Display - Horizontal Layout -->
-      <h4 class="text-lg font-bold mb-4">Line Items</h4>
-      <div *ngIf="getLineItemsWithSources() && getLineItemsWithSources().length > 0" class="mb-6">
-        <div class="grid grid-cols-1 gap-6">
-          <div *ngFor="let item of getLineItemsWithSources(); let i = index" 
-              class="line-item-card p-4 border rounded-lg bg-white shadow-sm">
-          
+    <!-- Line Items Display with Finalized Vendors Only -->
+    <h4 class="text-lg font-bold mb-4">Line Items </h4>
+    <div *ngIf="getLineItemsWithFinalizedSources() && getLineItemsWithFinalizedSources().length > 0" class="mb-6">
+      <div class="grid grid-cols-1 gap-6">
+        <div *ngFor="let item of getLineItemsWithFinalizedSources(); let i = index" 
+            class="line-item-card p-4 border rounded-lg bg-white shadow-sm">
+        
           <!-- Line Item Header -->
           <div class="flex justify-between items-start mb-4 pb-3 border-b">
             <div>
@@ -1862,17 +1862,17 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             </div>
           </div>
 
-          <!-- Sourcing Lists -->
-          <div *ngIf="item.enquiry_summary && item.enquiry_summary.length > 0" class="mt-4">
+          <!-- Finalized Sourcing/Tariff Lists -->
+          <div *ngIf="getFinalizedSourcesForLineItem(item) && getFinalizedSourcesForLineItem(item).length > 0" class="mt-4">
             <div class="space-y-4">
-              <div *ngFor="let summary of item.enquiry_summary" class="source-section">
-                <h6 class="font-semibold mb-2 text-blue-700 capitalize">
-                  {{ summary.summary_type }} List
+              <div *ngFor="let summary of getFinalizedSourcesForLineItem(item)" class="source-section">
+                <h6 class="font-semibold mb-2 text-green-700 capitalize">
+                  Finalized {{ summary.summary_type }} Vendors
                 </h6>
                 
-                <!-- Full Sourcing/Tariff List -->
+                <!-- Finalized Vendors List -->
                 <div class="source-list-container">
-                  <p-table [value]="getFullSourceList(summary)" 
+                  <p-table [value]="getFinalizedVendorsForSummary(summary)" 
                           styleClass="p-datatable-sm w-full source-list-table"
                           [scrollable]="true" scrollHeight="200px">
                     <ng-template pTemplate="header">
@@ -1904,7 +1904,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                     <ng-template pTemplate="emptymessage">
                       <tr>
                         <td colspan="6" class="text-center p-4 text-gray-500">
-                          No {{ summary.summary_type }} items available
+                          No finalized {{ summary.summary_type }} items available
                         </td>
                       </tr>
                     </ng-template>
@@ -1914,26 +1914,26 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             </div>
           </div>
 
-          <!-- No Sources Message -->
-          <div *ngIf="!item.enquiry_summary || item.enquiry_summary.length === 0" 
+          <!-- No Finalized Sources Message -->
+          <div *ngIf="!getFinalizedSourcesForLineItem(item) || getFinalizedSourcesForLineItem(item).length === 0" 
                class="mt-4 p-4 text-center border rounded bg-gray-50">
-            <p class="text-gray-500">No sourcing or tariff data available for this line item.</p>
+            <p class="text-gray-500">No vendors available for this line item.</p>
           </div>
-
         </div>
       </div>
     </div>
 
-      <!-- No Line Items Message -->
-    <div *ngIf="!getLineItemsWithSources() || getLineItemsWithSources().length === 0" class="p-8 text-center border rounded bg-gray-50">
-      <p class="text-gray-500 text-lg">No line items with sourcing/tariff data available for preview.</p>
+    <!-- No Line Items with Finalized Vendors Message -->
+    <div *ngIf="!getLineItemsWithFinalizedSources() || getLineItemsWithFinalizedSources().length === 0" 
+         class="p-8 text-center border rounded bg-gray-50">
+      <p class="text-gray-500 text-lg">No line items with  vendors available for preview.</p>
     </div>
 
     <!-- Finalized Vendors Summary -->
     <div *ngIf="finalizedVendors && finalizedVendors.length > 0" class="mt-6">
       <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
       <div class="p-4 border rounded bg-blue-50">
-        <p class="font-semibold">Total Finalized Vendors: {{ finalizedVendors.length }}</p>
+        <p class="font-semibold">Total Vendors: {{ finalizedVendors.length }}</p>
         <button pButton 
                 label="View Detailed List" 
                 icon="pi pi-list"
@@ -1946,7 +1946,6 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
 
   <ng-template pTemplate="footer">
     <div class="flex justify-between items-center">
-     
       <div>
         <button
           pButton
@@ -3298,7 +3297,7 @@ getLineItemsWithSources(): EnquiryLineItem[] {
     // Force change detection to update the UI
     this.cdr.detectChanges();
   }
-
+  
   // Get all finalized vendors across all line items
   getAllFinalizedVendors(): any[] {
     const finalizedVendors: any[] = [];
@@ -3970,6 +3969,47 @@ getSourceNumber(source: any, index: number): string {
         },
       });
   }
+  // Get only finalized sources for a line item
+getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
+  if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
+    return [];
+  }
+
+  return item.enquiry_summary.filter(summary => {
+    // Check if summary has finalized items
+    return summary.finalizedItems && summary.finalizedItems.length > 0;
+  });
+}
+
+// Get finalized vendors for a specific summary
+getFinalizedVendorsForSummary(summary: any): any[] {
+  if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
+    return [];
+  }
+
+  return summary.finalizedItems.map((vendor: any, index: number) => {
+    return {
+      ...vendor,
+      sourced_no: vendor.sourced_no || `${index + 1}`,
+      charge: vendor.charges || vendor.charge,
+      currency: vendor.currency || vendor.currency_code,
+      sourced_time: vendor.created_at || vendor.sourced_time,
+      remarks: vendor.negotiated_remarks || vendor.remarks
+    };
+  });
+}
+
+// Filter line items to only show those with finalized vendors
+getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
+  if (!this.lineItems || this.lineItems.length === 0) {
+    return [];
+  }
+
+  return this.lineItems.filter(item => {
+    const finalizedSources = this.getFinalizedSourcesForLineItem(item);
+    return finalizedSources && finalizedSources.length > 0;
+  });
+}
 
   addSelectedVendors() {
     console.log(
