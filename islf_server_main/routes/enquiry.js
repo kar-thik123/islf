@@ -288,7 +288,6 @@ router.get("/:code", async (req, res) => {
           sourced_time: "--",
           remarks: "--",
           selected_source_items: [],
-          selected_source_items: [],
           sourced_list: [],
         },
         {
@@ -300,7 +299,7 @@ router.get("/:code", async (req, res) => {
           charge: "--",
           sourced_time: "--",
           remarks: "--",
-          selected_tariff_items: [],
+          selected_source_items: [],
           sourced_list: [],
         },
       ];
@@ -396,7 +395,7 @@ router.get("/:code", async (req, res) => {
             ) || "--",
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
-          selected_tariff_items: selected_tariff_list,
+          selected_source_items: selected_tariff_list,
           sourced_list: tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
@@ -475,7 +474,7 @@ router.get("/:code/preview", async (req, res) => {
           charge: "--",
           sourced_time: "--",
           remarks: "--",
-          selected_tariff_items: [],
+          selected_source_items: [],
           sourced_list: [],
         },
       ];
@@ -538,7 +537,6 @@ router.get("/:code/preview", async (req, res) => {
           sourced_time: selected_sourcing.created_at,
           remarks: selected_sourcing.remarks || "--",
           selected_source_items: selected_source_list,
-          sourced_list: source_list,
         };
         // enquiry_summary.push(source_summary);
         enquiry_summary.splice(0, 0, source_summary);
@@ -568,7 +566,6 @@ router.get("/:code/preview", async (req, res) => {
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
           selected_tariff_items: selected_tariff_list,
-          sourced_list: tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
         enquiry_summary.splice(1, 0, tariff_summary);
@@ -2100,6 +2097,81 @@ router.put("/:code/line-items/selection", async (req, res) => {
       error.message
     );
     res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
+  try {
+    const { code, lineItemId } = req.params;
+    const { vendorCardList, sourcingType } = req.body;
+
+    typeof vendorCardList === "undefined" && (vendorCardList = []);
+
+    console.log("DEBUG: vendor cards list from post met:", vendorCardList);
+
+    // First get the enquiry ID from the code
+    const enquiryResult = await pool.query(
+      "SELECT id FROM enquiry WHERE code = $1",
+      [code]
+    );
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+    const enquiryId = enquiryResult.rows[0].id;
+
+    // unselect all selected vendor card
+    await pool.query(
+      `UPDATE enquiry_vendor_cards SET is_selected=false 
+        WHERE enquiry_id = $1 AND enquiry_line_item_id = $2
+        AND source_type = $3; `,
+      [enquiryId, lineItemId, sourcingType]
+    );
+
+    let selectedVendorCardList = vendorCardList.map((vendorCard) => ({
+      vendorCardId: vendorCard.id,
+      enquiryId: vendorCard.enquiry_id,
+    }));
+    if (selectedVendorCardList.length > 0) {
+      query = ` UPDATE enquiry_vendor_cards SET is_selected = true WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND source_type = $3 AND`;
+      params = [enquiryId, lineItemId, sourcingType];
+      console.log("mapped Line Item Result,", selectedVendorCardList);
+      selectedVendorCardList.forEach((vendorCard, index) => {
+        console.log(
+          "index,",
+          index,
+          "line item result,",
+          selectedVendorCardList.length
+        );
+        if (selectedVendorCardList.length === 1) {
+          query += ` ( id = $${index + 4})`;
+          params.push(vendorCard.vendorCardId);
+        } else {
+          query +=
+            index === 0
+              ? ` ( id = $${index + 4}`
+              : index === selectedVendorCardList.length - 1
+              ? `  OR  id = $${index + 4} )`
+              : `  OR  id = $${index + 4} `;
+          params.push(vendorCard.vendorCardId);
+        }
+      });
+      console.log("line item selection query,", query, "params list,", params);
+      const { rows: vendorCardSelectionResult } = await pool.query(
+        query,
+        params
+      );
+      console.log("Vendor Card Selection Result,", vendorCardSelectionResult);
+    }
+    // const lineItemSelectionResult = await pool.query(
+    //   ` UPDATE enquiry_line_items SET is_selected = true `
+    // );
+
+    res.status(200).json({ msg: "Updated Line Item Selection !" });
+  } catch (error) {
+    console.error(error.message);
+    res
+      .status(500)
+      .json({ msg: "Internal Server Error", error: error.message });
   }
 });
 

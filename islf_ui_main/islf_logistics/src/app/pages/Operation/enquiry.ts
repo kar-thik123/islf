@@ -1226,7 +1226,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                   [value]="source.sourced_list"
                                   dataKey="id"
                                   styleClass="w-full expanded-source-table"
-                                  [(selection)]="source.selectedItems"
+                                  [(selection)]="source.selected_source_items"
                                   (selectionChange)="onSelectionChange(source)"
                                 >
                                   <ng-template pTemplate="caption">
@@ -1235,17 +1235,20 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                     >
                                       <span class="font-bold"
                                         >{{
-                                          source.selectedItems?.length || 0
+                                          source.selected_source_items
+                                            ?.length || 0
                                         }}
                                         vendors selected</span
                                       >
+
                                       <button
                                         pButton
                                         type="button"
                                         label="Finalize Selection"
                                         [disabled]="
-                                          !source.selectedItems ||
-                                          source.selectedItems.length === 0
+                                          !source.selected_source_items ||
+                                          source.selected_source_items
+                                            .length === 0
                                         "
                                         (click)="
                                           finalizeVendorSelection(source)
@@ -1798,10 +1801,10 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
         <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
       </ng-template>
     </p-dialog>
-    <!-- Enhanced Enquiry Preview Dialog -->
+    <!-- Enquiry Preview Dialog -->
     <p-dialog
       [(visible)]="showPreviewDialog"
-      header="Enquiry Preview"
+      header="Enquiry Preview "
       [modal]="true"
       [style]="{ width: '95vw', maxHeight: '90vh' }"
       [draggable]="false"
@@ -1860,12 +1863,21 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
           </div>
         </div>
 
-        <!-- Line Items Display - Horizontal Layout -->
+        <!-- Line Items Display with Finalized Vendors Only -->
         <h4 class="text-lg font-bold mb-4">Line Items</h4>
-        <div *ngIf="lineItems && lineItems.length > 0" class="mb-6">
+        <div
+          *ngIf="
+            getLineItemsWithFinalizedSources() &&
+            getLineItemsWithFinalizedSources().length > 0
+          "
+          class="mb-6"
+        >
           <div class="grid grid-cols-1 gap-6">
             <div
-              *ngFor="let item of lineItems; let i = index"
+              *ngFor="
+                let item of getLineItemsWithFinalizedSources();
+                let i = index
+              "
               class="line-item-card p-4 border rounded-lg bg-white shadow-sm"
             >
               <!-- Line Item Header -->
@@ -1918,27 +1930,28 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 </div>
               </div>
 
-              <!-- Sourcing Lists -->
+              <!-- Finalized Sourcing/Tariff Lists -->
               <div
-                *ngIf="item.enquiry_summary && item.enquiry_summary.length > 0"
+                *ngIf="
+                  getFinalizedSourcesForLineItem(item) &&
+                  getFinalizedSourcesForLineItem(item).length > 0
+                "
                 class="mt-4"
               >
                 <div class="space-y-4">
                   <div
-                    *ngFor="let summary of item.enquiry_summary"
+                    *ngFor="let summary of getFinalizedSourcesForLineItem(item)"
                     class="source-section"
                   >
-                    <h6 class="font-semibold mb-2 text-blue-700 capitalize">
-                      {{ summary.summary_type }} List
+                    <h6 class="font-semibold mb-2 text-green-700 capitalize">
+                      {{ summary.summary_type }} Vendor's List
                     </h6>
 
-                    <!-- Full Sourcing/Tariff List -->
+                    <!-- Finalized Vendors List -->
                     <div class="source-list-container">
                       <p-table
-                        [value]="getFullSourceList(summary)"
+                        [value]="getFinalizedVendorsForSummary(summary)"
                         styleClass="p-datatable-sm w-full source-list-table"
-                        [scrollable]="true"
-                        scrollHeight="200px"
                       >
                         <ng-template pTemplate="header">
                           <tr>
@@ -1950,9 +1963,14 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                             <th style="width: 250px">Remarks</th>
                           </tr>
                         </ng-template>
-                        <ng-template pTemplate="body" let-source>
+                        <ng-template
+                          pTemplate="body"
+                          let-source
+                          let-i="rowIndex"
+                        >
                           <tr>
-                            <td>{{ source.sourced_no || '--' }}</td>
+                            <!-- <td>{{ getSourceNumber(source, i) }}</td> -->
+                            <td></td>
                             <td class="font-medium">
                               {{ source.vendor_name }}
                             </td>
@@ -1968,7 +1986,9 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                             </td>
                             <td>
                               {{
-                                source.sourced_time || source.created_at || '--'
+                                formatDateTime(source.created_at) ||
+                                  source.sourced_time ||
+                                  '--'
                               }}
                             </td>
                             <td class="remarks-cell">
@@ -1986,7 +2006,8 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                               colspan="6"
                               class="text-center p-4 text-gray-500"
                             >
-                              No {{ summary.summary_type }} items available
+                              No finalized {{ summary.summary_type }} items
+                              available
                             </td>
                           </tr>
                         </ng-template>
@@ -1996,28 +2017,32 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                 </div>
               </div>
 
-              <!-- No Sources Message -->
+              <!-- No Finalized Sources Message -->
               <div
                 *ngIf="
-                  !item.enquiry_summary || item.enquiry_summary.length === 0
+                  !getFinalizedSourcesForLineItem(item) ||
+                  getFinalizedSourcesForLineItem(item).length === 0
                 "
                 class="mt-4 p-4 text-center border rounded bg-gray-50"
               >
                 <p class="text-gray-500">
-                  No sourcing or tariff data available for this line item.
+                  No vendors available for this line item.
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- No Line Items Message -->
+        <!-- No Line Items with Finalized Vendors Message -->
         <div
-          *ngIf="!lineItems || lineItems.length === 0"
+          *ngIf="
+            !getLineItemsWithFinalizedSources() ||
+            getLineItemsWithFinalizedSources().length === 0
+          "
           class="p-8 text-center border rounded bg-gray-50"
         >
           <p class="text-gray-500 text-lg">
-            No line items available for preview.
+            No line items with vendors available for preview.
           </p>
         </div>
 
@@ -2029,7 +2054,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
           <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
           <div class="p-4 border rounded bg-blue-50">
             <p class="font-semibold">
-              Total Finalized Vendors: {{ finalizedVendors.length }}
+              Total Vendors: {{ finalizedVendors.length }}
             </p>
             <button
               pButton
@@ -2044,9 +2069,6 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
 
       <ng-template pTemplate="footer">
         <div class="flex justify-between items-center">
-          <div class="text-sm text-gray-600">
-            Showing {{ lineItems.length || 0 }} line items
-          </div>
           <div>
             <button
               pButton
@@ -3265,7 +3287,12 @@ export class EnquiryComponent implements OnInit {
     if (!source.selectedItems) {
       source.selectedItems = [];
     }
-    console.log('source selection change,', source.selectedItems);
+    console.log(
+      'source selection change,',
+      source.selectedItems,
+      'source Event',
+      source
+    );
 
     // Update the summary with selected items data
     if (source.selectedItems && source.selectedItems.length > 0) {
@@ -3319,7 +3346,10 @@ export class EnquiryComponent implements OnInit {
 
   // Finalize the vendor selection
   finalizeVendorSelection(source: any) {
-    if (!source.selectedItems || source.selectedItems.length === 0) {
+    if (
+      !source.selected_source_items ||
+      source.selected_source_items.length === 0
+    ) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Warning',
@@ -3327,8 +3357,9 @@ export class EnquiryComponent implements OnInit {
       });
       return;
     }
-
-    // Mark the selected vendors as finalized
+    console.log('finalize vendor selection argument value,', source);
+    {
+      /* // Mark the selected vendors as finalized
     source.finalizedItems = [...source.selectedItems];
 
     // Update the summary with finalized status
@@ -3350,13 +3381,30 @@ export class EnquiryComponent implements OnInit {
       source.sourced_time = new Date().toISOString();
       source.remarks = `${source.finalizedItems.length} vendors finalized`;
       source.status = 'Finalized';
+    } */
     }
 
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: `${source.finalizedItems.length} vendor(s) finalized successfully`,
-    });
+    const selectedVendorCardList = source.selected_source_items;
+
+    // api Call
+    this.enquiryService
+      .updateVendorCardSelection(
+        this.selectedEnquiry?.code || '',
+        selectedVendorCardList[0].enquiry_line_item_id,
+        selectedVendorCardList[0].source_type,
+        selectedVendorCardList
+      )
+      .subscribe({
+        next: (response: any) => {
+          console.log('response of finalized vendor card,', response);
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: `${source.finalizedItems.length} vendor(s) finalized successfully`,
+          });
+        },
+        error: (error: any) => {},
+      });
 
     // Update the finalized vendors preview
     this.updateFinalizedVendorsPreview();
@@ -3412,7 +3460,29 @@ export class EnquiryComponent implements OnInit {
 
     return finalizedVendors;
   }
+  formatDateTime(date: string | Date | undefined | null): string {
+    if (!date) return '';
 
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) return '';
+
+      // Format date as dd/mm/yyyy
+      const day = dateObj.getDate().toString().padStart(2, '0');
+      const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+      const year = dateObj.getFullYear();
+
+      // Format time as hh:mm
+      const hours = dateObj.getHours().toString().padStart(2, '0');
+      const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  }
   // Update the finalized vendors preview
   updateFinalizedVendorsPreview() {
     this.finalizedVendors = this.getAllFinalizedVendors();
@@ -4511,6 +4581,46 @@ export class EnquiryComponent implements OnInit {
       severity: 'info',
       summary: 'Info',
       detail: 'Navigate to enquiry list view',
+    });
+  }
+  // preview
+
+  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
+    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
+      return [];
+    }
+
+    return item.enquiry_summary.filter((summary) => {
+      // Check if summary has finalized items
+      return summary.finalizedItems && summary.finalizedItems.length > 0;
+    });
+  }
+
+  getFinalizedVendorsForSummary(summary: any): any[] {
+    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
+      return [];
+    }
+
+    return summary.finalizedItems.map((vendor: any, index: number) => {
+      return {
+        ...vendor,
+        sourced_no: vendor.sourced_no || `${index + 1}`,
+        charge: vendor.charges || vendor.charge,
+        currency: vendor.currency || vendor.currency_code,
+        sourced_time: vendor.created_at || vendor.sourced_time,
+        remarks: vendor.negotiated_remarks || vendor.remarks,
+      };
+    });
+  }
+
+  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
+    if (!this.lineItems || this.lineItems.length === 0) {
+      return [];
+    }
+
+    return this.lineItems.filter((item) => {
+      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
+      return finalizedSources && finalizedSources.length > 0;
     });
   }
 

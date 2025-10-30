@@ -53,6 +53,7 @@ export interface EnquirySummary {
   sourced_list: SourcingOption[] | TariffOption[];
   summary_type: string;
   items: any[];
+  finalizedItems?: any[];
 }
 
 export interface Enquiry {
@@ -220,6 +221,22 @@ export class EnquiryService {
     return this.http.put<EnquiryLineItem[]>(
       `${this.baseUrl}/${code}/line-items/selection`,
       lineItemList
+    );
+  }
+
+  // updated Vendor Card SELECTION
+  updateVendorCardSelection(
+    code: string,
+    lineItemId: string | number,
+    sourcingType: string,
+    vendorCardList: EnquiryVendorCard[]
+  ) {
+    const payload = { vendorCardList, sourcingType };
+    console.log('vendor card line items list payload,', payload);
+
+    return this.http.put<EnquiryVendorCard[]>(
+      `${this.baseUrl}/${code}/line-item/${lineItemId}/selection`,
+      payload
     );
   }
 
