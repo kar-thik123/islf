@@ -55,6 +55,7 @@ import { BasisService } from '../../services/basis.service';
 import { MasterItemService } from '../../services/master-item.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { CurrencyCodeService } from '../../services/currencycode.service';
 import { AuthService } from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
@@ -71,6 +72,7 @@ import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../masters/sourceSales';
 import { CargoTypeMasterComponent } from '../masters/cargotype';
+import { CurrencyCodeComponent } from '../masters/currencycode';
 @Component({
   selector: 'app-enquiry',
   standalone: true,
@@ -104,6 +106,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
     ServiceAreaComponent,
     SourceSalesComponent,
     CargoTypeMasterComponent,
+    CurrencyCodeComponent,
     MenuModule,
     TreeTableModule,
   ],
@@ -1266,6 +1269,10 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                       <th style="width: 200px">Vendor Name</th>
                                       <th style="width: 100px">Currency</th>
                                       <th style="width: 120px">Buy Price</th>
+                                      <th style="width: 100px">
+                                        Currency Sell Price
+                                      </th>
+
                                       <th style="width: 120px">Sell Price</th>
                                       <th style="width: 200px">Remarks</th>
                                       <th style="width: 180px">Sourced Time</th>
@@ -1280,6 +1287,40 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                       <td>{{ source.vendor_name }}</td>
                                       <td>{{ source.currency }}</td>
                                       <td>{{ source.charges }}</td>
+                                      <td>
+                                        <div class="flex gap-2">
+                                          <p-dropdown
+                                            [(ngModel)]="
+                                              source.sell_price_charges
+                                            "
+                                            [options]="sellPriceCurrencyOptions"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            placeholder="Select type"
+                                            class="flex-1"
+                                            appendTo="body"
+                                          >
+                                          </p-dropdown>
+                                          <button
+                                            pButton
+                                            [icon]="
+                                              masterDialogLoading[
+                                                'currencyCode'
+                                              ]
+                                                ? 'pi pi-spin pi-spinner'
+                                                : 'pi pi-ellipsis-h'
+                                            "
+                                            class="p-button-sm"
+                                            [disabled]="
+                                              masterDialogLoading[
+                                                'currencyCode'
+                                              ]
+                                            "
+                                            (click)="openMaster('currencyCode')"
+                                            appendTo="body"
+                                          ></button>
+                                        </div>
+                                      </td>
                                       <td>
                                         <input
                                           type="text"
@@ -1698,13 +1739,39 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
-      (onHide)="closeMasterDialog('serviceType')"
+      (onHide)="closeMasterDialog('cargoType')"
       [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <cargo-type></cargo-type>
       </ng-template>
     </p-dialog>
+
+    <!-- Currency Code Dialog -->
+    <p-dialog
+      header="Currency Code Master"
+      [(visible)]="showCurrencyCodeDialog"
+      [modal]="true"
+      [style]="{
+        width: 'auto',
+        minWidth: '60vw',
+        maxWidth: '95vw',
+        height: 'auto',
+        maxHeight: '90vh'
+      }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('currencyCode')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <currency-code></currency-code>
+      </ng-template>
+    </p-dialog>
+
     <!--Master Type Dialog-->
     <p-dialog
       header="Service Type Master"
@@ -2356,6 +2423,7 @@ export class EnquiryComponent implements OnInit {
   showBasisDialog = false;
   showMasterTypeDialog = false;
   showCargoTypeDialog = false;
+  showCurrencyCodeDialog = false;
 
   showServiceTypeDialog = false;
   masterTypeFilter = '';
@@ -2421,6 +2489,7 @@ export class EnquiryComponent implements OnInit {
     private serviceAreaService: ServiceAreaService,
     private serviceTypeService: ServiceTypeService,
     private masterTypeService: MasterTypeService,
+    private currencyCodeService: CurrencyCodeService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
     private sourceSalesService: SourceSalesService,
@@ -2472,6 +2541,7 @@ export class EnquiryComponent implements OnInit {
       serviceAreas: this.loadServiceAreaOptions(),
       sourceSales: this.loadSourceSalesOptions(),
       cargoType: this.loadCargoTypeOptions(),
+      currencyCode: this.loadCurrencyOptions(),
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
@@ -2602,6 +2672,27 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+  loadCurrencyOptions() {
+    return this.currencyCodeService.getCurrencies().pipe(
+      tap((currencyCodes: any[]) => {
+        console.log('currencyCode service response,', currencyCodes);
+        this.sellPriceCurrencyOptions = (currencyCodes || [])
+          .filter(
+            (currencyCode) => currencyCode.status.toLowerCase() === 'active'
+          )
+          .map((currencyCode) => ({
+            label: currencyCode.code,
+            value: currencyCode.code,
+          }));
+        console.log('Currency code options,', this.sellPriceCurrencyOptions);
+      }),
+      catchError((error) => {
+        console.log('load currency service master error,', error);
+        return of([]);
+      })
+    );
+  }
+
   loadServiceAreaOptions() {
     return this.serviceAreaService.getServiceAreas().pipe(
       tap((serviceAreas: any[]) => {
@@ -2714,6 +2805,9 @@ export class EnquiryComponent implements OnInit {
 
   // Master type options property
   masterTypeOptions: { label: string; value: string }[] = [];
+
+  // sell price currency options
+  sellPriceCurrencyOptions: { label: string; value: string }[] = [];
 
   // Load master type options
   loadMasterTypeOptions() {
@@ -2869,6 +2963,8 @@ export class EnquiryComponent implements OnInit {
       this.showSourceSalesDialog = true;
     } else if (type === 'cargoType') {
       this.showCargoTypeDialog = true;
+    } else if (type === 'currencyCode') {
+      this.showCurrencyCodeDialog = true;
     } else {
       this.messageService.add({
         severity: 'info',
@@ -2922,6 +3018,21 @@ export class EnquiryComponent implements OnInit {
           error: () => this.cdr.detectChanges(),
         });
         break;
+      case 'currencyCode':
+        this.showCurrencyCodeDialog = false;
+        this.loadCurrencyOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
+        });
+        break;
+      case 'cargoType':
+        this.showCargoTypeDialog = false;
+        this.loadCargoTypeOptions().subscribe({
+          next: ()=>this.cdr.detectChanges(),
+          error: ()=> this.cdr.detectChanges()
+        });
+        break;
+
       case 'masterType':
         this.showMasterTypeDialog = false;
         // Reload location types if the filter was for LOCATION
