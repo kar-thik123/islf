@@ -30,6 +30,9 @@ export interface Tariff {
   periodEndDate: string;
   isMandatory: boolean;
   sourceSalesCode: string;
+  remarks: string;
+  gstVat: string;
+  type: string;
     // New field for accounting purposes
 }
 

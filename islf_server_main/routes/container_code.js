@@ -66,14 +66,14 @@ router.get('/:code', async (req, res) => {
 
 // CREATE new container code
 router.post('/', async (req, res) => {
-  const { code, description, status, company_code, branch_code, department_code } = req.body;
+  const { code, description, teus, status, company_code, branch_code, department_code } = req.body; // ← Add teus here
   try {
     const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      `INSERT INTO container_code (code, description, status, company_code, branch_code, department_code,created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO container_code (code, description, teus, status, company_code, branch_code, department_code, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [code, description, status || 'Active', company_code, branch_code, department_code,created_by]
+      [code, description, teus || 0, status || 'Active', company_code, branch_code, department_code, created_by]
     );
     // Log the master event
     await logMasterEvent({
@@ -92,19 +92,21 @@ router.post('/', async (req, res) => {
 
 // UPDATE container code
 router.put('/:code', async (req, res) => {
-  const { description, status } = req.body;
+  const { description, teus, status } = req.body; // ← Add teus here
   try {
     const oldResult = await pool.query('SELECT * FROM container_code WHERE code = $1', [req.params.code]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const oldContainer = oldResult.rows[0];
     const result = await pool.query(
-      'UPDATE container_code SET description = $1, status = $2 WHERE code = $3 RETURNING *',
-      [description, status, req.params.code]
+      'UPDATE container_code SET description = $1, teus = $2, status = $3 WHERE code = $4 RETURNING *',
+      [description, teus || 0, status, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const changedFields = [];
     const fieldsToCheck = {
-      description, status
+      description, 
+      teus, // ← Add teus here
+      status
     };
     const normalize = (value) => {
       if (value === null || value === undefined) return '';
@@ -134,7 +136,6 @@ router.put('/:code', async (req, res) => {
     res.status(500).json({ error: 'Failed to update container code' });
   }
 });
-
 // DELETE container code
 router.delete('/:code', async (req, res) => {
   try {

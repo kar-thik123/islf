@@ -359,6 +359,8 @@ export class TariffViewComponent implements OnInit, OnDestroy {
             currency: tariff.currency,
             charges: tariff.charges,
             mode: tariff.mode,
+            type: tariff.type,
+            serviceAreaType: tariff.type, // Map type to serviceAreaType for UI
             effectiveDate: tariff.effective_date,
             periodStartDate: tariff.period_start_date,
             periodEndDate: tariff.period_end_date,
