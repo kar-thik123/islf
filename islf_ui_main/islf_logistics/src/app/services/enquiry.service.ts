@@ -51,6 +51,7 @@ export interface EnquirySummary {
   sourced_no: number;
   sourced_time: string;
   sourced_list: SourcingOption[] | TariffOption[];
+  selected_source_items?: SourcingOption[] | TariffOption[];
   summary_type: string;
   items: any[];
   finalizedItems?: any[];
@@ -198,6 +199,10 @@ export class EnquiryService {
     return this.http.get<Enquiry>(`${this.baseUrl}/${id}`);
   }
 
+  getEnquiryPreviewByCode(code: string): Observable<Enquiry> {
+    return this.http.get<Enquiry>(`${this.baseUrl}/${code}/preview`);
+  }
+
   /** Aliases for backwards compatibility */
   getEnquiryByCode(code: string): Observable<Enquiry> {
     return this.getByCode(code);
@@ -205,6 +210,7 @@ export class EnquiryService {
   getEnquiryById(id: number): Observable<Enquiry> {
     return this.getById(id);
   }
+
   createEnquiry(enquiry: Partial<Enquiry>): Observable<Enquiry> {
     return this.create(enquiry);
   }

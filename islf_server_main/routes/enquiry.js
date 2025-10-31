@@ -872,8 +872,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             enquiryId,
             i + 1,
@@ -1792,8 +1792,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
             : null;
 
         await client.query(
-          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id, sourced_no )
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id, sourced_no, is_selected)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
           [
             enquiryId,
             card.vendor_name,
@@ -1814,6 +1814,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
             card.remarks,
             card.enquiry_line_item_id,
             sourcedNo,
+            true,
           ]
         );
       }

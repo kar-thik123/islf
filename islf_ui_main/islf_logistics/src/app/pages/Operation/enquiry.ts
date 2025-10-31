@@ -1215,7 +1215,13 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                             <td>{{ summary.vendor_name }}</td>
                             <td>{{ summary.currency_code }}</td>
                             <td>{{ summary.charge }}</td>
-                            <td>{{ summary.sourced_time }}</td>
+                            <td>
+                              {{
+                                formatDateTime(summary.sourced_time) ||
+                                  summary.sourced_time ||
+                                  '--'
+                              }}
+                            </td>
                             <td>{{ summary.remarks }}</td>
                           </tr>
                         </ng-template>
@@ -1345,7 +1351,13 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                                           style="width: 100%"
                                         />
                                       </td>
-                                      <td>{{ source.created_at }}</td>
+                                      <td>
+                                        {{
+                                          formatDateTime(source.created_at) ||
+                                            source.created_at ||
+                                            '--'
+                                        }}
+                                      </td>
                                     </tr>
                                   </ng-template>
                                   <ng-template #emptymessage>
@@ -1886,45 +1898,45 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
             <div>
               <p>
                 <span class="font-semibold">Enquiry Code:</span>
-                {{ currentEnquiry?.code || '--' }}
+                {{ selectedEnquiryPreview?.code || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Customer:</span>
-                {{ currentEnquiry?.customer_name || '--' }}
+                {{ selectedEnquiryPreview?.customer_name || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Company:</span>
-                {{ currentEnquiry?.company_name || '--' }}
+                {{ selectedEnquiryPreview?.company_name || '--' }}
               </p>
               <p>
                 <span class="font-semibold">From:</span>
-                {{ currentEnquiry?.from_location || '--' }}
+                {{ selectedEnquiryPreview?.from_location || '--' }}
               </p>
               <p>
                 <span class="font-semibold">To:</span>
-                {{ currentEnquiry?.to_location || '--' }}
+                {{ selectedEnquiryPreview?.to_location || '--' }}
               </p>
             </div>
             <div>
               <p>
                 <span class="font-semibold">Service Type:</span>
-                {{ currentEnquiry?.service_type || '--' }}
+                {{ selectedEnquiryPreview?.service_type || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Cargo Type:</span>
-                {{ currentEnquiry?.cargo_type || '--' }}
+                {{ selectedEnquiryPreview?.cargo_type || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Department:</span>
-                {{ currentEnquiry?.department || '--' }}
+                {{ selectedEnquiryPreview?.department || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Status:</span>
-                {{ currentEnquiry?.status || '--' }}
+                {{ selectedEnquiryPreview?.status || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Date:</span>
-                {{ formatDate(currentEnquiry?.date) || '--' }}
+                {{ formatDate(selectedEnquiryPreview?.date) || '--' }}
               </p>
             </div>
           </div>
@@ -1932,17 +1944,11 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
 
         <!-- Line Items Display with Finalized Vendors Only -->
         <h4 class="text-lg font-bold mb-4">Line Items</h4>
-        <div
-          *ngIf="
-            getLineItemsWithFinalizedSources() &&
-            getLineItemsWithFinalizedSources().length > 0
-          "
-          class="mb-6"
-        >
+        <div class="mb-6">
           <div class="grid grid-cols-1 gap-6">
             <div
               *ngFor="
-                let item of getLineItemsWithFinalizedSources();
+                let item of this.selectedEnquiryPreview?.line_items;
                 let i = index
               "
               class="line-item-card p-4 border rounded-lg bg-white shadow-sm"
@@ -1998,26 +2004,23 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
               </div>
 
               <!-- Finalized Sourcing/Tariff Lists -->
-              <div
-                *ngIf="
-                  getFinalizedSourcesForLineItem(item) &&
-                  getFinalizedSourcesForLineItem(item).length > 0
-                "
-                class="mt-4"
-              >
+              <div class="mt-4">
                 <div class="space-y-4">
                   <div
-                    *ngFor="let summary of getFinalizedSourcesForLineItem(item)"
+                    *ngIf="item?.enquiry_summary?.[0] as summary"
                     class="source-section"
                   >
                     <h6 class="font-semibold mb-2 text-green-700 capitalize">
                       {{ summary.summary_type }} Vendor's List
                     </h6>
-
                     <!-- Finalized Vendors List -->
                     <div class="source-list-container">
                       <p-table
-                        [value]="getFinalizedVendorsForSummary(summary)"
+                        *ngIf="
+                          summary?.selected_source_items &&
+                          (summary?.selected_source_items || []).length > 0
+                        "
+                        [value]="getSelectedSourceItems(i)"
                         styleClass="p-datatable-sm w-full source-list-table"
                       >
                         <ng-template pTemplate="header">
@@ -2037,7 +2040,7 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                         >
                           <tr>
                             <!-- <td>{{ getSourceNumber(source, i) }}</td> -->
-                            <td></td>
+                            <td>{{ source.sourced_no }}</td>
                             <td class="font-medium">
                               {{ source.vendor_name }}
                             </td>
@@ -2085,17 +2088,15 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
               </div>
 
               <!-- No Finalized Sources Message -->
-              <div
-                *ngIf="
-                  !getFinalizedSourcesForLineItem(item) ||
-                  getFinalizedSourcesForLineItem(item).length === 0
-                "
+              <!-- <div
+                *ngIf="item?.enquiry_summary?.[0]?.selected_source_items?.length ===0 ||
+                item?.enquiry_summary?.[0]?.selected_source_items"
                 class="mt-4 p-4 text-center border rounded bg-gray-50"
               >
                 <p class="text-gray-500">
                   No vendors available for this line item.
                 </p>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -2103,7 +2104,8 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
         <!-- No Line Items with Finalized Vendors Message -->
         <div
           *ngIf="
-            !getLineItemsWithFinalizedSources() ||
+            !getLineItemsWithFinalizedSources() &&
+            1 !== 1 &&
             getLineItemsWithFinalizedSources().length === 0
           "
           class="p-8 text-center border rounded bg-gray-50"
@@ -2357,6 +2359,8 @@ export class EnquiryComponent implements OnInit {
   // Table data
   enquiries: Enquiry[] = [];
   selectedEnquiry: Enquiry | null = null;
+  selectedEnquiryPreview: Enquiry | null = null;
+
   isDialogVisible = false;
   fieldErrors: { [key: string]: string } = {};
 
@@ -2634,8 +2638,39 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+  // getter method for type assertions in html template
+  getSelectedSourceItems(lineItemIndex: any): SourcingOption[] {
+    // Assuming selected_source_items will always be SourcingOption[] in this context
+    return (
+      (this.selectedEnquiryPreview?.line_items?.[lineItemIndex]
+        .enquiry_summary?.[0].selected_source_items as SourcingOption[]) || []
+    );
+  }
+
   // show enquiry preview function
   showEnquiryPreview() {
+    if (this.selectedEnquiry?.code === 'MAA_FF_ENQ') {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail:
+          'Save the enquiry and source the vendor details before proceeding to preview.',
+      });
+      return;
+    }
+    // calling the preview api method
+    this.enquiryService
+      .getEnquiryPreviewByCode(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (response: any) => {
+          console.log('enquiry previewresponse,', response);
+          this.selectedEnquiryPreview = response;
+          console.log(
+            'preview enquiry api response value updated to pre,',
+            this.selectedEnquiryPreview
+          );
+        },
+      });
     this.showPreviewDialog = true;
   }
 
@@ -2655,15 +2690,29 @@ export class EnquiryComponent implements OnInit {
     );
   }
   loadCargoTypeOptions() {
-    return this.masterItemService.getAll().pipe(
-      tap((cargoTypes: any[]) => {
-        this.cargoTypeOptions = (cargoTypes || [])
+    // return this.masterItemService.getAll().pipe(
+    //   tap((cargoTypes: any[]) => {
+    //     this.cargoTypeOptions = (cargoTypes || [])
+    //       .filter(
+    //         (cargoType) =>
+    //           cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+    //       )
+    //       .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
+    //     console.log('Cargo Type options,', this.cargoTypeOptions);
+    //   }),
+    return this.masterTypeService.getAll().pipe(
+      tap((cargoMasterTypes: any[]) => {
+        this.cargoTypeOptions = (cargoMasterTypes || [])
           .filter(
-            (cargoType) =>
-              cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+            (cargoMaster) =>
+              cargoMaster.status.toLowerCase() === 'active' &&
+              cargoMaster.key.toLowerCase() === 'cargo_type'
           )
-          .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
-        console.log('Cargo Type options,', this.cargoTypeOptions);
+          .map((cargoMaster) => ({
+            label: `${cargoMaster.value}-${cargoMaster.description}`,
+            value: cargoMaster.value,
+          }));
+        console.log('cargoType Options,', this.cargoTypeOptions);
       }),
       catchError((error) => {
         console.error('Error loading cargo type options', error);
@@ -3028,8 +3077,8 @@ export class EnquiryComponent implements OnInit {
       case 'cargoType':
         this.showCargoTypeDialog = false;
         this.loadCargoTypeOptions().subscribe({
-          next: ()=>this.cdr.detectChanges(),
-          error: ()=> this.cdr.detectChanges()
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
         });
         break;
 
