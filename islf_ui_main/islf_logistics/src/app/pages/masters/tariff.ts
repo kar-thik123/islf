@@ -148,6 +148,7 @@ import { SourceSalesComponent } from './sourceSales';
                 <p-columnFilter type="text" field="basis" display="menu" placeholder="Search by Basis"></p-columnFilter>
               </div>
             </th>
+            
             <th>
               <div class="flex justify-between items-center">
                 Charge Name
@@ -176,6 +177,12 @@ import { SourceSalesComponent } from './sourceSales';
               <div class="flex justify-between items-center">
                 To Date
                 <p-columnFilter type="date" field="periodEndDate" display="menu" placeholder="Search by to date"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Currency
+                <p-columnFilter type="text" field="currency" display="menu" placeholder="Search by currency"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -223,6 +230,7 @@ import { SourceSalesComponent } from './sourceSales';
             <td>{{ getLocationName(tariff.toLocation) }}</td>
             <td>{{ tariff.periodStartDate | date:'dd/MM/yyyy' }}</td>
             <td>{{ tariff.periodEndDate | date:'dd/MM/yyyy' }}</td>
+            <td>{{tariff.currency}}</td>
             <td>{{ tariff.charges || tariff.amount || '-' }}</td>
             <td>
               <span [ngClass]="getStatusClass(getTariffStatus(tariff))">
@@ -269,6 +277,28 @@ import { SourceSalesComponent } from './sourceSales';
               <label class="block font-semibold mb-1">Service Type (Shipping Type)</label>
               <p-dropdown [options]="shippingTypeOptions" [(ngModel)]="selectedTariff.shippingType" (ngModelChange)="onFieldChange('shippingType', selectedTariff.shippingType)" [ngClass]="getFieldErrorClass('shippingType')" [ngStyle]="getFieldErrorStyle('shippingType')" placeholder="Select Shipping Type" [filter]="true" filterBy="label" [showClear]="true" class="w-full"></p-dropdown>
               <small *ngIf="fieldErrors['shippingType']" class="p-error">{{ fieldErrors['shippingType'] }}</small>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Type</label>
+              <div class="flex gap-2">
+                <p-dropdown 
+                  [options]="serviceAreaTypeOptions" 
+                  [(ngModel)]="selectedTariff.serviceAreaType" 
+                  (ngModelChange)="onServiceAreaTypeChange()" 
+                  placeholder="Select Type" 
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  filterBy="label"
+                  [showClear]="true"
+                  class="flex-1">
+                </p-dropdown>
+                <button pButton 
+                  [icon]="masterDialogLoading['serviceAreaType'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'" 
+                  class="p-button-sm" 
+                  [disabled]="masterDialogLoading['serviceAreaType']"
+                  (click)="openMaster('serviceAreaType')"></button>
+              </div>
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Service Area</label>
@@ -327,7 +357,7 @@ import { SourceSalesComponent } from './sourceSales';
               </div>
               <small *ngIf="fieldErrors['vendorName']" class="p-error">{{ fieldErrors['vendorName'] }}</small>
             </div>
-             <div class="col-span-12 md:col-span-3">
+             <!--<div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Source/Sales Person</label>
               <div class="flex gap-2">
                 <p-dropdown 
@@ -348,9 +378,9 @@ import { SourceSalesComponent } from './sourceSales';
                   class="p-button-sm" 
                   [disabled]="masterDialogLoading['sourceSales']"
                   (click)="openMaster('sourceSales')"></button>
-              </div>
+              </div> 
               <small *ngIf="fieldErrors['sourceSalesCode']" class="p-error">{{ fieldErrors['sourceSalesCode'] }}</small>
-            </div>
+            </div> -->
           </div>
           <!-- 2. General Information -->
           <h3 class="section-header">2. General Information</h3>
@@ -528,7 +558,28 @@ import { SourceSalesComponent } from './sourceSales';
               <label class="block font-semibold mb-1">Period End Date</label>
               <p-calendar [(ngModel)]="selectedTariff.periodEndDate" dateFormat="dd-mm-yy" showIcon="true" appendTo="body" class="w-full" [showTime]="false" [timeOnly]="false"></p-calendar>
             </div>
-            <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
+          
+          <div class="col-span-12 md:col-span-2">
+            <label class="block font-semibold mb-1">GST/VAT</label>
+            <div class="relative">
+              <input
+                pInputText
+                [(ngModel)]="selectedTariff.gstVat"
+                (ngModelChange)="onFieldChange('gstVat', selectedTariff.gstVat)"
+                type="text"
+                inputmode="decimal"
+                class="w-full pr-6 pl-2"
+                placeholder="Enter GST/VAT"
+              />
+              <span class="absolute right-2 top-1/2 -translate-y-1/2 font-semibold text-gray-700 pointer-events-none">%</span>
+            </div>
+          </div>
+
+          <div class="col-span-12 md:col-span-8">
+              <label class="block font-semibold mb-1">Remarks</label>
+              <input pInputText [(ngModel)]="selectedTariff.remarks" (ngModelChange)="onFieldChange('remarks', selectedTariff.remarks)" placeholder="Enter Remarks" class="w-full"/>
+            </div>
+              <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
             <p-inputSwitch 
               [(ngModel)]="selectedTariff.isMandatory" 
               inputId="mandatory">
@@ -918,6 +969,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   fromLocationOptions: any[] = [];  // New property
   toLocationOptions: any[] = [];    // New property
   allLocations: any[] = [];         // New property to store all locations
+  allServiceAreas: any[] = [];      // New property to store all service areas
   allShippingType: any[] = [];
   allDepartments: any[] =[];
   containerCodeOptions: any[] = [];
@@ -925,6 +977,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   itemCodeOptions: any[] = [];
   uomOptions: any[]=[];
   serviceAreaOptions: any[] = [];   // Service Area dropdown options
+  serviceAreaTypeOptions: any[] = []; // Service Area Type dropdown options
   
   // Number series properties
   isManualSeries: boolean = false;
@@ -950,9 +1003,11 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
   showMasterTypeDialog = false;
   showMasterItemDialog = false;
   showMasterLocationDialog = false;
+  showServiceAreaTypeDialog = false; // Add this property
   masterTypeFilter = '';
   masterDialogLoading: { [key: string]: boolean } = {
     'serviceArea': false,
+    'serviceAreaType': false,
     'sourceSales': false,
     'vendor': false,
     'basis': false,
@@ -1288,6 +1343,7 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
     forkJoin({
       modes: this.loadModeOptions(),
       serviceAreas: this.loadServiceAreaOptions(),
+      serviceAreaTypes: this.loadServiceAreaTypeOptions(),
       shippingTypes: this.loadShippingTypeOptions(),
       cargoTypes: this.loadCargoTypeOptions(),
       tariffTypes: this.loadTariffTypeOptions(),
@@ -1407,23 +1463,23 @@ getTariffStatus(tariff: { periodEndDate?: string | Date }): string {
       })
     );
   }
-  loadCargoTypeOptions() {
-    return this.masterItemService.getAll().pipe(
-      tap((cargoTypes: any[]) => {
-        this.cargoTypeOptions = (cargoTypes || [])
-          .filter(
-            (cargoType) =>
-              cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
-          )
-          .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
-        console.log('Cargo Type options,', this.cargoTypeOptions);
-      }),
-      catchError((error) => {
-        console.error('Error loading cargo type options', error);
-        return of([]);
-      })
-    );
-  }
+loadCargoTypeOptions() {
+  return this.masterTypeService.getAll().pipe(
+    tap((types: any[]) => {
+      this.cargoTypeOptions = (types || [])
+        .filter(
+          (type) =>
+            type.status === 'Active' && type.key === 'CARGO_TYPE'
+        )
+        .map((type) => ({ label: `${type.value}`, value: type.value }));
+      console.log('Cargo Type options:', this.cargoTypeOptions);
+    }),
+    catchError((error) => {
+      console.error('Error loading cargo type options', error);
+      return of([]);
+    })
+  );
+}
   loadTariffTypeOptions() {
     return this.masterTypeService.getAll().pipe(
       // @ts-ignore
@@ -1513,7 +1569,7 @@ loadBasisOptions() {
       tap((items: any[]) => {
         this.itemNameOptions = (items || [])
           .filter(i => i.item_type === 'CHARGE_TYPE' && i.active)
-          .map(i => ({ label: `${i.code} - ${i.name}`, value: i.code }));
+          .map(i => ({ label: i.name, value: i.code }));
       })
     );
   }
@@ -1521,9 +1577,12 @@ loadBasisOptions() {
   loadServiceAreaOptions() {
     return this.serviceAreaService.getServiceAreas().pipe(
       tap((serviceAreas: any[]) => {
-        this.serviceAreaOptions = (serviceAreas || [])
-          .filter(sa => sa.status === 'active')
-          .map(sa => ({ label: sa.service_area, value: sa.service_area }));
+        // Store all service areas
+        this.allServiceAreas = (serviceAreas || []).filter(sa => sa.status === 'active');
+        
+        // Filter service areas based on selected type
+        this.filterServiceAreasByType();
+        
         console.log('Service area options:', this.serviceAreaOptions);
       }),
       catchError(error => {
@@ -1531,6 +1590,45 @@ loadBasisOptions() {
         return of([]);
       })
     );
+  }
+  
+  // Load service area types
+  loadServiceAreaTypeOptions() {
+    return this.masterTypeService.getAll().pipe(
+      tap((types: any[]) => {
+        this.serviceAreaTypeOptions = types
+          .filter(t => t.key === 'SERVICE_AREA' && t.status === 'Active')
+          .map(t => ({
+            label: t.value,
+            value: t.value
+          }));
+        console.log('Service area type options:', this.serviceAreaTypeOptions);
+      }),
+      catchError(error => {
+        console.error('Error loading service area types:', error);
+        return of([]);
+      })
+    );
+  }
+  
+  // Filter service areas based on selected type
+  filterServiceAreasByType() {
+    if (this.selectedTariff && this.selectedTariff.serviceAreaType) {
+      this.serviceAreaOptions = this.allServiceAreas
+        .filter(sa => sa.type === this.selectedTariff.serviceAreaType)
+        .map(sa => ({ label: sa.service_area, value: sa.service_area }));
+    } else {
+      // If no type is selected, show all service areas
+      this.serviceAreaOptions = this.allServiceAreas
+        .map(sa => ({ label: sa.service_area, value: sa.service_area }));
+    }
+  }
+  
+  // Handle service area type change
+  onServiceAreaTypeChange() {
+    this.filterServiceAreasByType();
+    // Clear the selected service area when type changes
+    this.selectedTariff.serviceArea = '';
   }
   
   loadVendorTypeOptions() {
@@ -1562,12 +1660,13 @@ loadBasisOptions() {
   }
 
   // Helper to get vendor name from vendor code for table display
-  getVendorName(vendorCode: string): string {
-    if (!vendorCode || !this.allVendors) return vendorCode || '';
-    
-    const vendor = this.allVendors.find(v => v.code === vendorCode);
-    return vendor ? `${vendor.code} - ${vendor.name}` : vendorCode;
-  }
+getVendorName(vendorCode: string): string {
+  if (!vendorCode || !this.allVendors) return vendorCode || '';
+  
+  // Use vendor_no to match the vendor, not code
+  const vendor = this.allVendors.find(v => v.vendor_no === vendorCode);
+  return vendor ? `${vendor.name2}` : vendorCode;
+}
 
   getLocationName(locationCode: string): string {
     if (!locationCode || !this.allLocations) return locationCode || '';
@@ -1615,14 +1714,18 @@ loadBasisOptions() {
             currency: tariff.currency,
             charges: tariff.charges,
             mode: tariff.mode,
+            type: tariff.type,
             // Map new master fields used by the form
             serviceArea: tariff.service_area,
+            serviceAreaType: tariff.type, // Map type to serviceAreaType for UI
             sourceSalesCode: tariff.source_sales_code,
             effectiveDate: tariff.effective_date,
             periodStartDate: tariff.period_start_date,
             periodEndDate: tariff.period_end_date,
             freightChargeType: tariff.freight_charge_type,
-            isMandatory: tariff.is_mandatory
+            isMandatory: tariff.is_mandatory,
+            remarks: tariff.remarks,
+            gstVat: tariff.gst_vat,
           };
           
           // Add formatted date fields for global filtering
@@ -1940,6 +2043,11 @@ loadBasisOptions() {
     
     // Clear original data backup since we're saving changes
     this.originalTariffData = null;
+
+    // Map serviceAreaType to type field for backend
+    if (payload.serviceAreaType) {
+      payload.type = payload.serviceAreaType;
+    }
 
     // Format dates properly before sending to backend
     if (payload.effectiveDate instanceof Date) {

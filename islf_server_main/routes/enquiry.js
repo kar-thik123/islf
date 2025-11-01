@@ -872,8 +872,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
           [
             enquiryId,
             i + 1,
@@ -1591,6 +1591,7 @@ router.post("/:code/sourcing", async (req, res) => {
     // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
     query += ` ORDER BY code, id DESC`;
 
+    console.log("get sourcing final query,", query, "params,", params);
     console.log("get sourcing final query,", query, "params,", params);
     const result = await pool.query(query, params);
 

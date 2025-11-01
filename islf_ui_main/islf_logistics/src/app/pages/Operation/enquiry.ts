@@ -1284,12 +1284,16 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                                       <th style="width: 180px">Sourced Time</th>
                                     </tr>
                                   </ng-template>
-                                  <ng-template #body let-source>
+                                  <ng-template
+                                    #body
+                                    let-source
+                                    let-i="rowIndex"
+                                  >
                                     <tr>
                                       <td>
                                         <p-tableCheckbox [value]="source" />
                                       </td>
-                                      <td>{{ source.sourced_no }}</td>
+                                      <td>getSourceNumber</td>
                                       <td>{{ source.vendor_name }}</td>
                                       <td>{{ source.currency }}</td>
                                       <td>{{ source.charges }}</td>
@@ -1909,6 +1913,10 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                 {{ selectedEnquiryPreview?.company_name || '--' }}
               </p>
               <p>
+                <span class="font-semibold">Company:</span>
+                {{ currentEnquiry?.company_name || '--' }}
+              </p>
+              <p>
                 <span class="font-semibold">From:</span>
                 {{ selectedEnquiryPreview?.from_location || '--' }}
               </p>
@@ -1937,6 +1945,10 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
               <p>
                 <span class="font-semibold">Date:</span>
                 {{ formatDate(selectedEnquiryPreview?.date) || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Date:</span>
+                {{ formatDate(currentEnquiry?.date) || '--' }}
               </p>
             </div>
           </div>
@@ -2105,8 +2117,7 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
         <!-- No Line Items with Finalized Vendors Message -->
         <div
           *ngIf="
-            !getLineItemsWithFinalizedSources() &&
-            1 !== 1 &&
+            !getLineItemsWithFinalizedSources() ||
             getLineItemsWithFinalizedSources().length === 0
           "
           class="p-8 text-center border rounded bg-gray-50"
@@ -4285,6 +4296,47 @@ export class EnquiryComponent implements OnInit {
           });
         },
       });
+  }
+  // Get only finalized sources for a line item
+  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
+    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
+      return [];
+    }
+
+    return item.enquiry_summary.filter((summary) => {
+      // Check if summary has finalized items
+      return summary.finalizedItems && summary.finalizedItems.length > 0;
+    });
+  }
+
+  // Get finalized vendors for a specific summary
+  getFinalizedVendorsForSummary(summary: any): any[] {
+    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
+      return [];
+    }
+
+    return summary.finalizedItems.map((vendor: any, index: number) => {
+      return {
+        ...vendor,
+        sourced_no: vendor.sourced_no || `${index + 1}`,
+        charge: vendor.charges || vendor.charge,
+        currency: vendor.currency || vendor.currency_code,
+        sourced_time: vendor.created_at || vendor.sourced_time,
+        remarks: vendor.negotiated_remarks || vendor.remarks,
+      };
+    });
+  }
+
+  // Filter line items to only show those with finalized vendors
+  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
+    if (!this.lineItems || this.lineItems.length === 0) {
+      return [];
+    }
+
+    return this.lineItems.filter((item) => {
+      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
+      return finalizedSources && finalizedSources.length > 0;
+    });
   }
 
   addSelectedVendors() {
