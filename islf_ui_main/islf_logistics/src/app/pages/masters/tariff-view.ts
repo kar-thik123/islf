@@ -30,39 +30,43 @@ import { DividerModule } from 'primeng/divider';
     ToastModule,
     AccordionModule,
     CardModule,
-    DividerModule
+    DividerModule,
   ],
   template: `
     <p-toast></p-toast>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Tariff View</div>
-      
+
       <!-- Filter Section -->
       <div class="grid grid-cols-12 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
         <div class="col-span-12 md:col-span-6">
-          <label class="block font-semibold mb-2">Service Type (Shipping Type)</label>
-          <p-dropdown 
-            [options]="serviceTypeOptions" 
-            [(ngModel)]="selectedServiceType" 
+          <label class="block font-semibold mb-2"
+            >Service Type (Shipping Type)</label
+          >
+          <p-dropdown
+            [options]="serviceTypeOptions"
+            [(ngModel)]="selectedServiceType"
             (ngModelChange)="onFilterChange()"
-            placeholder="Select Service Type" 
-            [filter]="true" 
-            filterBy="label" 
-            [showClear]="true" 
-            class="w-full">
+            placeholder="Select Service Type"
+            [filter]="true"
+            filterBy="label"
+            [showClear]="true"
+            class="w-full"
+          >
           </p-dropdown>
         </div>
         <div class="col-span-12 md:col-span-6">
           <label class="block font-semibold mb-2">Vendor Name</label>
-          <p-dropdown 
-            [options]="vendorOptions" 
-            [(ngModel)]="selectedVendor" 
+          <p-dropdown
+            [options]="vendorOptions"
+            [(ngModel)]="selectedVendor"
             (ngModelChange)="onFilterChange()"
-            placeholder="Select Vendor" 
-            [filter]="true" 
-            filterBy="label" 
-            [showClear]="true" 
-            class="w-full">
+            placeholder="Select Vendor"
+            [filter]="true"
+            filterBy="label"
+            [showClear]="true"
+            class="w-full"
+          >
           </p-dropdown>
         </div>
       </div>
@@ -70,17 +74,23 @@ import { DividerModule } from 'primeng/divider';
       <!-- Results Summary -->
       <div class="mb-4" *ngIf="selectedServiceType || selectedVendor">
         <p class="text-gray-600">
-          Showing tariffs for 
-          <span *ngIf="selectedServiceType" class="font-semibold">{{ getServiceTypeLabel(selectedServiceType) }}</span>
+          Showing tariffs for
+          <span *ngIf="selectedServiceType" class="font-semibold">{{
+            getServiceTypeLabel(selectedServiceType)
+          }}</span>
           <span *ngIf="selectedServiceType && selectedVendor"> and </span>
-          <span *ngIf="selectedVendor" class="font-semibold">{{ getVendorLabel(selectedVendor) }}</span>
+          <span *ngIf="selectedVendor" class="font-semibold">{{
+            getVendorLabel(selectedVendor)
+          }}</span>
         </p>
       </div>
 
       <!-- Unit Tariff Table -->
       <div class="mb-6" *ngIf="unitTariffs.length > 0">
-        <h3 class="text-lg font-semibold mb-3 text-blue-700">Unit Tariff (Basis-based)</h3>
-        <p-table 
+        <h3 class="text-lg font-semibold mb-3 text-blue-700">
+          Unit Tariff (Basis-based)
+        </h3>
+        <p-table
           [value]="unitTariffs"
           dataKey="id"
           [paginator]="true"
@@ -89,8 +99,8 @@ import { DividerModule } from 'primeng/divider';
           [showGridlines]="true"
           [rowHover]="true"
           responsiveLayout="scroll"
-          [expandedRowKeys]="expandedRows">
-          
+          [expandedRowKeys]="expandedRows"
+        >
           <ng-template pTemplate="header">
             <tr>
               <th>Code</th>
@@ -109,7 +119,7 @@ import { DividerModule } from 'primeng/divider';
               <th>Effective Date</th>
             </tr>
           </ng-template>
-          
+
           <ng-template pTemplate="body" let-tariff let-expanded="expanded">
             <tr>
               <td>{{ tariff.code }}</td>
@@ -123,13 +133,17 @@ import { DividerModule } from 'primeng/divider';
               <td>{{ tariff.tariffType }}</td>
               <td>{{ tariff.itemName }}</td>
               <td>{{ tariff.currency }}</td>
-              <td>{{ tariff.charges | currency:'INR':'symbol':'1.2-2' }}</td>
               <td>
-                <span [class]="getStatusClass(tariff.status)">{{ tariff.status }}</span>
+                {{ tariff.charges | currency : 'INR' : 'symbol' : '1.2-2' }}
               </td>
-              <td>{{ tariff.effectiveDate | date:'shortDate' }}</td>
+              <td>
+                <span [class]="getStatusClass(tariff.status)">{{
+                  tariff.status
+                }}</span>
+              </td>
+              <td>{{ tariff.effectiveDate | date : 'shortDate' }}</td>
             </tr>
-          </ng-template>        
+          </ng-template>
           <ng-template pTemplate="emptymessage">
             <tr>
               <td colspan="11" class="text-center p-4">
@@ -142,8 +156,10 @@ import { DividerModule } from 'primeng/divider';
 
       <!-- From-To Tariff Table -->
       <div class="mb-6" *ngIf="fromToTariffs.length > 0">
-        <h3 class="text-lg font-semibold mb-3 text-green-700">From-To Tariff (Location-based)</h3>
-        <p-table 
+        <h3 class="text-lg font-semibold mb-3 text-green-700">
+          From-To Tariff (Location-based)
+        </h3>
+        <p-table
           [value]="fromToTariffs"
           dataKey="id"
           [paginator]="true"
@@ -152,10 +168,10 @@ import { DividerModule } from 'primeng/divider';
           [showGridlines]="true"
           [rowHover]="true"
           responsiveLayout="scroll"
-          [expandedRowKeys]="expandedRowsFromTo">
-          
+          [expandedRowKeys]="expandedRowsFromTo"
+        >
           <ng-template pTemplate="header">
-           <tr>
+            <tr>
               <th>Code</th>
               <th>Mode</th>
               <th>Basis</th>
@@ -172,7 +188,7 @@ import { DividerModule } from 'primeng/divider';
               <th>Effective Date</th>
             </tr>
           </ng-template>
-          
+
           <ng-template pTemplate="body" let-tariff let-expanded="expanded">
             <tr>
               <td>{{ tariff.code }}</td>
@@ -186,14 +202,18 @@ import { DividerModule } from 'primeng/divider';
               <td>{{ tariff.tariffType }}</td>
               <td>{{ tariff.itemName }}</td>
               <td>{{ tariff.currency }}</td>
-              <td>{{ tariff.charges | currency:'INR':'symbol':'1.2-2' }}</td>
               <td>
-                <span [class]="getStatusClass(tariff.status)">{{ tariff.status }}</span>
+                {{ tariff.charges | currency : 'INR' : 'symbol' : '1.2-2' }}
               </td>
-              <td>{{ tariff.effectiveDate | date:'shortDate' }}</td>
+              <td>
+                <span [class]="getStatusClass(tariff.status)">{{
+                  tariff.status
+                }}</span>
+              </td>
+              <td>{{ tariff.effectiveDate | date : 'shortDate' }}</td>
             </tr>
           </ng-template>
-          
+
           <ng-template pTemplate="emptymessage">
             <tr>
               <td colspan="11" class="text-center p-4">
@@ -205,66 +225,76 @@ import { DividerModule } from 'primeng/divider';
       </div>
 
       <!-- No Results Message -->
-      <div *ngIf="(selectedServiceType || selectedVendor) && unitTariffs.length === 0 && fromToTariffs.length === 0" 
-           class="text-center p-8 bg-gray-50 rounded-lg">
+      <div
+        *ngIf="
+          (selectedServiceType || selectedVendor) &&
+          unitTariffs.length === 0 &&
+          fromToTariffs.length === 0
+        "
+        class="text-center p-8 bg-gray-50 rounded-lg"
+      >
         <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
-        <h3 class="text-lg font-semibold text-gray-600 mb-2">No Tariffs Found</h3>
-        <p class="text-gray-500">No tariffs match the selected criteria. Please try different filters.</p>
+        <h3 class="text-lg font-semibold text-gray-600 mb-2">
+          No Tariffs Found
+        </h3>
+        <p class="text-gray-500">
+          No tariffs match the selected criteria. Please try different filters.
+        </p>
       </div>
-
-     
     </div>
   `,
-  styles: [`
-    .status-expired {
-      color: #dc2626;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background-color: #fee2e2;
-    }
+  styles: [
+    `
+      .status-expired {
+        color: #dc2626;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background-color: #fee2e2;
+      }
 
-    .status-active {
-      color: #059669;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background-color: #d1fae5;
-    }
+      .status-active {
+        color: #059669;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background-color: #d1fae5;
+      }
 
-    .status-default {
-      color: #6b7280;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background-color: #f3f4f6;
-    }
+      .status-default {
+        color: #6b7280;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background-color: #f3f4f6;
+      }
 
-    .p-button-text {
-      color: #6366f1;
-    }
+      .p-button-text {
+        color: #6366f1;
+      }
 
-    .p-button-text:hover {
-      background-color: #e0e7ff;
-    }
-  `]
+      .p-button-text:hover {
+        background-color: #e0e7ff;
+      }
+    `,
+  ],
 })
 export class TariffViewComponent implements OnInit, OnDestroy {
   private contextSubscription: Subscription | undefined;
-  
+
   // Filter options
   serviceTypeOptions: any[] = [];
   vendorOptions: any[] = [];
-  
+
   // Selected filters
   selectedServiceType: string = '';
   selectedVendor: string = '';
-  
+
   // Tariff data
   allTariffs: any[] = [];
   unitTariffs: any[] = [];
   fromToTariffs: any[] = [];
-  
+
   // Expanded rows
   expandedRows: any = {};
   expandedRowsFromTo: any = {};
@@ -305,7 +335,7 @@ export class TariffViewComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.serviceTypeOptions = data.map((item: any) => ({
           label: item.name || item.service_type,
-          value: item.name || item.service_type
+          value: item.name || item.service_type,
         }));
       },
       error: (error) => {
@@ -313,9 +343,9 @@ export class TariffViewComponent implements OnInit, OnDestroy {
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load service types'
+          detail: 'Failed to load service types',
         });
-      }
+      },
     });
   }
 
@@ -323,8 +353,10 @@ export class TariffViewComponent implements OnInit, OnDestroy {
     this.vendorService.getAll().subscribe({
       next: (data) => {
         this.vendorOptions = data.map((vendor: any) => ({
-          label: `${vendor.vendor_no || vendor.code} - ${vendor.name2 || vendor.name || vendor.vendor_name}`,
-          value: vendor.vendor_no || vendor.code  // Store vendor code for consistency
+          label: `${vendor.vendor_no || vendor.code} - ${
+            vendor.name2 || vendor.name || vendor.vendor_name
+          }`,
+          value: vendor.vendor_no || vendor.code, // Store vendor code for consistency
         }));
       },
       error: (error) => {
@@ -332,9 +364,9 @@ export class TariffViewComponent implements OnInit, OnDestroy {
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load vendors'
+          detail: 'Failed to load vendors',
         });
-      }
+      },
     });
   }
 
@@ -363,7 +395,7 @@ export class TariffViewComponent implements OnInit, OnDestroy {
             periodStartDate: tariff.period_start_date,
             periodEndDate: tariff.period_end_date,
             freightChargeType: tariff.freight_charge_type,
-            isMandatory: tariff.is_mandatory
+            isMandatory: tariff.is_mandatory,
           };
           // Add status field
           mappedTariff.status = this.getTariffStatus(mappedTariff);
@@ -376,9 +408,9 @@ export class TariffViewComponent implements OnInit, OnDestroy {
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load tariffs'
+          detail: 'Failed to load tariffs',
         });
-      }
+      },
     });
   }
 
@@ -388,40 +420,41 @@ export class TariffViewComponent implements OnInit, OnDestroy {
 
   filterTariffs() {
     let filteredTariffs = this.allTariffs;
-  
+
     // Filter by service type (shipping type)
     if (this.selectedServiceType) {
-      filteredTariffs = filteredTariffs.filter(tariff => 
-        tariff.shippingType === this.selectedServiceType
+      filteredTariffs = filteredTariffs.filter(
+        (tariff) => tariff.shippingType === this.selectedServiceType
       );
     }
-  
+
     // Filter by vendor - check both vendor_name and vendor code
     if (this.selectedVendor) {
-      filteredTariffs = filteredTariffs.filter(tariff => 
-        tariff.vendorName === this.selectedVendor || 
-        tariff.vendor_no === this.selectedVendor ||
-        tariff.party_name === this.selectedVendor
+      filteredTariffs = filteredTariffs.filter(
+        (tariff) =>
+          tariff.vendorName === this.selectedVendor ||
+          tariff.vendor_no === this.selectedVendor ||
+          tariff.party_name === this.selectedVendor
       );
     }
-  
+
     // Updated logic for separating tariffs:
     // Unit Tariff: Either from OR to (but not both) AND basis required
-    this.unitTariffs = filteredTariffs.filter(tariff => {
+    this.unitTariffs = filteredTariffs.filter((tariff) => {
       const hasFrom = tariff.from && tariff.from.trim() !== '';
       const hasTo = tariff.to && tariff.to.trim() !== '';
       const hasBasis = tariff.basis && tariff.basis.trim() !== '';
-      
+
       // Either from OR to (but not both) AND basis must be present
       return ((hasFrom && !hasTo) || (!hasFrom && hasTo)) && hasBasis;
     });
-  
+
     // From-To Tariff: Both from AND to AND basis
-    this.fromToTariffs = filteredTariffs.filter(tariff => {
+    this.fromToTariffs = filteredTariffs.filter((tariff) => {
       const hasFrom = tariff.from && tariff.from.trim() !== '';
       const hasTo = tariff.to && tariff.to.trim() !== '';
       const hasBasis = tariff.basis && tariff.basis.trim() !== '';
-      
+
       // Must have both from AND to AND basis
       return hasFrom && hasTo && hasBasis;
     });
@@ -430,12 +463,12 @@ export class TariffViewComponent implements OnInit, OnDestroy {
   // Helper method to parse dates safely without timezone issues
   parseDate(dateValue: any): Date | null {
     if (!dateValue) return null;
-    
+
     // If it's already a Date object, return it
     if (dateValue instanceof Date) {
       return dateValue;
     }
-    
+
     // If it's a string, parse it carefully
     if (typeof dateValue === 'string') {
       // Handle different date formats
@@ -444,7 +477,11 @@ export class TariffViewComponent implements OnInit, OnDestroy {
         const parts = dateValue.split('-');
         if (parts.length === 3) {
           // Check if it's DD-MM-YYYY or D-M-YYYY format (day and month can be 1 or 2 digits)
-          if (parts[2].length === 4 && parts[0].length <= 2 && parts[1].length <= 2) {
+          if (
+            parts[2].length === 4 &&
+            parts[0].length <= 2 &&
+            parts[1].length <= 2
+          ) {
             // DD-MM-YYYY or D-M-YYYY format
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
@@ -456,12 +493,12 @@ export class TariffViewComponent implements OnInit, OnDestroy {
           }
         }
       }
-      
+
       // Try parsing as regular date string
       const parsed = new Date(dateValue);
       return isNaN(parsed.getTime()) ? null : parsed;
     }
-    
+
     return null;
   }
 
@@ -472,18 +509,21 @@ export class TariffViewComponent implements OnInit, OnDestroy {
 
     const nowUtc = new Date();
     const endDate = this.parseDate(tariff.periodEndDate);
-    
+
     if (!endDate) {
       return 'Active'; // If date parsing fails, consider it active
     }
-    
+
     // Set end date to end of day in UTC (23:59:59.999)
     const endDateUtc = new Date(
       Date.UTC(
         endDate.getFullYear(),
         endDate.getMonth(),
         endDate.getDate(),
-        23, 59, 59, 999
+        23,
+        59,
+        59,
+        999
       )
     );
 
@@ -506,12 +546,12 @@ export class TariffViewComponent implements OnInit, OnDestroy {
   }
 
   getServiceTypeLabel(value: string): string {
-    const option = this.serviceTypeOptions.find(opt => opt.value === value);
+    const option = this.serviceTypeOptions.find((opt) => opt.value === value);
     return option ? option.label : value;
   }
 
   getVendorLabel(value: string): string {
-    const option = this.vendorOptions.find(opt => opt.value === value);
+    const option = this.vendorOptions.find((opt) => opt.value === value);
     return option ? option.label : value;
   }
 }

@@ -565,7 +565,7 @@ router.get("/:code/preview", async (req, res) => {
             ) || "--",
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
-          selected_tariff_items: selected_tariff_list,
+          selected_source_items: selected_tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
         enquiry_summary.splice(1, 0, tariff_summary);
