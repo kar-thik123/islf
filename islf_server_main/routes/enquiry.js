@@ -299,12 +299,12 @@ router.get("/:code", async (req, res) => {
           charge: "--",
           sourced_time: "--",
           remarks: "--",
-          selected_tariff_items: [],
+          selected_source_items: [],
           sourced_list: [],
         },
       ];
       const { rows: vendorCardsResult } = await pool.query(
-        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC;",
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC NULLS LAST;",
         [enquiry_id, line_item_id]
       );
       // console.log("list of vendor cards,", vendorCardsResult);
@@ -395,7 +395,7 @@ router.get("/:code", async (req, res) => {
             ) || "--",
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
-          selected_tariff_items: selected_tariff_list,
+          selected_source_items: selected_tariff_list,
           sourced_list: tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
@@ -474,7 +474,7 @@ router.get("/:code/preview", async (req, res) => {
           charge: "--",
           sourced_time: "--",
           remarks: "--",
-          selected_tariff_items: [],
+          selected_source_items: [],
           sourced_list: [],
         },
       ];
@@ -537,7 +537,6 @@ router.get("/:code/preview", async (req, res) => {
           sourced_time: selected_sourcing.created_at,
           remarks: selected_sourcing.remarks || "--",
           selected_source_items: selected_source_list,
-          sourced_list: source_list,
         };
         // enquiry_summary.push(source_summary);
         enquiry_summary.splice(0, 0, source_summary);
@@ -567,7 +566,6 @@ router.get("/:code/preview", async (req, res) => {
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
           selected_tariff_items: selected_tariff_list,
-          sourced_list: tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
         enquiry_summary.splice(1, 0, tariff_summary);
@@ -874,8 +872,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
           [
             enquiryId,
             i + 1,
@@ -994,30 +992,57 @@ router.put("/:code", async (req, res) => {
       );
 
       // Delete existing line items
-      await client.query(
-        "DELETE FROM enquiry_line_items WHERE enquiry_id = $1",
+      // await client.query(
+      //   "DELETE FROM enquiry_line_items WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
+
+      // selecting the line item of the enquiry
+      const { rows: lineItemResult } = await client.query(
+        `SELECT id FROM enquiry_line_items WHERE enquiry_id = $1`,
         [enquiryId]
       );
-
+      console.log("line items list for the enquiry", lineItemResult);
       // Create new line items
-      for (let i = 0; i < line_items.length; i++) {
-        const item = line_items[i];
-        await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+      if (lineItemResult.length === 0) {
+        // Create new line items
+        for (let i = 0; i < line_items.length; i++) {
+          let item = line_items[i];
+          await client.query(
+            `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [
-            enquiryId,
-            i + 1,
-            item.quantity,
-            item.type,
-            item.service_area,
-            item.basis,
-            item.remarks,
-            item.status || "Active",
-          ]
-        );
+            [
+              enquiryId,
+              i + 1,
+              item.quantity,
+              item.type,
+              item.service_area,
+              item.basis,
+              item.remarks,
+              item.status || "Active",
+            ]
+          );
+        }
+      } else {
+        for (let i = 0; i < line_items.length; i++) {
+          let item = line_items[i];
+          await client.query(
+            `UPDATE enquiry_line_items SET quantity =$1, type = $2, service_area =$3, basis=$4, remarks=$5, status=$6
+           WHERE enquiry_id= $7 AND s_no = $8 AND id = $9 `,
+            [
+              item.quantity,
+              item.type,
+              item.service_area,
+              item.basis,
+              item.remarks,
+              item.status || "Active",
+              enquiryId,
+              i + 1,
+              lineItemResult[i].id,
+            ]
+          );
+        }
       }
-
       await client.query("COMMIT");
 
       // Log the update
@@ -1550,6 +1575,7 @@ router.post("/:code/sourcing", async (req, res) => {
     query += ` ORDER BY code, id DESC`;
 
     console.log("get sourcing final query,", query, "params,", params);
+    console.log("get sourcing final query,", query, "params,", params);
     const result = await pool.query(query, params);
 
     res.json(result.rows);
@@ -1698,7 +1724,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
     }
 
     const { code } = req.params;
-    const { vendorCards } = req.body;
+    const { vendorCards, sourcingType, lineItemId } = req.body;
+    let sourcedNo = 0;
 
     typeof vendorCards === "undefined" && (vendorCards = []);
 
@@ -1714,12 +1741,40 @@ router.post("/:code/vendor-cards", async (req, res) => {
     }
     const enquiryId = enquiryResult.rows[0].id;
 
+    // sourced no value
+    let { rows: sourcedNoResult } = await pool.query(
+      `SELECT * FROM enquiry_vendor_cards WHERE enquiry_id =$1 AND enquiry_line_item_id =$2 AND source_type = $3 ORDER BY sourced_no DESC NULLS LAST LIMIT 1;
+`,
+      [enquiryId, lineItemId, sourcingType]
+    );
+
+    console.log("sourced no DB result", sourcedNoResult);
+
+    if (sourcedNoResult.length > 0) {
+      let { sourced_no: sourcedNoFromDB } = sourcedNoResult[0];
+      console.log("initial sourced No:,", sourcedNoFromDB);
+      if (sourcedNoFromDB == null) {
+        sourcedNo = 1;
+      } else {
+        sourcedNo = ++sourcedNoFromDB;
+      }
+      console.log("Altered sourced No,", sourcedNo);
+    } else if (sourcedNoResult.length === 0) {
+      sourcedNo = 1;
+    } else {
+      sourcedNo = -1;
+    }
+
     const client = await pool.connect();
 
     try {
       await client.query("BEGIN");
 
       // Clear existing vendor cards
+      // await client.query(
+      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
       // await client.query(
       //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
       //   [enquiryId]
@@ -1738,8 +1793,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
             : null;
 
         await client.query(
-          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id, sourced_no)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
           [
             enquiryId,
             card.vendor_name,
@@ -1759,6 +1814,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
             card.quantity,
             card.remarks,
             card.enquiry_line_item_id,
+            sourcedNo,
           ]
         );
       }
@@ -1911,13 +1967,13 @@ router.get("/:code/lineItem", async (req, res) => {
   try {
     const { code } = req.params;
 
-    const {
-      rows: { id: enquiry_id },
-    } = await pool.query(
+    const { rows: enquiryIdRow } = await pool.query(
       ` SELECT id FROM enquiry WHERE code = $1
     `,
       [code]
     );
+    console.log("Enquiry Id for the line item,", enquiryIdRow);
+    const [{ id: enquiry_id }] = enquiryIdRow;
 
     const { rows: lineItemsResult } = await pool.query(
       `
@@ -1937,7 +1993,7 @@ router.get("/:code/lineItem", async (req, res) => {
 });
 
 // POST /:code/lineItem - Insert New Line Item
-router.post("/:code/lineItem", async (req, res) => {
+router.post("/:code/line-Item", async (req, res) => {
   try {
     const { code } = req.params;
     const { s_no, quantity, type, service_area, basis, remarks, status } =
@@ -1974,8 +2030,65 @@ router.post("/:code/lineItem", async (req, res) => {
 router.put("/:code/line-items/selection", async (req, res) => {
   try {
     const { code } = req.params;
-    const { lineItems } = req.body;
-    console.log("lineItems", lineItems);
+    const { selectedLineItems } = req.body;
+    let query;
+    let params;
+
+    const { rows: enquiryIdRow } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const [{ id: enquiry_id }] = enquiryIdRow;
+
+    // console.log("line Item Selection enquiry ID", enquiry_id);
+    // unselect all line item for the id
+    const result = await pool.query(
+      `UPDATE enquiry_line_items SET is_selected = false WHERE enquiry_id = $1 RETURNING *`,
+      [enquiry_id]
+    );
+    // console.log(
+    //   "all line Items of the corresponding enquiry updated  to false",
+    //   result
+    // );
+
+    // console.log("lineItems api body,", selectedLineItems);
+
+    // if (lineItems[0].enquiry_id !== enquiry_id) {
+    //   res.status(404).json({ msg: "enquiry Id mismatch." });
+    // }
+    let lineItemsList = selectedLineItems.map((lineItem) => ({
+      lineItemId: lineItem.id,
+      enquiryId: lineItem.enquiry_id,
+      lineItemSno: lineItem.s_no,
+    }));
+    if (selectedLineItems.length > 0) {
+      query = ` UPDATE enquiry_line_items SET is_selected = true WHERE enquiry_id = $1 AND `;
+      params = [enquiry_id];
+      console.log("mapped Line Item Result,", lineItemsList);
+      lineItemsList.forEach((lineItem, index) => {
+        console.log("index,", index, "line item result,", lineItemsList.length);
+        if (lineItemsList.length === 1) {
+          query += `( s_no = $${index + 2})`;
+          params.push(lineItem.lineItemSno);
+        } else {
+          query +=
+            index === 0
+              ? `( s_no = $${index + 2}`
+              : index === lineItemsList.length - 1
+              ? `  OR  s_no = $${index + 2} )`
+              : `  OR  s_no = $${index + 2} `;
+          params.push(lineItem.lineItemSno);
+        }
+      });
+      console.log("line item selection query,", query, "params list,", params);
+      const { rows: lineItemSelectionResult } = await pool.query(query, params);
+    }
+    // const lineItemSelectionResult = await pool.query(
+    //   ` UPDATE enquiry_line_items SET is_selected = true `
+    // );
+
+    res.status(200).json({ msg: "Updated Line Item Selection !" });
   } catch (error) {
     console.error(
       "line item selection update method,",
@@ -1984,6 +2097,81 @@ router.put("/:code/line-items/selection", async (req, res) => {
       error.message
     );
     res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
+  try {
+    const { code, lineItemId } = req.params;
+    const { vendorCardList, sourcingType } = req.body;
+
+    typeof vendorCardList === "undefined" && (vendorCardList = []);
+
+    console.log("DEBUG: vendor cards list from post met:", vendorCardList);
+
+    // First get the enquiry ID from the code
+    const enquiryResult = await pool.query(
+      "SELECT id FROM enquiry WHERE code = $1",
+      [code]
+    );
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+    const enquiryId = enquiryResult.rows[0].id;
+
+    // unselect all selected vendor card
+    await pool.query(
+      `UPDATE enquiry_vendor_cards SET is_selected=false 
+        WHERE enquiry_id = $1 AND enquiry_line_item_id = $2
+        AND source_type = $3; `,
+      [enquiryId, lineItemId, sourcingType]
+    );
+
+    let selectedVendorCardList = vendorCardList.map((vendorCard) => ({
+      vendorCardId: vendorCard.id,
+      enquiryId: vendorCard.enquiry_id,
+    }));
+    if (selectedVendorCardList.length > 0) {
+      query = ` UPDATE enquiry_vendor_cards SET is_selected = true WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND source_type = $3 AND`;
+      params = [enquiryId, lineItemId, sourcingType];
+      console.log("mapped Line Item Result,", selectedVendorCardList);
+      selectedVendorCardList.forEach((vendorCard, index) => {
+        console.log(
+          "index,",
+          index,
+          "line item result,",
+          selectedVendorCardList.length
+        );
+        if (selectedVendorCardList.length === 1) {
+          query += ` ( id = $${index + 4})`;
+          params.push(vendorCard.vendorCardId);
+        } else {
+          query +=
+            index === 0
+              ? ` ( id = $${index + 4}`
+              : index === selectedVendorCardList.length - 1
+              ? `  OR  id = $${index + 4} )`
+              : `  OR  id = $${index + 4} `;
+          params.push(vendorCard.vendorCardId);
+        }
+      });
+      console.log("line item selection query,", query, "params list,", params);
+      const { rows: vendorCardSelectionResult } = await pool.query(
+        query,
+        params
+      );
+      console.log("Vendor Card Selection Result,", vendorCardSelectionResult);
+    }
+    // const lineItemSelectionResult = await pool.query(
+    //   ` UPDATE enquiry_line_items SET is_selected = true `
+    // );
+
+    res.status(200).json({ msg: "Updated Line Item Selection !" });
+  } catch (error) {
+    console.error(error.message);
+    res
+      .status(500)
+      .json({ msg: "Internal Server Error", error: error.message });
   }
 });
 

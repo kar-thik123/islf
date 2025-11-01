@@ -64,6 +64,12 @@ import {debounceTime,distinctUntilChanged} from 'rxjs/operators';
             </th>
             <th>
               <div class="flex justify-between items-center">
+                Teus
+                <p-columnFilter type="numeric" field="teus" display="menu" placeholder="Search by teus"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
                 Status
                 <p-columnFilter field="status" matchMode="equals" display="menu">
                   <ng-template #filter let-value let-filter="filterCallback">
@@ -105,6 +111,15 @@ import {debounceTime,distinctUntilChanged} from 'rxjs/operators';
                 </div>
               </ng-container>
               <ng-template #descText>{{ container.description }}</ng-template>
+            </td>
+            <td>
+              <ng-container *ngIf="container.isNew || container.isEditing; else teusText">
+                <div class="flex flex-col">
+                  <input pInputText type="number" [(ngModel)]="container.teus" (ngModelChange)="onFieldChange(container, 'teus', container.teus)" [ngClass]="getFieldErrorClass(container, 'teus')" [ngStyle]="getFieldErrorStyle(container, 'teus')" />
+                  <small *ngIf="getFieldError(container, 'teus')" class="p-error text-red-500 text-xs ml-2">{{ getFieldError(container, 'teus') }}</small>
+                </div>
+              </ng-container>
+              <ng-template #teusText>{{ container.teus }}</ng-template>
             </td>
             <td>
               <ng-container *ngIf="container.isEditing || container.isNew; else statusText">
@@ -256,6 +271,14 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
           return ' *Description is required';
         }
         break;
+      case 'teus':
+        if (value !== null && value !== undefined && value !== '') {
+          const teusValue = Number(value);
+          if (isNaN(teusValue) || !Number.isInteger(teusValue) || teusValue < 0) {
+            return ' *Teus must be a positive integer';
+          }
+        }
+        break;
     }
     return '';
   }
@@ -375,6 +398,7 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
       id: null,
       code: '',
       description: '',
+      teus: null,
       status: 'Active',
       isEditing: true,
       isNew: true
@@ -389,6 +413,7 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
       this.containerService.createContainer({
         code: container.code,
         description: container.description,
+        teus: container.teus,
         status: container.status
       }).subscribe({
         next: (res) => {
@@ -403,6 +428,7 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
     } else {
       this.containerService.updateContainer(container.code, {
         description: container.description,
+        teus: container.teus,
         status: container.status
       }).subscribe({
         next: () => {
