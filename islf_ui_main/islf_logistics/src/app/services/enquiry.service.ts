@@ -51,7 +51,7 @@ export interface EnquirySummary {
   sourced_no: number;
   sourced_time: string;
   sourced_list: SourcingOption[] | TariffOption[];
-  selected_source_items?: SourcingOption[] | TariffOption[];
+  selected_source_items?: any[];
   summary_type: string;
   items: any[];
   finalizedItems?: any[];
@@ -389,8 +389,8 @@ export class EnquiryService {
   }
 
   /** Get all enquiries (alias for compatibility) */
-  getAllEnquiryLineItem(enquiryCode: string): Observable<EnquiryLineItem[]> {
-    return this.http.get<EnquiryLineItem[]>(
+  getAllEnquiryLineItem(enquiryCode: string): Observable<any> {
+    return this.http.get<any>(
       `${this.baseUrl}/${enquiryCode}/lineItem`
     );
   }

@@ -2007,7 +2007,10 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
               <div class="mt-4">
                 <div class="space-y-4">
                   <div
-                    *ngIf="item?.enquiry_summary?.[0] as summary"
+                    *ngFor="
+                      let summary of item?.enquiry_summary;
+                      let idx = index
+                    "
                     class="source-section"
                   >
                     <h6 class="font-semibold mb-2 text-green-700 capitalize">
@@ -2016,11 +2019,9 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                     <!-- Finalized Vendors List -->
                     <div class="source-list-container">
                       <p-table
-                        *ngIf="
-                          summary?.selected_source_items &&
-                          (summary?.selected_source_items || []).length > 0
+                        [value]="
+                          summary.selected_source_items || []
                         "
-                        [value]="getSelectedSourceItems(i)"
                         styleClass="p-datatable-sm w-full source-list-table"
                       >
                         <ng-template pTemplate="header">
@@ -2638,14 +2639,7 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
-  // getter method for type assertions in html template
-  getSelectedSourceItems(lineItemIndex: any): SourcingOption[] {
-    // Assuming selected_source_items will always be SourcingOption[] in this context
-    return (
-      (this.selectedEnquiryPreview?.line_items?.[lineItemIndex]
-        .enquiry_summary?.[0].selected_source_items as SourcingOption[]) || []
-    );
-  }
+ 
 
   // show enquiry preview function
   showEnquiryPreview() {
@@ -4140,9 +4134,29 @@ export class EnquiryComponent implements OnInit {
   }
 
   getSourcing(lineItemId: number) {
+    let savedLineItemsCount = 0;
+    let currentLineItemsCount = this.lineItems.length;
+
+    // saved Line Item
+    this.enquiryService
+      .getAllEnquiryLineItem(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (data) => {
+          savedLineItemsCount = Number(data.lineItemCount);
+        },
+        error: (error) => {
+          console.error('Error fetching lineItem count:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to get LineItems count',
+          });
+        },
+      });
     if (
       !this.currentEnquiry?.code ||
-      this.currentEnquiry?.code === 'MAA_FF_ENQ'
+      this.currentEnquiry?.code === 'MAA_FF_ENQ' ||
+      savedLineItemsCount != currentLineItemsCount
     ) {
       this.saveEnquiry();
       this.messageService.add({
@@ -4152,6 +4166,8 @@ export class EnquiryComponent implements OnInit {
       });
       // return;
     }
+    // check and update id for line items with missing id
+    // this.assignIdToLineItems();
     let lineItemIndex = Number(lineItemId) - 1;
     console.log(
       'selected enquiry value during get sourcing,',
@@ -4526,6 +4542,8 @@ export class EnquiryComponent implements OnInit {
       'DEBUG: selected enquiry value from save enquiry',
       this.selectedEnquiry
     );
+    // check and assign the id to line items which doesn't have before enquiry creation
+    // this.assignIdToLineItems();
     // assigning the selected enquiry to current enquiry to avoid undefined error in confirm enquiry
     this.currentEnquiry = { ...this.selectedEnquiry };
 
@@ -4826,6 +4844,39 @@ export class EnquiryComponent implements OnInit {
         });
       },
     });
+  }
+  private assignIdToLineItems() {
+    // Assigning the id to the line items if not present
+    this.lineItems.forEach((lineItem) => {
+      if (!lineItem.id) {
+        let id = Math.floor(Math.random() * 97); // Initial random id
+        let attempt = 0;
+
+        // Try generating a unique id, limit attempts to 10
+        while (
+          this.lineItems.some((lItem) => lItem.id === id) &&
+          attempt < 10
+        ) {
+          id = Math.floor(Math.random() * (attempt === 5 ? 131 : 97)); // Change random range on attempt 5
+          attempt++;
+        }
+
+        if (attempt === 10) {
+          // If we reach 10 attempts, show an error message and stop
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Reached maximum line item for this enquiry.',
+          });
+          return; // Stop execution for this line item if unique id cannot be generated
+        }
+
+        // Directly assign the generated id to the line item
+        lineItem.id = id;
+      }
+    });
+
+    console.log('Updated lineItems:', this.lineItems);
   }
 
   private loadMappedEnquirySeriesCode() {

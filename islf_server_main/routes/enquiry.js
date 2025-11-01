@@ -565,7 +565,7 @@ router.get("/:code/preview", async (req, res) => {
             ) || "--",
           sourced_time: selected_tariff.created_at,
           remarks: selected_tariff.remarks || "--",
-          selected_tariff_items: selected_tariff_list,
+          selected_source_items: selected_tariff_list,
         };
         // enquiry_summary.push(tariff_summary);
         enquiry_summary.splice(1, 0, tariff_summary);
@@ -1026,21 +1026,38 @@ router.put("/:code", async (req, res) => {
       } else {
         for (let i = 0; i < line_items.length; i++) {
           let item = line_items[i];
-          await client.query(
-            `UPDATE enquiry_line_items SET quantity =$1, type = $2, service_area =$3, basis=$4, remarks=$5, status=$6
+          if (item.id) {
+            await client.query(
+              `UPDATE enquiry_line_items SET quantity =$1, type = $2, service_area =$3, basis=$4, remarks=$5, status=$6
            WHERE enquiry_id= $7 AND s_no = $8 AND id = $9 `,
-            [
-              item.quantity,
-              item.type,
-              item.service_area,
-              item.basis,
-              item.remarks,
-              item.status || "Active",
-              enquiryId,
-              i + 1,
-              lineItemResult[i].id,
-            ]
-          );
+              [
+                item.quantity,
+                item.type,
+                item.service_area,
+                item.basis,
+                item.remarks,
+                item.status || "Active",
+                enquiryId,
+                i + 1,
+                lineItemResult[i].id,
+              ]
+            );
+          } else {
+            await client.query(
+              `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                enquiryId,
+                i + 1,
+                item.quantity,
+                item.type,
+                item.service_area,
+                item.basis,
+                item.remarks,
+                item.status || "Active",
+              ]
+            );
+          }
         }
       }
       await client.query("COMMIT");

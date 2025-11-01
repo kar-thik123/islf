@@ -97,12 +97,72 @@ import { InputNumberModule } from 'primeng/inputnumber';
         </ng-template>
         <ng-template pTemplate="header">
           <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Commission %</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Status</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter
+                  type="text"
+                  field="code"
+                  display="menu"
+                  placeholder="Search by code"
+                />
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Name
+                <p-columnFilter
+                  type="text"
+                  field="name"
+                  display="menu"
+                  placeholder="Search by name"
+                />
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Commission %
+                <p-columnFilter
+                  type="text"
+                  field="commission"
+                  display="menu"
+                  placeholder="Search by commission"
+                />
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Email
+                <p-columnFilter
+                  type="text"
+                  field="email"
+                  display="menu"
+                  placeholder="Search by e-mail"
+                />
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Phone
+                <p-columnFilter
+                  type="text"
+                  field="phone"
+                  display="menu"
+                  placeholder="Search by Phone"
+                />
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Status
+                <p-columnFilter
+                  type="text"
+                  field="status"
+                  display="menu"
+                  placeholder="Search by status"
+                />
+              </div>
+            </th>
             <th>Actions</th>
           </tr>
         </ng-template>
@@ -274,7 +334,6 @@ import { InputNumberModule } from 'primeng/inputnumber';
               </ng-template>
             </td>
             <td class="actions-column flex items-center space-x-[8px]">
-  
               <button
                 pButton
                 icon="pi pi-pencil"
@@ -315,7 +374,6 @@ import { InputNumberModule } from 'primeng/inputnumber';
                 *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
               ></button>
             </td>
-
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
@@ -486,75 +544,72 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
     });
   }
 
- addRow() {
-  console.log('Add Source Sale button clicked - starting addRow method');
+  addRow() {
+    console.log('Add Source Sale button clicked - starting addRow method');
 
+    const config = this.configService.getConfig();
+    const sourceSalesFilter = config?.validation?.sourceSalesFilter || '';
 
-  const config = this.configService.getConfig();
-  const sourceSalesFilter = config?.validation?.sourceSalesFilter || '';
+    console.log('Source Sales filter:', sourceSalesFilter);
 
-  console.log('Source Sales filter:', sourceSalesFilter);
+    if (sourceSalesFilter) {
+      const context = this.contextService.getContext();
+      console.log('Current context:', context);
 
+      if (sourceSalesFilter.includes('C') && !context.companyCode) {
+        console.log('Company context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Company before adding a new Source Sale.',
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
 
-  if (sourceSalesFilter) {
-    const context = this.contextService.getContext();
-    console.log('Current context:', context);
+      if (sourceSalesFilter.includes('B') && !context.branchCode) {
+        console.log('Branch context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Branch before adding a new Source Sale.',
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
 
-  
-    if (sourceSalesFilter.includes('C') && !context.companyCode) {
-      console.log('Company context required but not set');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: 'Please select a Company before adding a new Source Sale.'
-      });
-      this.contextService.showContextSelector();
-      return;
+      if (sourceSalesFilter.includes('D') && !context.departmentCode) {
+        console.log('Department context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Department before adding a new Source Sale.',
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
     }
 
-    if (sourceSalesFilter.includes('B') && !context.branchCode) {
-      console.log('Branch context required but not set');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: 'Please select a Branch before adding a new Source Sale.'
-      });
-      this.contextService.showContextSelector();
-      return;
-    }
+    console.log(
+      'Context validation passed - proceeding to add new Source Sale'
+    );
 
-    if (sourceSalesFilter.includes('D') && !context.departmentCode) {
-      console.log('Department context required but not set');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: 'Please select a Department before adding a new Source Sale.'
-      });
-      this.contextService.showContextSelector();
-      return;
-    }
+    const newSourceSale = {
+      id: 'new_' + new Date().getTime(),
+      code: this.isManualSeries ? '' : this.mappedSourceSalesSeriesCode || '',
+      name: '',
+      commission_percentage: 0,
+      email: '',
+      phone: '',
+      status: 'active',
+      isNew: true,
+      isEditing: true,
+      errors: {},
+    };
+
+    this.sourceSales = [newSourceSale, ...this.sourceSales];
+    console.log('New Source Sale row added successfully');
   }
-
-  console.log('Context validation passed - proceeding to add new Source Sale');
-
- 
-  const newSourceSale = {
-    id: 'new_' + new Date().getTime(),
-    code: this.isManualSeries ? '' : (this.mappedSourceSalesSeriesCode || ''),
-    name: '',
-    commission_percentage: 0,
-    email: '',
-    phone: '',
-    status: 'active',
-    isNew: true,
-    isEditing: true,
-    errors: {},
-  };
-
- 
-  this.sourceSales = [newSourceSale, ...this.sourceSales];
-  console.log('New Source Sale row added successfully');
-}
 
   editRow(sourceSale: any) {
     sourceSale.isEditing = true;
