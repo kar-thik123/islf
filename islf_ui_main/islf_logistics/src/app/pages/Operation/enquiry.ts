@@ -55,6 +55,7 @@ import { BasisService } from '../../services/basis.service';
 import { MasterItemService } from '../../services/master-item.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { CurrencyCodeService } from '../../services/currencycode.service';
 import { AuthService } from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
@@ -71,6 +72,7 @@ import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../masters/sourceSales';
 import { CargoTypeMasterComponent } from '../masters/cargotype';
+import { CurrencyCodeComponent } from '../masters/currencycode';
 @Component({
   selector: 'app-enquiry',
   standalone: true,
@@ -104,6 +106,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
     ServiceAreaComponent,
     SourceSalesComponent,
     CargoTypeMasterComponent,
+    CurrencyCodeComponent,
     MenuModule,
     TreeTableModule,
   ],
@@ -1212,7 +1215,13 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                             <td>{{ summary.vendor_name }}</td>
                             <td>{{ summary.currency_code }}</td>
                             <td>{{ summary.charge }}</td>
-                            <td>{{ formatDateTime(summary.sourced_time) }}</td>
+                            <td>
+                              {{
+                                formatDateTime(summary.sourced_time) ||
+                                  summary.sourced_time ||
+                                  '--'
+                              }}
+                            </td>
                             <td>{{ summary.remarks }}</td>
                           </tr>
                         </ng-template>
@@ -1266,6 +1275,10 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                       <th style="width: 200px">Vendor Name</th>
                                       <th style="width: 100px">Currency</th>
                                       <th style="width: 120px">Buy Price</th>
+                                      <th style="width: 100px">
+                                        Currency Sell Price
+                                      </th>
+
                                       <th style="width: 120px">Sell Price</th>
                                       <th style="width: 200px">Remarks</th>
                                       <th style="width: 180px">Sourced Time</th>
@@ -1284,6 +1297,40 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                       <td>{{ source.vendor_name }}</td>
                                       <td>{{ source.currency }}</td>
                                       <td>{{ source.charges }}</td>
+                                      <td>
+                                        <div class="flex gap-2">
+                                          <p-dropdown
+                                            [(ngModel)]="
+                                              source.sell_price_charges
+                                            "
+                                            [options]="sellPriceCurrencyOptions"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            placeholder="Select type"
+                                            class="flex-1"
+                                            appendTo="body"
+                                          >
+                                          </p-dropdown>
+                                          <button
+                                            pButton
+                                            [icon]="
+                                              masterDialogLoading[
+                                                'currencyCode'
+                                              ]
+                                                ? 'pi pi-spin pi-spinner'
+                                                : 'pi pi-ellipsis-h'
+                                            "
+                                            class="p-button-sm"
+                                            [disabled]="
+                                              masterDialogLoading[
+                                                'currencyCode'
+                                              ]
+                                            "
+                                            (click)="openMaster('currencyCode')"
+                                            appendTo="body"
+                                          ></button>
+                                        </div>
+                                      </td>
                                       <td>
                                         <input
                                           type="text"
@@ -1308,7 +1355,13 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                           style="width: 100%"
                                         />
                                       </td>
-                                      <td>{{ source.created_at }}</td>
+                                      <td>
+                                        {{
+                                          formatDateTime(source.created_at) ||
+                                            source.created_at ||
+                                            '--'
+                                        }}
+                                      </td>
                                     </tr>
                                   </ng-template>
                                   <ng-template #emptymessage>
@@ -1702,13 +1755,39 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
-      (onHide)="closeMasterDialog('serviceType')"
+      (onHide)="closeMasterDialog('cargoType')"
       [closeOnEscape]="true"
     >
       <ng-template pTemplate="content">
         <cargo-type></cargo-type>
       </ng-template>
     </p-dialog>
+
+    <!-- Currency Code Dialog -->
+    <p-dialog
+      header="Currency Code Master"
+      [(visible)]="showCurrencyCodeDialog"
+      [modal]="true"
+      [style]="{
+        width: 'auto',
+        minWidth: '60vw',
+        maxWidth: '95vw',
+        height: 'auto',
+        maxHeight: '90vh'
+      }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('currencyCode')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <currency-code></currency-code>
+      </ng-template>
+    </p-dialog>
+
     <!--Master Type Dialog-->
     <p-dialog
       header="Service Type Master"
@@ -1823,11 +1902,15 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
             <div>
               <p>
                 <span class="font-semibold">Enquiry Code:</span>
-                {{ currentEnquiry?.code || '--' }}
+                {{ selectedEnquiryPreview?.code || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Customer:</span>
-                {{ currentEnquiry?.customer_name || '--' }}
+                {{ selectedEnquiryPreview?.customer_name || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Company:</span>
+                {{ selectedEnquiryPreview?.company_name || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Company:</span>
@@ -1835,29 +1918,33 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               </p>
               <p>
                 <span class="font-semibold">From:</span>
-                {{ currentEnquiry?.from_location || '--' }}
+                {{ selectedEnquiryPreview?.from_location || '--' }}
               </p>
               <p>
                 <span class="font-semibold">To:</span>
-                {{ currentEnquiry?.to_location || '--' }}
+                {{ selectedEnquiryPreview?.to_location || '--' }}
               </p>
             </div>
             <div>
               <p>
                 <span class="font-semibold">Service Type:</span>
-                {{ currentEnquiry?.service_type || '--' }}
+                {{ selectedEnquiryPreview?.service_type || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Cargo Type:</span>
-                {{ currentEnquiry?.cargo_type || '--' }}
+                {{ selectedEnquiryPreview?.cargo_type || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Department:</span>
-                {{ currentEnquiry?.department || '--' }}
+                {{ selectedEnquiryPreview?.department || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Status:</span>
-                {{ currentEnquiry?.status || '--' }}
+                {{ selectedEnquiryPreview?.status || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Date:</span>
+                {{ formatDate(selectedEnquiryPreview?.date) || '--' }}
               </p>
               <p>
                 <span class="font-semibold">Date:</span>
@@ -1869,17 +1956,11 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
 
         <!-- Line Items Display with Finalized Vendors Only -->
         <h4 class="text-lg font-bold mb-4">Line Items</h4>
-        <div
-          *ngIf="
-            getLineItemsWithFinalizedSources() &&
-            getLineItemsWithFinalizedSources().length > 0
-          "
-          class="mb-6"
-        >
+        <div class="mb-6">
           <div class="grid grid-cols-1 gap-6">
             <div
               *ngFor="
-                let item of getLineItemsWithFinalizedSources();
+                let item of this.selectedEnquiryPreview?.line_items;
                 let i = index
               "
               class="line-item-card p-4 border rounded-lg bg-white shadow-sm"
@@ -1935,29 +2016,25 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               </div>
 
               <!-- Finalized Sourcing/Tariff Lists -->
-              <div
-                *ngIf="
-                  getFinalizedSourcesForLineItem(item) &&
-                  getFinalizedSourcesForLineItem(item).length > 0
-                "
-                class="mt-4"
-              >
+              <div class="mt-4">
                 <div class="space-y-4">
                   <div
-                    *ngFor="let summary of getFinalizedSourcesForLineItem(item)"
+                    *ngFor="
+                      let summary of item?.enquiry_summary;
+                      let idx = index
+                    "
                     class="source-section"
                   >
                     <h6 class="font-semibold mb-2 text-green-700 capitalize">
-                      Finalized {{ summary.summary_type }} Vendors
+                      {{ summary.summary_type }} Vendor's List
                     </h6>
-
                     <!-- Finalized Vendors List -->
                     <div class="source-list-container">
                       <p-table
-                        [value]="getFinalizedVendorsForSummary(summary)"
+                        [value]="
+                          summary.selected_source_items || []
+                        "
                         styleClass="p-datatable-sm w-full source-list-table"
-                        [scrollable]="true"
-                        scrollHeight="200px"
                       >
                         <ng-template pTemplate="header">
                           <tr>
@@ -1975,7 +2052,8 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                           let-i="rowIndex"
                         >
                           <tr>
-                            <td>getsource</td>
+                            <!-- <td>{{ getSourceNumber(source, i) }}</td> -->
+                            <td>{{ source.sourced_no }}</td>
                             <td class="font-medium">
                               {{ source.vendor_name }}
                             </td>
@@ -2023,17 +2101,15 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
               </div>
 
               <!-- No Finalized Sources Message -->
-              <div
-                *ngIf="
-                  !getFinalizedSourcesForLineItem(item) ||
-                  getFinalizedSourcesForLineItem(item).length === 0
-                "
+              <!-- <div
+                *ngIf="item?.enquiry_summary?.[0]?.selected_source_items?.length ===0 ||
+                item?.enquiry_summary?.[0]?.selected_source_items"
                 class="mt-4 p-4 text-center border rounded bg-gray-50"
               >
                 <p class="text-gray-500">
                   No vendors available for this line item.
                 </p>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -2295,6 +2371,8 @@ export class EnquiryComponent implements OnInit {
   // Table data
   enquiries: Enquiry[] = [];
   selectedEnquiry: Enquiry | null = null;
+  selectedEnquiryPreview: Enquiry | null = null;
+
   isDialogVisible = false;
   fieldErrors: { [key: string]: string } = {};
 
@@ -2361,6 +2439,7 @@ export class EnquiryComponent implements OnInit {
   showBasisDialog = false;
   showMasterTypeDialog = false;
   showCargoTypeDialog = false;
+  showCurrencyCodeDialog = false;
 
   showServiceTypeDialog = false;
   masterTypeFilter = '';
@@ -2426,6 +2505,7 @@ export class EnquiryComponent implements OnInit {
     private serviceAreaService: ServiceAreaService,
     private serviceTypeService: ServiceTypeService,
     private masterTypeService: MasterTypeService,
+    private currencyCodeService: CurrencyCodeService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
     private sourceSalesService: SourceSalesService,
@@ -2477,6 +2557,7 @@ export class EnquiryComponent implements OnInit {
       serviceAreas: this.loadServiceAreaOptions(),
       sourceSales: this.loadSourceSalesOptions(),
       cargoType: this.loadCargoTypeOptions(),
+      currencyCode: this.loadCurrencyOptions(),
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
@@ -2569,8 +2650,32 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+ 
+
   // show enquiry preview function
   showEnquiryPreview() {
+    if (this.selectedEnquiry?.code === 'MAA_FF_ENQ') {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail:
+          'Save the enquiry and source the vendor details before proceeding to preview.',
+      });
+      return;
+    }
+    // calling the preview api method
+    this.enquiryService
+      .getEnquiryPreviewByCode(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (response: any) => {
+          console.log('enquiry previewresponse,', response);
+          this.selectedEnquiryPreview = response;
+          console.log(
+            'preview enquiry api response value updated to pre,',
+            this.selectedEnquiryPreview
+          );
+        },
+      });
     this.showPreviewDialog = true;
   }
 
@@ -2590,18 +2695,53 @@ export class EnquiryComponent implements OnInit {
     );
   }
   loadCargoTypeOptions() {
-    return this.masterItemService.getAll().pipe(
-      tap((cargoTypes: any[]) => {
-        this.cargoTypeOptions = (cargoTypes || [])
+    // return this.masterItemService.getAll().pipe(
+    //   tap((cargoTypes: any[]) => {
+    //     this.cargoTypeOptions = (cargoTypes || [])
+    //       .filter(
+    //         (cargoType) =>
+    //           cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+    //       )
+    //       .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
+    //     console.log('Cargo Type options,', this.cargoTypeOptions);
+    //   }),
+    return this.masterTypeService.getAll().pipe(
+      tap((cargoMasterTypes: any[]) => {
+        this.cargoTypeOptions = (cargoMasterTypes || [])
           .filter(
-            (cargoType) =>
-              cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+            (cargoMaster) =>
+              cargoMaster.status.toLowerCase() === 'active' &&
+              cargoMaster.key.toLowerCase() === 'cargo_type'
           )
-          .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
-        console.log('Cargo Type options,', this.cargoTypeOptions);
+          .map((cargoMaster) => ({
+            label: `${cargoMaster.value}-${cargoMaster.description}`,
+            value: cargoMaster.value,
+          }));
+        console.log('cargoType Options,', this.cargoTypeOptions);
       }),
       catchError((error) => {
         console.error('Error loading cargo type options', error);
+        return of([]);
+      })
+    );
+  }
+
+  loadCurrencyOptions() {
+    return this.currencyCodeService.getCurrencies().pipe(
+      tap((currencyCodes: any[]) => {
+        console.log('currencyCode service response,', currencyCodes);
+        this.sellPriceCurrencyOptions = (currencyCodes || [])
+          .filter(
+            (currencyCode) => currencyCode.status.toLowerCase() === 'active'
+          )
+          .map((currencyCode) => ({
+            label: currencyCode.code,
+            value: currencyCode.code,
+          }));
+        console.log('Currency code options,', this.sellPriceCurrencyOptions);
+      }),
+      catchError((error) => {
+        console.log('load currency service master error,', error);
         return of([]);
       })
     );
@@ -2719,6 +2859,9 @@ export class EnquiryComponent implements OnInit {
 
   // Master type options property
   masterTypeOptions: { label: string; value: string }[] = [];
+
+  // sell price currency options
+  sellPriceCurrencyOptions: { label: string; value: string }[] = [];
 
   // Load master type options
   loadMasterTypeOptions() {
@@ -2874,6 +3017,8 @@ export class EnquiryComponent implements OnInit {
       this.showSourceSalesDialog = true;
     } else if (type === 'cargoType') {
       this.showCargoTypeDialog = true;
+    } else if (type === 'currencyCode') {
+      this.showCurrencyCodeDialog = true;
     } else {
       this.messageService.add({
         severity: 'info',
@@ -2927,6 +3072,21 @@ export class EnquiryComponent implements OnInit {
           error: () => this.cdr.detectChanges(),
         });
         break;
+      case 'currencyCode':
+        this.showCurrencyCodeDialog = false;
+        this.loadCurrencyOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
+        });
+        break;
+      case 'cargoType':
+        this.showCargoTypeDialog = false;
+        this.loadCargoTypeOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
+        });
+        break;
+
       case 'masterType':
         this.showMasterTypeDialog = false;
         // Reload location types if the filter was for LOCATION
@@ -3985,9 +4145,29 @@ export class EnquiryComponent implements OnInit {
   }
 
   getSourcing(lineItemId: number) {
+    let savedLineItemsCount = 0;
+    let currentLineItemsCount = this.lineItems.length;
+
+    // saved Line Item
+    this.enquiryService
+      .getAllEnquiryLineItem(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (data) => {
+          savedLineItemsCount = Number(data.lineItemCount);
+        },
+        error: (error) => {
+          console.error('Error fetching lineItem count:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to get LineItems count',
+          });
+        },
+      });
     if (
       !this.currentEnquiry?.code ||
-      this.currentEnquiry?.code === 'MAA_FF_ENQ'
+      this.currentEnquiry?.code === 'MAA_FF_ENQ' ||
+      savedLineItemsCount != currentLineItemsCount
     ) {
       this.saveEnquiry();
       this.messageService.add({
@@ -3997,6 +4177,8 @@ export class EnquiryComponent implements OnInit {
       });
       // return;
     }
+    // check and update id for line items with missing id
+    // this.assignIdToLineItems();
     let lineItemIndex = Number(lineItemId) - 1;
     console.log(
       'selected enquiry value during get sourcing,',
@@ -4412,6 +4594,8 @@ export class EnquiryComponent implements OnInit {
       'DEBUG: selected enquiry value from save enquiry',
       this.selectedEnquiry
     );
+    // check and assign the id to line items which doesn't have before enquiry creation
+    // this.assignIdToLineItems();
     // assigning the selected enquiry to current enquiry to avoid undefined error in confirm enquiry
     this.currentEnquiry = { ...this.selectedEnquiry };
 
@@ -4631,6 +4815,45 @@ export class EnquiryComponent implements OnInit {
   }
   // preview
 
+  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
+    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
+      return [];
+    }
+
+    return item.enquiry_summary.filter((summary) => {
+      // Check if summary has finalized items
+      return summary.finalizedItems && summary.finalizedItems.length > 0;
+    });
+  }
+
+  getFinalizedVendorsForSummary(summary: any): any[] {
+    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
+      return [];
+    }
+
+    return summary.finalizedItems.map((vendor: any, index: number) => {
+      return {
+        ...vendor,
+        sourced_no: vendor.sourced_no || `${index + 1}`,
+        charge: vendor.charges || vendor.charge,
+        currency: vendor.currency || vendor.currency_code,
+        sourced_time: vendor.created_at || vendor.sourced_time,
+        remarks: vendor.negotiated_remarks || vendor.remarks,
+      };
+    });
+  }
+
+  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
+    if (!this.lineItems || this.lineItems.length === 0) {
+      return [];
+    }
+
+    return this.lineItems.filter((item) => {
+      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
+      return finalizedSources && finalizedSources.length > 0;
+    });
+  }
+
   clearForm() {
     this.confirmationService.confirm({
       message:
@@ -4673,6 +4896,39 @@ export class EnquiryComponent implements OnInit {
         });
       },
     });
+  }
+  private assignIdToLineItems() {
+    // Assigning the id to the line items if not present
+    this.lineItems.forEach((lineItem) => {
+      if (!lineItem.id) {
+        let id = Math.floor(Math.random() * 97); // Initial random id
+        let attempt = 0;
+
+        // Try generating a unique id, limit attempts to 10
+        while (
+          this.lineItems.some((lItem) => lItem.id === id) &&
+          attempt < 10
+        ) {
+          id = Math.floor(Math.random() * (attempt === 5 ? 131 : 97)); // Change random range on attempt 5
+          attempt++;
+        }
+
+        if (attempt === 10) {
+          // If we reach 10 attempts, show an error message and stop
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Reached maximum line item for this enquiry.',
+          });
+          return; // Stop execution for this line item if unique id cannot be generated
+        }
+
+        // Directly assign the generated id to the line item
+        lineItem.id = id;
+      }
+    });
+
+    console.log('Updated lineItems:', this.lineItems);
   }
 
   private loadMappedEnquirySeriesCode() {
