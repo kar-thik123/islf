@@ -15,6 +15,9 @@ export interface EnquiryLineItem {
   basis: string;
   remarks: string;
   status: string;
+  enquiry_id?: string | number;
+  enquiry_summary?: EnquirySummary[];
+  is_selected?: boolean;
 }
 
 export interface EnquiryVendorCard {
@@ -26,6 +29,7 @@ export interface EnquiryVendorCard {
   source_type: string;
   source_id: number;
   quantity?: number;
+  enquiry_line_item_id?: number;
   // Additional sourcing details
   mode?: string;
   from_location?: string;
@@ -36,6 +40,21 @@ export interface EnquiryVendorCard {
   expiry_date?: string;
   currency?: string;
   remarks?: string;
+}
+
+// Enquiry summary master interface
+export interface EnquirySummary {
+  master_type: string;
+  selected_no: number;
+  vendor_name: string;
+  charge: number;
+  sourced_no: number;
+  sourced_time: string;
+  sourced_list: SourcingOption[] | TariffOption[];
+  selected_source_items?: any[];
+  summary_type: string;
+  items: any[];
+  finalizedItems?: any[];
 }
 
 export interface Enquiry {
@@ -50,6 +69,7 @@ export interface Enquiry {
   mobile: string;
   landline: string;
   company_name: string;
+  cargo_type: string;
   from_location: string;
   to_location: string;
   location_type_from: string;
@@ -67,6 +87,7 @@ export interface Enquiry {
   is_new_customer?: boolean;
   source_sales_code?: string;
   service_area?: string;
+  source_updates?: any[];
 }
 
 export interface CustomerContact {
@@ -101,9 +122,11 @@ export interface SourcingOption {
   from_location: string;
   to_location: string;
   currency: string;
-  
+  enquiry_line_item_id?: number;
   basis: string;
   charges: any[];
+  buy_rate: number;
+  sell_rate: number;
   start_date: string;
   end_date: string;
   effective_date: string;
@@ -120,11 +143,12 @@ export interface TariffOption {
   charges: any[];
   effective_date: string;
   expiry_date: string;
+  enquiry_line_item_id?: number;
   mandatory: boolean;
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class EnquiryService {
   private baseUrl = `${environment.apiUrl}/api/enquiry`;
@@ -137,7 +161,12 @@ export class EnquiryService {
   ) {}
 
   /** Get all enquiries with pagination and filtering */
-  getAll(page: number = 1, limit: number = 10, search: string = '', status: string = ''): Observable<any> {
+  getAll(
+    page: number = 1,
+    limit: number = 10,
+    search: string = '',
+    status: string = ''
+  ): Observable<any> {
     const context = this.contextService.getContext();
     let params = new HttpParams()
       .set('page', page.toString())
@@ -145,9 +174,12 @@ export class EnquiryService {
 
     if (search) params = params.set('search', search);
     if (status) params = params.set('status', status);
-    if (context.companyCode) params = params.set('companyCode', context.companyCode);
-    if (context.branchCode) params = params.set('branchCode', context.branchCode);
-    if (context.departmentCode) params = params.set('departmentCode', context.departmentCode);
+    if (context.companyCode)
+      params = params.set('companyCode', context.companyCode);
+    if (context.branchCode)
+      params = params.set('branchCode', context.branchCode);
+    if (context.departmentCode)
+      params = params.set('departmentCode', context.departmentCode);
 
     return this.http.get<any>(`${this.baseUrl}`, { params });
   }
@@ -167,6 +199,10 @@ export class EnquiryService {
     return this.http.get<Enquiry>(`${this.baseUrl}/${id}`);
   }
 
+  getEnquiryPreviewByCode(code: string): Observable<Enquiry> {
+    return this.http.get<Enquiry>(`${this.baseUrl}/${code}/preview`);
+  }
+
   /** Aliases for backwards compatibility */
   getEnquiryByCode(code: string): Observable<Enquiry> {
     return this.getByCode(code);
@@ -174,6 +210,7 @@ export class EnquiryService {
   getEnquiryById(id: number): Observable<Enquiry> {
     return this.getById(id);
   }
+
   createEnquiry(enquiry: Partial<Enquiry>): Observable<Enquiry> {
     return this.create(enquiry);
   }
@@ -181,16 +218,56 @@ export class EnquiryService {
     return this.update(code, enquiry);
   }
 
+  /** Update Line Item  Selection**/
+  updateEnquiryLineItemSelection(
+    code: string,
+    lineItemList: Partial<{ [key: string]: EnquiryLineItem[] }>
+  ) {
+    console.log('Enquiry Line Item Selection list,', lineItemList);
+    return this.http.put<EnquiryLineItem[]>(
+      `${this.baseUrl}/${code}/line-items/selection`,
+      lineItemList
+    );
+  }
+
+  // updated Vendor Card SELECTION
+  updateVendorCardSelection(
+    code: string,
+    lineItemId: string | number,
+    sourcingType: string,
+    vendorCardList: EnquiryVendorCard[]
+  ) {
+    const payload = { vendorCardList, sourcingType };
+    console.log('vendor card line items list payload,', payload);
+
+    return this.http.put<EnquiryVendorCard[]>(
+      `${this.baseUrl}/${code}/line-item/${lineItemId}/selection`,
+      payload
+    );
+  }
+
   /** Create enquiry */
   create(enquiry: Partial<Enquiry>): Observable<Enquiry> {
-    const payload = this.contextPayload.withContext(enquiry, this.contextService.getContext());
-    console.log("Debug: enquiry value from create enquiry service method",enquiry,"payload value",payload);
+    const payload = this.contextPayload.withContext(
+      enquiry,
+      this.contextService.getContext()
+    );
+    console.log(
+      'Debug: enquiry value from create enquiry service method',
+      enquiry,
+      'payload value',
+      payload
+    );
     return this.http.post<Enquiry>(`${this.baseUrl}`, payload);
   }
 
   /** Update enquiry */
   update(code: string, enquiry: Partial<Enquiry>): Observable<Enquiry> {
-    const payload = this.contextPayload.withContext(enquiry, this.contextService.getContext());
+    const payload = this.contextPayload.withContext(
+      enquiry,
+      this.contextService.getContext()
+    );
+    console.log('Update enquiry payload,', payload);
     return this.http.put<Enquiry>(`${this.baseUrl}/${code}`, payload);
   }
 
@@ -203,26 +280,41 @@ export class EnquiryService {
   getCustomersDropdown(search: string = ''): Observable<CustomerDropdown[]> {
     let params = new HttpParams();
     if (search) params = params.set('search', search);
-    return this.http.get<CustomerDropdown[]>(`${this.baseUrl}/customers/dropdown`, { params });
+    return this.http.get<CustomerDropdown[]>(
+      `${this.baseUrl}/customers/dropdown`,
+      { params }
+    );
   }
 
   getCustomerContacts(customerId: number): Observable<CustomerContact[]> {
-    const payload = this.contextPayload.withContext({}, this.contextService.getContext());
-    return this.http.get<CustomerContact[]>(`${this.baseUrl}/customers/${customerId}/contacts`);
+    const payload = this.contextPayload.withContext(
+      {},
+      this.contextService.getContext()
+    );
+    return this.http.get<CustomerContact[]>(
+      `${this.baseUrl}/customers/${customerId}/contacts`
+    );
   }
 
   /** Get locations dropdown */
   getLocationsDropdown(search: string = ''): Observable<any[]> {
     let params = new HttpParams();
     if (search) params = params.set('search', search);
-    return this.http.get<any[]>(`${this.baseUrl}/locations/dropdown`, { params });
+    return this.http.get<any[]>(`${this.baseUrl}/locations/dropdown`, {
+      params,
+    });
   }
 
-  getDepartmentsDropdown(companyCode?: string, search?: string): Observable<any[]> {
+  getDepartmentsDropdown(
+    companyCode?: string,
+    search?: string
+  ): Observable<any[]> {
     const params: any = {};
     if (companyCode) params.company_code = companyCode;
     if (search) params.search = search;
-    return this.http.get<any[]>(`${this.baseUrl}/departments/dropdown`, { params });
+    return this.http.get<any[]>(`${this.baseUrl}/departments/dropdown`, {
+      params,
+    });
   }
 
   getBasisDropdown(): Observable<any[]> {
@@ -230,14 +322,32 @@ export class EnquiryService {
   }
 
   /** Get sourcing options */
-  getSourcingOptions(enquiryCode: string, criteria: any): Observable<SourcingOption[]> {
-    console.log("get Sourcing Options:",enquiryCode,"Criteria",criteria);
-    return this.http.post<SourcingOption[]>(`${this.baseUrl}/${enquiryCode}/sourcing`, criteria);
+  getSourcingOptions(
+    enquiryCode: string,
+    criteria: any
+  ): Observable<SourcingOption[]> {
+    console.log('get Sourcing Options:', enquiryCode, 'Criteria', criteria);
+    return this.http.post<SourcingOption[]>(
+      `${this.baseUrl}/${enquiryCode}/sourcing`,
+      criteria
+    );
   }
 
   /** Get tariff options */
-  getTariffOptions(enquiryCode: string, criteria: any): Observable<TariffOption[]> {
-    return this.http.post<TariffOption[]>(`${this.baseUrl}/${enquiryCode}/tariff`, criteria);
+  getTariffOptions(
+    enquiryCode: string,
+    criteria: any
+  ): Observable<TariffOption[]> {
+    console.log(
+      'get Tariff options payload for code:',
+      enquiryCode,
+      'is:',
+      criteria
+    );
+    return this.http.post<TariffOption[]>(
+      `${this.baseUrl}/${enquiryCode}/tariff`,
+      criteria
+    );
   }
 
   /** Get tariff rates */
@@ -246,38 +356,82 @@ export class EnquiryService {
   }
 
   /** Vendor card operations */
-  addVendorCards(enquiryCode: string, vendorCards: EnquiryVendorCard[]): Observable<any> {
-    const payload = this.contextPayload.withContext({ vendorCards }, this.contextService.getContext());
-    console.log("add Vendor Cards payload,", payload);
-    return this.http.post(`${this.baseUrl}/${enquiryCode}/vendor-cards`, payload);
+  addVendorCards(
+    enquiryCode: string,
+    vendorCards: EnquiryVendorCard[],
+    vendorContext: {}
+  ): Observable<any> {
+    const payload = this.contextPayload.withContext(
+      { vendorCards, ...vendorContext },
+
+      this.contextService.getContext()
+    );
+    console.log('add Vendor Cards payload,', payload);
+    return this.http.post(
+      `${this.baseUrl}/${enquiryCode}/vendor-cards`,
+      payload
+    );
   }
 
-  updateVendorCard(enquiryCode: string, cardId: number, vendorCard: Partial<EnquiryVendorCard>): Observable<any> {
-    const payload = this.contextPayload.withContext(vendorCard, this.contextService.getContext());
-    return this.http.put(`${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/negotiate`, payload);
+  updateVendorCard(
+    enquiryCode: string,
+    cardId: number,
+    vendorCard: Partial<EnquiryVendorCard>
+  ): Observable<any> {
+    const payload = this.contextPayload.withContext(
+      vendorCard,
+      this.contextService.getContext()
+    );
+    return this.http.put(
+      `${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/negotiate`,
+      payload
+    );
   }
 
-
+  /** Get all enquiries (alias for compatibility) */
+  getAllEnquiryLineItem(enquiryCode: string): Observable<any> {
+    return this.http.get<any>(
+      `${this.baseUrl}/${enquiryCode}/lineItem`
+    );
+  }
 
   /** Confirm enquiry */
   confirmEnquiry(enquiryCode: string): Observable<any> {
-    const payload = this.contextPayload.withContext({}, this.contextService.getContext());
+    const payload = this.contextPayload.withContext(
+      {},
+      this.contextService.getContext()
+    );
     return this.http.post(`${this.baseUrl}/${enquiryCode}/confirm`, payload);
   }
 
   /** Mail template generation */
-  generateMailTemplate(enquiryCode: string, templateType: string): Observable<any> {
-    const payload = this.contextPayload.withContext({ templateType }, this.contextService.getContext());
-    return this.http.post(`${this.baseUrl}/${enquiryCode}/mail-template`, payload);
+  generateMailTemplate(
+    enquiryCode: string,
+    templateType: string
+  ): Observable<any> {
+    const payload = this.contextPayload.withContext(
+      { templateType },
+      this.contextService.getContext()
+    );
+    return this.http.post(
+      `${this.baseUrl}/${enquiryCode}/mail-template`,
+      payload
+    );
   }
 
   /** Client-side mail template generator */
-  generateMailTemplateString(enquiry: Enquiry, activeVendorCard: EnquiryVendorCard): string {
+  generateMailTemplateString(
+    enquiry: Enquiry,
+    activeVendorCard: EnquiryVendorCard
+  ): string {
     const charges = activeVendorCard.charges;
     const chargesText = `Total Charges: ${charges}`;
-    const lineItemsText = enquiry.line_items.map(item =>
-      `${item.s_no}. Quantity: ${item.quantity}, Basis: ${item.basis}, Remarks: ${item.remarks}`
-    ).join('\n');
+    const lineItemsText = enquiry.line_items
+      .map(
+        (item) =>
+          `${item.s_no}. Quantity: ${item.quantity}, Basis: ${item.basis}, Remarks: ${item.remarks}`
+      )
+      .join('\n');
 
     return `
 Dear ${enquiry.customer_name},
@@ -318,7 +472,7 @@ ISLF Logistics Team
       { label: 'Open', value: 'Open' },
       { label: 'Pending', value: 'Pending' },
       { label: 'Closed', value: 'Closed' },
-      { label: 'Confirmed', value: 'Confirmed' }
+      { label: 'Confirmed', value: 'Confirmed' },
     ];
   }
 
@@ -326,7 +480,7 @@ ISLF Logistics Team
     return [
       { label: 'Active', value: 'Active' },
       { label: 'Inactive', value: 'Inactive' },
-      { label: 'Pending', value: 'Pending' }
+      { label: 'Pending', value: 'Pending' },
     ];
   }
 
@@ -339,12 +493,19 @@ ISLF Logistics Team
     if (!enquiry.from_location) errors.push('From location is required');
     if (!enquiry.to_location) errors.push('To location is required');
     if (!enquiry.department) errors.push('Department is required');
-    if (!enquiry.effective_date_from) errors.push('Effective date from is required');
-    if (!enquiry.effective_date_to) errors.push('Effective date to is required');
+    if (!enquiry.effective_date_from)
+      errors.push('Effective date from is required');
+    if (!enquiry.effective_date_to)
+      errors.push('Effective date to is required');
 
     if (enquiry.effective_date_from && enquiry.effective_date_to) {
-      if (new Date(enquiry.effective_date_from) > new Date(enquiry.effective_date_to)) {
-        errors.push('Effective date from cannot be later than effective date to');
+      if (
+        new Date(enquiry.effective_date_from) >
+        new Date(enquiry.effective_date_to)
+      ) {
+        errors.push(
+          'Effective date from cannot be later than effective date to'
+        );
       }
     }
 
@@ -369,9 +530,15 @@ ISLF Logistics Team
     return {
       ...enquiry,
       date: new Date(enquiry.date).toLocaleDateString(),
-      effective_date_from: enquiry.effective_date_from ? new Date(enquiry.effective_date_from).toLocaleDateString() : '',
-      effective_date_to: enquiry.effective_date_to ? new Date(enquiry.effective_date_to).toLocaleDateString() : '',
-      customer_display: enquiry.company_name ? `${enquiry.customer_name} - ${enquiry.company_name}` : enquiry.customer_name
+      effective_date_from: enquiry.effective_date_from
+        ? new Date(enquiry.effective_date_from).toLocaleDateString()
+        : '',
+      effective_date_to: enquiry.effective_date_to
+        ? new Date(enquiry.effective_date_to).toLocaleDateString()
+        : '',
+      customer_display: enquiry.company_name
+        ? `${enquiry.customer_name} - ${enquiry.company_name}`
+        : enquiry.customer_name,
     };
   }
 
@@ -380,7 +547,7 @@ ISLF Logistics Team
       enquiry_details: this.formatEnquiryForDisplay(enquiry),
       line_items: enquiry.line_items,
       vendor_cards: enquiry.vendor_cards || [],
-      export_date: new Date().toISOString()
+      export_date: new Date().toISOString(),
     };
   }
 }

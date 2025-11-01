@@ -159,20 +159,20 @@ import {NumberSeriesService} from '@/services/number-series.service';
               <ng-template #serviceAreaText>{{ serviceArea.service_area }}</ng-template>
             </td>
             <td>
-              <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else fromText">
-                <p-checkbox [(ngModel)]="serviceArea.from_location" [binary]="true" (onChange)="onFieldChange(serviceArea, 'from_location', serviceArea.from_location)"></p-checkbox>
+              <ng-container >
+                <p-checkbox [(ngModel)]="serviceArea.from_location" [binary]="true" (onChange)="onFieldChange(serviceArea, 'from_location', serviceArea.from_location)" [disabled]="!serviceArea.isNew && !serviceArea.isEditing"></p-checkbox>
               </ng-container>
-              <ng-template #fromText>
+              <!--<ng-template #fromText>
                 <span>{{ serviceArea.from_location ? '✓' : '✗' }}</span>
-              </ng-template>
+              </ng-template>-->
             </td>
             <td>
-              <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else toText">
-                <p-checkbox [(ngModel)]="serviceArea.to_location" [binary]="true" (onChange)="onFieldChange(serviceArea, 'to_location', serviceArea.to_location)"></p-checkbox>
+              <ng-container>
+                <p-checkbox [(ngModel)]="serviceArea.to_location" [binary]="true" (onChange)="onFieldChange(serviceArea, 'to_location', serviceArea.to_location)" [disabled]="!serviceArea.isNew && !serviceArea.isEditing" ></p-checkbox>
               </ng-container>
-              <ng-template #toText>
+              <!--<ng-template #toText>
                 <span>{{ serviceArea.to_location ? '✓' : '✗' }}</span>
-              </ng-template>
+              </ng-template> -->
             </td>
             <td>
               <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else statusText">
@@ -594,7 +594,7 @@ addRow() {
         }
       });
     } else {
-      this.serviceAreaService.updateServiceArea(serviceArea.id, serviceAreaData).subscribe({
+      this.serviceAreaService.updateServiceArea(serviceArea.code, serviceAreaData).subscribe({
         next: () => {
           this.messageService.add({
             severity: 'success',
@@ -630,14 +630,14 @@ addRow() {
   }
   
   deleteServiceArea(serviceArea: any) {
-    this.serviceAreaService.deleteServiceArea(serviceArea.id).subscribe({
+    this.serviceAreaService.deleteServiceArea(serviceArea.code).subscribe({
       next: () => {
         this.messageService.add({
           severity: 'success',
           summary: 'Success',
           detail: 'Service Area deleted successfully'
         });
-        this.serviceAreas = this.serviceAreas.filter(item => item.id !== serviceArea.id);
+        this.serviceAreas = this.serviceAreas.filter(item => item.code !== serviceArea.code);
       },
       error: (error) => {
         this.messageService.add({
@@ -703,9 +703,10 @@ addRow() {
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
-    deleteRow(serviceArea: any) {
+  
+  deleteRow(serviceArea: any) {
     if (serviceArea.id && !serviceArea.isNew) {
-      this.serviceAreaService.deleteServiceArea(serviceArea.id).subscribe({
+      this.serviceAreaService.deleteServiceArea(serviceArea.code).subscribe({
         next: () => {
           this.serviceAreas = this.serviceAreas.filter(m => m !== serviceArea);
           this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Service Area deleted' });

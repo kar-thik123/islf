@@ -58,12 +58,33 @@ export class ServiceAreaService {
     );
   }
 
-  updateServiceArea(id: number, serviceArea: ServiceArea): Observable<ServiceArea> {
+  updateServiceArea(code: string, serviceArea: ServiceArea): Observable<ServiceArea> {
     const context = this.contextService.getContext();
-    return this.http.put<ServiceArea>(
-      `${this.apiUrl}/${id}`,
-      this.contextPayloadService.withContext(serviceArea, context)
-    );
+    const config = this.configService.getConfig(); // Get current config to check validation settings
+    const customerFilter = config?.validation?.serviceAreaFilter || '';
+    
+    let contextBody: any = {};
+    
+    // Only send context parameters based on the IT setup validation/filter settings
+    if (customerFilter.includes('C') && context.companyCode) {
+      contextBody.company_code = context.companyCode;
+    }
+    if (customerFilter.includes('B') && context.branchCode) {
+      contextBody.branch_code = context.branchCode;
+    }
+    if (customerFilter.includes('D') && context.departmentCode) {
+      contextBody.department_code = context.departmentCode;
+    }
+    if (customerFilter.includes('ST') && context.serviceType) {
+      contextBody.service_type_code = context.serviceType;
+    }
+    
+    let body: {} ={
+      ...contextBody,
+      ...serviceArea
+    } 
+
+    return this.http.put<ServiceArea>(`${this.apiUrl}/${code}`, body);
   }
 
   deleteServiceArea(id: number): Observable<any> {

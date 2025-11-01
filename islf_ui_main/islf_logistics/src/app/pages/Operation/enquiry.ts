@@ -52,8 +52,10 @@ import { NumberSeriesService } from '../../services/number-series.service';
 import { MasterLocationService } from '../../services/master-location.service';
 import { DepartmentService } from '../../services/department.service';
 import { BasisService } from '../../services/basis.service';
+import { MasterItemService } from '../../services/master-item.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
 import { MasterTypeService } from '../../services/mastertype.service';
+import { CurrencyCodeService } from '../../services/currencycode.service';
 import { AuthService } from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
@@ -69,8 +71,8 @@ import { of } from 'rxjs';
 import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../masters/sourceSales';
-import { Tree } from 'primeng/tree';
-
+import { CargoTypeMasterComponent } from '../masters/cargotype';
+import { CurrencyCodeComponent } from '../masters/currencycode';
 @Component({
   selector: 'app-enquiry',
   standalone: true,
@@ -103,6 +105,8 @@ import { Tree } from 'primeng/tree';
     MasterTypeComponent,
     ServiceAreaComponent,
     SourceSalesComponent,
+    CargoTypeMasterComponent,
+    CurrencyCodeComponent,
     MenuModule,
     TreeTableModule,
   ],
@@ -148,7 +152,6 @@ import { Tree } from 'primeng/tree';
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
-                <i class="pi pi-search"></i>
                 <input
                   pInputText
                   type="text"
@@ -567,6 +570,33 @@ import { Tree } from 'primeng/tree';
               </div>
             </div>
             <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Cargo Type</label>
+              <div class="flex gap-2">
+                <p-dropdown
+                  appendTo="body"
+                  [options]="cargoTypeOptions"
+                  [(ngModel)]="selectedEnquiry.cargo_type"
+                  placeholder="Select Cargo Type"
+                  [filter]="true"
+                  filterBy="label"
+                  [showClear]="true"
+                  class="flex-1"
+                >
+                </p-dropdown>
+                <button
+                  pButton
+                  [icon]="
+                    masterDialogLoading['cargoType']
+                      ? 'pi pi-spin pi-spinner'
+                      : 'pi pi-ellipsis-h'
+                  "
+                  class="p-button-sm"
+                  [disabled]="masterDialogLoading['cargoType']"
+                  (click)="openMaster('cargoType')"
+                ></button>
+              </div>
+            </div>
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">From Location Type</label>
               <div class="flex gap-2">
                 <p-dropdown
@@ -874,12 +904,20 @@ import { Tree } from 'primeng/tree';
                 label="Add Line Item"
                 icon="pi pi-plus"
                 (click)="addLineItem()"
-                class="p-button-success p-button-sm"
+                class="p-button-sm"
               ></button>
-              <p-button 
+              <button
+                pButton
+                type="button"
+                label="Preview"
+                icon="pi pi-eye"
+                (click)="showEnquiryPreview()"
+                class=" p-button-sm"
+              ></button>
+              <p-button
                 *ngIf="finalizedVendors && finalizedVendors.length > 0"
-                label="View Finalized Vendors ({{finalizedVendors.length}})" 
-                icon="pi pi-list" 
+                label="View Finalized Vendors ({{ finalizedVendors.length }})"
+                icon="pi pi-list"
                 (click)="showFinalizedVendorsDialog = true"
                 styleClass="p-button-info p-button-sm"
               ></p-button>
@@ -887,17 +925,21 @@ import { Tree } from 'primeng/tree';
 
             <p-table
               [value]="lineItems"
-              dataKey="id"
+              dataKey="s_no"
               [responsive]="true"
               [paginator]="false"
-               styleClass="p-datatable-sm line-items-table"
-                [scrollable]="true"
-               scrollHeight="400px"
+              [(selection)]="selectedLineItems"
+              styleClass="p-datatable-sm line-items-table"
+              [scrollable]="true"
+              (selectionChange)="onSelectionLineItemChange($event)"
+              scrollHeight="400px"
             >
               <ng-template pTemplate="header">
                 <tr>
-                  <th style="width: 3%"></th> <!-- Toggle -->
-                  <th style="width: 3%"><p-tableHeaderCheckbox /></th> <!-- Checkbox -->
+                  <th style="width: 3%"></th>
+                  <!-- Toggle -->
+                  <th style="width: 3%"><p-tableHeaderCheckbox /></th>
+                  <!-- Checkbox -->
                   <th style="width: 5%">S.No.</th>
                   <th style="width: 8%">Quantity</th>
                   <th style="width: 15%">Type</th>
@@ -1038,7 +1080,7 @@ import { Tree } from 'primeng/tree';
                     >
                     </p-dropdown>
                   </td>
-                 <td style="width: 300px; min-width: 300px">
+                  <td style="width: 300px; min-width: 300px">
                     <div class="flex gap-1 action-buttons">
                       <button
                         pButton
@@ -1078,171 +1120,267 @@ import { Tree } from 'primeng/tree';
                 </tr>
               </ng-template>
               <!-- In the line item expanded row template -->
-<ng-template #expandedrow let-item>
-  <tr>
-    <td colspan="10"> <!-- Increased colspan to match your header columns -->
-      <div class="p-4 w-full expanded-line-item-container">
-        <h5>Line Item summary {{ item.s_no }}</h5>
-        <p-table [value]="item.enquiry_summary" dataKey="id" styleClass="w-full expanded-summary-table">
-          <ng-template #header>
-            <tr>
-              <th style="width: 3rem"></th>
-              <th pSortableColumn="summary_type" style="width: 120px">
-                <div class="flex items-center gap-2">
-                  Type
-                  <p-sortIcon field="price" />
-                </div>
-              </th>
-              <th pSortableColumn="sourced_no" style="width: 150px">
-                <div class="flex items-center gap-2">
-                  Source No
-                  <p-sortIcon field="price" />
-                </div>
-              </th>
-              <th pSortableColumn="vendor_name" style="width: 200px">
-                <div class="flex items-center gap-2">
-                  Vendor Name
-                  <p-sortIcon field="customer" />
-                </div>
-              </th>
-              <th pSortableColumn="currency_code" style="width: 120px">
-                <div class="flex items-center gap-2">
-                  Currency Code
-                  <p-sortIcon field="date" />
-                </div>
-              </th>
-              <th pSortableColumn="charge" style="width: 120px">
-                <div class="flex items-center gap-2">
-                  Charge
-                  <p-sortIcon field="date" />
-                </div>
-              </th>
-              <th pSortableColumn="sourced_time" style="width: 180px">
-                <div class="flex items-center gap-2">
-                  Sourced Time
-                  <p-sortIcon field="date" />
-                </div>
-              </th>
-              <th pSortableColumn="remarks" style="width: 250px">
-                <div class="flex items-center gap-2">
-                  Remarks
-                  <p-sortIcon field="date" />
-                </div>
-              </th>
-            </tr>
-          </ng-template>
-          <ng-template #body let-summary let-expanded="expanded">
-            <tr>
-              <td>
-                <p-button
-                  type="button"
-                  pRipple
-                  [pRowToggler]="summary"
-                  [text]="true"
-                  severity="secondary"
-                  [rounded]="true"
-                  [icon]="
-                    expanded
-                      ? 'pi pi-chevron-down'
-                      : 'pi pi-chevron-right'
-                  "
-                />
-              </td>
-              <td>{{ summary.summary_type }}</td>
-              <td>{{ summary.sourced_no || '--' }}</td>
-              <td>{{ summary.vendor_name }}</td>
-              <td>{{ summary.currency_code }}</td>
-              <td>{{ summary.charge }}</td>
-              <td>{{ summary.sourced_time }}</td>
-              <td>{{ summary.remarks }}</td>
-            </tr>
-          </ng-template>
-          <ng-template #expandedrow let-source>
-            <tr>
-              <td colspan="8"> <!-- Increased colspan to match summary columns -->
-                <div class="p-4 w-full expanded-source-container">
-                  <h5>{{ source.summary_type }} List</h5>
-                  <p-table
-                    [value]="source.sourced_list"
-                    dataKey="id"
-                    styleClass="w-full expanded-source-table"
-                    [(selection)]="source.selectedItems"
-                    (selectionChange)="onSelectionChange(source)"
-                  >
-                    <ng-template pTemplate="caption">
-                      <div class="flex justify-between items-center p-2">
-                        <span class="font-bold">{{ source.selectedItems?.length || 0 }} vendors selected</span>
-                        <button 
-                          pButton 
-                          type="button" 
-                          label="Finalize Selection" 
-                          [disabled]="!source.selectedItems || source.selectedItems.length === 0"
-                          (click)="finalizeVendorSelection(source)"
-                          class="p-button-success"
-                        ></button>
-                      </div>
-                    </ng-template>
-                    <ng-template #header>
-                      <tr>
-                        <th style="width: 3rem">
-                          <p-tableHeaderCheckbox />
-                        </th>
-                        <th style="width: 150px">Source No</th>
-                        <th style="width: 200px">Vendor Name</th>
-                        <th style="width: 100px">Currency</th>
-                        <th style="width: 120px">Buy Price</th>
-                        <th style="width: 120px">Sell Price</th>
-                        <th style="width: 200px">Remarks</th>
-                        <th style="width: 180px">Sourced Time</th>
-                      </tr>
-                    </ng-template>
-                    <ng-template #body let-source>
-                      <tr>
-                        <td>
-                          <p-tableCheckbox [value]="source" />
-                        </td>
-                        <td>{{ source.sourced_no  }}</td>
-                        <td>{{ source.vendor_name }}</td>
-                        <td>{{ source.currency }}</td>
-                        <td>{{ source.charges }}</td>
-                        <td>
-                          <input
-                            type="text"
-                            pInputText
-                            [(ngModel)]="value"
-                            placeholder="{{ source.negotiated_charges }}"
-                            style="width: 100%"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            pInputText
-                            [(ngModel)]="source.negotiated_remarks"
-                            placeholder="Enter remarks"
-                            style="width: 100%"
-                          />
-                        </td>
-                        <td>{{ source.created_at }}</td>
-                      </tr>
-                    </ng-template>
-                    <ng-template #emptymessage>
-                      <tr>
-                        <td colspan="8" style="text-align: center; padding: 1rem;">
-                          There are no sourced items for this Line Item yet.
-                        </td>
-                      </tr>
-                    </ng-template>
-                  </p-table>
-                </div>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-    </td>
-  </tr>
-</ng-template>
+              <ng-template #expandedrow let-item>
+                <tr>
+                  <td colspan="10">
+                    <!-- Increased colspan to match your header columns -->
+                    <div class="p-4 w-full expanded-line-item-container">
+                      <h5>Line Item summary {{ item.s_no }}</h5>
+                      <p-table
+                        [value]="item.enquiry_summary"
+                        dataKey="id"
+                        styleClass="w-full expanded-summary-table"
+                      >
+                        <ng-template #header>
+                          <tr>
+                            <th style="width: 3rem"></th>
+                            <th
+                              pSortableColumn="summary_type"
+                              style="width: 120px"
+                            >
+                              <div class="flex items-center gap-2">
+                                Type
+                                <p-sortIcon field="price" />
+                              </div>
+                            </th>
+                            <th
+                              pSortableColumn="sourced_no"
+                              style="width: 150px"
+                            >
+                              <div class="flex items-center gap-2">
+                                Source No
+                                <p-sortIcon field="price" />
+                              </div>
+                            </th>
+                            <th
+                              pSortableColumn="vendor_name"
+                              style="width: 200px"
+                            >
+                              <div class="flex items-center gap-2">
+                                Vendor Name
+                                <p-sortIcon field="customer" />
+                              </div>
+                            </th>
+                            <th
+                              pSortableColumn="currency_code"
+                              style="width: 120px"
+                            >
+                              <div class="flex items-center gap-2">
+                                Currency Code
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="charge" style="width: 120px">
+                              <div class="flex items-center gap-2">
+                                Charge
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                            <th
+                              pSortableColumn="sourced_time"
+                              style="width: 180px"
+                            >
+                              <div class="flex items-center gap-2">
+                                Sourced Time
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                            <th pSortableColumn="remarks" style="width: 250px">
+                              <div class="flex items-center gap-2">
+                                Remarks
+                                <p-sortIcon field="date" />
+                              </div>
+                            </th>
+                          </tr>
+                        </ng-template>
+                        <ng-template #body let-summary let-expanded="expanded">
+                          <tr>
+                            <td>
+                              <p-button
+                                type="button"
+                                pRipple
+                                [pRowToggler]="summary"
+                                [text]="true"
+                                severity="secondary"
+                                [rounded]="true"
+                                [icon]="
+                                  expanded
+                                    ? 'pi pi-chevron-down'
+                                    : 'pi pi-chevron-right'
+                                "
+                              />
+                            </td>
+                            <td>{{ summary.summary_type }}</td>
+                            <td>{{ summary.sourced_no || '--' }}</td>
+                            <td>{{ summary.vendor_name }}</td>
+                            <td>{{ summary.currency_code }}</td>
+                            <td>{{ summary.charge }}</td>
+                            <td>
+                              {{
+                                formatDateTime(summary.sourced_time) ||
+                                  summary.sourced_time ||
+                                  '--'
+                              }}
+                            </td>
+                            <td>{{ summary.remarks }}</td>
+                          </tr>
+                        </ng-template>
+                        <ng-template #expandedrow let-source>
+                          <tr>
+                            <td colspan="8">
+                              <!-- Increased colspan to match summary columns -->
+                              <div class="p-4 w-full expanded-source-container">
+                                <h5>{{ source.summary_type }} List</h5>
+                                <p-table
+                                  [value]="source.sourced_list"
+                                  dataKey="id"
+                                  styleClass="w-full expanded-source-table"
+                                  [(selection)]="source.selected_source_items"
+                                  (selectionChange)="onSelectionChange(source)"
+                                >
+                                  <ng-template pTemplate="caption">
+                                    <div
+                                      class="flex justify-between items-center p-2"
+                                    >
+                                      <span class="font-bold"
+                                        >{{
+                                          source.selected_source_items
+                                            ?.length || 0
+                                        }}
+                                        vendors selected</span
+                                      >
+
+                                      <button
+                                        pButton
+                                        type="button"
+                                        label="Finalize Selection"
+                                        [disabled]="
+                                          !source.selected_source_items ||
+                                          source.selected_source_items
+                                            .length === 0
+                                        "
+                                        (click)="
+                                          finalizeVendorSelection(source)
+                                        "
+                                        class="p-button-sm"
+                                      ></button>
+                                    </div>
+                                  </ng-template>
+                                  <ng-template #header>
+                                    <tr>
+                                      <th style="width: 3rem">
+                                        <p-tableHeaderCheckbox />
+                                      </th>
+                                      <th style="width: 150px">Source No</th>
+                                      <th style="width: 200px">Vendor Name</th>
+                                      <th style="width: 100px">Currency</th>
+                                      <th style="width: 120px">Buy Price</th>
+                                      <th style="width: 100px">
+                                        Currency Sell Price
+                                      </th>
+
+                                      <th style="width: 120px">Sell Price</th>
+                                      <th style="width: 200px">Remarks</th>
+                                      <th style="width: 180px">Sourced Time</th>
+                                    </tr>
+                                  </ng-template>
+                                  <ng-template #body let-source>
+                                    <tr>
+                                      <td>
+                                        <p-tableCheckbox [value]="source" />
+                                      </td>
+                                      <td>{{ source.sourced_no }}</td>
+                                      <td>{{ source.vendor_name }}</td>
+                                      <td>{{ source.currency }}</td>
+                                      <td>{{ source.charges }}</td>
+                                      <td>
+                                        <div class="flex gap-2">
+                                          <p-dropdown
+                                            [(ngModel)]="
+                                              source.sell_price_charges
+                                            "
+                                            [options]="sellPriceCurrencyOptions"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            placeholder="Select type"
+                                            class="flex-1"
+                                            appendTo="body"
+                                          >
+                                          </p-dropdown>
+                                          <button
+                                            pButton
+                                            [icon]="
+                                              masterDialogLoading[
+                                                'currencyCode'
+                                              ]
+                                                ? 'pi pi-spin pi-spinner'
+                                                : 'pi pi-ellipsis-h'
+                                            "
+                                            class="p-button-sm"
+                                            [disabled]="
+                                              masterDialogLoading[
+                                                'currencyCode'
+                                              ]
+                                            "
+                                            (click)="openMaster('currencyCode')"
+                                            appendTo="body"
+                                          ></button>
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <input
+                                          type="text"
+                                          pInputText
+                                          [(ngModel)]="
+                                            source.negotiated_charges
+                                          "
+                                          placeholder="{{
+                                            source.negotiated_charges
+                                          }}"
+                                          style="width: 100%"
+                                        />
+                                      </td>
+                                      <td>
+                                        <input
+                                          type="text"
+                                          pInputText
+                                          [(ngModel)]="
+                                            source.negotiated_remarks
+                                          "
+                                          placeholder="Enter remarks"
+                                          style="width: 100%"
+                                        />
+                                      </td>
+                                      <td>
+                                        {{
+                                          formatDateTime(source.created_at) ||
+                                            source.created_at ||
+                                            '--'
+                                        }}
+                                      </td>
+                                    </tr>
+                                  </ng-template>
+                                  <ng-template #emptymessage>
+                                    <tr>
+                                      <td
+                                        colspan="8"
+                                        style="text-align: center; padding: 1rem;"
+                                      >
+                                        There are no sourced items for this Line
+                                        Item yet.
+                                      </td>
+                                    </tr>
+                                  </ng-template>
+                                </p-table>
+                              </div>
+                            </td>
+                          </tr>
+                        </ng-template>
+                      </p-table>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
                   <td colspan="6" class="text-center py-4">
@@ -1370,7 +1508,7 @@ import { Tree } from 'primeng/tree';
                 icon="pi pi-envelope"
                 (click)="generateMail()"
                 [disabled]="!canGenerateMail()"
-                class="p-button-help"
+                class="p-button-sm"
                 pTooltip="Generate Mail Template based on Active Vendor Card + Customer Details"
               ></button>
               <button
@@ -1389,7 +1527,7 @@ import { Tree } from 'primeng/tree';
                 icon="pi pi-check-circle"
                 (click)="confirmEnquiry()"
                 [disabled]="!canConfirmEnquiry()"
-                class="p-button-primary"
+                class="p-button-sm"
                 pTooltip="Save all details into Booking Table. If customer is new, also save to Customer Table."
               ></button>
             </div>
@@ -1411,7 +1549,7 @@ import { Tree } from 'primeng/tree';
               icon="pi pi-times"
               [text]="true"
               (click)="hideDialog()"
-              severity="secondary"
+              class="p-button-sm"
               size="small"
             >
             </p-button>
@@ -1420,7 +1558,7 @@ import { Tree } from 'primeng/tree';
               label="Save Draft"
               icon="pi pi-save"
               (click)="saveEnquiry()"
-              severity="info"
+              class="p-button-sm"
               size="small"
             >
             </p-button>
@@ -1429,7 +1567,7 @@ import { Tree } from 'primeng/tree';
               label="Update"
               icon="pi pi-check"
               (click)="saveEnquiry()"
-              severity="success"
+              class="p-button-sm"
               size="small"
             >
             </p-button>
@@ -1596,6 +1734,56 @@ import { Tree } from 'primeng/tree';
         <basis-code></basis-code>
       </ng-template>
     </p-dialog>
+    <!--Cargo Type Dialog -->
+    <p-dialog
+      header="Cargo Type Master"
+      [(visible)]="showCargoTypeDialog"
+      [modal]="true"
+      [style]="{
+        width: 'auto',
+        minWidth: '60vw',
+        maxWidth: '95vw',
+        height: 'auto',
+        maxHeight: '90vh'
+      }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('cargoType')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <cargo-type></cargo-type>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Currency Code Dialog -->
+    <p-dialog
+      header="Currency Code Master"
+      [(visible)]="showCurrencyCodeDialog"
+      [modal]="true"
+      [style]="{
+        width: 'auto',
+        minWidth: '60vw',
+        maxWidth: '95vw',
+        height: 'auto',
+        maxHeight: '90vh'
+      }"
+      [contentStyle]="{ overflow: 'visible' }"
+      [baseZIndex]="10000"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false"
+      (onHide)="closeMasterDialog('currencyCode')"
+      [closeOnEscape]="true"
+    >
+      <ng-template pTemplate="content">
+        <currency-code></currency-code>
+      </ng-template>
+    </p-dialog>
+
     <!--Master Type Dialog-->
     <p-dialog
       header="Service Type Master"
@@ -1692,162 +1880,441 @@ import { Tree } from 'primeng/tree';
         <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
       </ng-template>
     </p-dialog>
-     <!-- Finalized Vendors Preview Dialog -->
-    <p-dialog 
-      [(visible)]="showFinalizedVendorsDialog" 
-      header="Finalized Vendors" 
-      [modal]="true" 
-      [style]="{width: '80vw'}" 
-      [draggable]="false" 
+    <!-- Enquiry Preview Dialog -->
+    <p-dialog
+      [(visible)]="showPreviewDialog"
+      header="Enquiry Preview "
+      [modal]="true"
+      [style]="{ width: '95vw', maxHeight: '90vh' }"
+      [draggable]="false"
       [resizable]="false"
     >
-      <p-table 
-        [value]="finalizedVendors" 
-        [paginator]="true" 
-        [rows]="10" 
-        [rowsPerPageOptions]="[5, 10, 20]" 
-        styleClass="p-datatable-sm"
-      >
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Line Item</th>
-            <th>Type</th>
-            <th>Source No</th>
-            <th>Vendor Name</th>
-            <th>Currency</th>
-            <th>Charge</th>
-            <th>Remarks</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-vendor>
-          <tr>
-            <td>{{vendor.lineItemNo}}</td>
-            <td>{{vendor.type}}</td>
-            <td>{{vendor.sourceNo}}</td>
-            <td>{{vendor.vendorName}}</td>
-            <td>{{vendor.currency}}</td>
-            <td>{{vendor.charge}}</td>
-            <td>{{vendor.remarks}}</td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="7" class="text-center p-4">
-              No finalized vendors found.
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+      <div class="p-4 preview-container">
+        <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
+
+        <!-- General Enquiry Details -->
+        <div class="mb-6 p-4 border rounded bg-gray-50">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p>
+                <span class="font-semibold">Enquiry Code:</span>
+                {{ selectedEnquiryPreview?.code || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Customer:</span>
+                {{ selectedEnquiryPreview?.customer_name || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Company:</span>
+                {{ selectedEnquiryPreview?.company_name || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">From:</span>
+                {{ selectedEnquiryPreview?.from_location || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">To:</span>
+                {{ selectedEnquiryPreview?.to_location || '--' }}
+              </p>
+            </div>
+            <div>
+              <p>
+                <span class="font-semibold">Service Type:</span>
+                {{ selectedEnquiryPreview?.service_type || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Cargo Type:</span>
+                {{ selectedEnquiryPreview?.cargo_type || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Department:</span>
+                {{ selectedEnquiryPreview?.department || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Status:</span>
+                {{ selectedEnquiryPreview?.status || '--' }}
+              </p>
+              <p>
+                <span class="font-semibold">Date:</span>
+                {{ formatDate(selectedEnquiryPreview?.date) || '--' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Line Items Display with Finalized Vendors Only -->
+        <h4 class="text-lg font-bold mb-4">Line Items</h4>
+        <div class="mb-6">
+          <div class="grid grid-cols-1 gap-6">
+            <div
+              *ngFor="
+                let item of this.selectedEnquiryPreview?.line_items;
+                let i = index
+              "
+              class="line-item-card p-4 border rounded-lg bg-white shadow-sm"
+            >
+              <!-- Line Item Header -->
+              <div class="flex justify-between items-start mb-4 pb-3 border-b">
+                <div>
+                  <h5 class="font-bold text-lg">Line Item {{ i + 1 }}</h5>
+                  <p class="text-sm text-gray-600">
+                    {{ item.type || 'No type specified' }}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <span
+                    class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="{
+                      'bg-green-100 text-green-800': item.status === 'Active',
+                      'bg-gray-100 text-gray-800': item.status === 'Inactive',
+                      'bg-yellow-100 text-yellow-800': item.status === 'Pending'
+                    }"
+                  >
+                    {{ item.status || 'Active' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Line Item Details - Horizontal Layout -->
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Service Area</label
+                  >
+                  <p class="mt-1">{{ item.service_area || '--' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Basis</label
+                  >
+                  <p class="mt-1">{{ item.basis || '--' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Quantity</label
+                  >
+                  <p class="mt-1">{{ item.quantity || 0 }}</p>
+                </div>
+                <div class="detail-item">
+                  <label class="font-semibold text-sm text-gray-600"
+                    >Remarks</label
+                  >
+                  <p class="mt-1">{{ item.remarks || '--' }}</p>
+                </div>
+              </div>
+
+              <!-- Finalized Sourcing/Tariff Lists -->
+              <div class="mt-4">
+                <div class="space-y-4">
+                  <div
+                    *ngFor="
+                      let summary of item?.enquiry_summary;
+                      let idx = index
+                    "
+                    class="source-section"
+                  >
+                    <h6 class="font-semibold mb-2 text-green-700 capitalize">
+                      {{ summary.summary_type }} Vendor's List
+                    </h6>
+                    <!-- Finalized Vendors List -->
+                    <div class="source-list-container">
+                      <p-table
+                        [value]="
+                          summary.selected_source_items || []
+                        "
+                        styleClass="p-datatable-sm w-full source-list-table"
+                      >
+                        <ng-template pTemplate="header">
+                          <tr>
+                            <th style="width: 120px">Source No</th>
+                            <th style="width: 200px">Vendor Name</th>
+                            <th style="width: 100px">Currency</th>
+                            <th style="width: 120px">Charge</th>
+                            <th style="width: 150px">Sourced Time</th>
+                            <th style="width: 250px">Remarks</th>
+                          </tr>
+                        </ng-template>
+                        <ng-template
+                          pTemplate="body"
+                          let-source
+                          let-i="rowIndex"
+                        >
+                          <tr>
+                            <!-- <td>{{ getSourceNumber(source, i) }}</td> -->
+                            <td>{{ source.sourced_no }}</td>
+                            <td class="font-medium">
+                              {{ source.vendor_name }}
+                            </td>
+                            <td>
+                              {{
+                                source.currency || source.currency_code || '--'
+                              }}
+                            </td>
+                            <td>
+                              <span class="font-semibold">
+                                {{ source.charge || source.charges || '--' }}
+                              </span>
+                            </td>
+                            <td>
+                              {{
+                                formatDateTime(source.created_at) ||
+                                  source.sourced_time ||
+                                  '--'
+                              }}
+                            </td>
+                            <td class="remarks-cell">
+                              {{
+                                source.remarks ||
+                                  source.negotiated_remarks ||
+                                  '--'
+                              }}
+                            </td>
+                          </tr>
+                        </ng-template>
+                        <ng-template pTemplate="emptymessage">
+                          <tr>
+                            <td
+                              colspan="6"
+                              class="text-center p-4 text-gray-500"
+                            >
+                              No finalized {{ summary.summary_type }} items
+                              available
+                            </td>
+                          </tr>
+                        </ng-template>
+                      </p-table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- No Finalized Sources Message -->
+              <!-- <div
+                *ngIf="item?.enquiry_summary?.[0]?.selected_source_items?.length ===0 ||
+                item?.enquiry_summary?.[0]?.selected_source_items"
+                class="mt-4 p-4 text-center border rounded bg-gray-50"
+              >
+                <p class="text-gray-500">
+                  No vendors available for this line item.
+                </p>
+              </div> -->
+            </div>
+          </div>
+        </div>
+
+        <!-- No Line Items with Finalized Vendors Message -->
+        <div
+          *ngIf="
+            !getLineItemsWithFinalizedSources() &&
+            1 !== 1 &&
+            getLineItemsWithFinalizedSources().length === 0
+          "
+          class="p-8 text-center border rounded bg-gray-50"
+        >
+          <p class="text-gray-500 text-lg">
+            No line items with vendors available for preview.
+          </p>
+        </div>
+
+        <!-- Finalized Vendors Summary -->
+        <div
+          *ngIf="finalizedVendors && finalizedVendors.length > 0"
+          class="mt-6"
+        >
+          <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
+          <div class="p-4 border rounded bg-blue-50">
+            <p class="font-semibold">
+              Total Vendors: {{ finalizedVendors.length }}
+            </p>
+            <button
+              pButton
+              label="View Detailed List"
+              icon="pi pi-list"
+              (click)="showFinalizedVendorsDialog = true"
+              class="p-button-sm p-button-info mt-2"
+            ></button>
+          </div>
+        </div>
+      </div>
+
       <ng-template pTemplate="footer">
-        <div class="flex justify-content-end">
-          <button 
-            pButton 
-            label="Close" 
-            icon="pi pi-times" 
-            (click)="showFinalizedVendorsDialog = false"
-          ></button>
+        <div class="flex justify-between items-center">
+          <div>
+            <button
+              pButton
+              label="Close"
+              icon="pi pi-times"
+              (click)="showPreviewDialog = false"
+              class="p-button-sm"
+            ></button>
+          </div>
         </div>
       </ng-template>
     </p-dialog>
   `,
   styles: [
     `
-  .vendor-card {
-      border: 2px solid #e9ecef;
-      transition: all 0.3s ease;
-    }
+      /* Preview Dialog Styles */
+      .preview-container {
+        max-height: calc(90vh - 100px);
+        overflow-y: auto;
+      }
 
-    .vendor-card.active-vendor {
-      border-color: #007ad9;
-      box-shadow: 0 0 10px rgba(0, 122, 217, 0.3);
-    }
+      .line-item-card {
+        transition: all 0.3s ease;
+      }
 
-    .vendor-cards-container {
-      margin-top: 1rem;
-    }
+      .line-item-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
 
-    .vendor-cards-table .active-vendor-row {
-      background-color: #f0f8ff !important;
-      border-left: 4px solid #007ad9;
-    }
+      .detail-item {
+        padding: 8px 0;
+      }
 
-    .vendor-cards-table .active-vendor-row:hover {
-      background-color: #e6f3ff !important;
-    }
+      .source-section {
+        border-left: 3px solid #3b82f6;
+        padding-left: 12px;
+      }
 
-    .charges-display {
-      max-width: 200px;
-    }
+      .source-list-container {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+      }
 
-    .charges-display .text-sm {
-      margin-bottom: 2px;
-    }
+      .source-list-table .p-datatable-wrapper {
+        border-radius: 6px;
+      }
 
-    .mail-preview {
-      background: #f8f9fa;
-      padding: 1rem;
-      border-radius: 4px;
-      max-height: 400px;
-      overflow-y: auto;
-    }
+      .source-list-table .p-datatable-thead > tr > th {
+        background-color: #f8fafc;
+        color: #374151;
+        font-weight: 600;
+        padding: 12px;
+        border-bottom: 2px solid #e5e7eb;
+      }
 
-    .mail-preview pre {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-      line-height: 1.4;
-    }
+      .source-list-table .p-datatable-tbody > tr > td {
+        padding: 12px;
+        vertical-align: top;
+      }
 
-    /* Expanded tree table styles */
-    .expanded-line-item-container {
-      min-width: 1200px;
-      overflow-x: auto;
-    }
+      .source-list-table .p-datatable-tbody > tr:hover {
+        background-color: #f9fafb;
+      }
 
-    .expanded-summary-table {
-      min-width: 1100px;
-    }
+      .remarks-cell {
+        max-width: 250px;
+        word-wrap: break-word;
+      }
 
-    .expanded-summary-table .p-datatable-wrapper {
-      overflow-x: auto;
-    }
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .detail-item {
+          border-bottom: 1px solid #f3f4f6;
+          padding: 12px 0;
+        }
 
-    .expanded-source-container {
-      min-width: 1000px;
-      overflow-x: auto;
-    }
+        .detail-item:last-child {
+          border-bottom: none;
+        }
+      }
+      .vendor-card {
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+      }
 
-    .expanded-source-table {
-      min-width: 1000px;
-    }
+      .vendor-card.active-vendor {
+        border-color: #007ad9;
+        box-shadow: 0 0 10px rgba(0, 122, 217, 0.3);
+      }
 
-    .expanded-source-table .p-datatable-wrapper {
-      overflow-x: auto;
-    }
+      .vendor-cards-container {
+        margin-top: 1rem;
+      }
 
-    /* Ensure proper width for nested tables */
-    .p-datatable .p-datatable .p-datatable-wrapper {
-      min-width: 100%;
-    }
+      .vendor-cards-table .active-vendor-row {
+        background-color: #f0f8ff !important;
+        border-left: 4px solid #007ad9;
+      }
 
-    /* Make the main table container wider */
-    .grid-container {
-      overflow-x: auto;
-    }
+      .vendor-cards-table .active-vendor-row:hover {
+        background-color: #e6f3ff !important;
+      }
 
-    /* Style for the main line items table */
-    .p-datatable-sm .p-datatable-wrapper {
-      overflow-x: auto;
-    }
+      .charges-display {
+        max-width: 200px;
+      }
 
-    /* Ensure dialog content can scroll horizontally if needed */
-    .dialog-body-padding {
-      overflow-x: auto;
-    }
+      .charges-display .text-sm {
+        margin-bottom: 2px;
+      }
+
+      .mail-preview {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 4px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .mail-preview pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      /* Expanded tree table styles */
+      .expanded-line-item-container {
+        min-width: 1200px;
+        overflow-x: auto;
+      }
+
+      .expanded-summary-table {
+        min-width: 1100px;
+      }
+
+      .expanded-summary-table .p-datatable-wrapper {
+        overflow-x: auto;
+      }
+
+      .expanded-source-container {
+        min-width: 1000px;
+        overflow-x: auto;
+      }
+
+      .expanded-source-table {
+        min-width: 1000px;
+      }
+
+      .expanded-source-table .p-datatable-wrapper {
+        overflow-x: auto;
+      }
+
+      /* Ensure proper width for nested tables */
+      .p-datatable .p-datatable .p-datatable-wrapper {
+        min-width: 100%;
+      }
+
+      /* Make the main table container wider */
+      .grid-container {
+        overflow-x: auto;
+      }
+
+      /* Style for the main line items table */
+      .p-datatable-sm .p-datatable-wrapper {
+        overflow-x: auto;
+      }
+
+      /* Ensure dialog content can scroll horizontally if needed */
+      .dialog-body-padding {
+        overflow-x: auto;
+      }
     `,
   ],
- 
 })
 export class EnquiryComponent implements OnInit {
   showServiceAreaDialog = false;
@@ -1858,14 +2325,19 @@ export class EnquiryComponent implements OnInit {
   vendorTreeNodesByLine: { [index: number]: TreeNode[] } = {};
   selectedTreeKeysByLine: { [index: number]: { [key: string]: boolean } } = {};
   vendorNodeMapByLine: { [index: number]: { [key: string]: any } } = {};
-  
+
   // Finalized vendors preview
   finalizedVendors: any[] = [];
   showFinalizedVendorsDialog: boolean = false;
+  showPreviewDialog: boolean = false;
 
   selectedServiceArea: string = '';
   enquiryForm!: FormGroup;
   lineItems: EnquiryLineItem[] = [];
+
+  // selected LineItem Array
+  selectedLineItems: EnquiryLineItem[] = [];
+
   // enquirySummaryList: EnquirySummary[] = [
   //   {
   //     master_type: 'sourcing',
@@ -1888,6 +2360,8 @@ export class EnquiryComponent implements OnInit {
   // Table data
   enquiries: Enquiry[] = [];
   selectedEnquiry: Enquiry | null = null;
+  selectedEnquiryPreview: Enquiry | null = null;
+
   isDialogVisible = false;
   fieldErrors: { [key: string]: string } = {};
 
@@ -1912,6 +2386,9 @@ export class EnquiryComponent implements OnInit {
 
   // Department options
   departmentOptions: any[] = [];
+
+  // Cargo Type options
+  cargoTypeOptions: any[] = [];
 
   // Basis options
   basisOptions: any[] = [];
@@ -1950,6 +2427,8 @@ export class EnquiryComponent implements OnInit {
   showMasterLocationDialog = false;
   showBasisDialog = false;
   showMasterTypeDialog = false;
+  showCargoTypeDialog = false;
+  showCurrencyCodeDialog = false;
 
   showServiceTypeDialog = false;
   masterTypeFilter = '';
@@ -1981,6 +2460,7 @@ export class EnquiryComponent implements OnInit {
   // Vendor management
   availableVendors: (SourcingOption | TariffOption)[] = [];
   selectedVendors: (SourcingOption | TariffOption)[] = [];
+  selectedVendorType = {};
   currentVendorSource: 'sourcing' | 'tariff' = 'sourcing';
 
   // Edit vendor card properties
@@ -2014,9 +2494,11 @@ export class EnquiryComponent implements OnInit {
     private serviceAreaService: ServiceAreaService,
     private serviceTypeService: ServiceTypeService,
     private masterTypeService: MasterTypeService,
+    private currencyCodeService: CurrencyCodeService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
-    private sourceSalesService: SourceSalesService
+    private sourceSalesService: SourceSalesService,
+    private masterItemService: MasterItemService
   ) {
     this.initializeForm();
   }
@@ -2039,6 +2521,7 @@ export class EnquiryComponent implements OnInit {
       mobile: [''],
       landline: [''],
       company_name: [''],
+      cargo_type: [''],
       from_location: ['', Validators.required],
       to_location: ['', Validators.required],
       effective_date_from: ['', Validators.required],
@@ -2062,6 +2545,8 @@ export class EnquiryComponent implements OnInit {
       locationTypes: this.loadLocationTypes(),
       serviceAreas: this.loadServiceAreaOptions(),
       sourceSales: this.loadSourceSalesOptions(),
+      cargoType: this.loadCargoTypeOptions(),
+      currencyCode: this.loadCurrencyOptions(),
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
@@ -2154,6 +2639,35 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+ 
+
+  // show enquiry preview function
+  showEnquiryPreview() {
+    if (this.selectedEnquiry?.code === 'MAA_FF_ENQ') {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail:
+          'Save the enquiry and source the vendor details before proceeding to preview.',
+      });
+      return;
+    }
+    // calling the preview api method
+    this.enquiryService
+      .getEnquiryPreviewByCode(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (response: any) => {
+          console.log('enquiry previewresponse,', response);
+          this.selectedEnquiryPreview = response;
+          console.log(
+            'preview enquiry api response value updated to pre,',
+            this.selectedEnquiryPreview
+          );
+        },
+      });
+    this.showPreviewDialog = true;
+  }
+
   // Load basis options from the basis service
   loadBasisOptions() {
     return this.basisService.getAll().pipe(
@@ -2166,6 +2680,58 @@ export class EnquiryComponent implements OnInit {
           }));
 
         console.log('Basis options:', this.basisOptions);
+      })
+    );
+  }
+  loadCargoTypeOptions() {
+    // return this.masterItemService.getAll().pipe(
+    //   tap((cargoTypes: any[]) => {
+    //     this.cargoTypeOptions = (cargoTypes || [])
+    //       .filter(
+    //         (cargoType) =>
+    //           cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
+    //       )
+    //       .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
+    //     console.log('Cargo Type options,', this.cargoTypeOptions);
+    //   }),
+    return this.masterTypeService.getAll().pipe(
+      tap((cargoMasterTypes: any[]) => {
+        this.cargoTypeOptions = (cargoMasterTypes || [])
+          .filter(
+            (cargoMaster) =>
+              cargoMaster.status.toLowerCase() === 'active' &&
+              cargoMaster.key.toLowerCase() === 'cargo_type'
+          )
+          .map((cargoMaster) => ({
+            label: `${cargoMaster.value}-${cargoMaster.description}`,
+            value: cargoMaster.value,
+          }));
+        console.log('cargoType Options,', this.cargoTypeOptions);
+      }),
+      catchError((error) => {
+        console.error('Error loading cargo type options', error);
+        return of([]);
+      })
+    );
+  }
+
+  loadCurrencyOptions() {
+    return this.currencyCodeService.getCurrencies().pipe(
+      tap((currencyCodes: any[]) => {
+        console.log('currencyCode service response,', currencyCodes);
+        this.sellPriceCurrencyOptions = (currencyCodes || [])
+          .filter(
+            (currencyCode) => currencyCode.status.toLowerCase() === 'active'
+          )
+          .map((currencyCode) => ({
+            label: currencyCode.code,
+            value: currencyCode.code,
+          }));
+        console.log('Currency code options,', this.sellPriceCurrencyOptions);
+      }),
+      catchError((error) => {
+        console.log('load currency service master error,', error);
+        return of([]);
       })
     );
   }
@@ -2198,6 +2764,17 @@ export class EnquiryComponent implements OnInit {
         return of([]);
       })
     );
+  }
+
+  onSelectionLineItemChange(event: any) {
+    console.log('Line Item Selection changed event,', event);
+    console.log(
+      'Selected Line Item for enquiry,',
+      this.selectedEnquiry!.id,
+      'list',
+      this.selectedLineItems
+    );
+    // event.
   }
 
   // Property to store source sales person name
@@ -2271,6 +2848,9 @@ export class EnquiryComponent implements OnInit {
 
   // Master type options property
   masterTypeOptions: { label: string; value: string }[] = [];
+
+  // sell price currency options
+  sellPriceCurrencyOptions: { label: string; value: string }[] = [];
 
   // Load master type options
   loadMasterTypeOptions() {
@@ -2424,6 +3004,10 @@ export class EnquiryComponent implements OnInit {
       this.showServiceAreaDialog = true;
     } else if (type === 'sourceSales') {
       this.showSourceSalesDialog = true;
+    } else if (type === 'cargoType') {
+      this.showCargoTypeDialog = true;
+    } else if (type === 'currencyCode') {
+      this.showCurrencyCodeDialog = true;
     } else {
       this.messageService.add({
         severity: 'info',
@@ -2477,6 +3061,21 @@ export class EnquiryComponent implements OnInit {
           error: () => this.cdr.detectChanges(),
         });
         break;
+      case 'currencyCode':
+        this.showCurrencyCodeDialog = false;
+        this.loadCurrencyOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
+        });
+        break;
+      case 'cargoType':
+        this.showCargoTypeDialog = false;
+        this.loadCargoTypeOptions().subscribe({
+          next: () => this.cdr.detectChanges(),
+          error: () => this.cdr.detectChanges(),
+        });
+        break;
+
       case 'masterType':
         this.showMasterTypeDialog = false;
         // Reload location types if the filter was for LOCATION
@@ -2525,6 +3124,7 @@ export class EnquiryComponent implements OnInit {
       name: '',
       department: '',
       basis: '',
+      cargo_type: '',
       from_location: '',
       to_location: '',
       location_type_from: '',
@@ -2649,7 +3249,22 @@ export class EnquiryComponent implements OnInit {
           : null;
 
         this.lineItems = enquiry.line_items || [];
+        console.log(
+          'line items list loaded for the enquiry code,',
+          enquiryCode,
+          'is,',
+          this.lineItems
+        );
 
+        this.selectedLineItems = this.lineItems.filter(
+          (lineItem) => lineItem?.is_selected
+        );
+
+        console.log(
+          'Selected LineItems loaded during the load enquiry,',
+          this.selectedLineItems
+        );
+        //
         this.vendorCards = enquiry.vendor_cards || [];
 
         // Process vendor cards to ensure charges are in proper format
@@ -2826,18 +3441,25 @@ export class EnquiryComponent implements OnInit {
     if (!source.selectedItems) {
       source.selectedItems = [];
     }
-    
+    console.log(
+      'source selection change,',
+      source.selectedItems,
+      'source Event',
+      source
+    );
+
     // Update the summary with selected items data
     if (source.selectedItems && source.selectedItems.length > 0) {
       // Get count of selected vendors
       const selectedCount = source.selectedItems.length;
-      
+
       // If only one vendor is selected, show its details
       if (selectedCount === 1) {
         const selected = source.selectedItems[0];
-        
+
         // Update the summary with the selected item's data
-        source.sourced_no = selected.sourced_no || ('SRC-' + source.sourced_list.indexOf(selected));
+        source.sourced_no =
+          selected.sourced_no || 'SRC-' + source.sourced_list.indexOf(selected);
         source.vendor_name = selected.vendor_name;
         source.currency_code = selected.currency;
         source.charge = selected.charges;
@@ -2852,7 +3474,7 @@ export class EnquiryComponent implements OnInit {
         source.sourced_time = new Date().toISOString();
         source.remarks = `${selectedCount} vendors selected`;
       }
-      
+
       // Force change detection to update the UI
       this.cdr.detectChanges();
     } else {
@@ -2863,37 +3485,42 @@ export class EnquiryComponent implements OnInit {
       source.charge = '--';
       source.sourced_time = '--';
       source.remarks = '--';
-      
+
       // Force change detection to update the UI
       this.cdr.detectChanges();
     }
   }
-  
+
   // Calculate total charge from selected items
   private calculateTotalCharge(selectedItems: any[]): number {
     return selectedItems.reduce((total, item) => {
       return total + (parseFloat(item.charges) || 0);
     }, 0);
   }
-  
+
   // Finalize the vendor selection
   finalizeVendorSelection(source: any) {
-    if (!source.selectedItems || source.selectedItems.length === 0) {
+    if (
+      !source.selected_source_items ||
+      source.selected_source_items.length === 0
+    ) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Warning',
-        detail: 'Please select at least one vendor to finalize'
+        detail: 'Please select at least one vendor to finalize',
       });
       return;
     }
-    
-    // Mark the selected vendors as finalized
+    console.log('finalize vendor selection argument value,', source);
+    {
+      /* // Mark the selected vendors as finalized
     source.finalizedItems = [...source.selectedItems];
-    
+
     // Update the summary with finalized status
     if (source.finalizedItems.length === 1) {
       const finalized = source.finalizedItems[0];
-      source.sourced_no = finalized.sourced_no || ('SRC-' + source.sourced_list.indexOf(finalized));
+      source.sourced_no =
+        finalized.sourced_no || 'SRC-' + source.sourced_list.indexOf(finalized);
       source.vendor_name = finalized.vendor_name;
       source.currency_code = finalized.currency;
       source.charge = finalized.charges;
@@ -2908,96 +3535,134 @@ export class EnquiryComponent implements OnInit {
       source.sourced_time = new Date().toISOString();
       source.remarks = `${source.finalizedItems.length} vendors finalized`;
       source.status = 'Finalized';
+    } */
     }
-    
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: `${source.finalizedItems.length} vendor(s) finalized successfully`
-    });
-    
+
+    const selectedVendorCardList = source.selected_source_items;
+
+    // api Call
+    this.enquiryService
+      .updateVendorCardSelection(
+        this.selectedEnquiry?.code || '',
+        selectedVendorCardList[0].enquiry_line_item_id,
+        selectedVendorCardList[0].source_type,
+        selectedVendorCardList
+      )
+      .subscribe({
+        next: (response: any) => {
+          console.log('response of finalized vendor card,', response);
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: `${source.finalizedItems.length} vendor(s) finalized successfully`,
+          });
+        },
+        error: (error: any) => {},
+      });
+
     // Update the finalized vendors preview
     this.updateFinalizedVendorsPreview();
-    
+
     // Force change detection to update the UI
     this.cdr.detectChanges();
   }
-  
+
   // Get all finalized vendors across all line items
   getAllFinalizedVendors(): any[] {
     const finalizedVendors: any[] = [];
-    
+
     if (this.lineItems) {
       this.lineItems.forEach((item, lineIndex) => {
         // Check sourcing
-        if (item.sourcing) {
-          item.sourcing.forEach(source => {
-            if (source.finalizedItems && source.finalizedItems.length > 0) {
-              source.finalizedItems.forEach((vendor: any) => {
-                finalizedVendors.push({
-                  lineItemNo: lineIndex + 1,
-                  type: 'Sourcing',
-                  vendorName: vendor.vendor_name,
-                  sourceNo: vendor.sourced_no || ('SRC-' + source.sourced_list.indexOf(vendor)),
-                  charge: vendor.charges,
-                  currency: vendor.currency,
-                  remarks: vendor.negotiated_remarks
-                });
-              });
-            }
-          });
-        }
-        
+        // if (item.sourcing) {
+        //   item.sourcing.forEach(source => {
+        //     if (source.finalizedItems && source.finalizedItems.length > 0) {
+        //       source.finalizedItems.forEach((vendor: any) => {
+        //         finalizedVendors.push({
+        //           lineItemNo: lineIndex + 1,
+        //           type: 'Sourcing',
+        //           vendorName: vendor.vendor_name,
+        //           sourceNo: vendor.sourced_no || ('SRC-' + source.sourced_list.indexOf(vendor)),
+        //           charge: vendor.charges,
+        //           currency: vendor.currency,
+        //           remarks: vendor.negotiated_remarks
+        //         });
+        //       });
+        //     }
+        //   });
+        // }
         // Check tariff
-        if (item.tariff) {
-          item.tariff.forEach(source => {
-            if (source.finalizedItems && source.finalizedItems.length > 0) {
-              source.finalizedItems.forEach((vendor: any) => {
-                finalizedVendors.push({
-                  lineItemNo: lineIndex + 1,
-                  type: 'Tariff',
-                  vendorName: vendor.vendor_name,
-                  sourceNo: vendor.sourced_no || ('SRC-' + source.sourced_list.indexOf(vendor)),
-                  charge: vendor.charges,
-                  currency: vendor.currency,
-                  remarks: vendor.negotiated_remarks
-                });
-              });
-            }
-          });
-        }
+        // if (item.tariff) {
+        //   item.tariff.forEach(source => {
+        //     if (source.finalizedItems && source.finalizedItems.length > 0) {
+        //       source.finalizedItems.forEach((vendor: any) => {
+        //         finalizedVendors.push({
+        //           lineItemNo: lineIndex + 1,
+        //           type: 'Tariff',
+        //           vendorName: vendor.vendor_name,
+        //           sourceNo: vendor.sourced_no || ('SRC-' + source.sourced_list.indexOf(vendor)),
+        //           charge: vendor.charges,
+        //           currency: vendor.currency,
+        //           remarks: vendor.negotiated_remarks
+        //         });
+        //       });
+        //     }
+        //   });
+        // }
       });
     }
-    
+
     return finalizedVendors;
   }
-  
+  formatDateTime(date: string | Date | undefined | null): string {
+    if (!date) return '';
+
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) return '';
+
+      // Format date as dd/mm/yyyy
+      const day = dateObj.getDate().toString().padStart(2, '0');
+      const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+      const year = dateObj.getFullYear();
+
+      // Format time as hh:mm
+      const hours = dateObj.getHours().toString().padStart(2, '0');
+      const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  }
   // Update the finalized vendors preview
   updateFinalizedVendorsPreview() {
     this.finalizedVendors = this.getAllFinalizedVendors();
   }
 
   // Initialize selectedItems for all sources
-  private initializeSelectedItems() {
-    if (this.lineItems) {
-      this.lineItems.forEach(item => {
-        if (item.sourcing) {
-          item.sourcing.forEach(source => {
-            if (!source.selectedItems) {
-              source.selectedItems = [];
-            }
-          });
-        }
-        if (item.tariff) {
-          item.tariff.forEach(source => {
-            if (!source.selectedItems) {
-              source.selectedItems = [];
-            }
-          });
-        }
-      });
-    }
-  }
+  // private initializeSelectedItems() {
+  //   if (this.lineItems) {
+  //     this.lineItems.forEach(item => {
+  //       if (item.sourcing) {
+  //         item.sourcing.forEach(source => {
+  //           if (!source.selectedItems) {
+  //             source.selectedItems = [];
+  //           }
+  //         });
+  //       }
+  //       if (item.tariff) {
+  //         item.tariff.forEach(source => {
+  //           if (!source.selectedItems) {
+  //             source.selectedItems = [];
+  //           }
+  //         });
+  //       }
+  //     });
+  //   }
+  // }
 
   private buildVendorTreeForLine(
     lineIndex: number,
@@ -3108,11 +3773,20 @@ export class EnquiryComponent implements OnInit {
         return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
     }
   }
+  formatDate(date: string | Date | undefined | null): string {
+    if (!date) return '--';
 
-  formatDate(date: Date | string): string {
-    if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleDateString('en-GB');
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) return '--';
+
+      // Format the date as needed
+      return dateObj.toLocaleDateString('en-GB'); // Using en-GB for dd/mm/yyyy format
+    } catch {
+      return '--';
+    }
   }
 
   onDateChange(date: Date | null) {
@@ -3131,6 +3805,29 @@ export class EnquiryComponent implements OnInit {
     if (this.selectedEnquiry && date) {
       this.selectedEnquiry.effective_date_to = this.formatDateForAPI(date);
     }
+  }
+  getFullSourceList(summary: any): any[] {
+    // Return the full sourced_list if available, otherwise return summary as single item array
+    if (summary.sourced_list && summary.sourced_list.length > 0) {
+      return summary.sourced_list;
+    }
+
+    // If no sourced_list, create an array with the summary data for display
+    return [
+      {
+        sourced_no: summary.sourced_no,
+        vendor_name: summary.vendor_name,
+        currency: summary.currency_code,
+        charge: summary.charge,
+        sourced_time: summary.sourced_time,
+        remarks: summary.remarks,
+        // Include additional fields that might be in sourced_list items
+        currency_code: summary.currency_code,
+        charges: summary.charge,
+        created_at: summary.sourced_time,
+        negotiated_remarks: summary.remarks,
+      },
+    ];
   }
 
   onCustomerSelect(event: any) {
@@ -3370,8 +4067,10 @@ export class EnquiryComponent implements OnInit {
       basis: '',
       remarks: '',
       status: 'Active',
+      enquiry_id: this.selectedEnquiry!.id || '',
       enquiry_summary: [],
     };
+    console.log('add Line Item is clicked and the new item value is,', newItem);
     this.lineItems.push(newItem);
     // calling the hierarchy mapping function to update the tree nodes
   }
@@ -3435,7 +4134,30 @@ export class EnquiryComponent implements OnInit {
   }
 
   getSourcing(lineItemId: number) {
-    if (!this.currentEnquiry?.code) {
+    let savedLineItemsCount = 0;
+    let currentLineItemsCount = this.lineItems.length;
+
+    // saved Line Item
+    this.enquiryService
+      .getAllEnquiryLineItem(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (data) => {
+          savedLineItemsCount = Number(data.lineItemCount);
+        },
+        error: (error) => {
+          console.error('Error fetching lineItem count:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to get LineItems count',
+          });
+        },
+      });
+    if (
+      !this.currentEnquiry?.code ||
+      this.currentEnquiry?.code === 'MAA_FF_ENQ' ||
+      savedLineItemsCount != currentLineItemsCount
+    ) {
       this.saveEnquiry();
       this.messageService.add({
         severity: 'info',
@@ -3444,15 +4166,32 @@ export class EnquiryComponent implements OnInit {
       });
       // return;
     }
-
+    // check and update id for line items with missing id
+    // this.assignIdToLineItems();
+    let lineItemIndex = Number(lineItemId) - 1;
+    console.log(
+      'selected enquiry value during get sourcing,',
+      this.selectedEnquiry
+    );
+    console.log(
+      'selected enquiry line item,',
+      this.lineItems,
+      'lineItem Id',
+      lineItemId
+    );
     const enq = this.selectedEnquiry!;
     const criteria = {
+      // mandatory Criteria
+      line_item_type: this.lineItems[lineItemIndex]?.type,
+      service_area: this.lineItems[lineItemIndex]?.service_area,
+      basis: this.lineItems[lineItemIndex]?.basis,
+      // Optional Criteria
       department: enq.department,
+      cargo_type: enq.cargo_type,
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
-      basis: this.lineItems[0]?.basis,
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
       to_location_type: enq.location_type_to,
@@ -3469,6 +4208,10 @@ export class EnquiryComponent implements OnInit {
           }));
           this.currentVendorSource = 'sourcing';
           this.selectedVendors = [];
+          this.selectedVendorType = {
+            sourcingType: this.currentVendorSource,
+            lineItemId: lineItemId,
+          };
           this.showVendorSelectionDialog = true;
         },
         error: (error) => {
@@ -3493,15 +4236,20 @@ export class EnquiryComponent implements OnInit {
       });
       return;
     }
-
+    let lineItemIndex = Number(lineItemId) - 1;
     const enq = this.selectedEnquiry!;
     const criteria = {
+      // mandatory Criteria
+      line_item_type: this.lineItems[lineItemIndex]?.type,
+      service_area: this.lineItems[lineItemIndex]?.service_area,
+      basis: this.lineItems[lineItemIndex]?.basis,
+      // Optional Criteria
       department: enq.department,
+      cargo_type: enq.cargo_type,
       from_location: enq.from_location,
       to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
-      basis: this.lineItems[0]?.basis,
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
       to_location_type: enq.location_type_to,
@@ -3522,6 +4270,10 @@ export class EnquiryComponent implements OnInit {
           );
           this.currentVendorSource = 'tariff';
           this.selectedVendors = [];
+          this.selectedVendorType = {
+            sourcingType: this.currentVendorSource,
+            lineItemId: lineItemId,
+          };
           this.showVendorSelectionDialog = true;
         },
         error: (error) => {
@@ -3538,8 +4290,11 @@ export class EnquiryComponent implements OnInit {
   addSelectedVendors() {
     console.log(
       'list of vendors selected from the sourcing:',
-      this.selectedVendors
+      this.selectedVendors,
+      'current enquiry:',
+      this.currentEnquiry
     );
+
     this.selectedVendors.forEach((vendor) => {
       // Extract simple numeric charge value
       let chargeValue: number = 0;
@@ -3612,7 +4367,8 @@ export class EnquiryComponent implements OnInit {
         currency: (vendor as any).currency || 'N/A',
         quantity: mappedQuantity,
         remarks: '',
-        enquiry_line_item_id: (vendor as any).enquiry_line_item_id || '',
+        enquiry_line_item_id:
+          Number(`${(vendor as any).enquiry_line_item_id}`) || -1,
       };
       this.vendorCards.push(vendorCard);
     });
@@ -3629,6 +4385,7 @@ export class EnquiryComponent implements OnInit {
       summary: 'Success',
       detail: `${this.selectedVendors.length} vendor(s) added successfully`,
     });
+    console.log('enquiry value during vendor card adding', this.lineItems);
   }
 
   // Vendor card methods
@@ -3776,9 +4533,17 @@ export class EnquiryComponent implements OnInit {
     if (!this.selectedEnquiry) return;
 
     console.log(
+      'Selected Line Items for enquiry Id,',
+      this.selectedEnquiry.id,
+      'is,',
+      this.selectedLineItems
+    );
+    console.log(
       'DEBUG: selected enquiry value from save enquiry',
       this.selectedEnquiry
     );
+    // check and assign the id to line items which doesn't have before enquiry creation
+    // this.assignIdToLineItems();
     // assigning the selected enquiry to current enquiry to avoid undefined error in confirm enquiry
     this.currentEnquiry = { ...this.selectedEnquiry };
 
@@ -3818,7 +4583,15 @@ export class EnquiryComponent implements OnInit {
             : 'Enquiry created successfully',
         });
 
-        if (!this.selectedEnquiry?.code && response.code) {
+        console.log(
+          'save operation response for save enquiry,',
+          response,
+          'selected enquiry model 2 way data binding value,',
+          this.selectedEnquiry
+        );
+
+        if (this.selectedEnquiry?.code === 'MAA_FF_ENQ' && response.code) {
+          console.log('updating the value selected enquiry value');
           // New enquiry created, update the selectedEnquiry with auto-generated values
           this.selectedEnquiry!.id = response.id;
           this.selectedEnquiry!.enquiry_no = response.enquiry_no;
@@ -3840,12 +4613,34 @@ export class EnquiryComponent implements OnInit {
             life: 5000,
           });
 
-          if (this.vendorCards.length > 0) {
-            this.saveVendorCards();
-          }
+          // if (this.vendorCards.length > 0) {
+          //   this.saveVendorCards();
+          // }
         }
 
+        this.enquiryService
+          .updateEnquiryLineItemSelection(this.selectedEnquiry?.code || '', {
+            selectedLineItems: this.selectedLineItems,
+          })
+          .subscribe({
+            next: (response: any) => {
+              console.log(
+                'Update Enquiry Line Item Selection response,',
+                response
+              );
+            },
+            error: (error: any) => {},
+          });
+
         this.loadEnquiries(); // Refresh the table
+        this.loadEnquiries().subscribe({
+          next: () => {
+            this.cdr.detectChanges();
+          },
+          error: (err) => {
+            console.error('Error reloading enquiries after save:', err);
+          },
+        });
 
         // Don't hide dialog immediately for new enquiries so user can see the generated number
         if (this.selectedEnquiry?.code) {
@@ -3918,9 +4713,18 @@ export class EnquiryComponent implements OnInit {
     if (!this.currentEnquiry?.code || this.vendorCards.length === 0) return;
 
     console.log('Save vendor cards vendor Cards list,', this.vendorCards);
-
+    console.log(
+      'current enquiry,',
+      this.currentEnquiry,
+      'Selected Enquiry vendor card,',
+      this.selectedEnquiry
+    );
     this.enquiryService
-      .addVendorCards(this.currentEnquiry.code, this.vendorCards)
+      .addVendorCards(
+        this.currentEnquiry.code,
+        this.vendorCards,
+        this.selectedVendorType
+      )
       .subscribe({
         next: () => {
           this.messageService.add({
@@ -3928,6 +4732,9 @@ export class EnquiryComponent implements OnInit {
             summary: 'Success',
             detail: 'Vendor cards saved successfully',
           });
+          // removing all the selected vendor type
+          this.selectedVendorType = {};
+          this.loadEnquiry(this.currentEnquiry?.code!);
         },
         error: (error) => {
           console.error('Error saving vendor cards:', error);
@@ -3954,6 +4761,46 @@ export class EnquiryComponent implements OnInit {
       detail: 'Navigate to enquiry list view',
     });
   }
+  // preview
+
+  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
+    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
+      return [];
+    }
+
+    return item.enquiry_summary.filter((summary) => {
+      // Check if summary has finalized items
+      return summary.finalizedItems && summary.finalizedItems.length > 0;
+    });
+  }
+
+  getFinalizedVendorsForSummary(summary: any): any[] {
+    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
+      return [];
+    }
+
+    return summary.finalizedItems.map((vendor: any, index: number) => {
+      return {
+        ...vendor,
+        sourced_no: vendor.sourced_no || `${index + 1}`,
+        charge: vendor.charges || vendor.charge,
+        currency: vendor.currency || vendor.currency_code,
+        sourced_time: vendor.created_at || vendor.sourced_time,
+        remarks: vendor.negotiated_remarks || vendor.remarks,
+      };
+    });
+  }
+
+  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
+    if (!this.lineItems || this.lineItems.length === 0) {
+      return [];
+    }
+
+    return this.lineItems.filter((item) => {
+      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
+      return finalizedSources && finalizedSources.length > 0;
+    });
+  }
 
   clearForm() {
     this.confirmationService.confirm({
@@ -3972,6 +4819,7 @@ export class EnquiryComponent implements OnInit {
             landline: '',
             department: '',
             basis: '',
+            cargo_type: '',
             from_location: '',
             to_location: '',
             location_type_from: '',
@@ -3996,6 +4844,39 @@ export class EnquiryComponent implements OnInit {
         });
       },
     });
+  }
+  private assignIdToLineItems() {
+    // Assigning the id to the line items if not present
+    this.lineItems.forEach((lineItem) => {
+      if (!lineItem.id) {
+        let id = Math.floor(Math.random() * 97); // Initial random id
+        let attempt = 0;
+
+        // Try generating a unique id, limit attempts to 10
+        while (
+          this.lineItems.some((lItem) => lItem.id === id) &&
+          attempt < 10
+        ) {
+          id = Math.floor(Math.random() * (attempt === 5 ? 131 : 97)); // Change random range on attempt 5
+          attempt++;
+        }
+
+        if (attempt === 10) {
+          // If we reach 10 attempts, show an error message and stop
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Reached maximum line item for this enquiry.',
+          });
+          return; // Stop execution for this line item if unique id cannot be generated
+        }
+
+        // Directly assign the generated id to the line item
+        lineItem.id = id;
+      }
+    });
+
+    console.log('Updated lineItems:', this.lineItems);
   }
 
   private loadMappedEnquirySeriesCode() {

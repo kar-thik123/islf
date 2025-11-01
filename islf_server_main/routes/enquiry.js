@@ -1,9 +1,9 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const pool = require('../db');
-const jwt = require('jsonwebtoken');
-const { getUsernameFromToken } = require('../utils/context-helper');
-const { logMasterEvent } = require('../log');
+const pool = require("../db");
+const jwt = require("jsonwebtoken");
+const { getUsernameFromToken } = require("../utils/context-helper");
+const { logMasterEvent } = require("../log");
 // GET /enquiry - Fetch all enquiries with context filtering
 // router.get('/', async (req, res) => {
 //     try {
@@ -26,7 +26,7 @@ const { logMasterEvent } = require('../log');
 //         }
 
 //         const userContext = userResult.rows[0];
-        
+
 //         // Build dynamic query with context filtering
 //         let query = `
 //             SELECT e.*, c.name as customer_display_name, c.name as customer_company
@@ -34,7 +34,7 @@ const { logMasterEvent } = require('../log');
 //             LEFT JOIN customer c ON e.customer_id = c.id
 //             WHERE 1=1
 //         `;
-        
+
 //         const params = [];
 //         let paramIndex = 1;
 
@@ -78,14 +78,14 @@ const { logMasterEvent } = require('../log');
 
 //         // Get total count for pagination
 //         let countQuery = `
-//             SELECT COUNT(*) 
+//             SELECT COUNT(*)
 //             FROM enquiry e
 //             LEFT JOIN customer c ON e.customer_id = c.id
 //             WHERE 1=1
 //         `;
-        
+
 //         const countParams = params.slice(0, -2); // Remove limit and offset
-        
+
 //         if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
 //         if (userContext.branch_code) countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
 //         if (userContext.department_code) countQuery += ` AND e.department_code = $${(userContext.company_code ? 1 : 0) + (userContext.branch_code ? 1 : 0) + 1}`;
@@ -110,579 +110,1043 @@ const { logMasterEvent } = require('../log');
 //         res.status(500).json({ error: 'Internal server error' });
 //     }
 // });
-router.get('/', async (req, res) => {
-    console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
+router.get("/", async (req, res) => {
+  console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
 
-    try { const username = getUsernameFromToken(req);
-        // if (!username) {
-        //     return res.status(401).json({ error: 'Unauthorized' });
-        // }
-        console.log("👤 [DEBUG] Authenticated user:", username || 'system');
-        const { page = 1, limit = 10, search = '', status = '' } = req.query;
-        const offset = (page - 1) * limit;
-        console.log("📄 [DEBUG] Pagination => page:", page, "limit:", limit, "offset:", offset);
+  try {
+    const username = getUsernameFromToken(req);
+    // if (!username) {
+    //     return res.status(401).json({ error: 'Unauthorized' });
+    // }
+    console.log("👤 [DEBUG] Authenticated user:", username || "system");
+    const { page = 1, limit = 10, search = "", status = "" } = req.query;
+    const offset = (page - 1) * limit;
+    console.log(
+      "📄 [DEBUG] Pagination => page:",
+      page,
+      "limit:",
+      limit,
+      "offset:",
+      offset
+    );
 
-        // Get user context
-        const userResult = await pool.query(
-            'SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1',
-            [username]
-        );
-        console.log("✅ [DEBUG] User context rows:", userResult.rows);
+    // Get user context
+    const userResult = await pool.query(
+      "SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1",
+      [username]
+    );
+    console.log("✅ [DEBUG] User context rows:", userResult.rows);
 
-        if (userResult.rows.length === 0) {
-            console.warn("⚠️ [DEBUG] User not found in DB for username:", username);
-            return res.status(404).json({ error: 'User not found' });
-        }
+    if (userResult.rows.length === 0) {
+      console.warn("⚠️ [DEBUG] User not found in DB for username:", username);
+      return res.status(404).json({ error: "User not found" });
+    }
 
-        const userContext = userResult.rows[0];
-        console.log("📌 [DEBUG] User context:", userContext);
+    const userContext = userResult.rows[0];
+    console.log("📌 [DEBUG] User context:", userContext);
 
-        // Build dynamic query with context filtering
-        let query = `
+    // Build dynamic query with context filtering
+    let query = `
             SELECT e.*, c.name as customer_display_name, c.name as customer_company
             FROM enquiry e
             LEFT JOIN customer c ON e.customer_id = c.id
             WHERE 1=1
         `;
-        
-        const params = [];
-        let paramIndex = 1;
 
-        // Context filtering
-        if (userContext.company_code) {
-            query += ` AND e.company_code = $${paramIndex}`;
-            params.push(userContext.company_code);
-            paramIndex++;
-        }
-        if (userContext.branch_code) {
-            query += ` AND e.branch_code = $${paramIndex}`;
-            params.push(userContext.branch_code);
-            paramIndex++;
-        }
-        if (userContext.department_code) {
-            query += ` AND e.department_code = $${paramIndex}`;
-            params.push(userContext.department_code);
-            paramIndex++;
-        }
+    const params = [];
+    let paramIndex = 1;
 
-        // Search filtering
-        if (search) {
-            query += ` AND (e.enquiry_no ILIKE $${paramIndex} OR e.customer_name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`;
-            params.push(`%${search}%`);
-            paramIndex++;
-        }
+    // Context filtering
+    if (userContext.company_code) {
+      query += ` AND e.company_code = $${paramIndex}`;
+      params.push(userContext.company_code);
+      paramIndex++;
+    }
+    if (userContext.branch_code) {
+      query += ` AND e.branch_code = $${paramIndex}`;
+      params.push(userContext.branch_code);
+      paramIndex++;
+    }
+    if (userContext.department_code) {
+      query += ` AND e.department_code = $${paramIndex}`;
+      params.push(userContext.department_code);
+      paramIndex++;
+    }
 
-        // Status filtering
-        if (status) {
-            query += ` AND e.status = $${paramIndex}`;
-            params.push(status);
-            paramIndex++;
-        }
+    // Search filtering
+    if (search) {
+      query += ` AND (e.enquiry_no ILIKE $${paramIndex} OR e.customer_name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
 
-        query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-        params.push(limit, offset);
+    // Status filtering
+    if (status) {
+      query += ` AND e.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
 
-        console.log("📝 [DEBUG] Final query:", query);
-        console.log("📊 [DEBUG] Query params:", params);
+    query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${
+      paramIndex + 1
+    }`;
+    params.push(limit, offset);
 
-        const result = await pool.query(query, params);
-        console.log("✅ [DEBUG] Enquiry result count:", result.rows.length);
+    console.log("📝 [DEBUG] Final query:", query);
+    console.log("📊 [DEBUG] Query params:", params);
 
-        // Get total count for pagination
-        let countQuery = `
+    const result = await pool.query(query, params);
+    console.log("✅ [DEBUG] Enquiry result count:", result.rows.length);
+
+    // Get total count for pagination
+    let countQuery = `
             SELECT COUNT(*) 
             FROM enquiry e
             LEFT JOIN customer c ON e.customer_id = c.id
             WHERE 1=1
         `;
-        
-        const countParams = params.slice(0, -2); // Remove limit and offset
-        console.log("🧮 [DEBUG] Count query params:", countParams);
 
-        if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
-        if (userContext.branch_code) countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
-        if (userContext.department_code) countQuery += ` AND e.department_code = $${(userContext.company_code ? 1 : 0) + (userContext.branch_code ? 1 : 0) + 1}`;
-        if (search) countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
-        if (status) countQuery += ` AND e.status = $${countParams.length}`;
+    const countParams = params.slice(0, -2); // Remove limit and offset
+    console.log("🧮 [DEBUG] Count query params:", countParams);
 
-        console.log("🧮 [DEBUG] Count query:", countQuery);
+    if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
+    if (userContext.branch_code)
+      countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
+    if (userContext.department_code)
+      countQuery += ` AND e.department_code = $${
+        (userContext.company_code ? 1 : 0) +
+        (userContext.branch_code ? 1 : 0) +
+        1
+      }`;
+    if (search)
+      countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
+    if (status) countQuery += ` AND e.status = $${countParams.length}`;
 
-        const countResult = await pool.query(countQuery, countParams);
-        const totalRecords = parseInt(countResult.rows[0].count);
-        console.log("📦 [DEBUG] Total records:", totalRecords);
+    console.log("🧮 [DEBUG] Count query:", countQuery);
 
-        res.json({
-            data: result.rows,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: totalRecords,
-                pages: Math.ceil(totalRecords / limit)
-            }
-        });
+    const countResult = await pool.query(countQuery, countParams);
+    const totalRecords = parseInt(countResult.rows[0].count);
+    console.log("📦 [DEBUG] Total records:", totalRecords);
 
-    } catch (error) {
-        console.error('❌ [ERROR] Fetching enquiries failed:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+    res.json({
+      data: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalRecords,
+        pages: Math.ceil(totalRecords / limit),
+      },
+    });
+  } catch (error) {
+    console.error("❌ [ERROR] Fetching enquiries failed:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // GET /enquiry/:code - Fetch single enquiry with line items and vendor cards
-router.get('/:code', async (req, res) => {
-    try {
-       
+router.get("/:code", async (req, res) => {
+  try {
+    const { code } = req.params;
 
-        const { code } = req.params;
+    // Get enquiry details
+    const enquiryResult = await pool.query(
+      "SELECT e.*, c.name as customer_display_name FROM enquiry e LEFT JOIN customer c ON e.customer_id = c.id WHERE e.code = $1",
+      [code]
+    );
 
-        // Get enquiry details
-        const enquiryResult = await pool.query(
-            'SELECT e.*, c.name as customer_display_name FROM enquiry e LEFT JOIN customer c ON e.customer_id = c.id WHERE e.code = $1',
-            [code]
-        );
-
-        if (enquiryResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Enquiry not found' });
-        }
-
-        const enquiry = enquiryResult.rows[0];
-
-        // Get line items
-        const lineItemsResult = await pool.query(
-            'SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no',
-            [enquiry.id]
-        );
-
-        // Get vendor cards
-        const vendorCardsResult = await pool.query(
-            'SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at',
-            [enquiry.id]
-        );
-
-        res.json({
-            ...enquiry,
-            line_items: lineItemsResult.rows,
-            vendor_cards: vendorCardsResult.rows
-        });
-
-    } catch (error) {
-        console.error('Error fetching enquiry:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
     }
+
+    const enquiry = enquiryResult.rows[0];
+    const enquiry_id = enquiry.id;
+    let line_items = [];
+
+    // Get line items
+    const { rows: lineItemsResult } = await pool.query(
+      "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no",
+      [enquiry_id]
+    );
+    // console.log("enquiry line Item Result,", lineItemsResult);
+    // Get vendor cards
+    // const vendorCardsResult = await pool.query(
+    //   "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
+    //   [enquiry_id]
+    // );
+
+    // let nested_line_item = lineItemsResult.rows.forEach(lineItem => {
+    for (let lineItem of lineItemsResult) {
+      let line_item_id = lineItem.s_no;
+      let enquiry_summary = [
+        {
+          id: "1",
+          summary_type: "sourcing",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          selected_source_items: [],
+          sourced_list: [],
+        },
+        {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          selected_source_items: [],
+          sourced_list: [],
+        },
+      ];
+      const { rows: vendorCardsResult } = await pool.query(
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC NULLS LAST;",
+        [enquiry_id, line_item_id]
+      );
+      // console.log("list of vendor cards,", vendorCardsResult);
+      let source_list = [];
+      let selected_source_list = [];
+      let tariff_list = [];
+      let selected_tariff_list = [];
+      vendorCardsResult.forEach((vendorCard) => {
+        if (vendorCard.source_type.toLowerCase() == "tariff") {
+          if (vendorCard.is_selected) {
+            selected_tariff_list.push(vendorCard);
+          }
+          tariff_list.push(vendorCard);
+        } else if (vendorCard.source_type.toLowerCase() == "sourcing") {
+          if (vendorCard.is_selected) {
+            selected_source_list.push(vendorCard);
+          }
+          source_list.push(vendorCard);
+        }
+      });
+      // console.log(
+      //   "vendor card source list:",
+      //   source_list,
+      //   "tariff list",
+      //   tariff_list
+      // );
+
+      if (source_list.length != 0) {
+        // removes the first element in enquiry summary list
+        enquiry_summary.splice(0, 1);
+        let selected_sourcing =
+          source_list.find((source) => source.is_selected) || {};
+        // eliminating null value with
+        selected_sourcing["charges"] =
+          selected_sourcing.charges == null ? 0 : selected_sourcing.charges;
+        selected_sourcing["negotiated_amount"] =
+          selected_sourcing.negotiated_amount == null
+            ? 0
+            : selected_sourcing.negotiated_amount;
+        console.log(
+          "Selected sourcing at line item id",
+          line_item_id,
+          "is:",
+          selected_sourcing
+        );
+
+        let source_summary = {
+          id: 1,
+          summary_type: "sourcing",
+          sourced_no: selected_sourcing.sourced_no || "--",
+          vendor_name: selected_sourcing.vendor_name || "--",
+          currency_code: selected_sourcing.currency_code || "--",
+          charge:
+            Math.max(
+              selected_sourcing.charges,
+              selected_sourcing.negotiated_amount
+            ) || "--",
+          sourced_time: selected_sourcing.created_at,
+          remarks: selected_sourcing.remarks || "--",
+          selected_source_items: selected_source_list,
+          sourced_list: source_list,
+        };
+        // enquiry_summary.push(source_summary);
+        enquiry_summary.splice(0, 0, source_summary);
+      }
+
+      if (tariff_list.length != 0) {
+        // removing the last element in the enquiry summary
+        enquiry_summary.splice(1, 1);
+        let selected_tariff =
+          tariff_list.find((tariff) => tariff.is_selected) || {};
+        console.log(
+          "Selected tariff at line item id",
+          line_item_id,
+          "is:",
+          selected_tariff
+        );
+        let tariff_summary = {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: selected_tariff.sourced_no || "--",
+          vendor_name: selected_tariff.vendor_name || "--",
+          currency_code: selected_tariff.currency_code || "--",
+          charge:
+            Math.max(
+              selected_tariff.charges,
+              selected_tariff.negotiated_amount
+            ) || "--",
+          sourced_time: selected_tariff.created_at,
+          remarks: selected_tariff.remarks || "--",
+          selected_source_items: selected_tariff_list,
+          sourced_list: tariff_list,
+        };
+        // enquiry_summary.push(tariff_summary);
+        enquiry_summary.splice(1, 0, tariff_summary);
+      }
+
+      let nested_line_item = { ...lineItem, enquiry_summary: enquiry_summary };
+      console.log("enquiry summary,", enquiry_summary);
+      line_items.push(nested_line_item);
+    }
+
+    res.json({
+      ...enquiry,
+      line_items: line_items,
+      // vendor_cards: vendorCardsResult.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
-// POST /enquiry - Create new enquiry
-router.post('/', async (req, res) => {
-    try {
-       
+// GET /enquiry/:code/preview - Fetch the preview list of  line items and vendor cards for single enquiry
+router.get("/:code/preview", async (req, res) => {
+  try {
+    const { code } = req.params;
 
-        const {
-            date,
-            customer_id,
-            customer_name,
-            email,
-            mobile,
-            landline,
-            company_name,
-            contact_department,
-            from_location,
-            to_location,
-            location_type_from,
-            location_type_to,
-            effective_date_from,
-            effective_date_to,
-            department,
-            service_type,
-            status = 'Open',
-            remarks,
-            line_items = [],
-            is_new_customer = false,
-            code,
-            name,
-            source_sales_code,
-            
-        } = req.body;
+    // Get enquiry details
+    const enquiryResult = await pool.query(
+      "SELECT e.*, c.name as customer_display_name FROM enquiry e LEFT JOIN customer c ON e.customer_id = c.id WHERE e.code = $1",
+      [code]
+    );
 
-        // Get user context
-        const userResult = await pool.query(
-            'SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1',
-            [name]
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+
+    const enquiry = enquiryResult.rows[0];
+    const enquiry_id = enquiry.id;
+    let line_items = [];
+
+    // Get line items
+    const { rows: lineItemsResult } = await pool.query(
+      "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 AND is_selected = true ORDER BY s_no",
+      [enquiry_id]
+    );
+    console.log("enquiry line Item Result,", lineItemsResult);
+    // Get vendor cards
+    // const vendorCardsResult = await pool.query(
+    //   "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
+    //   [enquiry_id]
+    // );
+
+    // let nested_line_item = lineItemsResult.rows.forEach(lineItem => {
+    for (let lineItem of lineItemsResult) {
+      let line_item_id = lineItem.s_no;
+      let enquiry_summary = [
+        {
+          id: "1",
+          summary_type: "sourcing",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          selected_source_items: [],
+          sourced_list: [],
+        },
+        {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: "--",
+          vendor_name: "--",
+          currency_code: "--",
+          charge: "--",
+          sourced_time: "--",
+          remarks: "--",
+          selected_source_items: [],
+          sourced_list: [],
+        },
+      ];
+      const { rows: vendorCardsResult } = await pool.query(
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC;",
+        [enquiry_id, line_item_id]
+      );
+      // console.log("list of vendor cards,", vendorCardsResult);
+      let selected_source_list = [];
+      let selected_tariff_list = [];
+      vendorCardsResult.forEach((vendorCard) => {
+        if (
+          vendorCard.source_type.toLowerCase() == "tariff" &&
+          vendorCard.is_selected
+        ) {
+          selected_tariff_list.push(vendorCard);
+        } else if (
+          vendorCard.source_type.toLowerCase() == "sourcing" &&
+          vendorCard.is_selected
+        ) {
+          selected_source_list.push(vendorCard);
+        }
+      });
+      // console.log(
+      //   "vendor card source list:",
+      //   source_list,
+      //   "tariff list",
+      //   tariff_list
+      // );
+
+      if (selected_source_list.length != 0) {
+        // removes the first element in enquiry summary list
+        enquiry_summary.splice(0, 1);
+        let selected_sourcing = selected_source_list[0] || {};
+        // eliminating null value with
+        selected_sourcing["charges"] =
+          selected_sourcing.charges == null ? 0 : selected_sourcing.charges;
+        selected_sourcing["negotiated_amount"] =
+          selected_sourcing.negotiated_amount == null
+            ? 0
+            : selected_sourcing.negotiated_amount;
+        console.log(
+          "Selected sourcing at line item id",
+          line_item_id,
+          "is:",
+          selected_sourcing
         );
 
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+        let source_summary = {
+          id: 1,
+          summary_type: "sourcing",
+          sourced_no: selected_sourcing.sourced_no || "--",
+          vendor_name: selected_sourcing.vendor_name || "--",
+          currency_code: selected_sourcing.currency_code || "--",
+          charge:
+            Math.max(
+              selected_sourcing.charges,
+              selected_sourcing.negotiated_amount
+            ) || "--",
+          sourced_time: selected_sourcing.created_at,
+          remarks: selected_sourcing.remarks || "--",
+          selected_source_items: selected_source_list,
+        };
+        // enquiry_summary.push(source_summary);
+        enquiry_summary.splice(0, 0, source_summary);
+      }
 
-        const userContext = userResult.rows[0];
+      if (selected_tariff_list.length != 0) {
+        // removing the last element in the enquiry summary
+        enquiry_summary.splice(1, 1);
+        let selected_tariff = selected_tariff_list[0] || {};
+        console.log(
+          "Selected tariff at line item id",
+          line_item_id,
+          "is:",
+          selected_tariff
+        );
+        let tariff_summary = {
+          id: 2,
+          summary_type: "tariff",
+          sourced_no: selected_tariff.sourced_no || "--",
+          vendor_name: selected_tariff.vendor_name || "--",
+          currency_code: selected_tariff.currency_code || "--",
+          charge:
+            Math.max(
+              selected_tariff.charges,
+              selected_tariff.negotiated_amount
+            ) || "--",
+          sourced_time: selected_tariff.created_at,
+          remarks: selected_tariff.remarks || "--",
+          selected_source_items: selected_tariff_list,
+        };
+        // enquiry_summary.push(tariff_summary);
+        enquiry_summary.splice(1, 0, tariff_summary);
+      }
 
-        const client = await pool.connect();
-        
-        try {
-            await client.query('BEGIN');
+      let nested_line_item = { ...lineItem, enquiry_summary: enquiry_summary };
+      console.log("enquiry summary,", enquiry_summary);
+      line_items.push(nested_line_item);
+    }
 
-            let finalCustomerId = customer_id;
+    res.json({
+      ...enquiry,
+      line_items: line_items,
+      // vendor_cards: vendorCardsResult.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+// POST /enquiry - Create new enquiry
+router.post("/", async (req, res) => {
+  try {
+    const {
+      date,
+      customer_id,
+      customer_name,
+      email,
+      mobile,
+      landline,
+      company_name,
+      contact_department,
+      from_location,
+      to_location,
+      location_type_from,
+      location_type_to,
+      effective_date_from,
+      effective_date_to,
+      department,
+      cargo_type,
+      service_type,
+      status = "Open",
+      remarks,
+      line_items = [],
+      is_new_customer = false,
+      code,
+      name,
+      source_sales_code,
+    } = req.body;
 
-            // If new customer, create customer record first
-            if (is_new_customer && customer_name) {
-                // Generate customer number using number series
-                const customerNumberResult = await client.query(
-                    `SELECT nr.prefix, nr.last_no_used as current_number, nr.increment_by
+    // Get user context
+    const userResult = await pool.query(
+      "SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1",
+      [name]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userContext = userResult.rows[0];
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      let finalCustomerId = customer_id;
+
+      // If new customer, create customer record first
+      if (is_new_customer && customer_name) {
+        // Generate customer number using number series
+        const customerNumberResult = await client.query(
+          `SELECT nr.prefix, nr.last_no_used as current_number, nr.increment_by
                      FROM number_relation nr 
                      WHERE nr.company_code = $1 AND nr.branch_code = $2 
                      AND nr.department_code = $3 AND nr.number_series = 'CUSTOMER'`,
-                    [userContext.company_code, userContext.branch_code, userContext.department_code]
-                );
+          [
+            userContext.company_code,
+            userContext.branch_code,
+            userContext.department_code,
+          ]
+        );
 
-                let customerNo;
-                if (customerNumberResult.rows.length > 0) {
-                    const numberSeries = customerNumberResult.rows[0];
-                    const nextNumber = numberSeries.current_number + numberSeries.increment_by;
-                    const paddedNumber = nextNumber.toString().padStart(6, '0'); // Use 6 digits as default
-                    customerNo = (numberSeries.prefix || 'CUST') + paddedNumber;
-                    
-                    // Update the current number in number_relation
-                    await client.query(
-                        'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
-                        [nextNumber, numberSeries.id]
-                    );
-                } else {
-                    // Fallback to simple numbering if no number series found
-                    const customerNoResult = await client.query(
-                        `SELECT COALESCE(MAX(CAST(SUBSTRING(customer_no FROM '[0-9]+') AS INTEGER)), 0) + 1 as next_no 
+        let customerNo;
+        if (customerNumberResult.rows.length > 0) {
+          const numberSeries = customerNumberResult.rows[0];
+          const nextNumber =
+            numberSeries.current_number + numberSeries.increment_by;
+          const paddedNumber = nextNumber.toString().padStart(6, "0"); // Use 6 digits as default
+          customerNo = (numberSeries.prefix || "CUST") + paddedNumber;
+
+          // Update the current number in number_relation
+          await client.query(
+            "UPDATE number_relation SET last_no_used = $1 WHERE id = $2",
+            [nextNumber, numberSeries.id]
+          );
+        } else {
+          // Fallback to simple numbering if no number series found
+          const customerNoResult = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(customer_no FROM '[0-9]+') AS INTEGER)), 0) + 1 as next_no 
                          FROM customer WHERE customer_no ~ '^[0-9]+$'`
-                    );
-                    customerNo = customerNoResult.rows[0].next_no.toString().padStart(6, '0');
-                }
+          );
+          customerNo = customerNoResult.rows[0].next_no
+            .toString()
+            .padStart(6, "0");
+        }
 
-                const customerResult = await client.query(
-                    `INSERT INTO customer (customer_no, name, email, mobile, landline, 
+        const customerResult = await client.query(
+          `INSERT INTO customer (customer_no, name, email, mobile, landline, 
                      company_code, branch_code, department_code, service_type_code)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-                    [customerNo, company_name || customer_name, email, mobile, landline,
-                     userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code]
-                );
-                
-                finalCustomerId = customerResult.rows[0].id;
-            }
+          [
+            customerNo,
+            company_name || customer_name,
+            email,
+            mobile,
+            landline,
+            userContext.company_code,
+            userContext.branch_code,
+            userContext.department_code,
+            userContext.service_type_code,
+          ]
+        );
 
-            // Generate enquiry number and code using number series (matching tariff pattern)
-            let enquiryNo, enquiryCode;
-            let seriesCode;
+        finalCustomerId = customerResult.rows[0].id;
+      }
 
-            // Number series lookup (matching tariff pattern)
-            if ((!code || code === '') && userContext.company_code) {
-                let whereConditions = ['code_type = $1', 'company_code = $2'];
-                let queryParams = ['enquiryNo', userContext.company_code];
-                let paramIndex = 3;
+      // Generate enquiry number and code using number series (matching tariff pattern)
+      let enquiryNo, enquiryCode;
+      let seriesCode;
 
-                
-                if (userContext.branch_code) {
-                    whereConditions.push(`branch_code = $${paramIndex}`);
-                    queryParams.push(userContext.branch_code);
-                    paramIndex++;
-                } else {
-                    whereConditions.push('(branch_code IS NULL OR branch_code = \'\')');
-                }
+      // Number series lookup (matching tariff pattern)
+      if ((!code || code === "") && userContext.company_code) {
+        let whereConditions = ["code_type = $1", "company_code = $2"];
+        let queryParams = ["enquiryNo", userContext.company_code];
+        let paramIndex = 3;
 
-                if (userContext.department_code) {
-                    whereConditions.push(`department_code = $${paramIndex}`);
-                    queryParams.push(userContext.department_code);
-                } else {
-                    whereConditions.push('(department_code IS NULL OR department_code = \'\')');
-                }
+        if (userContext.branch_code) {
+          whereConditions.push(`branch_code = $${paramIndex}`);
+          queryParams.push(userContext.branch_code);
+          paramIndex++;
+        } else {
+          whereConditions.push("(branch_code IS NULL OR branch_code = '')");
+        }
 
-                const mappingQuery = `
+        if (userContext.department_code) {
+          whereConditions.push(`department_code = $${paramIndex}`);
+          queryParams.push(userContext.department_code);
+        } else {
+          whereConditions.push(
+            "(department_code IS NULL OR department_code = '')"
+          );
+        }
+
+        const mappingQuery = `
                     SELECT mapping FROM mapping_relations
-                    WHERE ${whereConditions.join(' AND ')}
+                    WHERE ${whereConditions.join(" AND ")}
                     ORDER BY id DESC
                     LIMIT 1
                 `;
 
-                const mappingRes = await client.query(mappingQuery, queryParams);
-                console.log("Debug: Enquiry create method No series Mapping res", mappingRes,"for Query:", mappingQuery,"params:",queryParams);
-                if (mappingRes.rows.length > 0) {
-                    seriesCode = mappingRes.rows[0].mapping;
-                }
-            }
+        const mappingRes = await client.query(mappingQuery, queryParams);
+        console.log(
+          "Debug: Enquiry create method No series Mapping res",
+          mappingRes,
+          "for Query:",
+          mappingQuery,
+          "params:",
+          queryParams
+        );
+        if (mappingRes.rows.length > 0) {
+          seriesCode = mappingRes.rows[0].mapping;
+        }
+      }
 
-            // Generate enquiry code (matching tariff pattern)
-            if (seriesCode) {
-                const seriesResult = await client.query(
-                    'SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1',
-                    [seriesCode]
-                );
+      // Generate enquiry code (matching tariff pattern)
+      if (seriesCode) {
+        const seriesResult = await client.query(
+          "SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1",
+          [seriesCode]
+        );
 
-                if (seriesResult.rows.length === 0) {
-                    await client.query('ROLLBACK');
-                    client.release();
-                    return res.status(400).json({ error: 'Number series not found' });
-                }
-
-                const series = seriesResult.rows[0];
-                if (series.is_manual) {
-                    if (!code || code.trim() === '') {
-                        await client.query('ROLLBACK');
-                        client.release();
-                        return res.status(400).json({ error: 'Manual code entry required for this series' });
-                    }
-                    const exists = await client.query('SELECT 1 FROM enquiry WHERE code = $1', [code]);
-                    if (exists.rows.length > 0) {
-                        await client.query('ROLLBACK');
-                        client.release();
-                        return res.status(400).json({ error: 'Enquiry code already exists' });
-                    }
-                    enquiryCode = code;
-                } else {
-                    const relResult = await client.query(
-                        'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
-                        [seriesCode]
-                    );
-
-                    if (relResult.rows.length === 0) {
-                        await client.query('ROLLBACK');
-                        client.release();
-                        return res.status(400).json({ error: 'Number series relation not found' });
-                    }
-
-                    const rel = relResult.rows[0];
-                    let nextNo = rel.last_no_used === 0
-                        ? Number(rel.starting_no)
-                        : Number(rel.last_no_used) + Number(rel.increment_by);
-
-                    enquiryCode = `${rel.prefix || ''}${nextNo}`;
-
-                    await client.query(
-                        'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
-                        [nextNo, rel.id]
-                    );
-                }
-            } else if (!code || code === '') {
-                enquiryCode = 'ENQ-' + Date.now();
-            } else {
-                enquiryCode = code;
-            }
-
-            // Generate enquiry number (same as code for enquiries)
-            enquiryNo = enquiryCode;
-            console.log("Debug: create enquiry API enquiryNo generated no series",enquiryNo);
-
-            // Check for duplicate enquiry number
-            const duplicateCheck = await client.query(
-                'SELECT id FROM enquiry WHERE enquiry_no = $1',
-                [enquiryNo]
-            );
-
-            if (duplicateCheck.rows.length > 0) {
-                throw new Error('Duplicate enquiry number generated. Please try again.');
-            }
-
-            // Create enquiry
-            const enquiryResult = await client.query(
-                `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
-                 company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code, source_sales_code)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25) RETURNING id`,
-                [enquiryNo, enquiryCode, date, finalCustomerId, customer_name, email, mobile, landline,
-                 company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, userContext.company_code, userContext.branch_code, userContext.department_code, userContext.service_type_code, source_sales_code]
-            );
-
-            console.log("Debug: Create enquiry result",enquiryResult);
-
-            const enquiryId = enquiryResult.rows[0].id;
-
-            // Create line items
-            for (let i = 0; i < line_items.length; i++) {
-                const item = line_items[i];
-                await client.query(
-                    `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                    [enquiryId, i + 1, item.quantity, item.type, item.service_area, item.basis, item.remarks, item.status || 'Active']
-                );
-            }
-
-            await client.query('COMMIT');
-
-            // Log the creation
-            await logMasterEvent({
-                username: name,
-                action: 'CREATE',
-                masterType: 'Enquiry',
-                recordId: enquiryCode,
-                details: `New Enquiry "${enquiryCode}" has been created successfully.`
-            });
-
-            res.status(201).json({ 
-                message: 'Enquiry created successfully', 
-                id: enquiryId, 
-                enquiry_no: enquiryNo,
-                code: enquiryCode
-            });
-
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-        } finally {
-            client.release();
+        if (seriesResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          client.release();
+          return res.status(400).json({ error: "Number series not found" });
         }
 
+        const series = seriesResult.rows[0];
+        if (series.is_manual) {
+          if (!code || code.trim() === "") {
+            await client.query("ROLLBACK");
+            client.release();
+            return res
+              .status(400)
+              .json({ error: "Manual code entry required for this series" });
+          }
+          const exists = await client.query(
+            "SELECT 1 FROM enquiry WHERE code = $1",
+            [code]
+          );
+          if (exists.rows.length > 0) {
+            await client.query("ROLLBACK");
+            client.release();
+            return res
+              .status(400)
+              .json({ error: "Enquiry code already exists" });
+          }
+          enquiryCode = code;
+        } else {
+          const relResult = await client.query(
+            "SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE",
+            [seriesCode]
+          );
+
+          if (relResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            client.release();
+            return res
+              .status(400)
+              .json({ error: "Number series relation not found" });
+          }
+
+          const rel = relResult.rows[0];
+          let nextNo =
+            rel.last_no_used === 0
+              ? Number(rel.starting_no)
+              : Number(rel.last_no_used) + Number(rel.increment_by);
+
+          enquiryCode = `${rel.prefix || ""}${nextNo}`;
+
+          await client.query(
+            "UPDATE number_relation SET last_no_used = $1 WHERE id = $2",
+            [nextNo, rel.id]
+          );
+        }
+      } else if (!code || code === "") {
+        enquiryCode = "ENQ-" + Date.now();
+      } else {
+        enquiryCode = code;
+      }
+
+      // Generate enquiry number (same as code for enquiries)
+      enquiryNo = enquiryCode;
+      console.log(
+        "Debug: create enquiry API enquiryNo generated no series",
+        enquiryNo
+      );
+
+      // Check for duplicate enquiry number
+      const duplicateCheck = await client.query(
+        "SELECT id FROM enquiry WHERE enquiry_no = $1",
+        [enquiryNo]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        throw new Error(
+          "Duplicate enquiry number generated. Please try again."
+        );
+      }
+
+      // Create enquiry
+      const enquiryResult = await client.query(
+        `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
+                 company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
+                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code, source_sales_code, cargo_type)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25,$26) RETURNING id`,
+        [
+          enquiryNo,
+          enquiryCode,
+          date,
+          finalCustomerId,
+          customer_name,
+          email,
+          mobile,
+          landline,
+          company_name,
+          contact_department,
+          from_location,
+          to_location,
+          location_type_from,
+          location_type_to,
+          effective_date_from,
+          effective_date_to,
+          department,
+          service_type,
+          status,
+          remarks,
+          userContext.company_code,
+          userContext.branch_code,
+          userContext.department_code,
+          userContext.service_type_code,
+          source_sales_code,
+          cargo_type,
+        ]
+      );
+
+      console.log("Debug: Create enquiry result", enquiryResult);
+
+      const enquiryId = enquiryResult.rows[0].id;
+
+      // Create line items
+      for (let i = 0; i < line_items.length; i++) {
+        const item = line_items[i];
+        await client.query(
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            enquiryId,
+            i + 1,
+            item.quantity,
+            item.type,
+            item.service_area,
+            item.basis,
+            item.remarks,
+            item.status || "Active",
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      // Log the creation
+      await logMasterEvent({
+        username: name,
+        action: "CREATE",
+        masterType: "Enquiry",
+        recordId: enquiryCode,
+        details: `New Enquiry "${enquiryCode}" has been created successfully.`,
+      });
+
+      res.status(201).json({
+        message: "Enquiry created successfully",
+        id: enquiryId,
+        enquiry_no: enquiryNo,
+        code: enquiryCode,
+      });
     } catch (error) {
-        console.error('Error creating enquiry:', error);
-        res.status(500).json({ error: 'Internal server error' });
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
+  } catch (error) {
+    console.error("Error creating enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // PUT /enquiry/:code - Update enquiry
-router.put('/:code', async (req, res) => {
-    try {
-       
+router.put("/:code", async (req, res) => {
+  try {
+    const { code: enquiryCode } = req.params;
+    const {
+      date,
+      customer_id,
+      customer_name,
+      email,
+      mobile,
+      landline,
+      company_name,
+      contact_department,
+      from_location,
+      to_location,
+      location_type_from,
+      location_type_to,
+      effective_date_from,
+      effective_date_to,
+      department,
+      service_type,
+      status,
+      remarks,
+      source_sales_code,
+      line_items = [],
+      cargo_type,
+      username = "System",
+    } = req.body;
 
-        const { code: enquiryCode } = req.params;
-        const {
-            date,
-            customer_id,
-            customer_name,
-            email,
-            mobile,
-            landline,
-            company_name,
-            contact_department,
-            from_location,
-            to_location,
-            location_type_from,
-            location_type_to,
-            effective_date_from,
-            effective_date_to,
-            department,
-            service_type,
-            status,
-            remarks,
-            source_sales_code,
-            line_items = [],
-            username = 'System'
-        } = req.body;
-
-        // First get the enquiry ID from the code
-        const enquiryResult = await pool.query('SELECT id FROM enquiry WHERE code = $1', [enquiryCode]);
-        if (enquiryResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Enquiry not found' });
-        }
-        const enquiryId = enquiryResult.rows[0].id;
-
-        const client = await pool.connect();
-        
-        try {
-            await client.query('BEGIN');
-
-            // Update enquiry (note: we don't update the code as it's the identifier)
-            await client.query(
-                `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
-                 mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
-                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17
-                 WHERE id = $18`,
-                [date, customer_id, customer_name, email, mobile, landline, company_name, contact_department,
-                 from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, source_sales_code, enquiryId]
-            );
-
-            // Delete existing line items
-            await client.query('DELETE FROM enquiry_line_items WHERE enquiry_id = $1', [enquiryId]);
-
-            // Create new line items
-            for (let i = 0; i < line_items.length; i++) {
-                const item = line_items[i];
-                await client.query(
-                    `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                    [enquiryId, i + 1, item.quantity, item.type, item.service_area, item.basis, item.remarks, item.status || 'Active']
-                );
-            }
-
-            await client.query('COMMIT');
-
-            // Log the update
-            await logMasterEvent({
-                username: username,
-                action: 'UPDATE',
-                masterType: 'Enquiry',
-                recordId: enquiryCode,
-                details: `Enquiry "${enquiryCode}" has been updated successfully.`
-            });
-
-            res.json({ message: 'Enquiry updated successfully' });
-
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-        } finally {
-            client.release();
-        }
-
-    } catch (error) {
-        console.error('Error updating enquiry:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    // First get the enquiry ID from the code
+    const enquiryResult = await pool.query(
+      "SELECT id FROM enquiry WHERE code = $1",
+      [enquiryCode]
+    );
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
     }
+    const enquiryId = enquiryResult.rows[0].id;
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // Update enquiry (note: we don't update the code as it's the identifier)
+      await client.query(
+        `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
+                 mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
+                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17,
+                 cargo_type= $19, location_type_from= $20, location_type_to= $21 WHERE id = $18`,
+        [
+          date,
+          customer_id,
+          customer_name,
+          email,
+          mobile,
+          landline,
+          company_name,
+          contact_department,
+          from_location,
+          to_location,
+          effective_date_from,
+          effective_date_to,
+          department,
+          service_type,
+          status,
+          remarks,
+          source_sales_code,
+          enquiryId,
+          cargo_type,
+          location_type_from,
+          location_type_to,
+        ]
+      );
+
+      // Delete existing line items
+      // await client.query(
+      //   "DELETE FROM enquiry_line_items WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
+
+      // selecting the line item of the enquiry
+      const { rows: lineItemResult } = await client.query(
+        `SELECT id FROM enquiry_line_items WHERE enquiry_id = $1`,
+        [enquiryId]
+      );
+      console.log("line items list for the enquiry", lineItemResult);
+      // Create new line items
+      if (lineItemResult.length === 0) {
+        // Create new line items
+        for (let i = 0; i < line_items.length; i++) {
+          let item = line_items[i];
+          await client.query(
+            `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              enquiryId,
+              i + 1,
+              item.quantity,
+              item.type,
+              item.service_area,
+              item.basis,
+              item.remarks,
+              item.status || "Active",
+            ]
+          );
+        }
+      } else {
+        for (let i = 0; i < line_items.length; i++) {
+          let item = line_items[i];
+          if (item.id) {
+            await client.query(
+              `UPDATE enquiry_line_items SET quantity =$1, type = $2, service_area =$3, basis=$4, remarks=$5, status=$6
+           WHERE enquiry_id= $7 AND s_no = $8 AND id = $9 `,
+              [
+                item.quantity,
+                item.type,
+                item.service_area,
+                item.basis,
+                item.remarks,
+                item.status || "Active",
+                enquiryId,
+                i + 1,
+                lineItemResult[i].id,
+              ]
+            );
+          } else {
+            await client.query(
+              `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                enquiryId,
+                i + 1,
+                item.quantity,
+                item.type,
+                item.service_area,
+                item.basis,
+                item.remarks,
+                item.status || "Active",
+              ]
+            );
+          }
+        }
+      }
+      await client.query("COMMIT");
+
+      // Log the update
+      await logMasterEvent({
+        username: username,
+        action: "UPDATE",
+        masterType: "Enquiry",
+        recordId: enquiryCode,
+        details: `Enquiry "${enquiryCode}" has been updated successfully.`,
+      });
+
+      res.json({ message: "Enquiry updated successfully" });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error updating enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // DELETE /enquiry/:code - Delete enquiry
-router.delete('/:code', async (req, res) => {
-    try {
-       
+router.delete("/:code", async (req, res) => {
+  try {
+    const { code } = req.params;
 
-        const { code } = req.params;
-
-        // First get the enquiry ID from the code
-        const enquiryResult = await pool.query('SELECT id FROM enquiry WHERE code = $1', [code]);
-        if (enquiryResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Enquiry not found' });
-        }
-        const enquiryId = enquiryResult.rows[0].id;
-
-        const result = await pool.query('DELETE FROM enquiry WHERE code = $1', [code]);
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Enquiry not found' });
-        }
-
-        // Log the deletion
-        await logMasterEvent({
-            username: username,
-            action: 'DELETE',
-            masterType: 'Enquiry',
-            recordId: code,
-            details: `Enquiry "${code}" has been deleted successfully.`
-        });
-
-        res.json({ message: 'Enquiry deleted successfully' });
-
-    } catch (error) {
-        console.error('Error deleting enquiry:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    // First get the enquiry ID from the code
+    const enquiryResult = await pool.query(
+      "SELECT id FROM enquiry WHERE code = $1",
+      [code]
+    );
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
     }
+    const enquiryId = enquiryResult.rows[0].id;
+
+    const result = await pool.query("DELETE FROM enquiry WHERE code = $1", [
+      code,
+    ]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+
+    // Log the deletion
+    await logMasterEvent({
+      username: username,
+      action: "DELETE",
+      masterType: "Enquiry",
+      recordId: code,
+      details: `Enquiry "${code}" has been deleted successfully.`,
+    });
+
+    res.json({ message: "Enquiry deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // GET /enquiry/customers/dropdown - Get customers for dropdown
-router.get('/customers/dropdown', async (req, res) => {
-    try {
-        const username = getUsernameFromToken(req) || 'system';
+router.get("/customers/dropdown", async (req, res) => {
+  try {
+    const username = getUsernameFromToken(req) || "system";
 
-        const { search = '' } = req.query;
-        console.log("🔍 Search query received:", search);
+    const { search = "" } = req.query;
+    console.log("🔍 Search query received:", search);
 
-        // Get user context
-        const userResult = await pool.query(
-            'SELECT company_code, branch_code, department_code FROM users WHERE username = $1',
-            [username]
-        );
+    // Get user context
+    const userResult = await pool.query(
+      "SELECT company_code, branch_code, department_code FROM users WHERE username = $1",
+      [username]
+    );
 
-        if (userResult.rows.length === 0) {
-            console.warn(`⚠️ No user found for username: ${username}`);
-            return res.status(404).json({ error: 'User not found' });
-        }
+    if (userResult.rows.length === 0) {
+      console.warn(`⚠️ No user found for username: ${username}`);
+      return res.status(404).json({ error: "User not found" });
+    }
 
-        const userContext = userResult.rows[0];
-        console.log("✅ User context:", userContext);
+    const userContext = userResult.rows[0];
+    console.log("✅ User context:", userContext);
 
-        // Get customers from customer table with primary contact details
-        let customerQuery = `
+    // Get customers from customer table with primary contact details
+    let customerQuery = `
             SELECT DISTINCT c.id, c.name, c.name as company_name, 
                    cc.email, cc.mobile, cc.landline, cc.name as contact_name,
                    cc.department as contact_department,
@@ -693,260 +1157,263 @@ router.get('/customers/dropdown', async (req, res) => {
             LEFT JOIN customer_contacts cc2 ON c.id = cc2.customer_id AND cc2.is_active = true
             WHERE 1=1
         `;
-        
-        const customerParams = [];
-        let paramIndex = 1;
 
-        // Context filtering
-        if (userContext.company_code) {
-            customerQuery += ` AND c.company_code = $${paramIndex}`;
-            customerParams.push(userContext.company_code);
-            paramIndex++;
-        }
+    const customerParams = [];
+    let paramIndex = 1;
 
-        if (search) {
-            customerQuery += ` AND c.name ILIKE $${paramIndex}`;
-            customerParams.push(`%${search}%`);
-            paramIndex++;
-        }
+    // Context filtering
+    if (userContext.company_code) {
+      customerQuery += ` AND c.company_code = $${paramIndex}`;
+      customerParams.push(userContext.company_code);
+      paramIndex++;
+    }
 
-        customerQuery += ` GROUP BY c.id, c.name, cc.email, cc.mobile, cc.landline, cc.name, cc.department ORDER BY c.name LIMIT 50`;
+    if (search) {
+      customerQuery += ` AND c.name ILIKE $${paramIndex}`;
+      customerParams.push(`%${search}%`);
+      paramIndex++;
+    }
 
-        console.log("📌 Customer query:", customerQuery);
-        console.log("📌 Customer params:", customerParams);
+    customerQuery += ` GROUP BY c.id, c.name, cc.email, cc.mobile, cc.landline, cc.name, cc.department ORDER BY c.name LIMIT 50`;
 
-        const customerResult = await pool.query(customerQuery, customerParams);
-        console.log(`✅ Customers fetched: ${customerResult.rows.length}`);
+    console.log("📌 Customer query:", customerQuery);
+    console.log("📌 Customer params:", customerParams);
 
-        // Also get unique customers from enquiry table (for existing enquiries)
-        let enquiryQuery = `
+    const customerResult = await pool.query(customerQuery, customerParams);
+    console.log(`✅ Customers fetched: ${customerResult.rows.length}`);
+
+    // Also get unique customers from enquiry table (for existing enquiries)
+    let enquiryQuery = `
             SELECT DISTINCT customer_name as name, company_name, email, mobile, landline,
                    CONCAT(customer_name, CASE WHEN company_name IS NOT NULL THEN ' - ' || company_name ELSE '' END) as display_name,
                    NULL as id
             FROM enquiry 
             WHERE customer_id IS NULL AND customer_name IS NOT NULL
         `;
-        
-        const enquiryParams = [];
-        let enquiryParamIndex = 1;
 
-        if (userContext.company_code) {
-            enquiryQuery += ` AND company_code = $${enquiryParamIndex}`;
-            enquiryParams.push(userContext.company_code);
-            enquiryParamIndex++;
-        }
+    const enquiryParams = [];
+    let enquiryParamIndex = 1;
 
-        if (search) {
-            enquiryQuery += ` AND (customer_name ILIKE $${enquiryParamIndex} OR company_name ILIKE $${enquiryParamIndex})`;
-            enquiryParams.push(`%${search}%`);
-            enquiryParamIndex++;
-        }
-
-        enquiryQuery += ` ORDER BY customer_name LIMIT 50`;
-
-        console.log("📌 Enquiry query:", enquiryQuery);
-        console.log("📌 Enquiry params:", enquiryParams);
-
-        const enquiryResult = await pool.query(enquiryQuery, enquiryParams);
-        console.log(`✅ Enquiry customers fetched: ${enquiryResult.rows.length}`);
-
-        // Combine and deduplicate results with case-insensitive comparison
-        const allCustomers = [...customerResult.rows, ...enquiryResult.rows];
-        const uniqueCustomers = allCustomers.filter((customer, index, self) => {
-            return index === self.findIndex(c => {
-                // Compare by display_name first (case-insensitive)
-                if (c.display_name && customer.display_name) {
-                    if (c.display_name.toLowerCase() === customer.display_name.toLowerCase()) {
-                        return true;
-                    }
-                }
-                
-                // Also compare by company_name (case-insensitive) to catch duplicates
-                if (c.company_name && customer.company_name) {
-                    if (c.company_name.toLowerCase() === customer.company_name.toLowerCase()) {
-                        return true;
-                    }
-                }
-                
-                // Compare by name field (case-insensitive) for customer table entries
-                if (c.name && customer.name) {
-                    if (c.name.toLowerCase() === customer.name.toLowerCase()) {
-                        return true;
-                    }
-                }
-                
-                return false;
-            });
-        });
-
-        console.log(`🎯 Final unique customers: ${uniqueCustomers.length}`);
-
-        res.json(uniqueCustomers);
-
-    } catch (error) {
-        console.error('❌ Error fetching customers:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (userContext.company_code) {
+      enquiryQuery += ` AND company_code = $${enquiryParamIndex}`;
+      enquiryParams.push(userContext.company_code);
+      enquiryParamIndex++;
     }
+
+    if (search) {
+      enquiryQuery += ` AND (customer_name ILIKE $${enquiryParamIndex} OR company_name ILIKE $${enquiryParamIndex})`;
+      enquiryParams.push(`%${search}%`);
+      enquiryParamIndex++;
+    }
+
+    enquiryQuery += ` ORDER BY customer_name LIMIT 50`;
+
+    console.log("📌 Enquiry query:", enquiryQuery);
+    console.log("📌 Enquiry params:", enquiryParams);
+
+    const enquiryResult = await pool.query(enquiryQuery, enquiryParams);
+    console.log(`✅ Enquiry customers fetched: ${enquiryResult.rows.length}`);
+
+    // Combine and deduplicate results with case-insensitive comparison
+    const allCustomers = [...customerResult.rows, ...enquiryResult.rows];
+    const uniqueCustomers = allCustomers.filter((customer, index, self) => {
+      return (
+        index ===
+        self.findIndex((c) => {
+          // Compare by display_name first (case-insensitive)
+          if (c.display_name && customer.display_name) {
+            if (
+              c.display_name.toLowerCase() ===
+              customer.display_name.toLowerCase()
+            ) {
+              return true;
+            }
+          }
+
+          // Also compare by company_name (case-insensitive) to catch duplicates
+          if (c.company_name && customer.company_name) {
+            if (
+              c.company_name.toLowerCase() ===
+              customer.company_name.toLowerCase()
+            ) {
+              return true;
+            }
+          }
+
+          // Compare by name field (case-insensitive) for customer table entries
+          if (c.name && customer.name) {
+            if (c.name.toLowerCase() === customer.name.toLowerCase()) {
+              return true;
+            }
+          }
+
+          return false;
+        })
+      );
+    });
+
+    console.log(`🎯 Final unique customers: ${uniqueCustomers.length}`);
+
+    res.json(uniqueCustomers);
+  } catch (error) {
+    console.error("❌ Error fetching customers:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
-
 // Get customer details for auto-fill
-router.get('/customers/:customerId/details', async (req, res) => {
-    try {
-       
+router.get("/customers/:customerId/details", async (req, res) => {
+  try {
+    const { customerId } = req.params;
 
-        const { customerId } = req.params;
-
-        // Get customer details from customer table
-        const customerResult = await pool.query(
-            `SELECT id, name, name as company_name, name as customer_name
+    // Get customer details from customer table
+    const customerResult = await pool.query(
+      `SELECT id, name, name as company_name, name as customer_name
              FROM customer 
              WHERE id = $1`,
-            [customerId]
-        );
+      [customerId]
+    );
 
-        if (customerResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Customer not found' });
-        }
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
 
-        const customer = customerResult.rows[0];
+    const customer = customerResult.rows[0];
 
-        // Initialize contact fields
-        customer.email = null;
-        customer.mobile = null;
-        customer.landline = null;
-        customer.contact_department = null;
-        customer.remarks = null;
+    // Initialize contact fields
+    customer.email = null;
+    customer.mobile = null;
+    customer.landline = null;
+    customer.contact_department = null;
+    customer.remarks = null;
 
-        // Get primary contact from customer_contacts if available
-        const contactResult = await pool.query(
-            `SELECT name as contact_name, department as contact_department, 
+    // Get primary contact from customer_contacts if available
+    const contactResult = await pool.query(
+      `SELECT name as contact_name, department as contact_department, 
                     mobile, landline, email, remarks
              FROM customer_contacts 
              WHERE customer_id = $1 AND is_primary = true AND is_active = true
              ORDER BY created_at DESC
              LIMIT 1`,
-            [customerId]
-        );
+      [customerId]
+    );
 
-        // If primary contact exists, use contact details
-        if (contactResult.rows.length > 0) {
-            const contact = contactResult.rows[0];
-            customer.customer_name = contact.contact_name || customer.name;
-            customer.contact_department = contact.contact_department;
-            customer.mobile = contact.mobile;
-            customer.landline = contact.landline;
-            customer.email = contact.email;
-            customer.remarks = contact.remarks;
-        }
-
-        res.json(customer);
-
-    } catch (error) {
-        console.error('Error fetching customer details:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    // If primary contact exists, use contact details
+    if (contactResult.rows.length > 0) {
+      const contact = contactResult.rows[0];
+      customer.customer_name = contact.contact_name || customer.name;
+      customer.contact_department = contact.contact_department;
+      customer.mobile = contact.mobile;
+      customer.landline = contact.landline;
+      customer.email = contact.email;
+      customer.remarks = contact.remarks;
     }
+
+    res.json(customer);
+  } catch (error) {
+    console.error("Error fetching customer details:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // Get customer contacts for dropdown
-router.get('/customers/:customerId/contacts', async (req, res) => {
-    try {
-       
+router.get("/customers/:customerId/contacts", async (req, res) => {
+  try {
+    const { customerId } = req.params;
 
-        const { customerId } = req.params;
-
-        // Get all active contacts for the customer
-        const contactsResult = await pool.query(
-            `SELECT id, name, department, mobile, landline, email, remarks, is_primary,
+    // Get all active contacts for the customer
+    const contactsResult = await pool.query(
+      `SELECT id, name, department, mobile, landline, email, remarks, is_primary,
                     CONCAT(name, CASE WHEN department IS NOT NULL THEN ' (' || department || ')' ELSE '' END) as display_name
              FROM customer_contacts 
              WHERE customer_id = $1 AND is_active = true
              ORDER BY is_primary DESC, name ASC`,
-            [customerId]
-        );
+      [customerId]
+    );
 
-        res.json(contactsResult.rows);
-
-    } catch (error) {
-        console.error('Error fetching customer contacts:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+    res.json(contactsResult.rows);
+  } catch (error) {
+    console.error("Error fetching customer contacts:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // GET /enquiry/locations/dropdown - Get locations for dropdown
-router.get('/locations/dropdown', async (req, res) => {
-    try {
-        const username = getUsernameFromToken(req) || 'system';
+router.get("/locations/dropdown", async (req, res) => {
+  try {
+    const username = getUsernameFromToken(req) || "system";
 
-        const { search = '' } = req.query;
+    const { search = "" } = req.query;
 
-        // Get user context
-        const userResult = await pool.query(
-            'SELECT company_code, branch_code, department_code FROM users WHERE username = $1',
-            [username]
-        );
+    // Get user context
+    const userResult = await pool.query(
+      "SELECT company_code, branch_code, department_code FROM users WHERE username = $1",
+      [username]
+    );
 
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-        const userContext = userResult.rows[0];
+    const userContext = userResult.rows[0];
 
-        // Get locations from master_location table
-        let locationQuery = `
+    // Get locations from master_location table
+    let locationQuery = `
             SELECT code, name, city, state, country,
                    CONCAT(name, ' (', city, ', ', state, ', ', country, ')') as display_name
             FROM master_location
             WHERE active = true
         `;
 
-        const params = [];
-        let paramIndex = 1;
+    const params = [];
+    let paramIndex = 1;
 
-        // Add context filtering
-        if (userContext.company_code) {
-            locationQuery += ` AND company_code = $${paramIndex}`;
-            params.push(userContext.company_code);
-            paramIndex++;
+    // Add context filtering
+    if (userContext.company_code) {
+      locationQuery += ` AND company_code = $${paramIndex}`;
+      params.push(userContext.company_code);
+      paramIndex++;
 
-            if (userContext.branch_code) {
-                locationQuery += ` AND branch_code = $${paramIndex}`;
-                params.push(userContext.branch_code);
-                paramIndex++;
+      if (userContext.branch_code) {
+        locationQuery += ` AND branch_code = $${paramIndex}`;
+        params.push(userContext.branch_code);
+        paramIndex++;
 
-                if (userContext.department_code) {
-                    locationQuery += ` AND department_code = $${paramIndex}`;
-                    params.push(userContext.department_code);
-                    paramIndex++;
-                }
-            }
+        if (userContext.department_code) {
+          locationQuery += ` AND department_code = $${paramIndex}`;
+          params.push(userContext.department_code);
+          paramIndex++;
         }
-
-        // Add search filtering
-        if (search) {
-            locationQuery += ` AND (name ILIKE $${paramIndex} OR city ILIKE $${paramIndex} OR state ILIKE $${paramIndex} OR country ILIKE $${paramIndex})`;
-            params.push(`%${search}%`);
-        }
-
-        locationQuery += ` ORDER BY name ASC`;
-
-        const result = await pool.query(locationQuery, params);
-        res.json(result.rows);
-
-    } catch (error) {
-        console.error('Error fetching locations dropdown:', error);
-        res.status(500).json({ error: 'Internal server error' });
+      }
     }
+
+    // Add search filtering
+    if (search) {
+      locationQuery += ` AND (name ILIKE $${paramIndex} OR city ILIKE $${paramIndex} OR state ILIKE $${paramIndex} OR country ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+    }
+
+    locationQuery += ` ORDER BY name ASC`;
+
+    const result = await pool.query(locationQuery, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching locations dropdown:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
-
 // Get departments dropdown for enquiry
-router.get('/departments/dropdown', async (req, res) => {
+router.get("/departments/dropdown", async (req, res) => {
   try {
     const { search, company_code } = req.query;
-    const userContext = getUsernameFromToken(req) || 'system';
-    
-    console.log("🏢 Departments dropdown request:", { search, company_code, userContext });
+    const userContext = getUsernameFromToken(req) || "system";
+
+    console.log("🏢 Departments dropdown request:", {
+      search,
+      company_code,
+      userContext,
+    });
 
     let query = `
       SELECT DISTINCT d.code, d.name, d.company_code, d.branch_code,
@@ -954,7 +1421,7 @@ router.get('/departments/dropdown', async (req, res) => {
       FROM departments d
       WHERE (d.status IS NULL OR d.status = 'Active' OR d.status = 'active' OR d.status = '')
     `;
-    
+
     const params = [];
     let paramIndex = 1;
 
@@ -989,234 +1456,436 @@ router.get('/departments/dropdown', async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error('❌ Error fetching departments dropdown:', err);
-    res.status(500).json({ error: 'Failed to fetch departments' });
+    console.error("❌ Error fetching departments dropdown:", err);
+    res.status(500).json({ error: "Failed to fetch departments" });
   }
 });
 
-router.post('/:code/sourcing', async (req, res) => {
-    try {
-       
+router.post("/:code/sourcing", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const {
+      line_item_type,
+      service_area,
+      basis,
+      service_type,
+      from_location_type,
+      to_location_type,
+      department,
+      cargo_type,
+      from_location,
+      to_location,
+      effective_date_from,
+      effective_date_to,
+    } = req.body;
 
-        const { code } = req.params;
-        const { department, from_location, to_location, effective_date_from, effective_date_to } = req.body;
+    // Get sourcing options based on criteria
+    // let query = `
+    //     SELECT s.*, v.name as vendor_name, v.type as vendor_type
+    //     FROM sourcing s
+    //     LEFT JOIN vendor v ON s.vendor_code = v.code
+    //     WHERE s.active = true
+    // `;
 
-        // Get sourcing options based on criteria
-        // let query = `
-        //     SELECT s.*, v.name as vendor_name, v.type as vendor_type
-        //     FROM sourcing s
-        //     LEFT JOIN vendor v ON s.vendor_code = v.code
-        //     WHERE s.active = true
-        // `;
-        
-        let query= `
+    let query = `
             SELECT * FROM ( SELECT *, CASE
-            WHEN period_end_date = NULL THEN 'Active'
+            WHEN period_end_date IS NULL THEN 'Active'
             WHEN NOW() > period_end_date::DATE  THEN 'Expired'
             ELSE 'Active' END AS source_status
             FROM sourcing) WHERE source_status = 'Active'
         `;
-        const params = [];
-        let paramIndex = 1;
+    const params = [];
+    let paramIndex = 1;
+    let saFromLoc = true;
+    let saToLoc = true;
 
-        if (department) {
-            query += ` AND mode = $${paramIndex}`;
-            params.push(department);
-            paramIndex++;
-        }
-
-        if (from_location) {
-            query += ` AND from_location = $${paramIndex}`;
-            params.push(from_location);
-            paramIndex++;
-        }
-
-        if (to_location) {
-            query += ` AND to_location = $${paramIndex}`;
-            params.push(to_location);
-            paramIndex++;
-        }
-
-        // Date range check
-        if (effective_date_from && effective_date_to) {
-            query += ` AND (
-                (period_start_date <= $${paramIndex} AND period_end_date >= $${paramIndex}) OR
-                (effective_date <= $${paramIndex + 1} AND effective_date >= $${paramIndex})
-            )`;
-            params.push(effective_date_from, effective_date_to);
-            paramIndex += 2;
-        }
-
-        // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
-        query += `ORDER BY code, id DESC`;
-        console.log(`DEBUG: /code/sourcing query ${query}, Params ${params}`);
-        const result = await pool.query(query, params);
-
-        res.json(result.rows);
-
-    } catch (error) {
-        console.error('Error fetching sourcing options:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (department && department.trim() !== "") {
+      query += ` AND mode = $${paramIndex}  `;
+      params.push(department);
+      paramIndex++;
     }
+
+    // retriving the location type based on the service Area
+    if (service_area && service_area.trim() !== "") {
+      const serviceAreaResult = await pool.query(
+        `SELECT * FROM master_service_area WHERE service_area=$1`,
+        [service_area]
+      );
+      [{ from_location: saFromLoc, to_location: saToLoc }] =
+        serviceAreaResult.rows;
+
+      console.log(
+        "values from ,",
+        saFromLoc,
+        "and to",
+        saToLoc,
+        "Service Area",
+        service_area,
+        "Service Area Result",
+        serviceAreaResult.rows[0]
+      );
+
+      if (saFromLoc === false && saToLoc === false) {
+        saFromLoc = true;
+        saToLoc = true;
+      }
+    }
+
+    if (
+      from_location &&
+      from_location_type &&
+      from_location.trim() !== "" &&
+      from_location_type.trim() !== "" &&
+      saFromLoc
+    ) {
+      query += ` AND from_location = $${paramIndex} AND location_type_from = $${
+        paramIndex + 1
+      }`;
+      params.push(from_location, from_location_type);
+      paramIndex += 2;
+    }
+
+    if (
+      to_location &&
+      to_location_type &&
+      to_location.trim() !== "" &&
+      to_location_type.trim() !== "" &&
+      saToLoc
+    ) {
+      query += ` AND to_location = $${paramIndex} AND location_type_to= $${
+        paramIndex + 1
+      }`;
+      params.push(to_location, to_location_type);
+      paramIndex += 2;
+    }
+
+    if (cargo_type && cargo_type.trim() !== "") {
+      query += ` AND cargo_type = $${paramIndex}  `;
+      params.push(cargo_type);
+      paramIndex++;
+    }
+
+    // Basis check
+    if (basis && basis.trim() !== "") {
+      query += `AND basis=$${paramIndex}  `;
+      params.push(basis);
+      paramIndex++;
+    }
+    // Date range check
+    if (
+      effective_date_from &&
+      effective_date_to &&
+      effective_date_from.trim() !== "" &&
+      effective_date_to.trim() !== ""
+    ) {
+      query += ` AND (
+                (period_start_date <= $${paramIndex} AND period_end_date >= $${paramIndex}) OR
+                (effective_date <= $${
+                  paramIndex + 1
+                } AND effective_date >= $${paramIndex})
+            )`;
+      params.push(effective_date_from, effective_date_to);
+      paramIndex += 2;
+    }
+
+    // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
+    query += ` ORDER BY code, id DESC`;
+
+    console.log("get sourcing final query,", query, "params,", params);
+    const result = await pool.query(query, params);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching sourcing options:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // POST /enquiry/:code/tariff - Get tariff options for enquiry
-router.post('/:code/tariff', async (req, res) => {
-    try {
-       
+router.post("/:code/tariff", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const {
+      department,
+      basis,
+      cargo_type,
+      service_area,
+      service_type,
+      line_item_type,
+      from_location,
+      from_location_type,
+      to_location,
+      to_location_type,
+      effective_date_from,
+      effective_date_to,
+    } = req.body;
 
-        const { code } = req.params;
-        const { department, from_location, to_location, effective_date_from, effective_date_to } = req.body;
-
-        // Get tariff options based on criteria
-        let query = `
+    // Get tariff options based on criteria
+    let query = `
             SELECT t.*, v.name as vendor_name, v.type as vendor_type
-            FROM tariff t
-            LEFT JOIN vendor v ON t.vendor_code = v.code
-            WHERE t.active = true
+            FROM tariff AS t
+            LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
+            WHERE t.is_mandatory = true
         `;
-        
-        const params = [];
-        let paramIndex = 1;
 
-        if (department) {
-            query += ` AND t.mode = $${paramIndex}`;
-            params.push(department);
-            paramIndex++;
-        }
+    const params = [];
+    let paramIndex = 1;
+    let saFromLoc = false;
+    let saToLoc = false;
 
-        if (from_location) {
-            query += ` AND t.from_location = $${paramIndex}`;
-            params.push(from_location);
-            paramIndex++;
-        }
-
-        if (to_location) {
-            query += ` AND t.to_location = $${paramIndex}`;
-            params.push(to_location);
-            paramIndex++;
-        }
-
-        // Date range check
-        if (effective_date_from && effective_date_to) {
-            query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
-            params.push(effective_date_to);
-            paramIndex++;
-        }
-
-        query += ` ORDER BY t.vendor_code, t.mandatory DESC, t.created_at DESC`;
-
-        const result = await pool.query(query, params);
-
-        res.json(result.rows);
-
-    } catch (error) {
-        console.error('Error fetching tariff options:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (department && department.trim() !== "") {
+      query += ` AND t.mode = $${paramIndex} `;
+      params.push(department);
+      paramIndex++;
     }
+
+    // service Area check
+    if (service_area && service_area.trim() !== "") {
+      const serviceAreaResult = await pool.query(
+        `SELECT * FROM master_service_area WHERE service_area= $1 `,
+        [service_area]
+      );
+      [{ from_location: saFromLoc, to_location: saToLoc }] =
+        serviceAreaResult.rows;
+
+      // including the from & to location if service area false for both case
+      if (saFromLoc === false && saToLoc === false) {
+        saFromLoc = true;
+        saToLoc = true;
+      }
+    }
+
+    if (
+      from_location &&
+      from_location_type &&
+      from_location.trim() !== "" &&
+      from_location_type.trim() !== "" &&
+      saFromLoc
+    ) {
+      query += ` AND t.from_location = $${paramIndex}  AND t.location_type_from = $${
+        paramIndex + 1
+      } `;
+      params.push(from_location, from_location_type);
+      paramIndex += 2;
+    }
+
+    if (
+      to_location &&
+      to_location_type &&
+      to_location.trim() !== "" &&
+      to_location_type.trim() !== "" &&
+      saToLoc
+    ) {
+      query += ` AND t.to_location = $${paramIndex} AND t.location_type_to= $${
+        paramIndex + 1
+      } `;
+      params.push(to_location, to_location_type);
+      paramIndex += 2;
+    }
+
+    if (basis && basis.trim() !== "") {
+      query += ` AND t.basis = $${paramIndex} `;
+      params.push(basis);
+      paramIndex++;
+    }
+
+    if (cargo_type && cargo_type.trim() !== "") {
+      query += ` AND t.cargo_type = $${paramIndex} `;
+      params.push(cargo_type);
+      paramIndex++;
+    }
+
+    if (service_type && service_type.trim() !== "") {
+      query += ` AND t.service_type = $${paramIndex}`;
+      params.push(service_type);
+      paramIndex++;
+    }
+
+    // // Date range check
+    // if (effective_date_from && effective_date_to) {
+    //   query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
+    //   params.push(effective_date_to);
+    //   paramIndex++;
+    // }
+
+    // Date range check
+    if (
+      effective_date_from &&
+      effective_date_to &&
+      effective_date_from.trim() !== "" &&
+      effective_date_to.trim() !== ""
+    ) {
+      query += ` AND t.period_start_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
+      params.push(effective_date_to);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY t.vendor_name, t.created_at DESC`;
+    console.log("get tariff query params", query, params);
+    const result = await pool.query(query, params);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching tariff options:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // POST /enquiry/:code/vendor-cards - Add vendor cards to enquiry
-router.post('/:code/vendor-cards', async (req, res) => {
-    try {
-        const username = getUsernameFromToken(req); 
-        if (!username){ 
-            return res.status(401).json({ error: 'Unauthorized' }); }
-
-        const { code } = req.params;
-        const { vendorCards } = req.body;
-
-        (typeof vendorCards === 'undefined') && (vendorCards = []);
-
-        console.log("DEBUG: vendor cards list from post met:",vendorCards);
-
-        // First get the enquiry ID from the code
-        const enquiryResult = await pool.query('SELECT id FROM enquiry WHERE code = $1', [code]);
-        if (enquiryResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Enquiry not found' });
-        }
-        const enquiryId = enquiryResult.rows[0].id;
-
-        const client = await pool.connect();
-        
-        try {
-            await client.query('BEGIN');
-
-            // Clear existing vendor cards
-            await client.query('DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1', [enquiryId]);
-
-            // Add new vendor cards
-            for (const card of vendorCards) {
-                // Handle date fields - convert empty strings to null
-                const effectiveDate = card.effective_date && card.effective_date.trim() !== '' ? card.effective_date : null;
-                const expiryDate = card.expiry_date && card.expiry_date.trim() !== '' ? card.expiry_date : null;
-                
-                await client.query(
-                    `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-                    [enquiryId, card.vendor_name, card.vendor_type, card.is_active || false, 
-                     JSON.stringify(card.charges || []), card.source_type, card.source_id,
-                     card.mode, card.from_location, card.to_location, card.basis, 
-                     card.vendor_code, effectiveDate, expiryDate, card.currency, card.quantity, card.remarks]
-                );
-            }
-
-            await client.query('COMMIT');
-
-            // Log the update
-            await logMasterEvent({
-                username: username,
-                action: 'UPDATE',
-                masterType: 'Enquiry',
-                recordId: code,
-                details: `Enquiry "${code}" has been updated successfully.`
-            });
-
-            res.json({ message: 'Enquiry updated successfully' });
-
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-        } finally {
-            client.release();
-        }
-
-    } catch (error) {
-        console.error('Error updating vendor cards:', error);
-        res.status(500).json({ error: 'Internal server error' });
+router.post("/:code/vendor-cards", async (req, res) => {
+  try {
+    const username = getUsernameFromToken(req);
+    if (!username) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+
+    const { code } = req.params;
+    const { vendorCards, sourcingType, lineItemId } = req.body;
+    let sourcedNo = 0;
+
+    typeof vendorCards === "undefined" && (vendorCards = []);
+
+    console.log("DEBUG: vendor cards list from post met:", vendorCards);
+
+    // First get the enquiry ID from the code
+    const enquiryResult = await pool.query(
+      "SELECT id FROM enquiry WHERE code = $1",
+      [code]
+    );
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+    const enquiryId = enquiryResult.rows[0].id;
+
+    // sourced no value
+    let { rows: sourcedNoResult } = await pool.query(
+      `SELECT * FROM enquiry_vendor_cards WHERE enquiry_id =$1 AND enquiry_line_item_id =$2 AND source_type = $3 ORDER BY sourced_no DESC NULLS LAST LIMIT 1;
+`,
+      [enquiryId, lineItemId, sourcingType]
+    );
+
+    console.log("sourced no DB result", sourcedNoResult);
+
+    if (sourcedNoResult.length > 0) {
+      let { sourced_no: sourcedNoFromDB } = sourcedNoResult[0];
+      console.log("initial sourced No:,", sourcedNoFromDB);
+      if (sourcedNoFromDB == null) {
+        sourcedNo = 1;
+      } else {
+        sourcedNo = ++sourcedNoFromDB;
+      }
+      console.log("Altered sourced No,", sourcedNo);
+    } else if (sourcedNoResult.length === 0) {
+      sourcedNo = 1;
+    } else {
+      sourcedNo = -1;
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // Clear existing vendor cards
+      // await client.query(
+      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
+      // await client.query(
+      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
+      //   [enquiryId]
+      // );
+
+      // Add new vendor cards
+      for (const card of vendorCards) {
+        // Handle date fields - convert empty strings to null
+        const effectiveDate =
+          card.effective_date && card.effective_date.trim() !== ""
+            ? card.effective_date
+            : null;
+        const expiryDate =
+          card.expiry_date && card.expiry_date.trim() !== ""
+            ? card.expiry_date
+            : null;
+
+        await client.query(
+          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id, sourced_no, is_selected)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+          [
+            enquiryId,
+            card.vendor_name,
+            card.vendor_type,
+            card.is_active || false,
+            JSON.stringify(card.charges || []),
+            card.source_type,
+            card.source_id,
+            card.mode,
+            card.from_location,
+            card.to_location,
+            card.basis,
+            card.vendor_code,
+            effectiveDate,
+            expiryDate,
+            card.currency,
+            card.quantity,
+            card.remarks,
+            card.enquiry_line_item_id,
+            sourcedNo,
+            true,
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      // Log the update
+      await logMasterEvent({
+        username: username,
+        action: "UPDATE",
+        masterType: "Enquiry",
+        recordId: code,
+        details: `Enquiry "${code}" has been updated successfully.`,
+      });
+
+      res.json({ message: "Enquiry updated successfully" });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error updating vendor cards:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // PUT /enquiry/:code/vendor-cards/:cardId/negotiate - Update negotiated charges
-router.put('/:code/vendor-cards/:cardId/negotiate', async (req, res) => {
-    try {
-       
+router.put("/:code/vendor-cards/:cardId/negotiate", async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    const { negotiated_charges } = req.body;
 
-        const { cardId } = req.params;
-        const { negotiated_charges } = req.body;
+    await pool.query(
+      "UPDATE enquiry_vendor_cards SET negotiated_charges = $1 WHERE id = $2",
+      [JSON.stringify(negotiated_charges), cardId]
+    );
 
-        await pool.query(
-            'UPDATE enquiry_vendor_cards SET negotiated_charges = $1 WHERE id = $2',
-            [JSON.stringify(negotiated_charges), cardId]
-        );
-
-        res.json({ message: 'Negotiated charges updated successfully' });
-
-    } catch (error) {
-        console.error('Error updating negotiated charges:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+    res.json({ message: "Negotiated charges updated successfully" });
+  } catch (error) {
+    console.error("Error updating negotiated charges:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // POST /enquiry/:code/confirm - Confirm enquiry and create booking
-router.post('/:code/confirm', async (req, res) => {
-    try {
-       
+router.post("/:code/confirm", async (req, res) => {
+  try {
+    const { code } = req.params;
 
-        const { code } = req.params;
-
-        // Get enquiry details with active vendor card
-        const enquiryResult = await pool.query(`
+    // Get enquiry details with active vendor card
+    const enquiryResult = await pool.query(
+      `
             SELECT e.*, 
                    json_agg(eli.*) as line_items,
                    (SELECT row_to_json(evc.*) FROM enquiry_vendor_cards evc WHERE evc.enquiry_id = e.id AND evc.is_active = true LIMIT 1) as active_vendor
@@ -1224,61 +1893,303 @@ router.post('/:code/confirm', async (req, res) => {
             LEFT JOIN enquiry_line_items eli ON e.id = eli.enquiry_id
             WHERE e.code = $1
             GROUP BY e.id
-        `, [code]);
+        `,
+      [code]
+    );
 
-        if (enquiryResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Enquiry not found' });
-        }
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
 
-        const enquiry = enquiryResult.rows[0];
+    const enquiry = enquiryResult.rows[0];
 
-        if (!enquiry.active_vendor) {
-            return res.status(400).json({ error: 'No active vendor selected' });
-        }
+    if (!enquiry.active_vendor) {
+      return res.status(400).json({ error: "No active vendor selected" });
+    }
 
-        const client = await pool.connect();
-        
-        try {
-            await client.query('BEGIN');
+    const client = await pool.connect();
 
-            // Generate booking number
-            const bookingNoResult = await client.query(
-                `SELECT COALESCE(MAX(CAST(SUBSTRING(booking_no FROM '[0-9]+') AS INTEGER)), 0) + 1 as next_no 
+    try {
+      await client.query("BEGIN");
+
+      // Generate booking number
+      const bookingNoResult = await client.query(
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(booking_no FROM '[0-9]+') AS INTEGER)), 0) + 1 as next_no 
                  FROM booking WHERE booking_no ~ '^BKG[0-9]+$'`
-            );
-            const bookingNo = 'BKG' + bookingNoResult.rows[0].next_no.toString().padStart(6, '0');
+      );
+      const bookingNo =
+        "BKG" + bookingNoResult.rows[0].next_no.toString().padStart(6, "0");
 
-            // Create booking
-            await client.query(
-                `INSERT INTO booking (booking_no, enquiry_id, customer_id, customer_name, mail_id, phone_no1, phone_no2,
+      // Create booking
+      await client.query(
+        `INSERT INTO booking (booking_no, enquiry_id, customer_id, customer_name, mail_id, phone_no1, phone_no2,
                  company_name, from_location, to_location, effective_date_from, effective_date_to, department,
                  status, remarks, vendor_details, line_items, charges, company_code, branch_code, department_code, service_type_code)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
-                [bookingNo, id, enquiry.customer_id, enquiry.customer_name, enquiry.mail_id, enquiry.phone_no1, enquiry.phone_no2,
-                 enquiry.company_name, enquiry.from_location, enquiry.to_location, enquiry.effective_date_from, enquiry.effective_date_to,
-                 enquiry.department, 'Confirmed', enquiry.remarks, JSON.stringify(enquiry.active_vendor), 
-                 JSON.stringify(enquiry.line_items), JSON.stringify(enquiry.active_vendor.negotiated_charges || enquiry.active_vendor.charges),
-                 enquiry.company_code, enquiry.branch_code, enquiry.department_code, enquiry.service_type_code]
-            );
+        [
+          bookingNo,
+          id,
+          enquiry.customer_id,
+          enquiry.customer_name,
+          enquiry.mail_id,
+          enquiry.phone_no1,
+          enquiry.phone_no2,
+          enquiry.company_name,
+          enquiry.from_location,
+          enquiry.to_location,
+          enquiry.effective_date_from,
+          enquiry.effective_date_to,
+          enquiry.department,
+          "Confirmed",
+          enquiry.remarks,
+          JSON.stringify(enquiry.active_vendor),
+          JSON.stringify(enquiry.line_items),
+          JSON.stringify(
+            enquiry.active_vendor.negotiated_charges ||
+              enquiry.active_vendor.charges
+          ),
+          enquiry.company_code,
+          enquiry.branch_code,
+          enquiry.department_code,
+          enquiry.service_type_code,
+        ]
+      );
 
-            // Update enquiry status to Confirmed
-            await client.query('UPDATE enquiry SET status = $1 WHERE id = $2', ['Confirmed', id]);
+      // Update enquiry status to Confirmed
+      await client.query("UPDATE enquiry SET status = $1 WHERE id = $2", [
+        "Confirmed",
+        id,
+      ]);
 
-            await client.query('COMMIT');
+      await client.query("COMMIT");
 
-            res.json({ message: 'Enquiry confirmed and booking created successfully', booking_no: bookingNo });
-
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-        } finally {
-            client.release();
-        }
-
+      res.json({
+        message: "Enquiry confirmed and booking created successfully",
+        booking_no: bookingNo,
+      });
     } catch (error) {
-        console.error('Error confirming enquiry:', error);
-        res.status(500).json({ error: 'Internal server error' });
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
+  } catch (error) {
+    console.error("Error confirming enquiry:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /:code/lineItem - Get Line Item List
+router.get("/:code/lineItem", async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const { rows: enquiryIdRow } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    console.log("Enquiry Id for the line item,", enquiryIdRow);
+    const [{ id: enquiry_id }] = enquiryIdRow;
+
+    const { rows: lineItemsResult } = await pool.query(
+      `
+    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+    `,
+      [enquiry_id]
+    );
+
+    res.json({
+      lineItemCount: lineItemsResult.length,
+      lineItems: lineItemsResult,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /:code/lineItem - Insert New Line Item
+router.post("/:code/line-Item", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { s_no, quantity, type, service_area, basis, remarks, status } =
+      req.body;
+
+    const { rows: enquiry_id } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const {} = await pool.query(
+      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      [
+        enquiry_id,
+        s_no,
+        quantity,
+        type,
+        service_area,
+        basis,
+        remarks,
+        status || "Active",
+      ]
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  }
+});
+
+// POST method for adding or updating the line Item selection
+router.put("/:code/line-items/selection", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { selectedLineItems } = req.body;
+    let query;
+    let params;
+
+    const { rows: enquiryIdRow } = await pool.query(
+      ` SELECT id FROM enquiry WHERE code = $1
+    `,
+      [code]
+    );
+    const [{ id: enquiry_id }] = enquiryIdRow;
+
+    // console.log("line Item Selection enquiry ID", enquiry_id);
+    // unselect all line item for the id
+    const result = await pool.query(
+      `UPDATE enquiry_line_items SET is_selected = false WHERE enquiry_id = $1 RETURNING *`,
+      [enquiry_id]
+    );
+    // console.log(
+    //   "all line Items of the corresponding enquiry updated  to false",
+    //   result
+    // );
+
+    // console.log("lineItems api body,", selectedLineItems);
+
+    // if (lineItems[0].enquiry_id !== enquiry_id) {
+    //   res.status(404).json({ msg: "enquiry Id mismatch." });
+    // }
+    let lineItemsList = selectedLineItems.map((lineItem) => ({
+      lineItemId: lineItem.id,
+      enquiryId: lineItem.enquiry_id,
+      lineItemSno: lineItem.s_no,
+    }));
+    if (selectedLineItems.length > 0) {
+      query = ` UPDATE enquiry_line_items SET is_selected = true WHERE enquiry_id = $1 AND `;
+      params = [enquiry_id];
+      console.log("mapped Line Item Result,", lineItemsList);
+      lineItemsList.forEach((lineItem, index) => {
+        console.log("index,", index, "line item result,", lineItemsList.length);
+        if (lineItemsList.length === 1) {
+          query += `( s_no = $${index + 2})`;
+          params.push(lineItem.lineItemSno);
+        } else {
+          query +=
+            index === 0
+              ? `( s_no = $${index + 2}`
+              : index === lineItemsList.length - 1
+              ? `  OR  s_no = $${index + 2} )`
+              : `  OR  s_no = $${index + 2} `;
+          params.push(lineItem.lineItemSno);
+        }
+      });
+      console.log("line item selection query,", query, "params list,", params);
+      const { rows: lineItemSelectionResult } = await pool.query(query, params);
+    }
+    // const lineItemSelectionResult = await pool.query(
+    //   ` UPDATE enquiry_line_items SET is_selected = true `
+    // );
+
+    res.status(200).json({ msg: "Updated Line Item Selection !" });
+  } catch (error) {
+    console.error(
+      "line item selection update method,",
+      error,
+      "message,",
+      error.message
+    );
+    res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
+
+router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
+  try {
+    const { code, lineItemId } = req.params;
+    const { vendorCardList, sourcingType } = req.body;
+
+    typeof vendorCardList === "undefined" && (vendorCardList = []);
+
+    console.log("DEBUG: vendor cards list from post met:", vendorCardList);
+
+    // First get the enquiry ID from the code
+    const enquiryResult = await pool.query(
+      "SELECT id FROM enquiry WHERE code = $1",
+      [code]
+    );
+    if (enquiryResult.rows.length === 0) {
+      return res.status(404).json({ error: "Enquiry not found" });
+    }
+    const enquiryId = enquiryResult.rows[0].id;
+
+    // unselect all selected vendor card
+    await pool.query(
+      `UPDATE enquiry_vendor_cards SET is_selected=false 
+        WHERE enquiry_id = $1 AND enquiry_line_item_id = $2
+        AND source_type = $3; `,
+      [enquiryId, lineItemId, sourcingType]
+    );
+
+    let selectedVendorCardList = vendorCardList.map((vendorCard) => ({
+      vendorCardId: vendorCard.id,
+      enquiryId: vendorCard.enquiry_id,
+    }));
+    if (selectedVendorCardList.length > 0) {
+      query = ` UPDATE enquiry_vendor_cards SET is_selected = true WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND source_type = $3 AND`;
+      params = [enquiryId, lineItemId, sourcingType];
+      console.log("mapped Line Item Result,", selectedVendorCardList);
+      selectedVendorCardList.forEach((vendorCard, index) => {
+        console.log(
+          "index,",
+          index,
+          "line item result,",
+          selectedVendorCardList.length
+        );
+        if (selectedVendorCardList.length === 1) {
+          query += ` ( id = $${index + 4})`;
+          params.push(vendorCard.vendorCardId);
+        } else {
+          query +=
+            index === 0
+              ? ` ( id = $${index + 4}`
+              : index === selectedVendorCardList.length - 1
+              ? `  OR  id = $${index + 4} )`
+              : `  OR  id = $${index + 4} `;
+          params.push(vendorCard.vendorCardId);
+        }
+      });
+      console.log("line item selection query,", query, "params list,", params);
+      const { rows: vendorCardSelectionResult } = await pool.query(
+        query,
+        params
+      );
+      console.log("Vendor Card Selection Result,", vendorCardSelectionResult);
+    }
+    // const lineItemSelectionResult = await pool.query(
+    //   ` UPDATE enquiry_line_items SET is_selected = true `
+    // );
+
+    res.status(200).json({ msg: "Updated Line Item Selection !" });
+  } catch (error) {
+    console.error(error.message);
+    res
+      .status(500)
+      .json({ msg: "Internal Server Error", error: error.message });
+  }
 });
 
 module.exports = router;
