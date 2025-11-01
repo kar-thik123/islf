@@ -1212,7 +1212,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                             <td>{{ summary.vendor_name }}</td>
                             <td>{{ summary.currency_code }}</td>
                             <td>{{ summary.charge }}</td>
-                            <td>{{ summary.sourced_time }}</td>
+                            <td>{{ formatDateTime(summary.sourced_time) }}</td>
                             <td>{{ summary.remarks }}</td>
                           </tr>
                         </ng-template>
@@ -1271,12 +1271,16 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                                       <th style="width: 180px">Sourced Time</th>
                                     </tr>
                                   </ng-template>
-                                  <ng-template #body let-source>
+                                  <ng-template
+                                    #body
+                                    let-source
+                                    let-i="rowIndex"
+                                  >
                                     <tr>
                                       <td>
                                         <p-tableCheckbox [value]="source" />
                                       </td>
-                                      <td>{{ source.sourced_no }}</td>
+                                      <td>getSourceNumber</td>
                                       <td>{{ source.vendor_name }}</td>
                                       <td>{{ source.currency }}</td>
                                       <td>{{ source.charges }}</td>
@@ -1944,7 +1948,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                     class="source-section"
                   >
                     <h6 class="font-semibold mb-2 text-green-700 capitalize">
-                      {{ summary.summary_type }} Vendor's List
+                      Finalized {{ summary.summary_type }} Vendors
                     </h6>
 
                     <!-- Finalized Vendors List -->
@@ -1952,6 +1956,8 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                       <p-table
                         [value]="getFinalizedVendorsForSummary(summary)"
                         styleClass="p-datatable-sm w-full source-list-table"
+                        [scrollable]="true"
+                        scrollHeight="200px"
                       >
                         <ng-template pTemplate="header">
                           <tr>
@@ -1969,8 +1975,7 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
                           let-i="rowIndex"
                         >
                           <tr>
-                            <!-- <td>{{ getSourceNumber(source, i) }}</td> -->
-                            <td></td>
+                            <td>getsource</td>
                             <td class="font-medium">
                               {{ source.vendor_name }}
                             </td>
@@ -4110,6 +4115,47 @@ export class EnquiryComponent implements OnInit {
         },
       });
   }
+  // Get only finalized sources for a line item
+  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
+    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
+      return [];
+    }
+
+    return item.enquiry_summary.filter((summary) => {
+      // Check if summary has finalized items
+      return summary.finalizedItems && summary.finalizedItems.length > 0;
+    });
+  }
+
+  // Get finalized vendors for a specific summary
+  getFinalizedVendorsForSummary(summary: any): any[] {
+    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
+      return [];
+    }
+
+    return summary.finalizedItems.map((vendor: any, index: number) => {
+      return {
+        ...vendor,
+        sourced_no: vendor.sourced_no || `${index + 1}`,
+        charge: vendor.charges || vendor.charge,
+        currency: vendor.currency || vendor.currency_code,
+        sourced_time: vendor.created_at || vendor.sourced_time,
+        remarks: vendor.negotiated_remarks || vendor.remarks,
+      };
+    });
+  }
+
+  // Filter line items to only show those with finalized vendors
+  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
+    if (!this.lineItems || this.lineItems.length === 0) {
+      return [];
+    }
+
+    return this.lineItems.filter((item) => {
+      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
+      return finalizedSources && finalizedSources.length > 0;
+    });
+  }
 
   addSelectedVendors() {
     console.log(
@@ -4584,45 +4630,6 @@ export class EnquiryComponent implements OnInit {
     });
   }
   // preview
-
-  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
-    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
-      return [];
-    }
-
-    return item.enquiry_summary.filter((summary) => {
-      // Check if summary has finalized items
-      return summary.finalizedItems && summary.finalizedItems.length > 0;
-    });
-  }
-
-  getFinalizedVendorsForSummary(summary: any): any[] {
-    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
-      return [];
-    }
-
-    return summary.finalizedItems.map((vendor: any, index: number) => {
-      return {
-        ...vendor,
-        sourced_no: vendor.sourced_no || `${index + 1}`,
-        charge: vendor.charges || vendor.charge,
-        currency: vendor.currency || vendor.currency_code,
-        sourced_time: vendor.created_at || vendor.sourced_time,
-        remarks: vendor.negotiated_remarks || vendor.remarks,
-      };
-    });
-  }
-
-  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
-    if (!this.lineItems || this.lineItems.length === 0) {
-      return [];
-    }
-
-    return this.lineItems.filter((item) => {
-      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
-      return finalizedSources && finalizedSources.length > 0;
-    });
-  }
 
   clearForm() {
     this.confirmationService.confirm({
