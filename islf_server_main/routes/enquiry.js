@@ -120,15 +120,6 @@ router.get("/", async (req, res) => {
     // }
     console.log("👤 [DEBUG] Authenticated user:", username || "system");
     const { page = 1, limit = 10, search = "", status = "" } = req.query;
-    const offset = (page - 1) * limit;
-    console.log(
-      "📄 [DEBUG] Pagination => page:",
-      page,
-      "limit:",
-      limit,
-      "offset:",
-      offset
-    );
 
     // Get user context
     const userResult = await pool.query(
@@ -187,10 +178,8 @@ router.get("/", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${
-      paramIndex + 1
-    }`;
-    params.push(limit, offset);
+    query += ` ORDER BY e.created_at DESC`;
+    // params.push(limit, offset);
 
     console.log("📝 [DEBUG] Final query:", query);
     console.log("📊 [DEBUG] Query params:", params);
@@ -198,44 +187,42 @@ router.get("/", async (req, res) => {
     const result = await pool.query(query, params);
     console.log("✅ [DEBUG] Enquiry result count:", result.rows.length);
 
-    // Get total count for pagination
-    let countQuery = `
-            SELECT COUNT(*) 
-            FROM enquiry e
-            LEFT JOIN customer c ON e.customer_id = c.id
-            WHERE 1=1
-        `;
+    // // Get total count for pagination
+    // let countQuery = `
+    //         SELECT COUNT(*)
+    //         FROM enquiry e
+    //         LEFT JOIN customer c ON e.customer_id = c.id
+    //         WHERE 1=1
+    //     `;
 
-    const countParams = params.slice(0, -2); // Remove limit and offset
-    console.log("🧮 [DEBUG] Count query params:", countParams);
+    // const countParams = params.slice(0, -2); // Remove limit and offset
+    // console.log("🧮 [DEBUG] Count query params:", countParams);
 
-    if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
-    if (userContext.branch_code)
-      countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
-    if (userContext.department_code)
-      countQuery += ` AND e.department_code = $${
-        (userContext.company_code ? 1 : 0) +
-        (userContext.branch_code ? 1 : 0) +
-        1
-      }`;
-    if (search)
-      countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
-    if (status) countQuery += ` AND e.status = $${countParams.length}`;
+    // if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
+    // if (userContext.branch_code)
+    //   countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
+    // if (userContext.department_code)
+    //   countQuery += ` AND e.department_code = $${
+    //     (userContext.company_code ? 1 : 0) +
+    //     (userContext.branch_code ? 1 : 0) +
+    //     1
+    //   }`;
+    // if (search)
+    //   countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
+    // if (status) countQuery += ` AND e.status = $${countParams.length}`;
 
-    console.log("🧮 [DEBUG] Count query:", countQuery);
+    // console.log("🧮 [DEBUG] Count query:", countQuery);
+    // console.log("🧮 [DEBUG] Count params:", countParams);
 
-    const countResult = await pool.query(countQuery, countParams);
-    const totalRecords = parseInt(countResult.rows[0].count);
-    console.log("📦 [DEBUG] Total records:", totalRecords);
+    // const countResult = await pool.query(countQuery, countParams);
+    // const totalRecords = parseInt(countResult.rows[0].count);
+    // console.log("📦 [DEBUG] Total records:", totalRecords);
 
     res.json({
       data: result.rows,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: totalRecords,
-        pages: Math.ceil(totalRecords / limit),
-      },
+      // pagination: {
+      //   total: totalRecords,
+      // },
     });
   } catch (error) {
     console.error("❌ [ERROR] Fetching enquiries failed:", error);
@@ -633,10 +620,27 @@ router.post("/", async (req, res) => {
     try {
       await client.query("BEGIN");
 
+      // is Old Customer
+      let { rows: isOldCustomerContact } = await pool.query(
+        `SELECT cus.customer_id FROM (SELECT * FROM customer_contacts AS cc JOIN customer AS c ON c.id = cc.customer_id WHERE cc.name = $1 ) AS cus;`,
+        [customer_name]
+      );
+
+      let { rows: isCompanyExists } = await pool.query(
+        `SELECT exists (SELECT 1 FROM customer WHERE name= $1) AS found`,
+        [company_name]
+      );
+      console.log("is New Customer contact DB response", isOldCustomerContact);
+
       let finalCustomerId = customer_id;
 
       // If new customer, create customer record first
-      if (is_new_customer && customer_name) {
+      if (
+        (is_new_customer ||
+          !isCompanyExists ||
+          isOldCustomerContact.length === 0) &&
+        company_name
+      ) {
         // Generate customer number using number series
         const customerNumberResult = await client.query(
           `SELECT nr.prefix, nr.last_no_used as current_number, nr.increment_by
@@ -675,23 +679,48 @@ router.post("/", async (req, res) => {
         }
 
         const customerResult = await client.query(
-          `INSERT INTO customer (customer_no, name, email, mobile, landline, 
-                     company_code, branch_code, department_code, service_type_code)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+          `INSERT INTO customer (customer_no, name, 
+                     company_code, branch_code, department_code, service_type_code )
+                     VALUES ($1, $2, $3, $4, $5, $6 ) RETURNING *`,
           [
             customerNo,
             company_name || customer_name,
-            email,
-            mobile,
-            landline,
-            userContext.company_code,
-            userContext.branch_code,
-            userContext.department_code,
-            userContext.service_type_code,
+
+            userContext.company_code || "",
+            userContext.branch_code || "",
+            userContext.department_code || "",
+            userContext.service_type_code || "",
           ]
         );
-
+        console.log("Added Customer company,", customerResult);
         finalCustomerId = customerResult.rows[0].id;
+        let { rows: customerContacts } = await pool.query(
+          `INSERT INTO customer_contacts (customer_id, name, department, mobile, landline, email) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            finalCustomerId,
+            customer_name || "",
+            department || "",
+            mobile || "",
+            landline || "",
+            email || "",
+          ]
+        );
+      } else if (
+        isCompanyExists &&
+        isOldCustomerContact.length === 0 &&
+        customer_name.trim() !== ""
+      ) {
+        let { rows: newCustomerResult } = await pool.query(
+          `INSERT INTO customer_contacts (customer_id, name, department, mobile, landline, email) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            customer_id,
+            customer_name || "",
+            department || "",
+            mobile || "",
+            landline || "",
+            email || "",
+          ]
+        );
       }
 
       // Generate enquiry number and code using number series (matching tariff pattern)
@@ -872,8 +901,8 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$2)`,
+          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             enquiryId,
             i + 1,
@@ -920,7 +949,7 @@ router.post("/", async (req, res) => {
 router.put("/:code", async (req, res) => {
   try {
     const { code: enquiryCode } = req.params;
-    const {
+    let {
       date,
       customer_id,
       customer_name,
@@ -942,6 +971,7 @@ router.put("/:code", async (req, res) => {
       source_sales_code,
       line_items = [],
       cargo_type,
+      is_new_customer,
       username = "System",
     } = req.body;
 
@@ -955,10 +985,123 @@ router.put("/:code", async (req, res) => {
     }
     const enquiryId = enquiryResult.rows[0].id;
 
+    username = getUsernameFromToken(req) || "system";
+
+    // Get user context
+    const userResult = await pool.query(
+      "SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1",
+      [username]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userContext = userResult.rows[0];
+
     const client = await pool.connect();
 
     try {
       await client.query("BEGIN");
+
+      let { rows: isOldCustomerContact } = await pool.query(
+        `SELECT cus.customer_id FROM (SELECT * FROM customer_contacts AS cc JOIN customer AS c ON c.id = cc.customer_id WHERE cc.name = $1 ) AS cus;`,
+        [customer_name]
+      );
+      let { rows: isCompanyExists } = await pool.query(
+        `SELECT exists (SELECT 1 FROM customer WHERE name= $1) AS found`,
+        [company_name]
+      );
+      console.log(
+        "is New Customer contact DB response",
+        isOldCustomerContact,
+        "for Company,",
+        isCompanyExists
+      );
+
+      // If new customer, create customer record first
+      if ((is_new_customer || !isCompanyExists.found) && company_name) {
+        // Generate customer number using number series
+        const customerNumberResult = await client.query(
+          `SELECT nr.prefix, nr.last_no_used as current_number, nr.increment_by
+                     FROM number_relation nr 
+                     WHERE nr.company_code = $1 AND nr.branch_code = $2 
+                     AND nr.department_code = $3 AND nr.number_series = 'CUSTOMER'`,
+          [
+            userContext.company_code,
+            userContext.branch_code,
+            userContext.department_code,
+          ]
+        );
+
+        let customerNo;
+        if (customerNumberResult.rows.length > 0) {
+          const numberSeries = customerNumberResult.rows[0];
+          const nextNumber =
+            numberSeries.current_number + numberSeries.increment_by;
+          const paddedNumber = nextNumber.toString().padStart(6, "0"); // Use 6 digits as default
+          customerNo = (numberSeries.prefix || "CUST") + paddedNumber;
+
+          // Update the current number in number_relation
+          await client.query(
+            "UPDATE number_relation SET last_no_used = $1 WHERE id = $2",
+            [nextNumber, numberSeries.id]
+          );
+        } else {
+          // Fallback to simple numbering if no number series found
+          const customerNoResult = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(customer_no FROM '[0-9]+') AS INTEGER)), 0) + 1 as next_no 
+                         FROM customer WHERE customer_no ~ '^[0-9]+$'`
+          );
+          customerNo = customerNoResult.rows[0].next_no
+            .toString()
+            .padStart(6, "0");
+        }
+
+        const customerResult = await client.query(
+          `INSERT INTO customer (customer_no, name,  
+                     company_code, branch_code, department_code, service_type_code)
+                     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            customerNo,
+            company_name || customer_name,
+
+            userContext.company_code,
+            userContext.branch_code,
+            userContext.department_code,
+            userContext.service_type_code,
+          ]
+        );
+
+        let newCustomerId = customerResult.rows[0].id;
+        let { rows: customerContacts } = await pool.query(
+          `INSERT INTO customer_contacts (customer_id, name, department, mobile, landline, email) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            newCustomerId,
+            customer_name || "",
+            department || "",
+            mobile || "",
+            landline || "",
+            email || "",
+          ]
+        );
+      } else if (
+        isCompanyExists.found &&
+        isOldCustomerContact.length === 0 &&
+        customer_name
+      ) {
+        let { rows: newCustomerResult } = await pool.query(
+          `INSERT INTO customer_contacts (customer_id, name, department, mobile, landline, email) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            customer_id,
+            customer_name || "",
+            department || "",
+            mobile || "",
+            landline || "",
+            email || "",
+          ]
+        );
+      }
 
       // Update enquiry (note: we don't update the code as it's the identifier)
       await client.query(

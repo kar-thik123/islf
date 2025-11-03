@@ -1293,7 +1293,7 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                                       <td>
                                         <p-tableCheckbox [value]="source" />
                                       </td>
-                                      <td>getSourceNumber</td>
+                                      <td>{{ source.sourced_no }}</td>
                                       <td>{{ source.vendor_name }}</td>
                                       <td>{{ source.currency }}</td>
                                       <td>{{ source.charges }}</td>
@@ -2031,9 +2031,7 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
                     <!-- Finalized Vendors List -->
                     <div class="source-list-container">
                       <p-table
-                        [value]="
-                          summary.selected_source_items || []
-                        "
+                        [value]="summary.selected_source_items || []"
                         styleClass="p-datatable-sm w-full source-list-table"
                       >
                         <ng-template pTemplate="header">
@@ -2117,8 +2115,8 @@ import { CurrencyCodeComponent } from '../masters/currencycode';
         <!-- No Line Items with Finalized Vendors Message -->
         <div
           *ngIf="
-            !getLineItemsWithFinalizedSources() ||
-            getLineItemsWithFinalizedSources().length === 0
+            !this.selectedEnquiryPreview?.line_items ||
+            this.selectedEnquiryPreview?.line_items?.length === 0
           "
           class="p-8 text-center border rounded bg-gray-50"
         >
@@ -2649,8 +2647,6 @@ export class EnquiryComponent implements OnInit {
       })
     );
   }
-
- 
 
   // show enquiry preview function
   showEnquiryPreview() {
@@ -4811,46 +4807,6 @@ export class EnquiryComponent implements OnInit {
       severity: 'info',
       summary: 'Info',
       detail: 'Navigate to enquiry list view',
-    });
-  }
-  // preview
-
-  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
-    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
-      return [];
-    }
-
-    return item.enquiry_summary.filter((summary) => {
-      // Check if summary has finalized items
-      return summary.finalizedItems && summary.finalizedItems.length > 0;
-    });
-  }
-
-  getFinalizedVendorsForSummary(summary: any): any[] {
-    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
-      return [];
-    }
-
-    return summary.finalizedItems.map((vendor: any, index: number) => {
-      return {
-        ...vendor,
-        sourced_no: vendor.sourced_no || `${index + 1}`,
-        charge: vendor.charges || vendor.charge,
-        currency: vendor.currency || vendor.currency_code,
-        sourced_time: vendor.created_at || vendor.sourced_time,
-        remarks: vendor.negotiated_remarks || vendor.remarks,
-      };
-    });
-  }
-
-  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
-    if (!this.lineItems || this.lineItems.length === 0) {
-      return [];
-    }
-
-    return this.lineItems.filter((item) => {
-      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
-      return finalizedSources && finalizedSources.length > 0;
     });
   }
 

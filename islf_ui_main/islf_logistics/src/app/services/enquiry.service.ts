@@ -17,6 +17,7 @@ export interface EnquiryLineItem {
   status: string;
   enquiry_id?: string | number;
   enquiry_summary?: EnquirySummary[];
+  serviceAreaOptions?: any[];
   is_selected?: boolean;
 }
 
@@ -390,9 +391,7 @@ export class EnquiryService {
 
   /** Get all enquiries (alias for compatibility) */
   getAllEnquiryLineItem(enquiryCode: string): Observable<any> {
-    return this.http.get<any>(
-      `${this.baseUrl}/${enquiryCode}/lineItem`
-    );
+    return this.http.get<any>(`${this.baseUrl}/${enquiryCode}/lineItem`);
   }
 
   /** Confirm enquiry */
