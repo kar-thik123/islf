@@ -78,6 +78,7 @@ export class MasterLocationService {
   update(code: string, data: Partial<MasterLocation>): Observable<MasterLocation> {
     return this.http.put<MasterLocation>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
+  
 
   delete(code: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${code}`);

@@ -259,8 +259,12 @@ import { SourceSalesComponent } from './sourceSales';
     [draggable]="false"
     [resizable]="false"
     [closeOnEscape]="true"
-    [style]="{ width: '100%', maxWidth: '1500px', height: 'auto' }"
-    [contentStyle]="{ overflow: 'visible' }"
+    [style]="{ width: '100%', maxWidth: '1500px', height: '90vh',padding:'1rem' }"
+    [contentStyle]="{ 
+    overflow: 'auto', 
+    maxHeight: 'calc(90vh - 100px)',
+    padding: '0'
+    }"
     (onHide)="hideDialog()"
     >
       <ng-template pTemplate="content">

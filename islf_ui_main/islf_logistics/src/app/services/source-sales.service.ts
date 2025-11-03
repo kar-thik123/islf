@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable,throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
@@ -65,6 +65,10 @@ export class SourceSalesService {
   }
 
   deleteSourceSales(id: number): Observable<any> {
+    if (id === null || id === undefined || Number.isNaN(Number(id))) {
+      console.warn('deleteSourceSales called with invalid id:', id);
+      return throwError(() => new Error('Invalid id passed to deleteSourceSales'));
+    }
     return this.http.delete<any>(`${this.apiUrl}/${id}`);
   }
 }
