@@ -168,6 +168,8 @@ router.post("/", async (req, res) => {
       service_area,
       from_location,
       to_location,
+      sourcing,
+      local_tariff,
       status,
       company_code,
       branch_code,
@@ -363,10 +365,10 @@ router.post("/", async (req, res) => {
     console.log("🔹 Inserting new service area with code:", finalCode);
     const result = await pool.query(
       `INSERT INTO master_service_area 
-       (code, type, service_area, from_location, to_location, status, 
+       (code, type, service_area, from_location, to_location,sourcing,local_tariff, status, 
         company_code, branch_code, department_code, service_type_code,
         created_by, updated_by) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,$13, $14) 
        RETURNING *`,
       [
         finalCode,
@@ -374,6 +376,8 @@ router.post("/", async (req, res) => {
         service_area,
         from_location,
         to_location,
+        sourcing,
+        local_tariff,
         status || "active",
         company_code || null,
         branch_code || null,
@@ -470,6 +474,8 @@ router.put("/:code", async (req, res) => {
       service_area,
       from_location,
       to_location,
+      sourcing,
+      local_tariff,
       status,
       company_code,
       branch_code,
@@ -548,8 +554,8 @@ router.put("/:code", async (req, res) => {
     // Update service area
     const result = await pool.query(
       `UPDATE master_service_area 
-       SET  type = $2, service_area = $3, from_location = $4, to_location = $5, status = $6, 
-           company_code = $7, branch_code = $8, department_code = $9, service_type_code = $10 
+       SET  type = $2, service_area = $3, from_location = $4, to_location = $5, sourcing = $6, local_tariff = $7, status = $8, 
+           company_code = $9, branch_code = $10, department_code = $11, service_type_code = $12 
        WHERE code = $1
        RETURNING *`,
       [
@@ -558,6 +564,8 @@ router.put("/:code", async (req, res) => {
         service_area,
         from_location,
         to_location,
+        sourcing,
+        local_tariff,
         status,
         company_code || null,
         branch_code || null,

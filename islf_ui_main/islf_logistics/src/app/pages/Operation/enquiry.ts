@@ -4201,7 +4201,7 @@ export class EnquiryComponent implements OnInit {
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
-      to_location_type: enq.location_type_to,
+      to_location_type: enq.location_type_to
     };
 
     this.enquiryService

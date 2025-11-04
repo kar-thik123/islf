@@ -13,6 +13,8 @@ export interface ServiceArea {
   service_area: string;
   from_location: boolean;
   to_location: boolean;
+  sourcing: string;
+  local_tariff: string;
   status: string;
   isEditing?: boolean;
   isNew?: boolean;

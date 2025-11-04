@@ -51,7 +51,7 @@ import {NumberSeriesService} from '@/services/number-series.service';
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['code', 'type', 'service_area', 'status']"
+        [globalFilterFields]="['code', 'type', 'service_area','sourcing','local_tariff','status']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -85,6 +85,48 @@ import {NumberSeriesService} from '@/services/number-series.service';
             </th>
             <th>From</th>
             <th>To</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Sourcing
+                <p-columnFilter field="sourcing" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="matchOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                    >
+                      <ng-template let-option pTemplate="item">
+                        <span class="font-semibold text-sm">{{ option.label }}</span>
+                      </ng-template>
+                    </p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Local Tariff
+                <p-columnFilter field="local_tariff" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="matchOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                    >
+                      <ng-template let-option pTemplate="item">
+                        <span class="font-semibold text-sm">{{ option.label }}</span>
+                      </ng-template>
+                    </p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
             <th>
               <div class="flex justify-between items-center">
                 Status
@@ -174,6 +216,46 @@ import {NumberSeriesService} from '@/services/number-series.service';
                 <span>{{ serviceArea.to_location ? '✓' : '✗' }}</span>
               </ng-template> -->
             </td>
+            <td>
+            <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else sourcingText">
+              <p-dropdown
+                [options]="matchOptions"
+                [(ngModel)]="serviceArea.sourcing"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select Sourcing"
+                appendTo="body"
+                (onChange)="onFieldChange(serviceArea, 'sourcing', $event.value)"
+                [ngClass]="getFieldErrorClass(serviceArea, 'sourcing')"
+                class="w-full"
+              ></p-dropdown>
+            </ng-container>
+            <ng-template #sourcingText>
+              <span class="px-2 py-1 rounded-md text-xs font-medium">
+                {{ getMatchOptionLabel(serviceArea.sourcing) }}
+              </span>
+            </ng-template>
+          </td>
+          <td>
+            <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else localTariffText">
+              <p-dropdown
+                [options]="matchOptions"
+                [(ngModel)]="serviceArea.local_tariff"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select Local Tariff"
+                appendTo="body"
+                (onChange)="onFieldChange(serviceArea, 'local_tariff', $event.value)"
+                [ngClass]="getFieldErrorClass(serviceArea, 'local_tariff')"
+                class="w-full"
+              ></p-dropdown>
+            </ng-container>
+            <ng-template #localTariffText>
+              <span class="px-2 py-1 rounded-md text-xs font-medium">
+                {{ getMatchOptionLabel(serviceArea.local_tariff) }}
+              </span>
+            </ng-template>
+          </td>
             <td>
               <ng-container *ngIf="serviceArea.isNew || serviceArea.isEditing; else statusText">
                 <p-dropdown
@@ -296,6 +378,10 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
   contextId: string = '';
   masterDialogVisible: { [key: string]: boolean } = {};
   masterDialogLoading: { [key: string]: boolean } = {};
+  matchOptions: any[] = [
+  { label: 'Match All', value: 'match_all' },
+  { label: 'Match Any', value: 'match_any' }
+];
   // number series properties
   isManualSeries:boolean = false;
   mappedSvcAreaSeriesCode:string ='';
@@ -312,6 +398,11 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     private numberSeriesService: NumberSeriesService,
   ) {}
 
+  
+  getMatchOptionLabel(value: string): string {
+  const option = this.matchOptions.find(opt => opt.value === value);
+  return option ? option.label : value || '';
+}
   loadMappedServiceAreaCode(){
     const context = this.contextService.getContext();
     console.log('Loading Source Cargo code for context:', context);
@@ -512,7 +603,8 @@ addRow() {
     service_area: '',
     from_location: false,
     to_location: false,
-    status: 'active',
+    sourcing: 'match_all', 
+    local_tariff: 'match_all', 
     isNew: true,
     isEditing: false,
     errors: {}
@@ -553,6 +645,8 @@ addRow() {
       service_area: serviceArea.service_area,
       from_location: serviceArea.from_location,
       to_location: serviceArea.to_location,
+      sourcing: serviceArea.sourcing,
+      local_tariff: serviceArea.local_tariff,
       status: serviceArea.status,
       context_id: this.contextId
     };

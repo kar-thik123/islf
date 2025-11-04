@@ -1620,123 +1620,131 @@ router.post("/:code/sourcing", async (req, res) => {
       to_location,
       effective_date_from,
       effective_date_to,
+      sourcing, 
+      local_tariff 
     } = req.body;
 
-    // Get sourcing options based on criteria
-    // let query = `
-    //     SELECT s.*, v.name as vendor_name, v.type as vendor_type
-    //     FROM sourcing s
-    //     LEFT JOIN vendor v ON s.vendor_code = v.code
-    //     WHERE s.active = true
-    // `;
-
     let query = `
-            SELECT * FROM ( SELECT *, CASE
-            WHEN period_end_date IS NULL THEN 'Active'
-            WHEN NOW() > period_end_date::DATE  THEN 'Expired'
-            ELSE 'Active' END AS source_status
-            FROM sourcing) WHERE source_status = 'Active'
-        `;
+      SELECT * FROM ( 
+        SELECT *, 
+        CASE
+          WHEN period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing
+      ) WHERE source_status = 'Active'
+    `;
+    
     const params = [];
     let paramIndex = 1;
-    let saFromLoc = true;
-    let saToLoc = true;
 
+    // Department filter
     if (department && department.trim() !== "") {
-      query += ` AND mode = $${paramIndex}  `;
+      query += ` AND mode = $${paramIndex}`;
       params.push(department);
       paramIndex++;
     }
 
-    // retriving the location type based on the service Area
+    // Service Area filter
     if (service_area && service_area.trim() !== "") {
+      query += ` AND service_area = $${paramIndex}`;
+      params.push(service_area);
+      paramIndex++;
+
+      // Get service area configuration
       const serviceAreaResult = await pool.query(
-        `SELECT * FROM master_service_area WHERE service_area=$1`,
+        `SELECT from_location, to_location FROM master_service_area WHERE service_area = $1`,
         [service_area]
       );
-      [{ from_location: saFromLoc, to_location: saToLoc }] =
-        serviceAreaResult.rows;
+      
+      if (serviceAreaResult.rows.length > 0) {
+        const serviceAreaData = serviceAreaResult.rows[0];
+        const saFromLoc = serviceAreaData.from_location;
+        const saToLoc = serviceAreaData.to_location;
+        
+        console.log("Service Area configuration - from_location:", saFromLoc, "to_location:", saToLoc);
 
-      console.log(
-        "values from ,",
-        saFromLoc,
-        "and to",
-        saToLoc,
-        "Service Area",
-        service_area,
-        "Service Area Result",
-        serviceAreaResult.rows[0]
-      );
+        // Location filtering based on service area configuration and match_all/match_any
+        let locationConditions = [];
+        
+        // Add from_location condition if service area requires it AND we have from_location value
+        if (saFromLoc && from_location && from_location.trim() !== "") {
+          if (from_location_type && from_location_type.trim() !== "") {
+            locationConditions.push(`(from_location = $${paramIndex} AND location_type_from = $${paramIndex + 1})`);
+            params.push(from_location, from_location_type);
+            paramIndex += 2;
+          } else {
+            locationConditions.push(`from_location = $${paramIndex}`);
+            params.push(from_location);
+            paramIndex++;
+          }
+        }
 
-      if (saFromLoc === false && saToLoc === false) {
-        saFromLoc = true;
-        saToLoc = true;
+        // Add to_location condition if service area requires it AND we have to_location value
+        if (saToLoc && to_location && to_location.trim() !== "") {
+          if (to_location_type && to_location_type.trim() !== "") {
+            locationConditions.push(`(to_location = $${paramIndex} AND location_type_to = $${paramIndex + 1})`);
+            params.push(to_location, to_location_type);
+            paramIndex += 2;
+          } else {
+            locationConditions.push(`to_location = $${paramIndex}`);
+            params.push(to_location);
+            paramIndex++;
+          }
+        }
+
+        // Apply location conditions based on match_all/match_any
+        if (locationConditions.length > 0) {
+          if (sourcing === 'match_all') {
+            // Require ALL conditions to match (AND logic)
+            query += ` AND ${locationConditions.join(' AND ')}`;
+            console.log("Applying match_all logic:", locationConditions.join(' AND '));
+          } else if (sourcing === 'match_any') {
+            // Require ANY condition to match (OR logic)
+            query += ` AND (${locationConditions.join(' OR ')})`;
+            console.log("Applying match_any logic:", locationConditions.join(' OR '));
+          } else {
+            // Default: require ALL conditions
+            query += ` AND ${locationConditions.join(' AND ')}`;
+          }
+        } else {
+          console.log("No location conditions to apply based on service area configuration");
+        }
       }
     }
 
-    if (
-      from_location &&
-      from_location_type &&
-      from_location.trim() !== "" &&
-      from_location_type.trim() !== "" &&
-      saFromLoc
-    ) {
-      query += ` AND from_location = $${paramIndex} AND location_type_from = $${
-        paramIndex + 1
-      }`;
-      params.push(from_location, from_location_type);
-      paramIndex += 2;
-    }
-
-    if (
-      to_location &&
-      to_location_type &&
-      to_location.trim() !== "" &&
-      to_location_type.trim() !== "" &&
-      saToLoc
-    ) {
-      query += ` AND to_location = $${paramIndex} AND location_type_to= $${
-        paramIndex + 1
-      }`;
-      params.push(to_location, to_location_type);
-      paramIndex += 2;
-    }
-
+    // Cargo type filter
     if (cargo_type && cargo_type.trim() !== "") {
-      query += ` AND cargo_type = $${paramIndex}  `;
+      query += ` AND cargo_type = $${paramIndex}`;
       params.push(cargo_type);
       paramIndex++;
     }
 
-    // Basis check
+    // Basis filter
     if (basis && basis.trim() !== "") {
-      query += `AND basis=$${paramIndex}  `;
+      query += ` AND basis = $${paramIndex}`;
       params.push(basis);
       paramIndex++;
     }
-    // Date range check
-    if (
-      effective_date_from &&
-      effective_date_to &&
-      effective_date_from.trim() !== "" &&
-      effective_date_to.trim() !== ""
-    ) {
+
+    // Date range filter
+    if (effective_date_from && effective_date_from.trim() !== "" && effective_date_to && effective_date_to.trim() !== "") {
       query += ` AND (
-                (period_start_date <= $${paramIndex} AND period_end_date >= $${paramIndex}) OR
-                (effective_date <= $${
-                  paramIndex + 1
-                } AND effective_date >= $${paramIndex})
-            )`;
-      params.push(effective_date_from, effective_date_to);
-      paramIndex += 2;
+        (period_start_date IS NULL OR period_start_date <= $${paramIndex}) AND 
+        (period_end_date IS NULL OR period_end_date >= $${paramIndex})
+      )`;
+      params.push(effective_date_to);
+      paramIndex++;
     }
 
-    // query += ` ORDER BY s.vendor_code, s.created_at DESC`;
     query += ` ORDER BY code, id DESC`;
 
-    console.log("get sourcing final query,", query, "params,", params);
-    console.log("get sourcing final query,", query, "params,", params);
+    console.log("Final sourcing query:", query);
+    console.log("Final sourcing params:", params);
+    
     const result = await pool.query(query, params);
+    console.log(`Found ${result.rows.length} sourcing vendors`);
 
     res.json(result.rows);
   } catch (error) {
@@ -1762,111 +1770,135 @@ router.post("/:code/tariff", async (req, res) => {
       to_location_type,
       effective_date_from,
       effective_date_to,
+      sourcing, 
+      local_tariff 
     } = req.body;
 
-    // Get tariff options based on criteria
+    console.log("=== TARIFF REQUEST DEBUG ===");
+    console.log("local_tariff parameter:", local_tariff);
+    console.log("sourcing parameter:", sourcing);
+    console.log("from_location:", from_location);
+    console.log("to_location:", to_location);
+    console.log("service_area:", service_area);
+    console.log("=== END DEBUG ===");
+
     let query = `
-            SELECT t.*, v.name as vendor_name, v.type as vendor_type
-            FROM tariff AS t
-            LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
-            WHERE t.is_mandatory = true
-        `;
+      SELECT t.*, v.name as vendor_name, v.type as vendor_type
+      FROM tariff AS t
+      LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
+      WHERE t.is_mandatory = true
+    `;
 
     const params = [];
     let paramIndex = 1;
-    let saFromLoc = false;
-    let saToLoc = false;
 
+    // Department filter
     if (department && department.trim() !== "") {
-      query += ` AND t.mode = $${paramIndex} `;
+      query += ` AND t.mode = $${paramIndex}`;
       params.push(department);
       paramIndex++;
     }
 
-    // service Area check
+    // Service Area filter
     if (service_area && service_area.trim() !== "") {
+      query += ` AND t.service_area = $${paramIndex}`;
+      params.push(service_area);
+      paramIndex++;
+
+      // Get service area configuration
       const serviceAreaResult = await pool.query(
-        `SELECT * FROM master_service_area WHERE service_area= $1 `,
+        `SELECT from_location, to_location FROM master_service_area WHERE service_area = $1`,
         [service_area]
       );
-      [{ from_location: saFromLoc, to_location: saToLoc }] =
-        serviceAreaResult.rows;
+      
+      if (serviceAreaResult.rows.length > 0) {
+        const serviceAreaData = serviceAreaResult.rows[0];
+        const saFromLoc = serviceAreaData.from_location;
+        const saToLoc = serviceAreaData.to_location;
+        
+        console.log("Service Area configuration - from_location:", saFromLoc, "to_location:", saToLoc);
 
-      // including the from & to location if service area false for both case
-      if (saFromLoc === false && saToLoc === false) {
-        saFromLoc = true;
-        saToLoc = true;
+        // Location filtering based on service area configuration and match_all/match_any
+        let locationConditions = [];
+        
+        // Add from_location condition if service area requires it AND we have from_location value
+        if (saFromLoc && from_location && from_location.trim() !== "") {
+          if (from_location_type && from_location_type.trim() !== "") {
+            locationConditions.push(`(t.from_location = $${paramIndex} AND t.location_type_from = $${paramIndex + 1})`);
+            params.push(from_location, from_location_type);
+            paramIndex += 2;
+          } else {
+            locationConditions.push(`t.from_location = $${paramIndex}`);
+            params.push(from_location);
+            paramIndex++;
+          }
+        }
+
+        // Add to_location condition if service area requires it AND we have to_location value
+        if (saToLoc && to_location && to_location.trim() !== "") {
+          if (to_location_type && to_location_type.trim() !== "") {
+            locationConditions.push(`(t.to_location = $${paramIndex} AND t.location_type_to = $${paramIndex + 1})`);
+            params.push(to_location, to_location_type);
+            paramIndex += 2;
+          } else {
+            locationConditions.push(`t.to_location = $${paramIndex}`);
+            params.push(to_location);
+            paramIndex++;
+          }
+        }
+
+        console.log("Location conditions:", locationConditions);
+        console.log("local_tariff value:", local_tariff, "Type:", typeof local_tariff);
+
+        // Apply location conditions based on match_all/match_any
+        if (locationConditions.length > 0) {
+          if (local_tariff === 'match_any') {
+            // Require ANY condition to match (OR logic)
+            query += ` AND (${locationConditions.join(' OR ')})`;
+            console.log("Applying match_any logic (OR):", locationConditions.join(' OR '));
+          } else if (local_tariff === 'match_all') {
+            // Require ALL conditions to match (AND logic)
+            query += ` AND ${locationConditions.join(' AND ')}`;
+            console.log(" Applying match_all logic (AND):", locationConditions.join(' AND '));
+          } else {
+            // Default: require ALL conditions
+            query += ` AND ${locationConditions.join(' AND ')}`;
+            console.log(" Applying default logic (AND):", locationConditions.join(' AND '));
+          }
+        } else {
+          console.log("No location conditions to apply based on service area configuration");
+        }
       }
     }
 
-    if (
-      from_location &&
-      from_location_type &&
-      from_location.trim() !== "" &&
-      from_location_type.trim() !== "" &&
-      saFromLoc
-    ) {
-      query += ` AND t.from_location = $${paramIndex}  AND t.location_type_from = $${
-        paramIndex + 1
-      } `;
-      params.push(from_location, from_location_type);
-      paramIndex += 2;
-    }
-
-    if (
-      to_location &&
-      to_location_type &&
-      to_location.trim() !== "" &&
-      to_location_type.trim() !== "" &&
-      saToLoc
-    ) {
-      query += ` AND t.to_location = $${paramIndex} AND t.location_type_to= $${
-        paramIndex + 1
-      } `;
-      params.push(to_location, to_location_type);
-      paramIndex += 2;
-    }
-
-    if (basis && basis.trim() !== "") {
-      query += ` AND t.basis = $${paramIndex} `;
-      params.push(basis);
-      paramIndex++;
-    }
-
+    // Cargo type filter
     if (cargo_type && cargo_type.trim() !== "") {
-      query += ` AND t.cargo_type = $${paramIndex} `;
+      query += ` AND t.cargo_type = $${paramIndex}`;
       params.push(cargo_type);
       paramIndex++;
     }
 
+    // Service type filter
     if (service_type && service_type.trim() !== "") {
-      query += ` AND t.service_type = $${paramIndex}`;
+      query += ` AND t.shipping_type = $${paramIndex}`;
       params.push(service_type);
       paramIndex++;
     }
 
-    // // Date range check
-    // if (effective_date_from && effective_date_to) {
-    //   query += ` AND t.effective_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
-    //   params.push(effective_date_to);
-    //   paramIndex++;
-    // }
-
-    // Date range check
-    if (
-      effective_date_from &&
-      effective_date_to &&
-      effective_date_from.trim() !== "" &&
-      effective_date_to.trim() !== ""
-    ) {
+    // Date range filter
+    if (effective_date_from && effective_date_from.trim() !== "" && effective_date_to && effective_date_to.trim() !== "") {
       query += ` AND t.period_start_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
       params.push(effective_date_to);
       paramIndex++;
     }
 
     query += ` ORDER BY t.vendor_name, t.created_at DESC`;
-    console.log("get tariff query params", query, params);
+    
+    console.log("Final tariff query:", query);
+    console.log("Final tariff params:", params);
+    
     const result = await pool.query(query, params);
+    console.log(`Found ${result.rows.length} tariff vendors`);
 
     res.json(result.rows);
   } catch (error) {
@@ -1874,7 +1906,6 @@ router.post("/:code/tariff", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // POST /enquiry/:code/vendor-cards - Add vendor cards to enquiry
 router.post("/:code/vendor-cards", async (req, res) => {
   try {
