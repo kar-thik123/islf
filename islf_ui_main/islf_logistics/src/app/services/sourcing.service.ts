@@ -5,6 +5,17 @@ import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { environment } from '../../environments/environment';
 
+export interface SourcingSubCharge {
+  id?: number;
+  sourcing_id?: number;
+  charge_name: string;
+  currency: string;
+  charges: number;
+  gst_vat: string;
+  date_time: string;
+  remarks: string;
+}
+
 export interface Source {
   id?: number;
   code: string;
@@ -29,8 +40,10 @@ export interface Source {
   remarks: string;
   gstVat: string;
   type:string;
+  sub_charges?: SourcingSubCharge[];
     // New field for accounting purposes
 }
+
 
 @Injectable({ providedIn: 'root' })
 export class SourceService {
@@ -66,5 +79,13 @@ export class SourceService {
 
   update(id: number, source: Source): Observable<Source> {
     return this.http.put<Source>(`${this.baseUrl}/${id}`, this.contextPayload.withContext(source, this.contextService.getContext()));
+  }
+
+  getSubCharges(sourcingId: number): Observable<SourcingSubCharge[]> {
+    return this.http.get<SourcingSubCharge[]>(`${this.baseUrl}/sub-charges/${sourcingId}`);
+  }
+
+  saveSubCharge(subCharge: SourcingSubCharge): Observable<SourcingSubCharge> {
+    return this.http.post<SourcingSubCharge>(`${this.baseUrl}/sub-charges`, this.contextPayload.withContext(subCharge, this.contextService.getContext()));
   }
 }

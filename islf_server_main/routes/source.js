@@ -358,4 +358,72 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// SAVE sub-charge
+router.post('/sub-charges', async (req, res) => {
+  const data = req.body;
+
+  // Convert empty strings to null
+  const cleanData = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
+  );
+
+  try {
+    // Validate required fields
+    if (!cleanData.source_id) {
+      return res.status(400).json({ error: 'Source ID is required' });
+    }
+
+    if (!cleanData.charge_name) {
+      return res.status(400).json({ error: 'Charge name is required' });
+    }
+
+    if (!cleanData.charges || cleanData.charges <= 0) {
+      return res.status(400).json({ error: 'Charges must be a positive number' });
+    }
+
+    // Check if the main sourcing record exists
+    const sourceExists = await pool.query('SELECT id FROM sourcing WHERE id = $1', [cleanData.source_id]);
+    if (sourceExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+
+    // Insert the sub-charge
+    const result = await pool.query(
+      `INSERT INTO sourcing_sub_charges (
+        sourcing_id, charge_name, currency, charges, gst_vat, date_time, remarks
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        cleanData.source_id,
+        cleanData.charge_name,
+        cleanData.currency || null,
+        cleanData.charges,
+        cleanData.gst_vat || null,
+        cleanData.date_time || new Date(),
+        cleanData.remarks || null
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error saving sub-charge:', err);
+    res.status(500).json({ error: 'Failed to save sub-charge' });
+  }
+});
+
+// Get sub-charges for a specific sourcing ID
+router.get('/sub-charges/:sourcing_id', async (req, res) => {
+  const { sourcing_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM sourcing_sub_charges WHERE sourcing_id = $1 ORDER BY id',
+      [sourcing_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(`Error fetching sub-charges for sourcing_id ${sourcing_id}:`, error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
