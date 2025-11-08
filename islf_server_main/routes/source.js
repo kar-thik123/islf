@@ -459,7 +459,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// SAVE sub-charge
+// SAVE sub-charge (handles both create and update)
 router.post("/sub-charges", async (req, res) => {
   const data = req.body;
 
@@ -493,23 +493,53 @@ router.post("/sub-charges", async (req, res) => {
       return res.status(404).json({ error: "Source not found" });
     }
 
-    // Insert the sub-charge
-    const result = await pool.query(
-      `INSERT INTO sourcing_sub_charges (
-        sourcing_id, charge_name, currency, charges, gst_vat, date_time, remarks
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        cleanData.source_id,
-        cleanData.charge_name,
-        cleanData.currency || null,
-        cleanData.charges,
-        cleanData.gst_vat || null,
-        cleanData.date_time || new Date(),
-        cleanData.remarks || null,
-      ]
-    );
+    let result;
+    
+    if (cleanData.id) {
+      // Update existing sub-charge
+      const updateResult = await pool.query(
+        `UPDATE sourcing_sub_charges SET
+          charge_name = $1, currency = $2, charges = $3, gst_vat = $4, 
+          date_time = $5, remarks = $6,basis = $7,updated_at = CURRENT_TIMESTAMP
+         WHERE id = $8 AND sourcing_id = $9 RETURNING *`,
+        [
+          cleanData.charge_name,
+          cleanData.currency || null,
+          cleanData.charges,
+          cleanData.gst_vat || null,
+          cleanData.date_time || new Date(),
+          cleanData.remarks || null,
+          cleanData.basis,
+          cleanData.id,
+          cleanData.source_id,
+        ]
+      );
+      
+      if (updateResult.rows.length === 0) {
+        return res.status(404).json({ error: "Sub-charge not found" });
+      }
+      
+      result = updateResult;
+    } else {
+      // Insert new sub-charge
+      result = await pool.query(
+        `INSERT INTO sourcing_sub_charges (
+          sourcing_id, charge_name, currency, charges, gst_vat, date_time, remarks,basis
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [
+          cleanData.source_id,
+          cleanData.charge_name,
+          cleanData.currency || null,
+          cleanData.charges,
+          cleanData.gst_vat || null,
+          cleanData.date_time || new Date(),
+          cleanData.remarks || null,
+          cleanData.basis
+        ]
+      );
+    }
 
-    res.status(201).json(result.rows[0]);
+    res.status(cleanData.id ? 200 : 201).json(result.rows[0]);
   } catch (err) {
     console.error("Error saving sub-charge:", err);
     res.status(500).json({ error: "Failed to save sub-charge" });

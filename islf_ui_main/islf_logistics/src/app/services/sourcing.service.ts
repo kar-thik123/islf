@@ -9,6 +9,7 @@ export interface SourcingSubCharge {
   id?: number;
   sourcing_id?: number;
   charge_name: string;
+  basis:string;
   currency: string;
   charges: number;
   gst_vat: string;

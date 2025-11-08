@@ -16,7 +16,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { CalendarModule } from 'primeng/calendar';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { MasterCodeService } from '../../services/mastercode.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { MasterLocationService } from '../../services/master-location.service';
@@ -65,7 +65,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 @Component({
   selector: 'app-sourcing',
   standalone: true,
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   imports: [
     CommonModule,
     FormsModule,
@@ -403,6 +403,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
                   <ng-template pTemplate="header">
                     <tr>
                       <th>Charge Name</th>
+                      <th>Basis</th>
                       <th>Currency</th>
                       <th>Charges</th>
                       <th>GST/VAT</th>
@@ -413,6 +414,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
                   <ng-template pTemplate="body" let-subCharge>
                     <tr>
                       <td>{{ subCharge.charge_name }}</td>
+                      <td>{{ subCharge.basis }}</td>
                       <td>{{ subCharge.currency }}</td>
                       <td>{{ subCharge.charges }}</td>
                       <td>{{ subCharge.gst_vat }}</td>
@@ -950,10 +952,11 @@ import { InputNumberModule } from 'primeng/inputnumber';
             <ng-template pTemplate="header">
               <tr>
                 <th>Charge Name</th>
+                <th>Basis</th>
                 <th>Currency</th>
                 <th>Charges</th>
                 <th>GST/VAT</th>
-                <th>Date & Time</th>
+                <th style="min-width: 180px;">Date & Time</th>
                 <th>Remarks</th>
                 <th></th>
                 <th></th>
@@ -989,6 +992,33 @@ import { InputNumberModule } from 'primeng/inputnumber';
                     ></button>
                   </div>
                 </td>
+                 <td>
+      <div class="flex gap-2">
+        <p-dropdown
+          [options]="basisOptions"
+          [(ngModel)]="subCharge.basis"
+          [ngModelOptions]="{ standalone: true }"
+          placeholder="Select Basis"
+          class="flex-1"
+          [filter]="true"
+          filterBy="label"
+          [showClear]="true"
+          [appendTo]="'body'"
+        ></p-dropdown>
+        <button
+          pButton
+          [icon]="
+            masterDialogLoading['basis']
+              ? 'pi pi-spin pi-spinner'
+              : 'pi pi-ellipsis-h'
+          "
+          class="p-button-sm"
+          [disabled]="masterDialogLoading['basis']"
+          (click)="openMaster('basis')"
+        ></button>
+      </div>
+    </td>
+
                 <td>
                   <div class="flex gap-2">
                     <p-dropdown
@@ -1371,6 +1401,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
         border-radius: 4px;
         background-color: #f3f4f6;
       }
+      
     `,
   ],
 })
@@ -1558,6 +1589,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
   constructor(
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private masterCodeService: MasterCodeService,
     private masterTypeService: MasterTypeService,
     private masterLocationService: MasterLocationService,
@@ -2637,6 +2669,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
             sub_charge_id: this.generateUniqueId(),
             id: null,
             charge_name: '',
+            basis:'',
             currency: '',
             charges: null,
             gst_vat: '',
@@ -2663,6 +2696,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         sub_charge_id: this.generateUniqueId(),
         id: null,
         charge_name: '',
+        basis:'',
         currency: '',
         charges: null,
         gst_vat: '',
@@ -2673,8 +2707,50 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   removeSubCharge(index: number) {
-    this.selectedTariff.sub_charges.splice(index, 1);
+    const subCharge = this.selectedTariff.sub_charges[index];
     
+    // If it's a new sub-charge (not saved to database yet), just remove it from the array
+    if (!subCharge.id) {
+      this.selectedTariff.sub_charges.splice(index, 1);
+      return;
+    }
+    
+    // For existing sub-charges, show confirmation dialog and delete from database
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this sub-charge?',
+      header: 'Delete Confirmation',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        // Call the service to delete from database
+        this.sourceService.deleteSubCharge(subCharge.id, this.selectedTariff.id).subscribe({
+          next: (response: any) => {
+            // Remove from local array after successful deletion
+            this.selectedTariff.sub_charges.splice(index, 1);
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Success',
+              detail: 'Sub-charge deleted successfully.',
+            });
+          },
+          error: (error: any) => {
+            console.error('Error deleting sub-charge:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to delete sub-charge.',
+            });
+          },
+        });
+      },
+      reject: () => {
+        // User cancelled the deletion
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Cancelled',
+          detail: 'Sub-charge deletion cancelled.',
+        });
+      }
+    });
   }
   formatDateTime(date: string | Date | undefined | null): Date {
     if (!date) return new Date();
@@ -2724,6 +2800,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     // Step 3: Prepare the sub-charge payload
     const subChargePayload = {
       ...subCharge,
+    
       source_id: this.selectedTariff.id, // Link to the main tariff
     };
 
