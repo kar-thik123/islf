@@ -81,10 +81,6 @@ app.use('/api/mapping', mappingRouter);
 const customerRouter = require('./routes/customer');
 app.use('/api/customer', customerRouter);
 
-// Add Service Area Router
-const serviceAreaRouter = require('./routes/service_area');
-app.use('/api/service_area', serviceAreaRouter);
-
 // Add entity documents route
 try {
   const entityDocumentsRouter = require('./routes/entity_documents');
@@ -115,8 +111,14 @@ app.use('/api/tariff', tariffRouter);
 const sourceRouter = require('./routes/source');
 app.use('/api/source', sourceRouter);
 
+// Add service area route
+const serviceAreaRouter = require('./routes/service_area');
+app.use('/api/service_area', serviceAreaRouter);
+
+// Add source sales route
 const sourceSalesRouter = require('./routes/source_sales');
 app.use('/api/source_sales', sourceSalesRouter);
+
 // Add account details route
 const accountDetailsRoutes = require('./routes/account_details');
 app.use('/api/account_details', accountDetailsRoutes);

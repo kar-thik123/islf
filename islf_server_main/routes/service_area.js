@@ -555,7 +555,8 @@ router.put("/:code", async (req, res) => {
     const result = await pool.query(
       `UPDATE master_service_area 
        SET  type = $2, service_area = $3, from_location = $4, to_location = $5, sourcing = $6, local_tariff = $7, status = $8, 
-           company_code = $9, branch_code = $10, department_code = $11, service_type_code = $12 
+           company_code = $9, branch_code = $10, department_code = $11, service_type_code = $12,
+           updated_by = $13, updated_at = NOW()
        WHERE code = $1
        RETURNING *`,
       [

@@ -566,22 +566,29 @@ router.get("/sub-charges/:sourcing_id", async (req, res) => {
 });
 
 // Delete Sub-charge By ID
-router.delete('/:sourceId/sub-charges/:id', async (req, res) => {
-  const {sourceId, id } = req.params;
-  try{
+router.delete("/:sourceId/sub-charges/:id", async (req, res) => {
+  const { sourceId, id } = req.params;
+  try {
     // check for the source id exists
-    const sourceResult= await pool.query( `SELECT * FROM sourcing WHERE sourcing_id=$1`, [sourceId]);
-    if(sourceResult.rows.length ===0){
+    const sourceResult = await pool.query(`SELECT * FROM sourcing WHERE id=$1`, [
+      sourceId,
+    ]);
+    if (sourceResult.rows.length === 0) {
       return res.status(404).json({ error: "Source not found" });
     }
-    const DeleteResult = await pool.query(
-      `DELETE FROM sourcing_sub_charges WHERE id=$1 AND sourcing_id=$2 RETURNING *`,
+    const deleteResult = await pool.query(
+      `DELETE FROM sourcing_sub_charges WHERE id=$1 AND sourcing_id=$2`,
       [id, sourceId]
     );
-    console.log('Delete Result:', DeleteResult);
+    if (deleteResult.rowCount === 0) {
+      return res
+        .status(404)
+        .json({ error: "Sub-charge not found or already deleted" });
+    }
+    console.log("Delete Result:", deleteResult);
     res.status(200).json({ message: "Sub-charge deleted successfully" });
-
-  }catch(err){
+  } catch (err) {
+    console.error("Error deleting sub-charge:", err);
     res.status(500).json({ error: "Failed to delete sub-charge" });
   }
 });

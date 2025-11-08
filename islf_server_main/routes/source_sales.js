@@ -368,7 +368,8 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE master_source_sales 
        SET code = $1, name = $2, commission_percentage = $3, email = $4, phone = $5, status = $6, 
-           company_code = $7, branch_code = $8, department_code = $9, service_type_code = $10 
+           company_code = $7, branch_code = $8, department_code = $9, service_type_code = $10, 
+           updated_by = $12, updated_at = NOW()
        WHERE id = $11
        RETURNING *`,
       [
@@ -382,7 +383,8 @@ router.put('/:id', async (req, res) => {
         branch_code || null, 
         department_code || null, 
         service_type_code || null,
-        id
+        id,
+        username
       ]
     );
     

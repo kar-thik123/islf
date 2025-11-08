@@ -16,6 +16,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { CalendarModule } from 'primeng/calendar';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { MasterCodeService } from '../../services/mastercode.service';
 import { MasterTypeService } from '../../services/mastertype.service';
@@ -27,6 +28,7 @@ import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
 import { forkJoin, Subscription, of, Observable } from 'rxjs';
+import { TooltipModule } from 'primeng/tooltip';
 import {
   tap,
   debounceTime,
@@ -71,12 +73,14 @@ import { InputNumberModule } from 'primeng/inputnumber';
     FormsModule,
     TableModule,
     InputTextModule,
+    TooltipModule,
     InputNumberModule,
     ButtonModule,
     DropdownModule,
     ToastModule,
     DialogModule,
     CalendarModule,
+    ConfirmDialogModule,
     CurrencyCodeComponent,
     CheckboxModule,
     VendorComponent,
@@ -90,6 +94,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
   ],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Sourcing Master</div>
 
@@ -168,7 +173,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
         </ng-template>
         <ng-template pTemplate="header">
           <tr>
-            <th></th>
+           
             <th>
               <div class="flex justify-between items-center">
                 Code
@@ -349,14 +354,14 @@ import { InputNumberModule } from 'primeng/inputnumber';
             <th>Action</th>
           </tr>
         </ng-template>
-        <ng-template pTemplate="body" let-source let-expanded="expanded">
+        <ng-template pTemplate="body" let-source >
           <tr
             [ngClass]="{
               'mandatory-row': source.isMandatory,
               'expired-row': getSourceStatus(source) === 'Expired'
             }"
           >
-            <td>
+          <!--  <td>
               <button
                 type="button"
                 pButton
@@ -365,7 +370,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
                 class="p-button-text p-button-rounded p-button-plain"
                 [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
               ></button>
-            </td>
+            </td> -->
             <td>{{ source.code }}</td>
             <td>{{ getVendorName(source.vendorName) }}</td>
             <td>{{ source.mode }}</td>
@@ -947,7 +952,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
           </div>
 
           <!-- 6. Sub Charges -->
-          <h3 class="section-header">6. Sub Charges</h3>
+          <h3 class="section-header">6.Charges</h3>
           <p-table [value]="selectedTariff.sub_charges" dataKey="id">
             <ng-template pTemplate="header">
               <tr>
@@ -1083,6 +1088,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
                     pButton
                     type="button"
                     icon="pi pi-save"
+                    pTooltip="Save"
                     (click)="saveSubCharge(i)"
                   ></button>
                 </td>
@@ -1091,6 +1097,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
                     pButton
                     type="button"
                     icon="pi pi-trash"
+                    pTooltip="Delete"
+                    class="p-button-danger"
                     (click)="removeSubCharge(i)"
                   ></button>
                 </td>
@@ -1100,7 +1108,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
           <button
             pButton
             type="button"
-            label="Add Sub Charge"
+            label="Add Charge"
             icon="pi pi-plus"
             (click)="addSubCharge()"
             class="mt-2"
@@ -1120,7 +1128,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
             pButton
             label="{{ selectedTariff?.isNew ? 'Add' : 'Update' }}"
             icon="pi pi-check"
-            (click)="saveRow()"
+            (click)="saveRow().subscribe()"
             [disabled]="!isFormValid"
           ></button>
         </div>

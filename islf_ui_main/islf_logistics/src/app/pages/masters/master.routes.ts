@@ -19,9 +19,11 @@ import { ChargeTypeMasterComponent } from './chargetype';
 import { ServiceAreaComponent } from './servicearea';
 import { SourceSalesComponent } from './sourceSales';
 
+
+
 export default [
 
-    {path:'source_sales',component:SourceSalesComponent, data: {breadcrumb: 'Masters   >>>   Source/Sales Person',title: 'Source/Sales_Person - ISLF' } },
+   
     { path: 'master_code', component: MasterCodeComponent, data: { breadcrumb: 'Masters   >>>   Master Code',title: 'Master_Code - ISLF' } },
     { path: 'master_type', component: MasterTypeComponent, data: {breadcrumb: 'Masters   >>>   Master Type',title: 'Master_Type - ISLF' } },
     {path:'location', component: MasterLocationComponent, data: {breadcrumb: 'Masters   >>>   Location',title: 'Location - ISLF' } },
@@ -39,7 +41,9 @@ export default [
     {path: 'sourcing',component:SourcingComponent, data:{breadcrumb: 'Masters   >>>   Sourcing',title:'Sourcing - ISLF'}},
     {path: 'cargo',component:CargoTypeMasterComponent, data:{breadcrumb: 'Masters   >>>   Cargo ',title:'Cargo- ISLF'}},
     {path:'charges',component:ChargeTypeMasterComponent, data:{breadcrumb: 'Masters   >>>  Charges',title:'Charges-ISLF'}},
-    {path:'service_area',component:ServiceAreaComponent, data:{breadcrumb: 'Masters   >>>  Service Area',title:'Service Area-ISLF'}}
+    {path:'service_area',component:ServiceAreaComponent, data:{breadcrumb: 'Masters   >>>  Service Area',title:'Service Area-ISLF'}},
+    {path:'source_sales',component:SourceSalesComponent, data:{breadcrumb: 'Masters   >>>  Source Sales',title:'Source Sales-ISLF'}},
+    
     
 ] as Routes;
 

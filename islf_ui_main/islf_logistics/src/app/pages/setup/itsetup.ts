@@ -835,9 +835,9 @@ interface DocumentPaths {
                   </p-dropdown> 
                   </div>
                   <div>
-                  <label class="block mb-2 font-medium">Service Area:</label>
+                   <label class="block mb-2 font-medium">Service Area:</label>
                   <p-dropdown
-                    [(ngModel)]="validationSettings.serviceAreaFilter"
+                    [(ngModel)]="validationSettings.sourceFilter"
                     [options]="sourceFilterOptions"
                     optionLabel="label"
                     optionValue="value"
@@ -846,18 +846,18 @@ interface DocumentPaths {
                   </p-dropdown> 
                   </div>
                   <div>
-                  <label class="block mb-2 font-medium">Source Sales:</label>
+                   <label class="block mb-2 font-medium">Sales/Source person:</label>
                   <p-dropdown
-                  [(ngModel)]="validationSettings.sourceSalesFilter"
-                  [options]="vesselFilterOptions"
-                   optionValue="value"
-                  placeholder="Select Source Sales filter"
-                  class="w-full">
+                    [(ngModel)]="validationSettings.sourceFilter"
+                    [options]="sourceFilterOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select Sales/Source person filter"
+                    class="w-full">
                   </p-dropdown> 
                   </div>
-
-
-              </div>
+                  </div>
+               
               
             </p-card>
           </div>
@@ -1022,11 +1022,8 @@ export class ITSetupComponent implements OnInit {
     mappingFilter:'',
     basisFilter:'',
     sourceFilter: '',
-    serviceAreaFilter:'',
-    sourceSalesFilter:'',
-
-
-
+    serviceAreaFilter: '',
+    sourceSalesFilter: '',
     manualCustomerFilter: ''
   };
 

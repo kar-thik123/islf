@@ -183,13 +183,13 @@ export class AppMenu {
               },
               {
                 label:'Service Area',
-                icon:'fa-solid fa-location-dot',
-                routerLink : ['/master/service_area']
+                icon:'fa-solid fa-map-marked-alt',
+                routerLink: ['/master/service_area']
               },
               {
-                label:'Source/Sales Person',
-                icon:'fa-solid fa-hand-holding-usd',
-                routerLink : ['/master/source_sales']
+                label:'Source Sales',
+                icon:'fa-solid fa-users',
+                routerLink: ['/master/source_sales']
               }
             ],
           },

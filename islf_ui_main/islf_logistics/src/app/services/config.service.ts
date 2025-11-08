@@ -121,9 +121,9 @@ export interface ValidationConfig {
   mappingFilter: string;
   manualCustomerFilter: string;
   basisFilter: string;
-  sourceFilter: string; 
-  serviceAreaFilter: string;
-  sourceSalesFilter: string;
+  sourceFilter: string; // Add this line
+  serviceAreaFilter: string; // Add this line
+  sourceSalesFilter: string; // Add this line
 }
 
 export interface AppConfig {
@@ -253,9 +253,9 @@ export class ConfigService {
       mappingFilter: '',
       manualCustomerFilter: '',
       basisFilter: '',
-      sourceFilter: '' ,
-      serviceAreaFilter:'',
-      sourceSalesFilter:''
+      sourceFilter: '', // Add this line
+      serviceAreaFilter: '', // Add this line
+      sourceSalesFilter: '' // Add this line
     }
   };
 
