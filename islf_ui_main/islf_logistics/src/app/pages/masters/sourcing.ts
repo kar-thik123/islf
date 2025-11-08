@@ -60,6 +60,7 @@ import { ServiceAreaService } from '@/services/service-area.service';
 import { ServiceAreaComponent } from './servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from './sourceSales';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 @Component({
   selector: 'app-sourcing',
@@ -70,6 +71,7 @@ import { SourceSalesComponent } from './sourceSales';
     FormsModule,
     TableModule,
     InputTextModule,
+    InputNumberModule,
     ButtonModule,
     DropdownModule,
     ToastModule,
@@ -239,7 +241,7 @@ import { SourceSalesComponent } from './sourceSales';
                 ></p-columnFilter>
               </div>
             </th>
-            <th>
+            <!-- <th>
               <div class="flex justify-between items-center">
                 Charge Name
                 <p-columnFilter
@@ -249,7 +251,7 @@ import { SourceSalesComponent } from './sourceSales';
                   placeholder="Search by charge name"
                 ></p-columnFilter>
               </div>
-            </th>
+            </th> -->
             <th>
               <div class="flex justify-between items-center">
                 From Location
@@ -294,7 +296,7 @@ import { SourceSalesComponent } from './sourceSales';
                 ></p-columnFilter>
               </div>
             </th>
-            <th>
+            <!--<th>
               <div class="flex justify-between items-center">
                 Currency
                 <p-columnFilter
@@ -304,8 +306,8 @@ import { SourceSalesComponent } from './sourceSales';
                   placeholder="Search by currency"
                 ></p-columnFilter>
               </div>
-            </th>
-            <th>
+            </th>-->
+            <!-- <th>
               <div class="flex justify-between items-center">
                 Charges
                 <p-columnFilter
@@ -315,7 +317,7 @@ import { SourceSalesComponent } from './sourceSales';
                   placeholder="Search by charges"
                 ></p-columnFilter>
               </div>
-            </th>
+            </th>-->
             <th>
               <div class="flex justify-between items-center">
                 Status
@@ -355,7 +357,14 @@ import { SourceSalesComponent } from './sourceSales';
             }"
           >
             <td>
-              <button type="button" pButton pRipple [pRowToggler]="source" class="p-button-text p-button-rounded p-button-plain" [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></button>
+              <button
+                type="button"
+                pButton
+                pRipple
+                [pRowToggler]="source"
+                class="p-button-text p-button-rounded p-button-plain"
+                [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+              ></button>
             </td>
             <td>{{ source.code }}</td>
             <td>{{ getVendorName(source.vendorName) }}</td>
@@ -364,13 +373,13 @@ import { SourceSalesComponent } from './sourceSales';
             <td>{{ source.cargoType }}</td>
 
             <td>{{ source.basis }}</td>
-            <td>{{ source.itemName }}</td>
+            <!-- <td>{{ source.itemName }}</td> -->
             <td>{{ getLocationName(source.fromLocation) }}</td>
             <td>{{ getLocationName(source.toLocation) }}</td>
             <td>{{ source.periodStartDate | date : 'dd/MM/yyyy' }}</td>
             <td>{{ source.periodEndDate | date : 'dd/MM/yyyy' }}</td>
-            <td>{{ source.currency }}</td>
-            <td>{{ source.charges || source.amount || '-' }}</td>
+            <!-- <td>{{ source.currency }}</td>-->
+            <!--<td>{{ source.charges || source.amount || '-' }}</td>-->
             <td>
               <span [ngClass]="getStatusClass(getSourceStatus(source))">
                 {{ getSourceStatus(source) }}
@@ -403,12 +412,12 @@ import { SourceSalesComponent } from './sourceSales';
                   </ng-template>
                   <ng-template pTemplate="body" let-subCharge>
                     <tr>
-                      <td>{{subCharge.charge_name}}</td>
-                      <td>{{subCharge.currency}}</td>
-                      <td>{{subCharge.charges}}</td>
-                      <td>{{subCharge.gst_vat}}</td>
-                      <td>{{subCharge.date_time}}</td>
-                      <td>{{subCharge.remarks}}</td>
+                      <td>{{ subCharge.charge_name }}</td>
+                      <td>{{ subCharge.currency }}</td>
+                      <td>{{ subCharge.charges }}</td>
+                      <td>{{ subCharge.gst_vat }}</td>
+                      <td>{{ subCharge.date_time }}</td>
+                      <td>{{ subCharge.remarks }}</td>
                     </tr>
                   </ng-template>
                 </p-table>
@@ -439,12 +448,17 @@ import { SourceSalesComponent } from './sourceSales';
       [draggable]="false"
       [resizable]="false"
       [closeOnEscape]="true"
-      [style]="{ width: '100%', maxWidth: '1500px', height: '90vh',padding:'1rem' }"
-      [contentStyle]="{ 
-      overflow: 'auto', 
-      maxHeight: 'calc(90vh - 100px)',
-      padding: '0'
-    }"
+      [style]="{
+        width: '100%',
+        maxWidth: '1500px',
+        height: '90vh',
+        padding: '1rem'
+      }"
+      [contentStyle]="{
+        overflow: 'auto',
+        maxHeight: 'calc(90vh - 100px)',
+        padding: '0'
+      }"
       (onHide)="hideDialog()"
     >
       <ng-template pTemplate="content">
@@ -452,10 +466,10 @@ import { SourceSalesComponent } from './sourceSales';
           *ngIf="selectedTariff"
           class="p-fluid form-sections dialog-body-padding"
         >
-           <!--  General Information -->
-          <h3 class="section-header"> General Information</h3>
+          <!--  General Information -->
+          <h3 class="section-header">General Information</h3>
           <div class="grid grid-cols-12 gap-4 mb-6">
-             <div class="col-span-12 md:col-span-3">
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1"
                 >Code <span class="text-red-500">*</span></label
               >
@@ -678,9 +692,8 @@ import { SourceSalesComponent } from './sourceSales';
               }}</small>
             </div>
           </div>
-         
+
           <div class="grid grid-cols-12 gap-4 mb-6">
-         
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Cargo Type</label>
               <div class="flex gap-2">
@@ -714,7 +727,7 @@ import { SourceSalesComponent } from './sourceSales';
                 fieldErrors['cargoType']
               }}</small>
             </div>
-         <!--   <div class="col-span-12 md:col-span-3">
+            <!--   <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
                 <p-dropdown
@@ -781,8 +794,8 @@ import { SourceSalesComponent } from './sourceSales';
                 fieldErrors['basis']
               }}</small>
             </div>
-                        
-             <div class="col-span-12 md:col-span-3">
+
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Period Start Date</label>
               <p-calendar
                 [(ngModel)]="selectedTariff.periodStartDate"
@@ -929,8 +942,7 @@ import { SourceSalesComponent } from './sourceSales';
                 fieldErrors['to']
               }}</small>
             </div>
-          </div> 
-
+          </div>
 
           <!-- 6. Sub Charges -->
           <h3 class="section-header">6. Sub Charges</h3>
@@ -956,7 +968,7 @@ import { SourceSalesComponent } from './sourceSales';
                       optionLabel="label"
                       optionValue="value"
                       [(ngModel)]="subCharge.charge_name"
-                      [ngModelOptions]="{standalone: true}"
+                      [ngModelOptions]="{ standalone: true }"
                       placeholder="Select Item Name"
                       [filter]="true"
                       filterBy="label"
@@ -966,7 +978,11 @@ import { SourceSalesComponent } from './sourceSales';
                     ></p-dropdown>
                     <button
                       pButton
-                      [icon]="masterDialogLoading['itemName'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'"
+                      [icon]="
+                        masterDialogLoading['itemName']
+                          ? 'pi pi-spin pi-spinner'
+                          : 'pi pi-ellipsis-h'
+                      "
                       class="p-button-sm"
                       [disabled]="masterDialogLoading['itemName']"
                       (click)="openMaster('itemName')"
@@ -978,7 +994,7 @@ import { SourceSalesComponent } from './sourceSales';
                     <p-dropdown
                       [options]="currencyOptions"
                       [(ngModel)]="subCharge.currency"
-                      [ngModelOptions]="{standalone: true}"
+                      [ngModelOptions]="{ standalone: true }"
                       placeholder="Select Currency"
                       class="flex-1"
                       [filter]="true"
@@ -988,24 +1004,78 @@ import { SourceSalesComponent } from './sourceSales';
                     ></p-dropdown>
                     <button
                       pButton
-                      [icon]="masterDialogLoading['currency'] ? 'pi pi-spin pi-spinner' : 'pi pi-ellipsis-h'"
+                      [icon]="
+                        masterDialogLoading['currency']
+                          ? 'pi pi-spin pi-spinner'
+                          : 'pi pi-ellipsis-h'
+                      "
                       class="p-button-sm"
                       [disabled]="masterDialogLoading['currency']"
                       (click)="openMaster('currency')"
                     ></button>
                   </div>
                 </td>
-                <td><input pInputText type="number" [(ngModel)]="subCharge.charges" [ngModelOptions]="{standalone: true}"></td>
-                <td><input pInputText [(ngModel)]="subCharge.gst_vat" [ngModelOptions]="{standalone: true}"></td>
-                <td><p-calendar [(ngModel)]="subCharge.date_time" [showTime]="true" [showSeconds]="true" [ngModelOptions]="{standalone: true}"></p-calendar></td>
-                <td><input pInputText [(ngModel)]="subCharge.remarks" [ngModelOptions]="{standalone: true}"></td>
-                <td><button pButton type="button" icon="pi pi-trash" (click)="removeSubCharge(i)"></button></td>
-                <td><button pButton type="button" icon="pi pi-save" (click)="saveSubCharge(i)"></button></td>
+                <td>
+                  <input
+                    pInputText
+                    type="number"
+                    [(ngModel)]="subCharge.charges"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                </td>
+                <td>
+                  <p-inputnumber
+                    [(ngModel)]="subCharge.gst_vat"
+                    inputId="GST/VAT"
+                    mode="decimal"
+                    suffix="%"
+                  />
+                </td>
+                <td>
+                  <p-calendar
+                    [(ngModel)]="subCharge.date_time"
+                    [showTime]="true"
+                    [showSeconds]="true"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="true"
+                  ></p-calendar>
+                </td>
+                <td>
+                  <input
+                    pInputText
+                    [(ngModel)]="subCharge.remarks"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                </td>
+
+                <td>
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-save"
+                    (click)="saveSubCharge(i)"
+                  ></button>
+                </td>
+                <td>
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-trash"
+                    (click)="removeSubCharge(i)"
+                  ></button>
+                </td>
               </tr>
             </ng-template>
           </p-table>
-          <button pButton type="button" label="Add Sub Charge" icon="pi pi-plus" (click)="addSubCharge()" class="mt-2"></button>
-        </div>       
+          <button
+            pButton
+            type="button"
+            label="Add Sub Charge"
+            icon="pi pi-plus"
+            (click)="addSubCharge()"
+            class="mt-2"
+          ></button>
+        </div>
       </ng-template>
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
@@ -2563,12 +2633,25 @@ export class SourcingComponent implements OnInit, OnDestroy {
             this.selectedTariff.sub_charges = [];
           }
           // Don't set date_time here - it will be set when saving individual charge
-          this.selectedTariff.sub_charges.push({ sub_charge_id: this.generateUniqueId(), id: null, charge_name: '', currency: '', charges: null, gst_vat: '', date_time: null, remarks: '' });
+          this.selectedTariff.sub_charges.push({
+            sub_charge_id: this.generateUniqueId(),
+            id: null,
+            charge_name: '',
+            currency: '',
+            charges: null,
+            gst_vat: '',
+            date_time: null,
+            remarks: '',
+          });
         },
         error: (error: any) => {
           console.error('Error saving main sourcing record:', error);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save main sourcing record. Please try again.' });
-        }
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save main sourcing record. Please try again.',
+          });
+        },
       });
     } else {
       // Main record already exists, just add sub-charge
@@ -2576,20 +2659,62 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.selectedTariff.sub_charges = [];
       }
       // Don't set date_time here - it will be set when saving individual charge
-      this.selectedTariff.sub_charges.push({ sub_charge_id: this.generateUniqueId(), id: null, charge_name: '', currency: '', charges: null, gst_vat: '', date_time: null, remarks: '' });
+      this.selectedTariff.sub_charges.push({
+        sub_charge_id: this.generateUniqueId(),
+        id: null,
+        charge_name: '',
+        currency: '',
+        charges: null,
+        gst_vat: '',
+        date_time: null,
+        remarks: '',
+      });
     }
   }
 
   removeSubCharge(index: number) {
     this.selectedTariff.sub_charges.splice(index, 1);
+    
   }
+  formatDateTime(date: string | Date | undefined | null): Date {
+    if (!date) return new Date();
 
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+      // Check if date is valid
+      if (isNaN(dateObj.getTime())) return new Date();
+
+      // Format date as dd/mm/yyyy
+      const day = dateObj.getDate().toString().padStart(2, '0');
+      const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+      const year = dateObj.getFullYear();
+
+      // Format time as hh:mm
+      const hours = dateObj.getHours().toString().padStart(2, '0');
+      const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hours),
+        Number(minutes)
+      );
+    } catch {
+      return new Date();
+    }
+  }
   saveSubCharge(index: number) {
     const subCharge = this.selectedTariff.sub_charges[index];
 
     // Step 1: Ensure the main sourcing record is saved before adding sub-charges
     if (!this.selectedTariff.id) {
-      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Please save the main tariff before adding sub-charges.' });
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'Please save the main tariff before adding sub-charges.',
+      });
       return;
     }
 
@@ -2608,18 +2733,28 @@ export class SourcingComponent implements OnInit, OnDestroy {
         // Update the sub-charge with the ID and date_time from the backend
         this.selectedTariff.sub_charges[index] = response;
         // Ensure the date_time is a Date object for the calendar component
-        this.selectedTariff.sub_charges[index].date_time = new Date(response.date_time);
-        this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Sub-charge saved successfully.' });
+        this.selectedTariff.sub_charges[index].date_time = new Date(
+          response.date_time
+        );
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Sub-charge saved successfully.',
+        });
       },
       error: (error: any) => {
         console.error('Error saving sub-charge:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save sub-charge.' });
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to save sub-charge.',
+        });
       },
     });
   }
 
   editRow(tariff: any) {
-    console.log('Edit Tariff button clicked - starting editRow method');
+    console.log('Edit Tariff button clicked - starting editRow method', tariff);
 
     // Get the validation settings
     const config = this.configService.getConfig();
@@ -2681,18 +2816,28 @@ export class SourcingComponent implements OnInit, OnDestroy {
       this.sourceService.getSubCharges(this.selectedTariff.id).subscribe({
         next: (subCharges) => {
           this.selectedTariff.sub_charges = subCharges;
+          // formatting the date time
+          this.selectedTariff.sub_charges.forEach(
+            (subCharge: any) =>
+              (subCharge.date_time = this.formatDateTime(subCharge.date_time))
+          );
           this.updateFormValidity(); // Re-validate form after loading sub-charges
           this.cdr.detectChanges(); // Manually trigger change detection
         },
         error: (err) => {
           console.error('Failed to load sub-charges:', err);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load sub-charges.' });
-        }
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load sub-charges.',
+          });
+        },
       });
     } else {
       this.selectedTariff.sub_charges = [];
     }
 
+    console.log('Selected Tariff Value in editRow:', this.selectedTariff);
     // Convert date strings to Date objects for the calendar components
     // Use proper date parsing to avoid timezone issues
     if (this.selectedTariff.effectiveDate) {
@@ -2788,13 +2933,18 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.sourceService.create(payload).subscribe({
           next: (created) => {
             // Update the selected tariff with the response data (including ID and code)
-            this.selectedTariff = { ...this.selectedTariff, id: created.id, code: created.code, isNew: false };
+            this.selectedTariff = {
+              ...this.selectedTariff,
+              id: created.id,
+              code: created.code,
+              isNew: false,
+            };
             this.messageService.add({
               severity: 'success',
               summary: 'Success',
               detail: 'Source created',
             });
-            
+
             if (!stayOnPage) {
               this.refreshList();
               this.hideDialog();
@@ -2820,7 +2970,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
               summary: 'Success',
               detail: 'Source updated',
             });
-            
+
             if (!stayOnPage) {
               this.refreshList();
               this.hideDialog();

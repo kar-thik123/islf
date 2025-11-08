@@ -4391,7 +4391,7 @@ export class EnquiryComponent implements OnInit {
 
         // Sum quantities from matching line items
         mappedQuantity = matchingLineItems.reduce(
-          (total, lineItem) => total + (lineItem.quantity || 0),
+          (total, lineItem) => total + (Number(lineItem.quantity) || 0),
           0
         );
       }

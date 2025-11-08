@@ -85,6 +85,9 @@ export class SourceService {
     return this.http.get<SourcingSubCharge[]>(`${this.baseUrl}/sub-charges/${sourcingId}`);
   }
 
+  deleteSubCharge(id:number, sourcingId:number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/${sourcingId}/sub-charges/${id}`);
+  }
   saveSubCharge(subCharge: SourcingSubCharge): Observable<SourcingSubCharge> {
     return this.http.post<SourcingSubCharge>(`${this.baseUrl}/sub-charges`, this.contextPayload.withContext(subCharge, this.contextService.getContext()));
   }
