@@ -10,30 +10,31 @@ export interface Tariff {
   code: string;
   mode: string;
   shippingType: string;
+  type: string;
+  serviceArea: string;
+  vendorType: string;
+  vendorName: string;
   cargoType: string;
-  tariffType: string;
   basis: string;
-  containerType: string;
-  itemName: string;
-  currency: string;
   locationTypeFrom: string;
   locationTypeTo: string;
   from: string;
   to: string;
-  vendorType: string;
-  vendorName: string;
-  serviceArea: string;
-  charges: number;
-  freightChargeType: string;
-  effectiveDate: string;
+  charges: TariffCharge[];
+  isMandatory?: boolean;
+  // New field for accounting purposes
+}
+
+export interface TariffCharge {
+  id?: number;
+  tariffId?: number;
+  chargeName: string;
+  currency: string | number;
+  charge: number;
+  gstVat: string;
   periodStartDate: string;
   periodEndDate: string;
-  isMandatory: boolean;
-  sourceSalesCode: string;
   remarks: string;
-  gstVat: string;
-  type: string;
-    // New field for accounting purposes
 }
 
 @Injectable({ providedIn: 'root' })
@@ -41,8 +42,8 @@ export class TariffService {
   private baseUrl = `${environment.apiUrl}/api/tariff`;
 
   constructor(
-    private http: HttpClient, 
-    private contextPayload: ContextPayloadService, 
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
     private contextService: ContextService
   ) {}
 
@@ -50,7 +51,7 @@ export class TariffService {
   getAll(): Observable<Tariff[]> {
     const context = this.contextService.getContext();
     const params: any = {};
-    
+
     if (context.companyCode) {
       params.companyCode = context.companyCode;
     }
@@ -60,15 +61,21 @@ export class TariffService {
     if (context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
-    
+
     return this.http.get<Tariff[]>(this.baseUrl, { params });
   }
 
   create(tariff: Tariff): Observable<Tariff> {
-    return this.http.post<Tariff>(this.baseUrl, this.contextPayload.withContext(tariff, this.contextService.getContext()));
+    return this.http.post<Tariff>(
+      this.baseUrl,
+      this.contextPayload.withContext(tariff, this.contextService.getContext())
+    );
   }
 
   update(id: number, tariff: Tariff): Observable<Tariff> {
-    return this.http.put<Tariff>(`${this.baseUrl}/${id}`, this.contextPayload.withContext(tariff, this.contextService.getContext()));
+    return this.http.put<Tariff>(
+      `${this.baseUrl}/${id}`,
+      this.contextPayload.withContext(tariff, this.contextService.getContext())
+    );
   }
 }

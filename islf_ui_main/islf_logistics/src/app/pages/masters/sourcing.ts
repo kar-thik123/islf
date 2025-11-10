@@ -997,32 +997,32 @@ import { InputNumberModule } from 'primeng/inputnumber';
                     ></button>
                   </div>
                 </td>
-                 <td>
-      <div class="flex gap-2">
-        <p-dropdown
-          [options]="basisOptions"
-          [(ngModel)]="subCharge.basis"
-          [ngModelOptions]="{ standalone: true }"
-          placeholder="Select Basis"
-          class="flex-1"
-          [filter]="true"
-          filterBy="label"
-          [showClear]="true"
-          [appendTo]="'body'"
-        ></p-dropdown>
-        <button
-          pButton
-          [icon]="
-            masterDialogLoading['basis']
-              ? 'pi pi-spin pi-spinner'
-              : 'pi pi-ellipsis-h'
-          "
-          class="p-button-sm"
-          [disabled]="masterDialogLoading['basis']"
-          (click)="openMaster('basis')"
-        ></button>
-      </div>
-    </td>
+                <td>
+                  <div class="flex gap-2">
+                  <p-dropdown
+                    [options]="basisOptions"
+                    [(ngModel)]="subCharge.basis"
+                    [ngModelOptions]="{ standalone: true }"
+                    placeholder="Select Basis"
+                    class="flex-1"
+                    [filter]="true"
+                    filterBy="label"
+                    [showClear]="true"
+                    [appendTo]="'body'"
+                  ></p-dropdown>
+                  <button
+                    pButton
+                    [icon]="
+                      masterDialogLoading['basis']
+                      ? 'pi pi-spin pi-spinner'
+                      : 'pi pi-ellipsis-h'
+                    "
+                    class="p-button-sm"
+                    [disabled]="masterDialogLoading['basis']"
+                    (click)="openMaster('basis')"
+                  ></button>
+                  </div>
+                </td>
 
                 <td>
                   <div class="flex gap-2">
