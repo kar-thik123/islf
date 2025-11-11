@@ -492,8 +492,8 @@ router.post("/:tariffId/charge", async (req, res) => {
     charges,
     basis,
     gst_vat,
-    periodStartDateTime,
-    periodEndDateTime,
+    periodStartDate,
+    periodEndDate,
     remarks,
   } = req.body;
   if (!tariffId || tariffId.trim() === "") {
@@ -519,8 +519,8 @@ router.post("/:tariffId/charge", async (req, res) => {
       basis,
       charges,
       gst_vat,
-      periodStartDateTime,
-      periodEndDateTime,
+      periodStartDate,
+      periodEndDate,
       remarks,
     ]);
 
@@ -539,11 +539,11 @@ router.post("/:tariffId/charge", async (req, res) => {
 router.put("/:tariffId/charge/:chargeId", async (req, res) => {
   const { tariffId, chargeId } = req.params;
   const {
-    chargeName,
+    charge_name,
     currency,
     basis,
-    charge,
-    gstVat,
+    charges,
+    gst_vat,
     periodStartDate,
     periodEndDate,
     remarks,
@@ -555,11 +555,11 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
     res.status(400).json({ error: "Tariff ID is required" });
   }
   if (
-    !chargeName &&
+    !charge_name &&
     !currency &&
     !basis &&
-    !charge &&
-    !gstVat &&
+    !charges &&
+    !gst_vat &&
     !periodStartDate &&
     !periodEndDate &&
     !remarks
@@ -589,9 +589,9 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
     let params = [];
     let paramIndex = 1;
 
-    if (chargeName && chargeName.trim() !== "") {
+    if (charge_name && charge_name.trim() !== "") {
       query += `, charge_name = $${paramIndex}`;
-      params.push(chargeName);
+      params.push(charge_name);
       paramIndex++;
     }
 
@@ -601,15 +601,15 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
       paramIndex++;
     }
 
-    if (charge && charge.trim() !== "") {
+    if (charges && charges.trim() !== "") {
       query += `, charge = $${paramIndex}`;
-      params.push(charge);
+      params.push(charges);
       paramIndex++;
     }
 
-    if (gstVat && gstVat.trim() !== "") {
+    if (gst_vat && gst_vat.trim() !== "") {
       query += `, gst_vat = $${paramIndex}`;
-      params.push(gstVat);
+      params.push(gst_vat);
       paramIndex++;
     }
 
@@ -698,7 +698,7 @@ router.get("/:tariffId/charges", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT * FROM tariff_charges WHERE sourcing_id = $1 ORDER BY id",
+      "SELECT * FROM tariff_charges WHERE sourcing_id = $1 AND ( CURRENT_DATE < period_end_date OR period_end_date IS NULL) ORDER BY id",
       [sourcing_id]
     );
     res.json(result.rows);

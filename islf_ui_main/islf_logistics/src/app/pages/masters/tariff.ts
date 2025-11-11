@@ -90,6 +90,7 @@ import { InputNumber } from 'primeng/inputnumber';
   ],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Local Tariff</div>
 
@@ -836,6 +837,13 @@ import { InputNumber } from 'primeng/inputnumber';
                 fieldErrors['to']
               }}</small>
             </div>
+             <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
+            <p-inputSwitch 
+              [(ngModel)]="selectedTariff.isMandatory" 
+              inputId="mandatory">
+            </p-inputSwitch>
+            <label for="mandatory" class="ml-2 font-semibold">Mandatory</label>
+          </div>
             <!--<div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Source/Sales Person</label>
               <div class="flex gap-2">
@@ -905,6 +913,7 @@ import { InputNumber } from 'primeng/inputnumber';
             <ng-template pTemplate="header">
               <tr>
                 <th>Charge Name</th>
+                <th>Basis</th>
                 <th>Currency</th>
                 <th>Charges</th>
                 <th>GST/VAT</th>
@@ -944,6 +953,35 @@ import { InputNumber } from 'primeng/inputnumber';
                       (click)="openMaster('itemName')"
                     ></button>
                   </div>
+                </td>
+                <td>
+               
+                <div class="flex gap-2">
+                  <p-dropdown
+                    [options]="basisOptions"
+                    [(ngModel)]="subCharge.basis"
+                    (ngModelChange)="onFieldChange('basis', selectedTariff.basis)"
+                    [ngClass]="getFieldErrorClass('basis')"
+                    [ngStyle]="getFieldErrorStyle('basis')"
+                    placeholder="Select Basis"
+                    class="flex-1"
+                    [filter]="true"
+                    filterBy="label"
+                    [showClear]="true"
+                  ></p-dropdown>
+                  <button
+                    pButton
+                    [icon]="
+                      masterDialogLoading['basis']
+                        ? 'pi pi-spin pi-spinner'
+                        : 'pi pi-ellipsis-h'
+                    "
+                    class="p-button-sm"
+                    [disabled]="masterDialogLoading['basis']"
+                    (click)="openMaster('basis')"
+                  ></button>
+                 </div>
+             
                 </td>
                 <td>
                   <div class="flex gap-2">
@@ -998,7 +1036,7 @@ import { InputNumber } from 'primeng/inputnumber';
                 </td>
                 <td>
                   <p-calendar
-                    [(ngModel)]="subCharge.PeriodEndDate"
+                    [(ngModel)]="subCharge.periodEndDate"
                     appendTo="body"
                     [showTime]="false"
                     [showSeconds]="false"
@@ -1017,7 +1055,7 @@ import { InputNumber } from 'primeng/inputnumber';
                   <button
                     pButton
                     type="button"
-                    icon="pi pi-save"
+                    icon="subCharge.id ? pi pi-pencil : pi pi-save"
                     pTooltip="Save"
                     (click)="saveCharge(i)"
                   ></button>
@@ -2649,7 +2687,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     };
 
     // Step 4: Call the service to save the sub-charge
-
+    if(!subCharge.id){
     this.tariffService
       .saveCharge(this.selectedTariff.id, subChargePayload)
       .subscribe({
@@ -2675,6 +2713,29 @@ export class TariffComponent implements OnInit, OnDestroy {
           });
         },
       });
+    }else {
+      this.tariffService.updateCharge(this.selectedTariff.id, subCharge.id, subChargePayload).subscribe( {next: (response: any) => {
+          // Update the sub-charge with the ID and date_time from the backend
+          this.selectedTariff.sub_charges[index] = response;
+          // Ensure the date_time is a Date object for the calendar component
+          this.selectedTariff.sub_charges[index].date_time = new Date(
+            response.date_time
+          );
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Sub-charge Updated successfully.',
+          });
+        },
+        error: (error: any) => {
+          console.error('Error saving sub-charge:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to Update sub-charge.',
+          });
+        },});
+    }
   }
 
   removeCharge(index: number) {
@@ -2813,6 +2874,31 @@ export class TariffComponent implements OnInit, OnDestroy {
     this.originalTariffData = JSON.parse(JSON.stringify(tariff));
 
     this.selectedTariff = { ...tariff, isNew: false, isEdit: true };
+     // Fetch and load sub-charges
+    if (this.selectedTariff.id) {
+      this.tariffService.getCharges(this.selectedTariff.id).subscribe({
+        next: (subCharges) => {
+          this.selectedTariff.sub_charges = subCharges;
+          // formatting the date time
+          this.selectedTariff.sub_charges.forEach(
+            (subCharge: any) =>
+              (subCharge.date_time = this.formatDateTime(subCharge.date_time))
+          );
+          this.updateFormValidity(); // Re-validate form after loading sub-charges
+          this.cdr.detectChanges(); // Manually trigger change detection
+        },
+        error: (err) => {
+          console.error('Failed to load sub-charges:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load tariff charges.',
+          });
+        },
+      });
+    } else {
+      this.selectedTariff.sub_charges = [];
+    }
 
     // Convert date strings to Date objects for the calendar components
     // Use proper date parsing to avoid timezone issues
