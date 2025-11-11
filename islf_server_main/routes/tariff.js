@@ -57,15 +57,7 @@ router.get("/", async (req, res) => {
 
     console.log("tariff query:", query, "tariff Value", values);
     const { rows: tariffResult } = await pool.query(query, values);
-    for (tariff of tariffResult) {
-      console.log("tariff Result Item:", tariff);
-      let { rows: tariffCharges } = await pool.query(
-        `SELECT * FROM tariff_charges WHERE tariff_id = $1 ORDER BY id ASC`,
-        [tariff.id]
-      );
-      tariff.Charges = tariffCharges;
-      console.log("tariff Charges:", tariffCharges);
-    }
+
     console.log("tariff Result:", tariffResult);
     res.json(tariffResult);
   } catch (err) {
@@ -495,12 +487,13 @@ router.put("/:id", async (req, res) => {
 router.post("/:tariffId/charge", async (req, res) => {
   const { tariffId } = req.params;
   const {
-    chargeName,
+    charge_name,
     currency,
-    charge,
-    gstVat,
-    periodStartDate,
-    periodEndDate,
+    charges,
+    basis,
+    gst_vat,
+    periodStartDateTime,
+    periodEndDateTime,
     remarks,
   } = req.body;
   if (!tariffId || tariffId.trim() === "") {
@@ -517,16 +510,17 @@ router.post("/:tariffId/charge", async (req, res) => {
     }
 
     // dynamic build query
-    let query = `INSERT INTO tariff_charges (charge_name, tariff_id, currency, charge, gst_vat, period_start_date, period_end_date, remarks, created_at) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`;
+    let query = `INSERT INTO tariff_charges (charge_name, tariff_id, currency,basis, charge, gst_vat, period_start_date, period_end_date, remarks, created_at) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) RETURNING *`;
 
     const { rows: chargeResult } = await pool.query(query, [
-      chargeName,
+      charge_name,
       tariffId,
       currency,
-      charge,
-      gstVat,
-      periodStartDate,
-      periodEndDate,
+      basis,
+      charges,
+      gst_vat,
+      periodStartDateTime,
+      periodEndDateTime,
       remarks,
     ]);
 
@@ -547,6 +541,7 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
   const {
     chargeName,
     currency,
+    basis,
     charge,
     gstVat,
     periodStartDate,
@@ -562,6 +557,7 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
   if (
     !chargeName &&
     !currency &&
+    !basis &&
     !charge &&
     !gstVat &&
     !periodStartDate &&
@@ -693,6 +689,25 @@ router.delete("/:tariffId/charge/:chargeId", async (req, res) => {
     res
       .status(500)
       .json({ error: "Failed to update tariff charge", msg: err.message });
+  }
+});
+
+// Get tariff Charges
+router.get("/:tariffId/charges", async (req, res) => {
+  const { tariffId } = req.params;
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM tariff_charges WHERE sourcing_id = $1 ORDER BY id",
+      [sourcing_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(
+      `Error fetching sub-charges for sourcing_id ${sourcing_id}:`,
+      error
+    );
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

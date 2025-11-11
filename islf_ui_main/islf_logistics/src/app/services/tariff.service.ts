@@ -29,6 +29,7 @@ export interface TariffCharge {
   id?: number;
   tariffId?: number;
   chargeName: string;
+  basis: string;
   currency: string | number;
   charge: number;
   gstVat: string;
@@ -77,5 +78,23 @@ export class TariffService {
       `${this.baseUrl}/${id}`,
       this.contextPayload.withContext(tariff, this.contextService.getContext())
     );
+  }
+
+  // Delete charge Method
+  deleteCharge(tariffId: number,  chargeId: number): Observable<void>{
+    return this.http.delete<void>(`${this.baseUrl}/${tariffId}/charge/${chargeId}`);
+  }
+
+  // get charges Method
+  getCharges(tariffId: number): Observable<TariffCharge[]> {
+    return this.http.get<TariffCharge[]>(`${this.baseUrl}/${tariffId}/charges`);
+  }
+
+  saveCharge(tariffId: number,  tariffCharge: TariffCharge): Observable<TariffCharge> {
+    return this.http.post<TariffCharge>(`${this.baseUrl}/${tariffId}/charge`, tariffCharge);
+  }
+
+  updateCharge(tariffId: number, chargeId: number, tariffCharge: TariffCharge): Observable<TariffCharge> {
+    return this.http.put<TariffCharge>(`${this.baseUrl}/${tariffId}/charge/${chargeId}`, tariffCharge);
   }
 }

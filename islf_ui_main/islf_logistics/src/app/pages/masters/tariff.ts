@@ -901,7 +901,7 @@ import { InputNumber } from 'primeng/inputnumber';
 
           <!-- 4. Validity Period -->
           <h3 class="section-header">Charges</h3>
-          <p-table [value]="selectedTariff.charges" dataKey="id">
+          <p-table [value]="selectedTariff.sub_charges" dataKey="id">
             <ng-template pTemplate="header">
               <tr>
                 <th>Charge Name</th>
@@ -989,19 +989,19 @@ import { InputNumber } from 'primeng/inputnumber';
                 </td>
                 <td>
                   <p-calendar
-                    [(ngModel)]="subCharge.periodStartDateTime"
+                    [(ngModel)]="subCharge.periodStartDate"
                     appendTo="body"
-                    [showTime]="true"
-                    [showSeconds]="true"
+                    [showTime]="false"
+                    [showSeconds]="false"
                     [ngModelOptions]="{ standalone: true }"
                   ></p-calendar>
                 </td>
                 <td>
                   <p-calendar
-                    [(ngModel)]="subCharge.PeriodEndDateTime"
+                    [(ngModel)]="subCharge.PeriodEndDate"
                     appendTo="body"
-                    [showTime]="true"
-                    [showSeconds]="true"
+                    [showTime]="false"
+                    [showSeconds]="false"
                     [ngModelOptions]="{ standalone: true }"
                   ></p-calendar>
                 </td>
@@ -2516,14 +2516,14 @@ export class TariffComponent implements OnInit, OnDestroy {
       to: '',
       vendorType: '',
       vendorName: '',
-      charges: [],
+      charges: 0,
       freightChargeType: '',
       effectiveDate: '',
       periodStartDate: '',
       periodEndDate: '',
-
       isNew: true,
     };
+    this.selectedTariff.sub_charges = []; // Initialize sub_charges
     this.isDialogVisible = true;
     this.fieldErrors = {};
 
@@ -2556,17 +2556,23 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   addCharge() {
-    console.log('Add Charge button clicked for the selected tariff,');
+    console.log(
+      'Add Charge button clicked for the selected tariff,',
+      this.selectedTariff
+    );
     // First save the main sourcing record if it's new
     if (!this.selectedTariff.id) {
+      console.log('Saving the main tariff due to no id');
       this.saveRow().subscribe({
         next: (response: any) => {
+          console.log('saved Tariff Response,', response);
+          this.selectedTariff = { ...response };
           // Main record saved successfully, now add sub-charge
-          if (!this.selectedTariff.charges) {
-            this.selectedTariff.charges = [];
+          if (!this.selectedTariff.sub_charges) {
+            this.selectedTariff.sub_charges = [];
           }
           // Don't set date_time here - it will be set when saving individual charge
-          this.selectedTariff.charges.push({
+          this.selectedTariff.sub_charges.push({
             sub_charge_id: this.generateUniqueId(),
             id: null,
             charge_name: '',
@@ -2575,25 +2581,32 @@ export class TariffComponent implements OnInit, OnDestroy {
             charges: null,
             gst_vat: '',
             date_time: null,
+            period_start_date: null,
+            period_end_date: null,
             remarks: '',
           });
+          this.cdr.detectChanges();
+          console.log(
+            'Selected Tariff value for newly added charge,',
+            this.selectedTariff
+          );
         },
         error: (error: any) => {
           console.error('Error saving main sourcing record:', error);
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: 'Failed to save main sourcing record. Please try again.',
+            detail: 'Failed to save main Tariff record. Please try again.',
           });
         },
       });
     } else {
       // Main record already exists, just add sub-charge
-      if (!this.selectedTariff.charges) {
-        this.selectedTariff.charges = [];
+      if (!this.selectedTariff.sub_charges) {
+        this.selectedTariff.sub_charges = [];
       }
       // Don't set date_time here - it will be set when saving individual charge
-      this.selectedTariff.charges.push({
+      this.selectedTariff.sub_charges.push({
         sub_charge_id: this.generateUniqueId(),
         id: null,
         charge_name: '',
@@ -2613,7 +2626,7 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   saveCharge(index: number) {
-    const subCharge = this.selectedTariff.charges[index];
+    const subCharge = this.selectedTariff.sub_charges[index];
 
     // Step 1: Ensure the main sourcing record is saved before adding sub-charges
     if (!this.selectedTariff.id) {
@@ -2636,31 +2649,32 @@ export class TariffComponent implements OnInit, OnDestroy {
     };
 
     // Step 4: Call the service to save the sub-charge
-    {
-      /*this.sourceService.saveSubCharge(subChargePayload).subscribe({
-      next: (response: any) => {
-        // Update the sub-charge with the ID and date_time from the backend
-        this.selectedTariff.sub_charges[index] = response;
-        // Ensure the date_time is a Date object for the calendar component
-        this.selectedTariff.sub_charges[index].date_time = new Date(
-          response.date_time
-        );
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Sub-charge saved successfully.',
-        });
-      },
-      error: (error: any) => {
-        console.error('Error saving sub-charge:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to save sub-charge.',
-        });
-      },
-    });*/
-    }
+
+    this.tariffService
+      .saveCharge(this.selectedTariff.id, subChargePayload)
+      .subscribe({
+        next: (response: any) => {
+          // Update the sub-charge with the ID and date_time from the backend
+          this.selectedTariff.sub_charges[index] = response;
+          // Ensure the date_time is a Date object for the calendar component
+          this.selectedTariff.sub_charges[index].date_time = new Date(
+            response.date_time
+          );
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Sub-charge saved successfully.',
+          });
+        },
+        error: (error: any) => {
+          console.error('Error saving sub-charge:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save sub-charge.',
+          });
+        },
+      });
   }
 
   removeCharge(index: number) {
@@ -2679,34 +2693,35 @@ export class TariffComponent implements OnInit, OnDestroy {
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
         // Call the service to delete from database
-        {
-          /* this.sourceService.deleteSubCharge(subCharge.id, this.selectedTariff.id).subscribe({
-          next: (response: any) => {
-            // Remove from local array after successful deletion
-            this.selectedTariff.sub_charges.splice(index, 1);
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Success',
-              detail: 'Sub-charge deleted successfully.',
-            });
-          },
-          error: (error: any) => {
-            console.error('Error deleting sub-charge:', error);
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to delete sub-charge.',
-            });
-          },
-        }); */
-        }
+
+        this.tariffService
+          .deleteCharge(subCharge.id, this.selectedTariff.id)
+          .subscribe({
+            next: (response: any) => {
+              // Remove from local array after successful deletion
+              this.selectedTariff.sub_charges.splice(index, 1);
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Tariff charge deleted successfully.',
+              });
+            },
+            error: (error: any) => {
+              console.error('Error deleting Tariff charge:', error);
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to delete Tariff charge.',
+              });
+            },
+          });
       },
       reject: () => {
         // User cancelled the deletion
         this.messageService.add({
           severity: 'info',
           summary: 'Cancelled',
-          detail: 'Sub-charge deletion cancelled.',
+          detail: 'Tariff charge deletion cancelled.',
         });
       },
     });
@@ -2888,50 +2903,47 @@ export class TariffComponent implements OnInit, OnDestroy {
       payload.code = '';
     }
 
-    return new Observable((observer: any) => {
-      if (this.selectedTariff.isNew) {
-        this.tariffService.create(payload).subscribe({
-          next: (created) => {
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Success',
-              detail: 'Tariff created',
-            });
-            this.refreshList();
-            this.hideDialog();
-          },
-          error: (err) => {
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to create tariff',
-            });
-          },
-        });
-      } else {
-        this.tariffService.update(this.selectedTariff.id, payload).subscribe({
-          next: (updated) => {
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Success',
-              detail: 'Tariff updated',
-            });
-            this.refreshList();
-            this.hideDialog();
-          },
-          error: (err) => {
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to update tariff',
-            });
-          },
-          complete: () => {
-            console.log('Tariff updated successfully');
-          },
-        });
-      }
-    });
+    if (this.selectedTariff.isNew) {
+      return this.tariffService.create(payload).pipe(
+        tap((created) => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Tariff created',
+          });
+          this.refreshList();
+          // this.hideDialog();
+        }),
+        catchError((err) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to create tariff',
+          });
+          throw err;
+        })
+      );
+    } else {
+      return this.tariffService.update(this.selectedTariff.id, payload).pipe(
+        tap((updated) => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Tariff updated',
+          });
+          this.refreshList();
+          // this.hideDialog();
+        }),
+        catchError((err) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to update tariff',
+          });
+          throw err;
+        })
+      );
+    }
   }
 
   hideDialog() {
