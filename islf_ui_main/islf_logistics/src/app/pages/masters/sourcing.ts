@@ -3181,6 +3181,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
       this.showMasterLocationDialog = true;
     } else if (type === 'serviceArea') {
       this.showServiceAreaDialog = true;
+    }else if (type === 'serviceAreaType') {
+      this.masterTypeFilter = 'SERVICE_AREA';
+      this.showMasterTypeDialog = true;
     } else if (type === 'sourceSales') {
       this.showSourceSalesDialog = true;
     } else {
@@ -3253,6 +3256,11 @@ export class SourcingComponent implements OnInit, OnDestroy {
             next: () => this.cdr.detectChanges(),
             error: () => this.cdr.detectChanges(),
           });
+        }else if (editedType === 'SERVICE_AREA') {
+          this.loadServiceAreaTypeOptions().subscribe({
+            next: () => this.cdr.detectChanges(),
+            error: () => this.cdr.detectChanges(),
+          });
         }
         // Force a refresh of the master type component to ensure new rows are displayed
         setTimeout(() => {
@@ -3320,6 +3328,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
         return 'Tariff Type Master';
       case 'LOCATION':
         return 'Location Type Master';
+      case 'SERVICE_AREA':
+        return 'Service Area Type Master';
       default:
         return 'Master Type';
     }

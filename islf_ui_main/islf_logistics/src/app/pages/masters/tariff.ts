@@ -94,7 +94,6 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
   template: `
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
-    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Local Tariff</div>
 
@@ -848,14 +847,6 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
             </p-inputSwitch>
             <label for="mandatory" class="ml-2 font-semibold">Mandatory</label>
           </div>
-            </div>
-             <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
-            <p-inputSwitch 
-              [(ngModel)]="selectedTariff.isMandatory" 
-              inputId="mandatory">
-            </p-inputSwitch>
-            <label for="mandatory" class="ml-2 font-semibold">Mandatory</label>
-          </div>
             <!--<div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Source/Sales Person</label>
               <div class="flex gap-2">
@@ -1078,7 +1069,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                   <button
                     pButton
                     type="button"
-                    [icon]="subCharge.id ? 'pi pi-pencil' : 'pi pi-save'"
+                    icon="subCharge.id ? pi pi-pencil : pi pi-save"
                     pTooltip="Save"
                     (click)="saveCharge(i)"
                   ></button>
@@ -1119,7 +1110,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
             pButton
             label="{{ selectedTariff?.isNew ? 'Add' : 'Update' }}"
             icon="pi pi-check"
-            (click)="saveRow()"
+            (click)="saveRow().subscribe()"
             [disabled]="!isFormValid"
           ></button>
         </div>
@@ -2624,10 +2615,13 @@ export class TariffComponent implements OnInit, OnDestroy {
     // First save the main sourcing record if it's new
     if (!this.selectedTariff.id) {
       console.log('Saving the main tariff due to no id');
-      this.saveRow().subscribe({
+      this.saveRow(true).subscribe({
         next: (response: any) => {
           console.log('saved Tariff Response,', response);
-          this.selectedTariff = { ...response };
+          // Only update id/code/isNew to preserve current form selections
+          this.selectedTariff.id = response?.id ?? this.selectedTariff.id;
+          this.selectedTariff.code = response?.code ?? this.selectedTariff.code;
+          this.selectedTariff.isNew = false;
           // Main record saved successfully, now add sub-charge
           if (!this.selectedTariff.sub_charges) {
             this.selectedTariff.sub_charges = [];
@@ -2730,12 +2724,33 @@ export class TariffComponent implements OnInit, OnDestroy {
       .saveCharge(this.selectedTariff.id, subChargePayload)
       .subscribe({
         next: (response: any) => {
-          // Map created_at from backend to date_time for UI display
-          const updated = { ...response };
-          updated.date_time = response?.created_at
-            ? new Date(response.created_at)
-            : null;
-          this.selectedTariff.sub_charges[index] = updated;
+          // After save, reload sub-charges to ensure consistent UI mapping
+          this.tariffService.getCharges(this.selectedTariff.id).subscribe({
+            next: (subCharges) => {
+              this.selectedTariff.sub_charges = subCharges.map((sc: any) => ({
+                ...sc,
+                // Map backend created_at -> date_time (Date object)
+                date_time: sc?.created_at ? new Date(sc.created_at) : null,
+                // Ensure UI 'charges' is present from backend 'charge'
+                charges: sc.charges ?? sc.charge ?? null,
+                // Normalize period dates and parse to Date
+                periodStartDate: sc.periodStartDate
+                  ? this.parseDate(sc.periodStartDate)
+                  : sc.period_start_date
+                  ? this.parseDate(sc.period_start_date)
+                  : null,
+                periodEndDate: sc.periodEndDate
+                  ? this.parseDate(sc.periodEndDate)
+                  : sc.period_end_date
+                  ? this.parseDate(sc.period_end_date)
+                  : null,
+              }));
+              this.cdr.detectChanges();
+            },
+            error: (err) => {
+              console.error('Failed to reload sub-charges:', err);
+            },
+          });
           this.messageService.add({
             severity: 'success',
             summary: 'Success',
@@ -2759,6 +2774,17 @@ export class TariffComponent implements OnInit, OnDestroy {
               this.selectedTariff.sub_charges = subCharges.map((sc: any) => ({
                 ...sc,
                 date_time: sc?.created_at ? new Date(sc.created_at) : null,
+                charges: sc.charges ?? sc.charge ?? null,
+                periodStartDate: sc.periodStartDate
+                  ? this.parseDate(sc.periodStartDate)
+                  : sc.period_start_date
+                  ? this.parseDate(sc.period_start_date)
+                  : null,
+                periodEndDate: sc.periodEndDate
+                  ? this.parseDate(sc.periodEndDate)
+                  : sc.period_end_date
+                  ? this.parseDate(sc.period_end_date)
+                  : null,
               }));
               this.cdr.detectChanges();
             },
@@ -3011,7 +3037,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     });
   }
 
-  saveRow(): Observable<any> {
+  saveRow(stayOnPage: boolean = false): Observable<any> {
     if (!this.selectedTariff || !this.isFormValid) {
       return new Observable((observer: any) => {
         observer.error('Form is not valid');
@@ -3049,13 +3075,21 @@ export class TariffComponent implements OnInit, OnDestroy {
     if (this.selectedTariff.isNew) {
       return this.tariffService.create(payload).pipe(
         tap((created) => {
+          // If staying on page, update local id/code without replacing full object
+          if (stayOnPage && created) {
+            this.selectedTariff.id = created.id;
+            this.selectedTariff.code = created.code ?? this.selectedTariff.code;
+            this.selectedTariff.isNew = false;
+          }
           this.messageService.add({
             severity: 'success',
             summary: 'Success',
             detail: 'Tariff created',
           });
-          this.refreshList();
-          // this.hideDialog();
+          if (!stayOnPage) {
+            this.refreshList();
+            this.hideDialog();
+          }
         }),
         catchError((err) => {
           this.messageService.add({
@@ -3069,13 +3103,21 @@ export class TariffComponent implements OnInit, OnDestroy {
     } else {
       return this.tariffService.update(this.selectedTariff.id, payload).pipe(
         tap((updated) => {
+          // If staying on page, update local id/code without replacing full object
+          if (stayOnPage && updated) {
+            this.selectedTariff.id = updated.id ?? this.selectedTariff.id;
+            this.selectedTariff.code = updated.code ?? this.selectedTariff.code;
+            this.selectedTariff.isNew = false;
+          }
           this.messageService.add({
             severity: 'success',
             summary: 'Success',
             detail: 'Tariff updated',
           });
-          this.refreshList();
-          // this.hideDialog();
+          if (!stayOnPage) {
+            this.refreshList();
+            this.hideDialog();
+          }
         }),
         catchError((err) => {
           this.messageService.add({
@@ -3113,6 +3155,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     // Force change detection to ensure UI updates
     this.cdr.detectChanges();
   }
+
 
   clear(table: any) {
     table.clear();
@@ -3174,6 +3217,9 @@ export class TariffComponent implements OnInit, OnDestroy {
       this.showBasisDialog = true;
     } else if (type === 'serviceArea') {
       this.showServiceAreaDialog = true;
+    } else if (type === 'serviceAreaType') {
+      this.masterTypeFilter = 'SERVICE_AREA';
+      this.showMasterTypeDialog = true;
     } else if (type === 'vendorType') {
       this.masterTypeFilter = 'VENDOR';
       this.showMasterTypeDialog = true;
@@ -3276,6 +3322,11 @@ export class TariffComponent implements OnInit, OnDestroy {
             next: () => this.cdr.detectChanges(),
             error: () => this.cdr.detectChanges(),
           });
+        } else if (editedType === 'SERVICE_AREA') {
+          this.loadServiceAreaTypeOptions().subscribe({
+            next: () => this.cdr.detectChanges(),
+            error: () => this.cdr.detectChanges(),
+          });
         }
         // Force a refresh of the master type component to ensure new rows are displayed
         setTimeout(() => {
@@ -3329,6 +3380,8 @@ export class TariffComponent implements OnInit, OnDestroy {
         return 'Tariff Type Master';
       case 'LOCATION':
         return 'Location Type Master';
+      case 'SERVICE_AREA':
+        return 'Service Area Type Master';
       default:
         return 'Master Type';
     }

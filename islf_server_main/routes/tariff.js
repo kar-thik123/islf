@@ -489,7 +489,7 @@ router.post("/:tariffId/charge", async (req, res) => {
   const {
     charge_name,
     currency,
-    charges,
+    charge,
     basis,
     gst_vat,
     periodStartDate,
@@ -517,7 +517,7 @@ router.post("/:tariffId/charge", async (req, res) => {
       tariffId,
       currency,
       basis,
-      charges,
+      charge,
       gst_vat,
       periodStartDate,
       periodEndDate,
@@ -542,7 +542,7 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
     charge_name,
     currency,
     basis,
-    charges,
+    charge,
     gst_vat,
     periodStartDate,
     periodEndDate,
@@ -554,17 +554,18 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
   if (!chargeId || chargeId.trim() === "") {
     res.status(400).json({ error: "Tariff ID is required" });
   }
+  // Guard: no fields provided for update
   if (
-    !charge_name &&
-    !currency &&
-    !basis &&
-    !charges &&
-    !gst_vat &&
-    !periodStartDate &&
-    !periodEndDate &&
-    !remarks
+    (!charge_name || charge_name.trim() === "") &&
+    (!currency || currency.trim() === "") &&
+    (!basis || basis.trim() === "") &&
+    (charge === undefined || charge === null) &&
+    (gst_vat === undefined || gst_vat === null) &&
+    (!periodStartDate || String(periodStartDate).trim() === "") &&
+    (!periodEndDate || String(periodEndDate).trim() === "") &&
+    (!remarks || String(remarks).trim() === "")
   ) {
-    res.status(400).json({ error: "cannot update empty row" });
+    return res.status(400).json({ error: "cannot update empty row" });
   }
   try {
     // check if tariff exists
@@ -587,7 +588,7 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
 
     let query = `UPDATE tariff_charges SET updated_at = NOW()`;
     let params = [];
-    let paramIndex = 1;
+     let paramIndex = 1;
 
     if (charge_name && charge_name.trim() !== "") {
       query += `, charge_name = $${paramIndex}`;
@@ -601,37 +602,43 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
       paramIndex++;
     }
 
-    if (charges && charges.trim() !== "") {
-      query += `, charge = $${paramIndex}`;
-      params.push(charges);
+    if (basis && basis.trim() !== "") {
+      query += `, basis = $${paramIndex}`;
+      params.push(basis);
       paramIndex++;
     }
 
-    if (gst_vat && gst_vat.trim() !== "") {
+    // charge can be numeric (including 0)
+    if (charge !== undefined && charge !== null) {
+      query += `, charge = $${paramIndex}`;
+      params.push(charge);
+      paramIndex++;
+    }
+
+    // gst_vat can be numeric (including 0) or string
+    if (gst_vat !== undefined && gst_vat !== null) {
       query += `, gst_vat = $${paramIndex}`;
       params.push(gst_vat);
       paramIndex++;
     }
 
-    if (periodStartDate && periodStartDate.trim() !== "") {
+    if (periodStartDate && String(periodStartDate).trim() !== "") {
       query += `, period_start_date = $${paramIndex}`;
       params.push(periodStartDate);
       paramIndex++;
     }
-    if (periodEndDate && periodEndDate.trim() !== "") {
+    if (periodEndDate && String(periodEndDate).trim() !== "") {
       query += `, period_end_date = $${paramIndex}`;
       params.push(periodEndDate);
       paramIndex++;
     }
-    if (remarks && remarks.trim() !== "") {
+    if (remarks && String(remarks).trim() !== "") {
       query += `, remarks = $${paramIndex}`;
       params.push(remarks);
       paramIndex++;
     }
 
-    query += ` WHERE id = $${paramIndex} AND tariff_id = $${
-      paramIndex + 1
-    } RETURNING *`;
+    query += ` WHERE id = $${paramIndex} AND tariff_id = $${paramIndex + 1} RETURNING *`;
     params.push(chargeId, tariffId);
     const { rows: updateChargeResult } = await pool.query(query, params);
     if (updateChargeResult.length !== 0) {

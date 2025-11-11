@@ -572,6 +572,7 @@ router.put("/:code", async (req, res) => {
         branch_code || null,
         department_code || null,
         service_type_code || null,
+        username,
       ]
     );
 
