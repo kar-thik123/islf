@@ -30,6 +30,7 @@ export interface TariffCharge {
   tariffId?: number;
   chargeName: string;
   basis: string;
+  
   currency: string | number;
   charge: number;
   gstVat: string;

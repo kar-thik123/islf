@@ -951,8 +951,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
             </div>
           </div>
 
-          <!-- 6. Sub Charges -->
-          <h3 class="section-header">6.Charges</h3>
+          <!--  Sub Charges -->
+          <h3 class="section-header">Charges</h3>
           <p-table [value]="selectedTariff.sub_charges" dataKey="id">
             <ng-template pTemplate="header">
               <tr>

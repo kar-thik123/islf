@@ -698,16 +698,16 @@ router.get("/:tariffId/charges", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT * FROM tariff_charges WHERE sourcing_id = $1 AND ( CURRENT_DATE < period_end_date OR period_end_date IS NULL) ORDER BY id",
-      [sourcing_id]
+      "SELECT * FROM tariff_charges WHERE tariff_id = $1 AND (period_end_date IS NULL OR CURRENT_DATE <= period_end_date) ORDER BY id",
+      [tariffId]
     );
     res.json(result.rows);
   } catch (error) {
     console.error(
-      `Error fetching sub-charges for sourcing_id ${sourcing_id}:`,
+      `Error fetching tariff charges for tariff_id ${tariffId}:`,
       error
     );
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Failed to fetch tariff charges" });
   }
 });
 
