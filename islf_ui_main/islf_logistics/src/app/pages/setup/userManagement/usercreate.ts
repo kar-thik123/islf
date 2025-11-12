@@ -26,7 +26,10 @@ import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { MasterCodeService } from '../../../services/mastercode.service';
 import { MasterTypeService } from '../../../services/mastertype.service';
-import { EntityDocumentService, EntityDocument } from '../../../services/entity-document.service';
+import {
+  EntityDocumentService,
+  EntityDocument,
+} from '../../../services/entity-document.service';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { NumberSeriesService } from '../../../services/number-series.service';
 import { MappingService } from '../../../services/mapping.service';
@@ -36,7 +39,6 @@ import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../../masters/sourceSales';
 import { of } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-
 
 @Component({
   selector: 'user-create',
@@ -64,426 +66,737 @@ import { tap, catchError } from 'rxjs/operators';
   ],
   providers: [ConfirmationService],
   template: `
-  
-  <p-toast></p-toast>
-<div class="card p-6">
-  
-    <h2 class="text-xl font-bold mb-6">{{ isEditMode ? 'Edit User' : 'Create User' }}</h2>
+    <p-toast></p-toast>
+    <div class="card p-6">
+      <h2 class="text-xl font-bold mb-6">
+        {{ isEditMode ? 'Edit User' : 'Create User' }}
+      </h2>
 
-   <!-- 1. Personal Information -->
-<h3 class="section-header">1. Personal Information</h3>
+      <!-- 1. Personal Information -->
+      <h3 class="section-header">1. Personal Information</h3>
 
-<div class="grid grid-cols-12 gap-4 mb-6">
-  <!-- Avatar Column (3 cols) -->
-  <div class="col-span-12 md:col-span-3 flex justify-center items-start">
-    <div>
-      <label class="block font-semibold mt-16"></label>
-      <div class="relative w-32 h-32">
-        <label for="avatarInput">
-          <div 
-            class="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-500 transition"
-            [ngClass]="{ 'p-0': avatarPreview, 'p-4': !avatarPreview }"
-          >
-            <ng-container *ngIf="avatarPreview; else emptyCircle">
-              <img 
-                [src]="avatarPreview" 
-                alt="Avatar" 
-                class="w-full h-full object-cover rounded-full"
+      <div class="grid grid-cols-12 gap-4 mb-6">
+        <!-- Avatar Column (3 cols) -->
+        <div class="col-span-12 md:col-span-3 flex justify-center items-start">
+          <div>
+            <label class="block font-semibold mt-16"></label>
+            <div class="relative w-32 h-32">
+              <label for="avatarInput">
+                <div
+                  class="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-500 transition"
+                  [ngClass]="{ 'p-0': avatarPreview, 'p-4': !avatarPreview }"
+                >
+                  <ng-container *ngIf="avatarPreview; else emptyCircle">
+                    <img
+                      [src]="avatarPreview"
+                      alt="Avatar"
+                      class="w-full h-full object-cover rounded-full"
+                    />
+                  </ng-container>
+                  <ng-template #emptyCircle>
+                    <span class="text-gray-400 text-sm text-center"
+                      >Click to upload</span
+                    >
+                  </ng-template>
+                </div>
+              </label>
+              <input
+                type="file"
+                id="avatarInput"
+                (change)="onAvatarChange($event)"
+                accept="image/*"
+                class="hidden"
               />
-            </ng-container>
-            <ng-template #emptyCircle>
-              <span class="text-gray-400 text-sm text-center">Click to upload</span>
-            </ng-template>
+            </div>
           </div>
-        </label>
-        <input 
-          type="file" 
-          id="avatarInput" 
-          (change)="onAvatarChange($event)" 
-          accept="image/*" 
-          class="hidden" 
-        />
-      </div>
-    </div>
-  </div>
+        </div>
 
-  <!-- Personal Info Fields (9 cols) -->
-  <div class="col-span-12 md:col-span-9 grid grid-cols-12 gap-4">
-    <div class="col-span-12 md:col-span-6">
-      <label class="block font-semibold mb-1">Full Name <span class="text-red-500">*</span></label>
-      <input type="text" pInputText class="w-full" [(ngModel)]="user.fullName" name="fullName" />
-    </div>
-    <div class="col-span-12 md:col-span-6">
-      <label class="block font-semibold mb-1">Employee ID <span class="text-red-500">*</span></label>
-      <input 
-        type="text" 
-        pInputText 
-        class="w-full" 
-        [(ngModel)]="user.employeeId" 
-        name="employeeId" 
-        (input)="onEmployeeIdInput()"
-        [disabled]="!isManualSeries || (isEditMode && !isManualSeries)" 
-        [placeholder]="!isManualSeries && !isEditMode ? 'Auto-generated' : ''" />
-    </div>
-    <div class="col-span-12 md:col-span-6">
-      <label class="block font-semibold mb-1">Email <span class="text-red-500">*</span></label>
-      <input type="text" pInputText class="w-full" [(ngModel)]="user.email" name="email" />
-    </div>
-    <div class="col-span-12 md:col-span-6">
-      <label class="block font-semibold mb-1">Phone Number <span class="text-red-500">*</span></label>
-      <input type="text" pInputText class="w-full" [(ngModel)]="user.phoneNumber" name="phoneNumber" />
-    </div>
-    <div class="col-span-12 md:col-span-6">
-      <label class="block font-semibold mb-1">Gender <span class="text-red-500">*</span></label>
-      <p-dropdown [options]="genders" optionLabel="label" optionValue="value" placeholder="Select Gender" class="w-full" [(ngModel)]="user.gender" name="gender" [filter]="true" filterBy="label"></p-dropdown>
-    </div>
-    <div class="col-span-12 md:col-span-6">
-      <label class="block font-semibold mb-1">Date of Birth</label>
-      <p-calendar class="w-full" dateFormat="yy-mm-dd" [(ngModel)]="user.dateOfBirth" name="dateOfBirth"></p-calendar>
-    </div>
-  </div>
-</div>
-
-
-    <!-- 2. Organizational Info -->
-    <h3 class="section-header">2. Organizational Info</h3>
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Branch</label>
-        <p-multiSelect [options]="branchOptions" optionLabel="label" defaultLabel="Select Branches" class="w-full" [(ngModel)]="user.branch" name="branch" (onChange)="onBranchChange()"></p-multiSelect>
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Department</label>
-        <p-multiSelect [options]="departmentOptions" optionLabel="label" defaultLabel="Select Departments" class="w-full" [(ngModel)]="user.department" name="department"></p-multiSelect>
-      </div>
-     
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Designation</label>
-        <p-dropdown [options]="designationOptions" optionLabel="value" optionValue="value" placeholder="Select Designation" class="w-full" [(ngModel)]="user.designation" name="designation" [filter]="true" filterBy="value"></p-dropdown>
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Reporting Manager</label>
-        <input type="text" pInputText class="w-full" [(ngModel)]="user.reportingManager" name="reportingManager" />
-      </div>
-    </div>
-
-    <!-- 3. Login Credentials -->
-    <h3 class="section-header">3. Login Credentials</h3>
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Username <span class="text-red-500">*</span></label>
-        <input type="text" pInputText class="w-full" [(ngModel)]="user.username" name="username" (input)="onUsernameInput()" />
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Password <span class="text-red-500">*</span></label>
-        <p-password 
-          toggleMask="true" 
-          feedback="false" 
-          class="w-full" 
-          [(ngModel)]="user.password" 
-          name="password" 
-          [disabled]="isEditMode"
-          [placeholder]="isEditMode ? '********' : ''">
-        </p-password>
-      </div>
-      <div class="col-span-12 md:col-span-6" *ngIf="!isEditMode">
-        <label class="block font-semibold mb-1">Confirm Password <span class="text-red-500">*</span></label>
-        <p-password toggleMask="true" feedback="false" class="w-full" [(ngModel)]="user.confirmPassword" name="confirmPassword"></p-password>
-      </div>
-    </div>
-
-    <!-- 4. Access & Role -->
-    <h3 class="section-header">4. Access & Role</h3>
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Role</label>
-        <p-dropdown 
-          [options]="roleOptions" 
-          optionLabel="value" 
-          optionValue="value"
-          placeholder="Select Role" 
-          class="w-full"
-          (onChange)="onRoleChange($event)"
-          [(ngModel)]="user.role" name="role" [filter]="true" filterBy="value">
-        </p-dropdown>
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Permissions</label>
-        <p-multiSelect 
-          [options]="permissions" 
-          [(ngModel)]="selectedPermissions" 
-          defaultLabel="Select Permissions" 
-          [disabled]="!selectedRole"
-          class="w-full">
-        </p-multiSelect>
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Status</label>
-        <p-dropdown [options]="statusOptions" optionLabel="value" optionValue="value" placeholder="Select Status" class="w-full" [(ngModel)]="user.status" name="status" [filter]="true" filterBy="value"></p-dropdown>
-      </div>
-       <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Source/Sales Person</label>
-        <div class="flex gap-2">
-          <p-dropdown [options]="sourceSalesOptions" [(ngModel)]="user.source_sales_code" 
-            placeholder="Select Source/Sales Person" class="w-full" name="source_sales_code"
-            (onChange)="onSourceSalesChange()" [filter]="true" filterBy="label">
-          </p-dropdown>
-          <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" 
-            (click)="openMaster('sourceSales')"></button>
+        <!-- Personal Info Fields (9 cols) -->
+        <div class="col-span-12 md:col-span-9 grid grid-cols-12 gap-4">
+          <div class="col-span-12 md:col-span-6">
+            <label class="block font-semibold mb-1"
+              >Full Name <span class="text-red-500">*</span></label
+            >
+            <input
+              type="text"
+              pInputText
+              class="w-full"
+              [(ngModel)]="user.fullName"
+              name="fullName"
+            />
+          </div>
+          <div class="col-span-12 md:col-span-6">
+            <label class="block font-semibold mb-1"
+              >Employee ID <span class="text-red-500">*</span></label
+            >
+            <input
+              type="text"
+              pInputText
+              class="w-full"
+              [(ngModel)]="user.employeeId"
+              name="employeeId"
+              (input)="onEmployeeIdInput()"
+              [disabled]="!isManualSeries || (isEditMode && !isManualSeries)"
+              [placeholder]="
+                !isManualSeries && !isEditMode ? 'Auto-generated' : ''
+              "
+            />
+          </div>
+          <div class="col-span-12 md:col-span-6">
+            <label class="block font-semibold mb-1"
+              >Email <span class="text-red-500">*</span></label
+            >
+            <input
+              type="text"
+              pInputText
+              class="w-full"
+              [(ngModel)]="user.email"
+              name="email"
+            />
+          </div>
+          <div class="col-span-12 md:col-span-6">
+            <label class="block font-semibold mb-1"
+              >Phone Number <span class="text-red-500">*</span></label
+            >
+            <input
+              type="text"
+              pInputText
+              class="w-full"
+              [(ngModel)]="user.phoneNumber"
+              name="phoneNumber"
+            />
+          </div>
+          <div class="col-span-12 md:col-span-6">
+            <label class="block font-semibold mb-1"
+              >Gender <span class="text-red-500">*</span></label
+            >
+            <p-dropdown
+              [options]="genders"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select Gender"
+              class="w-full"
+              [(ngModel)]="user.gender"
+              name="gender"
+              [filter]="true"
+              filterBy="label"
+            ></p-dropdown>
+          </div>
+          <div class="col-span-12 md:col-span-6">
+            <label class="block font-semibold mb-1">Date of Birth</label>
+            <p-calendar
+              class="w-full"
+              dateFormat="yy-mm-dd"
+              [(ngModel)]="user.dateOfBirth"
+              name="dateOfBirth"
+            ></p-calendar>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 5. HR / Workflow -->
-     <h3 class="section-header">5. Optional HR / Workflow</h3>
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Joining Date</label>
-        <p-calendar dateFormat="yy-mm-dd" class="w-full" [(ngModel)]="user.joiningDate" name="joiningDate"></p-calendar>
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Employment Type</label>
-        <p-dropdown [options]="employmentTypes" optionLabel="label" placeholder="Select Type" class="w-full" [(ngModel)]="user.employmentType" name="employmentType" [filter]="true" filterBy="label"></p-dropdown>
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Vehicle Assigned</label>
-        <input type="text" pInputText class="w-full" [(ngModel)]="user.vehicleAssigned" name="vehicleAssigned" />
-      </div>
-      <div class="col-span-12 md:col-span-6">
-        <label class="block font-semibold mb-1">Shift Timing</label>
-        <input type="text" pInputText class="w-full" placeholder="e.g. 9AM - 6PM" [(ngModel)]="user.shiftTiming" name="shiftTiming" />
-      </div>
-    </div>
+      <!-- 2. Organizational Info -->
+      <h3 class="section-header">2. Organizational Info</h3>
+      <div class="grid grid-cols-12 gap-4 mb-6">
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Branch</label>
+          <p-multiSelect
+            [options]="branchOptions"
+            optionLabel="label"
+            defaultLabel="Select Branches"
+            class="w-full"
+            [(ngModel)]="user.branch"
+            name="branch"
+            (onChange)="onBranchChange()"
+          ></p-multiSelect>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Department</label>
+          <p-multiSelect
+            [options]="departmentOptions"
+            optionLabel="label"
+            defaultLabel="Select Departments"
+            class="w-full"
+            [(ngModel)]="user.department"
+            name="department"
+          ></p-multiSelect>
+        </div>
 
-    <!-- 6. Bio & Avatar -->
-    <h3 class="section-header">6. Additional Info</h3>
-
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <div class="col-span-12">
-        <label class="block font-semibold mb-1">Bio</label>
-        <textarea pInputTextarea rows="3" class="w-full" [(ngModel)]="user.bio" name="bio"></textarea>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Designation</label>
+          <p-dropdown
+            [options]="designationOptions"
+            optionLabel="value"
+            optionValue="value"
+            placeholder="Select Designation"
+            class="w-full"
+            [(ngModel)]="user.designation"
+            name="designation"
+            [filter]="true"
+            filterBy="value"
+          ></p-dropdown>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Reporting Manager</label>
+          <input
+            type="text"
+            pInputText
+            class="w-full"
+            [(ngModel)]="user.reportingManager"
+            name="reportingManager"
+          />
+        </div>
       </div>
-    </div>
 
-    <!-- 7. Document Upload -->
-    <h3 class="section-header">7. Document Upload</h3>
-    <div class="document-upload-section">
-      <p-table [value]="userDocuments" [showGridlines]="true" [responsiveLayout]="'scroll'">
-        <ng-template pTemplate="header">
-          <tr>
-            <th>DOC. TYPE</th>
-            <th>DOCUMENT NUMBER</th>
-            <th>VALID FROM</th>
-            <th>VALID TILL</th>
-            <th>FILE</th>
-            <th>Action</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
-          <tr>
-            <td>
-              <p-dropdown [options]="documentTypeOptions" [(ngModel)]="document.doc_type" optionLabel="label" optionValue="value" placeholder="Select Document Type"></p-dropdown>
-            </td>
-            <td>
-              <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
-            </td>
-            <td>
-              <input pInputText type="date" [(ngModel)]="document.valid_from" />
-            </td>
-            <td>
-              <input pInputText type="date" [(ngModel)]="document.valid_till" />
-            </td>
-            <td>
-              <input type="file" (change)="onFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
+      <!-- 3. Login Credentials -->
+      <h3 class="section-header">3. Login Credentials</h3>
+      <div class="grid grid-cols-12 gap-4 mb-6">
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1"
+            >Username <span class="text-red-500">*</span></label
+          >
+          <input
+            type="text"
+            pInputText
+            class="w-full"
+            [(ngModel)]="user.username"
+            name="username"
+            (input)="onUsernameInput()"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1"
+            >Password <span class="text-red-500">*</span></label
+          >
+          <p-password
+            toggleMask="true"
+            feedback="false"
+            class="w-full"
+            [(ngModel)]="user.password"
+            name="password"
+            [disabled]="isEditMode"
+            [placeholder]="isEditMode ? '********' : ''"
+          >
+          </p-password>
+        </div>
+        <div class="col-span-12 md:col-span-6" *ngIf="!isEditMode">
+          <label class="block font-semibold mb-1"
+            >Confirm Password <span class="text-red-500">*</span></label
+          >
+          <p-password
+            toggleMask="true"
+            feedback="false"
+            class="w-full"
+            [(ngModel)]="user.confirmPassword"
+            name="confirmPassword"
+          ></p-password>
+        </div>
+      </div>
+
+      <!-- 4. Access & Role -->
+      <h3 class="section-header">4. Access & Role</h3>
+      <div class="grid grid-cols-12 gap-4 mb-6">
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Role</label>
+          <p-dropdown
+            [options]="roleOptions"
+            optionLabel="value"
+            optionValue="value"
+            placeholder="Select Role"
+            class="w-full"
+            (onChange)="onRoleChange($event)"
+            [(ngModel)]="user.role"
+            name="role"
+            [filter]="true"
+            filterBy="value"
+          >
+          </p-dropdown>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Permissions</label>
+          <p-multiSelect
+            [options]="permissions"
+            [(ngModel)]="selectedPermissions"
+            defaultLabel="Select Permissions"
+            [disabled]="!selectedRole"
+            class="w-full"
+          >
+          </p-multiSelect>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Status</label>
+          <p-dropdown
+            [options]="statusOptions"
+            optionLabel="value"
+            optionValue="value"
+            placeholder="Select Status"
+            class="w-full"
+            [(ngModel)]="user.status"
+            name="status"
+            [filter]="true"
+            filterBy="value"
+          ></p-dropdown>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Source/Sales Person</label>
+          <div class="flex gap-2">
+            <p-dropdown
+              [options]="sourceSalesOptions"
+              [(ngModel)]="user.source_sales_code"
+              placeholder="Select Source/Sales Person"
+              class="w-full"
+              name="source_sales_code"
+              (onChange)="onSourceSalesChange()"
+              [filter]="true"
+              filterBy="label"
+            >
+            </p-dropdown>
+            <button
+              pButton
+              icon="pi pi-ellipsis-h"
+              class="p-button-sm"
+              (click)="openMaster('sourceSales')"
+            ></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. HR / Workflow -->
+      <h3 class="section-header">5. Optional HR / Workflow</h3>
+      <div class="grid grid-cols-12 gap-4 mb-6">
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Joining Date</label>
+          <p-calendar
+            dateFormat="yy-mm-dd"
+            class="w-full"
+            [(ngModel)]="user.joiningDate"
+            name="joiningDate"
+          ></p-calendar>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Employment Type</label>
+          <p-dropdown
+            [options]="employmentTypes"
+            optionLabel="label"
+            placeholder="Select Type"
+            class="w-full"
+            [(ngModel)]="user.employmentType"
+            name="employmentType"
+            [filter]="true"
+            filterBy="label"
+          ></p-dropdown>
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Vehicle Assigned</label>
+          <input
+            type="text"
+            pInputText
+            class="w-full"
+            [(ngModel)]="user.vehicleAssigned"
+            name="vehicleAssigned"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-6">
+          <label class="block font-semibold mb-1">Shift Timing</label>
+          <input
+            type="text"
+            pInputText
+            class="w-full"
+            placeholder="e.g. 9AM - 6PM"
+            [(ngModel)]="user.shiftTiming"
+            name="shiftTiming"
+          />
+        </div>
+      </div>
+
+      <!-- 6. Bio & Avatar -->
+      <h3 class="section-header">6. Additional Info</h3>
+
+      <div class="grid grid-cols-12 gap-4 mb-6">
+        <div class="col-span-12">
+          <label class="block font-semibold mb-1">Bio</label>
+          <textarea
+            pInputTextarea
+            rows="3"
+            class="w-full"
+            [(ngModel)]="user.bio"
+            name="bio"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- 7. Document Upload -->
+      <h3 class="section-header">7. Document Upload</h3>
+      <div class="document-upload-section">
+        <p-table
+          [value]="userDocuments"
+          [showGridlines]="true"
+          [responsiveLayout]="'scroll'"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th>DOC. TYPE</th>
+              <th>DOCUMENT NUMBER</th>
+              <th>VALID FROM</th>
+              <th>VALID TILL</th>
+              <th>FILE</th>
+              <th>Action</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-document let-rowIndex="rowIndex">
+            <tr>
+              <td>
+                <p-dropdown
+                  [options]="documentTypeOptions"
+                  [(ngModel)]="document.doc_type"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Document Type"
+                ></p-dropdown>
+              </td>
+              <td>
+                <input
+                  pInputText
+                  [(ngModel)]="document.document_number"
+                  placeholder="Document Number"
+                />
+              </td>
+              <td>
+                <input
+                  pInputText
+                  type="date"
+                  [(ngModel)]="document.valid_from"
+                />
+              </td>
+              <td>
+                <input
+                  pInputText
+                  type="date"
+                  [(ngModel)]="document.valid_till"
+                />
+              </td>
+              <td>
+                <input
+                  type="file"
+                  (change)="onFileSelected($event, rowIndex)"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
+                  class="block w-full text-sm text-gray-500
               file:mr-4 file:py-2 file:px-4
               file:rounded file:border-0
               file:text-sm file:font-semibold
               file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"/>
-              <small *ngIf="document.file_name" class="text-gray-600">{{ document.file_name }}</small>
-            </td>
-            <td>
-              <div class="flex gap-1">
-                <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
-                <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
-                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDocument(rowIndex)" pTooltip="Delete Document"></button>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="footer">
-          <tr>
-            <td colspan="6">
-              <button pButton label="Add Document" icon="pi pi-plus" (click)="addDocument()"></button>
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
-    </div>
-
-    <!-- Submit -->
-  <div class="flex justify-between items-center mt-4">
-  <!-- Back Button -->
-  <button
-    class="text-sm text-blue-900 hover:underline"
-    (click)="goBack()"
-  >
-    ← Back
-  </button>
-
-  <!-- Action Buttons: Cancel & Create -->
-  <div class="flex gap-4">
-    <button
-      class="bg-gray-300 text-black hover:bg-gray-400 px-4 py-2 rounded"
-      (click)="onCancel()"
-    >
-      Cancel
-    </button>
-
-    <button *ngIf="!isEditMode" class="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded" (click)="createUser()">Create User</button>
-    <button *ngIf="isEditMode" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded" (click)="updateUser()">Update</button>
-  </div>
-  </div>
-<p-confirmDialog [style]="{width: '350px'}" [baseZIndex]="10000"></p-confirmDialog>
-
-<!-- Document Viewer Dialog -->
-<p-dialog 
-  [(visible)]="isDocumentViewerVisible" 
-  [modal]="true" 
-  [style]="{width: '90vw', height: '90vh'}" 
-  [maximizable]="true"
-  [draggable]="false"
-  [resizable]="false"
-  (onHide)="hideDocumentViewer()">
-  
-  <ng-template pTemplate="header">
-    <div class="flex align-items-center justify-content-between w-full">
-      <h5 class="m-0">
-        <i class="pi pi-file mr-2"></i>
-        {{ selectedDocument?.file_name }}
-      </h5>
-      <div class="flex gap-2">
-        <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
-                (click)="downloadDocument(selectedDocument!)" 
-                pTooltip="Download Document"></button>
-        <button pButton icon="pi pi-times" class="p-button-sm p-button-outlined" 
-                (click)="hideDocumentViewer()" 
-                pTooltip="Close"></button>
+              hover:file:bg-blue-100"
+                />
+                <small *ngIf="document.file_name" class="text-gray-600">{{
+                  document.file_name
+                }}</small>
+              </td>
+              <td>
+                <div class="flex gap-1">
+                  <button
+                    pButton
+                    icon="pi pi-eye"
+                    class="p-button-sm p-button-outlined"
+                    (click)="viewDocument(document)"
+                    *ngIf="document.id"
+                    pTooltip="View Document"
+                  ></button>
+                  <button
+                    pButton
+                    icon="pi pi-download"
+                    class="p-button-sm p-button-outlined"
+                    (click)="downloadDocument(document)"
+                    *ngIf="document.id"
+                    pTooltip="Download Document"
+                  ></button>
+                  <button
+                    pButton
+                    icon="pi pi-trash"
+                    class="p-button-danger p-button-sm"
+                    (click)="removeDocument(rowIndex)"
+                    pTooltip="Delete Document"
+                  ></button>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="footer">
+            <tr>
+              <td colspan="6">
+                <button
+                  pButton
+                  label="Add Document"
+                  icon="pi pi-plus"
+                  (click)="addDocument()"
+                ></button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
       </div>
-    </div>
-  </ng-template>
 
-  <ng-template pTemplate="content">
-    <div class="document-viewer-container" style="height: calc(90vh - 120px); overflow: auto;">
-      <!-- Image files -->
-      <img *ngIf="selectedDocument?.mime_type?.startsWith('image/') && documentViewerUrl" 
-           [src]="documentViewerUrl" 
-           [alt]="selectedDocument?.file_name"
-           style="max-width: 100%; max-height: 100%; object-fit: contain;">
-      
-      <!-- PDF files -->
-      <div *ngIf="selectedDocument?.mime_type === 'application/pdf'" style="height: 100%; display: flex; flex-direction: column;">
-        <!-- PDF Loading State -->
-        <div *ngIf="!pdfLoaded" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
-          <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
-          <p class="text-muted">Loading PDF...</p>
-          <button pButton label="Open PDF in New Tab" icon="pi pi-external-link" 
-                  (click)="openDocumentInNewTab()" 
-                  class="p-button-outlined"></button>
+      <!-- Submit -->
+      <div class="flex justify-between items-center mt-4">
+        <!-- Back Button -->
+        <button
+          class="text-sm text-blue-900 hover:underline"
+          (click)="goBack()"
+        >
+          ← Back
+        </button>
+
+        <!-- Action Buttons: Cancel & Create -->
+        <div class="flex gap-4">
+          <button
+            class="bg-gray-300 text-black hover:bg-gray-400 px-4 py-2 rounded"
+            (click)="onCancel()"
+          >
+            Cancel
+          </button>
+
+          <button
+            *ngIf="!isEditMode"
+            class="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded"
+            (click)="createUser()"
+          >
+            Create User
+          </button>
+          <button
+            *ngIf="isEditMode"
+            class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded"
+            (click)="updateUser()"
+          >
+            Update
+          </button>
         </div>
-        
-        <!-- PDF Viewer -->
-        <iframe *ngIf="selectedDocument?.mime_type === 'application/pdf' && safeDocumentViewerUrl && pdfLoaded" 
-                [src]="safeDocumentViewerUrl" 
+      </div>
+      <p-confirmDialog
+        [style]="{ width: '350px' }"
+        [baseZIndex]="10000"
+      ></p-confirmDialog>
+
+      <!-- Document Viewer Dialog -->
+      <p-dialog
+        [(visible)]="isDocumentViewerVisible"
+        [modal]="true"
+        [style]="{ width: '90vw', height: '90vh' }"
+        [maximizable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="hideDocumentViewer()"
+      >
+        <ng-template pTemplate="header">
+          <div class="flex align-items-center justify-content-between w-full">
+            <h5 class="m-0">
+              <i class="pi pi-file mr-2"></i>
+              {{ selectedDocument?.file_name }}
+            </h5>
+            <div class="flex gap-2">
+              <button
+                pButton
+                icon="pi pi-download"
+                class="p-button-sm p-button-outlined"
+                (click)="downloadDocument(selectedDocument!)"
+                pTooltip="Download Document"
+              ></button>
+              <button
+                pButton
+                icon="pi pi-times"
+                class="p-button-sm p-button-outlined"
+                (click)="hideDocumentViewer()"
+                pTooltip="Close"
+              ></button>
+            </div>
+          </div>
+        </ng-template>
+
+        <ng-template pTemplate="content">
+          <div
+            class="document-viewer-container"
+            style="height: calc(90vh - 120px); overflow: auto;"
+          >
+            <!-- Image files -->
+            <img
+              *ngIf="
+                selectedDocument?.mime_type?.startsWith('image/') &&
+                documentViewerUrl
+              "
+              [src]="documentViewerUrl"
+              [alt]="selectedDocument?.file_name"
+              style="max-width: 100%; max-height: 100%; object-fit: contain;"
+            />
+
+            <!-- PDF files -->
+            <div
+              *ngIf="selectedDocument?.mime_type === 'application/pdf'"
+              style="height: 100%; display: flex; flex-direction: column;"
+            >
+              <!-- PDF Loading State -->
+              <div
+                *ngIf="!pdfLoaded"
+                class="flex align-items-center justify-content-center"
+                style="height: 100%; flex-direction: column; gap: 1rem;"
+              >
+                <i
+                  class="pi pi-spin pi-spinner"
+                  style="font-size: 2rem; color: #6c757d;"
+                ></i>
+                <p class="text-muted">Loading PDF...</p>
+                <button
+                  pButton
+                  label="Open PDF in New Tab"
+                  icon="pi pi-external-link"
+                  (click)="openDocumentInNewTab()"
+                  class="p-button-outlined"
+                ></button>
+              </div>
+
+              <!-- PDF Viewer -->
+              <iframe
+                *ngIf="
+                  selectedDocument?.mime_type === 'application/pdf' &&
+                  safeDocumentViewerUrl &&
+                  pdfLoaded
+                "
+                [src]="safeDocumentViewerUrl"
                 style="width: 100%; height: 100%; border: none;"
                 (load)="onPdfLoad()"
-                (error)="onPdfError()">
-        </iframe>
-        
-        <!-- PDF Error State -->
-        <div *ngIf="pdfError" class="flex align-items-center justify-content-center" style="height: 100%; flex-direction: column; gap: 1rem;">
-          <i class="pi pi-exclamation-triangle" style="font-size: 4rem; color: #dc3545;"></i>
-          <h4>PDF Loading Failed</h4>
-          <p class="text-muted">Unable to display PDF in browser.</p>
-          <div class="flex gap-2">
-            <button pButton label="Download PDF" icon="pi pi-download" 
-                    (click)="downloadDocument(selectedDocument!)" 
-                    class="p-button-primary"></button>
-            <button pButton label="Open in New Tab" icon="pi pi-external-link" 
-                    (click)="openDocumentInNewTab()" 
-                    class="p-button-outlined"></button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Text files -->
-      <div *ngIf="selectedDocument?.mime_type === 'text/plain' && documentViewerUrl" 
-           style="padding: 1rem; background: white; height: 100%; overflow: auto;">
-        <pre style="margin: 0; white-space: pre-wrap; font-family: monospace;">{{ documentViewerUrl }}</pre>
-      </div>
-      
-      <!-- Office Documents and other files - Enhanced viewer -->
-      <div *ngIf="!selectedDocument?.mime_type?.startsWith('image/') && 
-                  selectedDocument?.mime_type !== 'application/pdf' && 
-                  selectedDocument?.mime_type !== 'text/plain' && 
-                  documentViewerUrl" 
-           style="height: 100%; display: flex; flex-direction: column;">
-        
-        <!-- Try Microsoft Office Online Viewer first -->
-        <iframe *ngIf="getSafeOfficeViewerUrl()" 
+                (error)="onPdfError()"
+              >
+              </iframe>
+
+              <!-- PDF Error State -->
+              <div
+                *ngIf="pdfError"
+                class="flex align-items-center justify-content-center"
+                style="height: 100%; flex-direction: column; gap: 1rem;"
+              >
+                <i
+                  class="pi pi-exclamation-triangle"
+                  style="font-size: 4rem; color: #dc3545;"
+                ></i>
+                <h4>PDF Loading Failed</h4>
+                <p class="text-muted">Unable to display PDF in browser.</p>
+                <div class="flex gap-2">
+                  <button
+                    pButton
+                    label="Download PDF"
+                    icon="pi pi-download"
+                    (click)="downloadDocument(selectedDocument!)"
+                    class="p-button-primary"
+                  ></button>
+                  <button
+                    pButton
+                    label="Open in New Tab"
+                    icon="pi pi-external-link"
+                    (click)="openDocumentInNewTab()"
+                    class="p-button-outlined"
+                  ></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Text files -->
+            <div
+              *ngIf="
+                selectedDocument?.mime_type === 'text/plain' &&
+                documentViewerUrl
+              "
+              style="padding: 1rem; background: white; height: 100%; overflow: auto;"
+            >
+              <pre
+                style="margin: 0; white-space: pre-wrap; font-family: monospace;"
+                >{{ documentViewerUrl }}</pre
+              >
+            </div>
+
+            <!-- Office Documents and other files - Enhanced viewer -->
+            <div
+              *ngIf="
+                !selectedDocument?.mime_type?.startsWith('image/') &&
+                selectedDocument?.mime_type !== 'application/pdf' &&
+                selectedDocument?.mime_type !== 'text/plain' &&
+                documentViewerUrl
+              "
+              style="height: 100%; display: flex; flex-direction: column;"
+            >
+              <!-- Try Microsoft Office Online Viewer first -->
+              <iframe
+                *ngIf="getSafeOfficeViewerUrl()"
                 [src]="getSafeOfficeViewerUrl()"
-                style="width: 100%; height: 100%; border: none;">
-        </iframe>
-        
-        <!-- Fallback for unsupported files -->
-        <div *ngIf="!getSafeOfficeViewerUrl()" 
-             class="flex align-items-center justify-content-center" 
-             style="height: 100%; flex-direction: column; gap: 1rem;">
-          <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
-          <h4>Document Preview</h4>
-          <p class="text-muted">This file type requires download for viewing.</p>
-          <button pButton label="Download File" icon="pi pi-download" 
-                  (click)="downloadDocument(selectedDocument!)" 
-                  class="p-button-primary"></button>
-        </div>
-      </div>
-      
-      <!-- Loading state -->
-      <div *ngIf="!documentViewerUrl" 
-           class="flex align-items-center justify-content-center" 
-           style="height: 100%;">
-        <div class="text-center">
-          <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #6c757d;"></i>
-          <p class="mt-2 text-muted">Loading document...</p>
-        </div>
-      </div>
+                style="width: 100%; height: 100%; border: none;"
+              >
+              </iframe>
+
+              <!-- Fallback for unsupported files -->
+              <div
+                *ngIf="!getSafeOfficeViewerUrl()"
+                class="flex align-items-center justify-content-center"
+                style="height: 100%; flex-direction: column; gap: 1rem;"
+              >
+                <i
+                  class="pi pi-file"
+                  style="font-size: 4rem; color: #6c757d;"
+                ></i>
+                <h4>Document Preview</h4>
+                <p class="text-muted">
+                  This file type requires download for viewing.
+                </p>
+                <button
+                  pButton
+                  label="Download File"
+                  icon="pi pi-download"
+                  (click)="downloadDocument(selectedDocument!)"
+                  class="p-button-primary"
+                ></button>
+              </div>
+            </div>
+
+            <!-- Loading state -->
+            <div
+              *ngIf="!documentViewerUrl"
+              class="flex align-items-center justify-content-center"
+              style="height: 100%;"
+            >
+              <div class="text-center">
+                <i
+                  class="pi pi-spin pi-spinner"
+                  style="font-size: 2rem; color: #6c757d;"
+                ></i>
+                <p class="mt-2 text-muted">Loading document...</p>
+              </div>
+            </div>
+          </div>
+        </ng-template>
+      </p-dialog>
+
+      <!-- Source Sales Dialog -->
+      <p-dialog
+        header="Source Sales Master"
+        [(visible)]="showSourceSalesDialog"
+        [modal]="true"
+        [style]="{
+          width: 'auto',
+          minWidth: '60vw',
+          maxWidth: '95vw',
+          height: 'auto',
+          maxHeight: '90vh'
+        }"
+        [contentStyle]="{ overflow: 'visible' }"
+        [baseZIndex]="10000"
+        [closable]="true"
+        [draggable]="false"
+        [resizable]="false"
+        (onHide)="closeMasterDialog('sourceSales')"
+        [closeOnEscape]="true"
+      >
+        <ng-template pTemplate="content">
+          <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
+        </ng-template>
+      </p-dialog>
     </div>
-  </ng-template>
-</p-dialog>
-
-    <!-- Source Sales Dialog -->
-    <p-dialog
-      header="Source Sales Master"
-      [(visible)]="showSourceSalesDialog"
-      [modal]="true"
-      [style]="{ width: 'auto', minWidth: '60vw', maxWidth: '95vw', height: 'auto', maxHeight: '90vh' }"
-      [contentStyle]="{ overflow: 'visible' }"
-      [baseZIndex]="10000"
-      [closable]="true"
-      [draggable]="false"
-      [resizable]="false"
-      (onHide)="closeMasterDialog('sourceSales')"
-      [closeOnEscape]="true"
-    >
-      <ng-template pTemplate="content">
-        <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
-      </ng-template>
-    </p-dialog>
-
-  `
+  `,
 })
 export class UserCreateComponent implements OnInit {
-    
   avatarPreview: string | ArrayBuffer | null = null;
   selectedRole = '';
   permissions: any[] = [];
@@ -512,40 +825,40 @@ export class UserCreateComponent implements OnInit {
     shiftTiming: '',
     bio: '',
     avatar: null,
-    source_sales_code: ''
+    source_sales_code: '',
   };
   genders = [
     { label: 'Male', value: 'M' },
     { label: 'Female', value: 'F' },
-    { label: 'Other', value: 'O' }
+    { label: 'Other', value: 'O' },
   ];
 
   branches: any[] = [];
 
-  departments: any[]=[];
+  departments: any[] = [];
 
   roles = [
     { label: 'Admin', value: 'admin' },
     { label: 'Manager', value: 'manager' },
     { label: 'Staff', value: 'staff' },
-    { label: 'Driver', value: 'driver' }
+    { label: 'Driver', value: 'driver' },
   ];
 
   statuses = [
     { label: 'Active', value: 'Active' },
-    { label: 'Inactive', value: 'Inactive' }
+    { label: 'Inactive', value: 'Inactive' },
   ];
 
   employmentTypes = [
     { label: 'Full-time' },
     { label: 'Part-time' },
     { label: 'Contract' },
-    { label: 'Intern' }
+    { label: 'Intern' },
   ];
 
   vehicleAssignedOptions = [
     { label: 'Yes', value: 'Yes' },
-    { label: 'No', value: 'No' }
+    { label: 'No', value: 'No' },
   ];
 
   rolePermissionsMap: { [key: string]: any[] } = {
@@ -553,20 +866,20 @@ export class UserCreateComponent implements OnInit {
       { label: 'Manage Users', value: 'manage_users' },
       { label: 'View Reports', value: 'view_reports' },
       { label: 'Approve Invoices', value: 'approve_invoices' },
-      { label: 'Assign Roles', value: 'assign_roles' }
+      { label: 'Assign Roles', value: 'assign_roles' },
     ],
     manager: [
       { label: 'Approve Invoices', value: 'approve_invoices' },
-      { label: 'View Reports', value: 'view_reports' }
+      { label: 'View Reports', value: 'view_reports' },
     ],
     staff: [
       { label: 'View Shipments', value: 'view_shipments' },
-      { label: 'Update Records', value: 'update_records' }
+      { label: 'Update Records', value: 'update_records' },
     ],
     driver: [
       { label: 'View Route', value: 'view_route' },
-      { label: 'Confirm Delivery', value: 'confirm_delivery' }
-    ]
+      { label: 'Confirm Delivery', value: 'confirm_delivery' },
+    ],
   };
 
   usernameManuallyEdited = false;
@@ -575,12 +888,12 @@ export class UserCreateComponent implements OnInit {
   designationOptions: any[] = [];
   statusOptions: any[] = [];
   roleOptions: any[] = [];
-  
+
   // Document handling properties
   userDocuments: (EntityDocument & { file?: File })[] = [];
   documentUploadPath: string = '/uploads/documents/user';
   documentTypeOptions: any[] = [];
-  
+
   // Document viewer dialog
   isDocumentViewerVisible = false;
   selectedDocument: EntityDocument | null = null;
@@ -588,7 +901,7 @@ export class UserCreateComponent implements OnInit {
   safeDocumentViewerUrl: SafeResourceUrl | null = null;
   pdfLoaded: boolean = false;
   pdfError: boolean = false;
-  
+
   // Source Sales properties
   sourceSalesOptions: any[] = [];
   showSourceSalesDialog: boolean = false;
@@ -612,7 +925,7 @@ export class UserCreateComponent implements OnInit {
     };
     reader.readAsDataURL(file);
   }
-  
+
   onEmployeeIdInput() {
     if (!this.usernameManuallyEdited && this.user.employeeId) {
       this.user.username = this.user.employeeId;
@@ -634,7 +947,7 @@ export class UserCreateComponent implements OnInit {
       branch: [],
       department: [],
       designation: '',
-      source_sales_code:'',
+      source_sales_code: '',
       reportingManager: '',
       username: '',
       password: '',
@@ -646,7 +959,7 @@ export class UserCreateComponent implements OnInit {
       vehicleAssigned: '',
       shiftTiming: '',
       bio: '',
-      avatar: null
+      avatar: null,
     };
     this.avatarPreview = null;
     this.selectedRole = '';
@@ -681,11 +994,11 @@ export class UserCreateComponent implements OnInit {
     return this.sourceSalesService.getSourceSales().pipe(
       tap((sourceSales: any[]) => {
         this.sourceSalesOptions = (sourceSales || [])
-          .filter(s => s.status === 'active' || s.status === 'Active')
-          .map(s => ({ label: `${s.code} - ${s.name}`, value: s.code }));
+          .filter((s) => s.status === 'active' || s.status === 'Active')
+          .map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }));
         console.log('Source sales options loaded:', this.sourceSalesOptions);
       }),
-      catchError(error => {
+      catchError((error) => {
         console.error('Error loading source sales:', error);
         return of([]);
       })
@@ -712,7 +1025,9 @@ export class UserCreateComponent implements OnInit {
   // Handle source sales change
   onSourceSalesChange() {
     if (this.user.source_sales_code) {
-      const selectedOption = this.sourceSalesOptions.find(option => option.value === this.user.source_sales_code);
+      const selectedOption = this.sourceSalesOptions.find(
+        (option) => option.value === this.user.source_sales_code
+      );
       if (selectedOption) {
         this.sourceSalesPersonName = selectedOption.label;
       }
@@ -722,21 +1037,23 @@ export class UserCreateComponent implements OnInit {
   // Helper to map codes to option objects
   private mapCodesToOptions(codes: string[], options: any[]): any[] {
     return codes
-      .map(code => options.find(opt => opt.code.toString() === code.toString()))
-      .filter(opt => !!opt);
+      .map((code) =>
+        options.find((opt) => opt.code.toString() === code.toString())
+      )
+      .filter((opt) => !!opt);
   }
 
   ngOnInit() {
     // Load document upload path and document type options
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
-    
+
     // Load employee number series configuration with context-based mapping
     this.loadMappedEmployeeSeriesCode();
-    
+
     // Load source sales options
-    this.loadSourceSalesOptions();
-    
+    this.loadSourceSalesOptions().subscribe();
+
     // Fetch branches and departments first
     let branchesLoaded = false;
     let departmentsLoaded = false;
@@ -752,10 +1069,15 @@ export class UserCreateComponent implements OnInit {
             next: (res: any) => {
               if (res.user) {
                 // Extract branch and department codes from DB value
-                const branchCodes = typeof res.user.branch === 'string'
-                  ? res.user.branch.split(',').filter((b: string) => !!b && b !== '[object Object]')
-                  : Array.isArray(res.user.branch)
-                    ? res.user.branch.map((b: any) => typeof b === 'string' ? b : b.code)
+                const branchCodes =
+                  typeof res.user.branch === 'string'
+                    ? res.user.branch
+                        .split(',')
+                        .filter((b: string) => !!b && b !== '[object Object]')
+                    : Array.isArray(res.user.branch)
+                    ? res.user.branch.map((b: any) =>
+                        typeof b === 'string' ? b : b.code
+                      )
                     : [];
                 // Set user fields except department and permissions
                 this.user = {
@@ -765,9 +1087,16 @@ export class UserCreateComponent implements OnInit {
                   email: res.user.email || '',
                   phoneNumber: res.user.phone || '',
                   gender: res.user.gender || '',
-                  dateOfBirth: res.user.date_of_birth ? new Date(res.user.date_of_birth) : '',
-                  joiningDate: res.user.joining_date ? new Date(res.user.joining_date) : '',
-                  branch: this.mapCodesToOptions(branchCodes, this.branchOptions),
+                  dateOfBirth: res.user.date_of_birth
+                    ? new Date(res.user.date_of_birth)
+                    : '',
+                  joiningDate: res.user.joining_date
+                    ? new Date(res.user.joining_date)
+                    : '',
+                  branch: this.mapCodesToOptions(
+                    branchCodes,
+                    this.branchOptions
+                  ),
                   // department will be set below
                   designation: res.user.designation || '',
                   reportingManager: res.user.reporting_manager || '',
@@ -776,27 +1105,41 @@ export class UserCreateComponent implements OnInit {
                   confirmPassword: '',
                   role: res.user.role || '',
                   status: res.user.status || '',
-                  employmentType: this.employmentTypes.find(et => et.label === res.user.employment_type) || '',
+                  employmentType:
+                    this.employmentTypes.find(
+                      (et) => et.label === res.user.employment_type
+                    ) || '',
                   vehicleAssigned: res.user.vehicle_assigned || '',
                   shiftTiming: res.user.shift_timing || '',
                   bio: res.user.bio || '',
-                  avatar: res.user.avatar_url || null
+                  avatar: res.user.avatar_url || null,
                 };
                 if (res.user.avatar_url) {
                   this.avatarPreview = res.user.avatar_url;
                 }
                 // Set role and permissions options before assigning selectedPermissions
                 this.selectedRole = this.user.role;
-                this.permissions = this.rolePermissionsMap[this.selectedRole] || [];
-                this.selectedPermissions = res.user.permission ? res.user.permission.split(',') : [];
+                this.permissions =
+                  this.rolePermissionsMap[this.selectedRole] || [];
+                this.selectedPermissions = res.user.permission
+                  ? res.user.permission.split(',')
+                  : [];
                 // Set department options and selected departments after branch is set
-                const departmentCodes = typeof res.user.department === 'string'
-                  ? res.user.department.split(',').filter((d: string) => !!d && d !== '[object Object]')
-                  : Array.isArray(res.user.department)
-                    ? res.user.department.map((d: any) => typeof d === 'string' ? d : d.code)
+                const departmentCodes =
+                  typeof res.user.department === 'string'
+                    ? res.user.department
+                        .split(',')
+                        .filter((d: string) => !!d && d !== '[object Object]')
+                    : Array.isArray(res.user.department)
+                    ? res.user.department.map((d: any) =>
+                        typeof d === 'string' ? d : d.code
+                      )
                     : [];
-                this.user.department = this.mapCodesToOptions(departmentCodes, this.departmentOptions);
-                
+                this.user.department = this.mapCodesToOptions(
+                  departmentCodes,
+                  this.departmentOptions
+                );
+
                 // Load user documents
                 if (res.user.employee_id) {
                   this.loadUserDocuments(res.user.employee_id);
@@ -805,7 +1148,7 @@ export class UserCreateComponent implements OnInit {
             },
             error: (err: any) => {
               this.toast.showError('Error', 'Failed to load user details');
-            }
+            },
           });
         }
       }
@@ -821,7 +1164,7 @@ export class UserCreateComponent implements OnInit {
         this.toast.showError('Error', 'Failed to load branches');
         branchesLoaded = true;
         tryLoadUser();
-      }
+      },
     });
     this.departmentService.getAll().subscribe({
       next: (departments: any[]) => {
@@ -833,52 +1176,69 @@ export class UserCreateComponent implements OnInit {
         this.toast.showError('Error', 'Failed to load departments');
         departmentsLoaded = true;
         tryLoadUser();
-      }
+      },
     });
 
     this.masterCodeService.getMasters().subscribe((codes: any[]) => {
       console.log('Master Codes:', codes);
-      
+
       // Debug: Check all USER_STATUS related codes
-      const userStatusCodes = (codes || []).filter((c: any) => 
-        c.code && c.code.trim().toLowerCase().includes('user_status')
+      const userStatusCodes = (codes || []).filter(
+        (c: any) =>
+          c.code && c.code.trim().toLowerCase().includes('user_status')
       );
       console.log('DEBUG: All USER_STATUS related codes:', userStatusCodes);
-      
+
       // Designation
       const activeDesignationCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_designation' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) =>
+          c.code &&
+          c.code.trim().toLowerCase() === 'user_designation' &&
+          c.status &&
+          c.status.trim().toLowerCase() === 'active'
       );
       const activeStatusCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_status' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) =>
+          c.code &&
+          c.code.trim().toLowerCase() === 'user_status' &&
+          c.status &&
+          c.status.trim().toLowerCase() === 'active'
       );
-      
+
       const activeRoleCode = (codes || []).find(
-        (c: any) => c.code && c.code.trim().toLowerCase() === 'user_role' && c.status && c.status.trim().toLowerCase() === 'active'
+        (c: any) =>
+          c.code &&
+          c.code.trim().toLowerCase() === 'user_role' &&
+          c.status &&
+          c.status.trim().toLowerCase() === 'active'
       );
-      
+
       console.log('DEBUG: Found activeDesignationCode:', activeDesignationCode);
       console.log('DEBUG: Found activeStatusCode:', activeStatusCode);
       console.log('DEBUG: Found activeRoleCode:', activeRoleCode);
-      
+
       this.masterTypeService.getAll().subscribe((types: any[]) => {
         console.log('Master Types:', types);
-        
+
         // Debug: Show detailed structure of first few types
-        console.log('DEBUG: First 3 Master Types structure:', types.slice(0, 3));
-        
+        console.log(
+          'DEBUG: First 3 Master Types structure:',
+          types.slice(0, 3)
+        );
+
         // Debug: Check all USER_STATUS related types
-        const userStatusTypes = (types || []).filter((t: any) => 
-          t.key && t.key.trim().toLowerCase().includes('user_status')
+        const userStatusTypes = (types || []).filter(
+          (t: any) =>
+            t.key && t.key.trim().toLowerCase().includes('user_status')
         );
         console.log('DEBUG: All USER_STATUS related types:', userStatusTypes);
-        
+
         // Debug: Check exact USER_STATUS match
-        const exactUserStatusTypes = (types || []).filter((t: any) => 
-          t.key && t.key.trim().toLowerCase() === 'user_status'
+        const exactUserStatusTypes = (types || []).filter(
+          (t: any) => t.key && t.key.trim().toLowerCase() === 'user_status'
         );
         console.log('DEBUG: Exact USER_STATUS matches:', exactUserStatusTypes);
-        
+
         // Debug: Check each USER_STATUS type individually
         exactUserStatusTypes.forEach((type, index) => {
           console.log(`DEBUG: USER_STATUS type ${index + 1}:`, {
@@ -888,51 +1248,80 @@ export class UserCreateComponent implements OnInit {
             keyTrimmed: type.key ? type.key.trim() : 'null',
             statusTrimmed: type.status ? type.status.trim() : 'null',
             keyLowerCase: type.key ? type.key.trim().toLowerCase() : 'null',
-            statusLowerCase: type.status ? type.status.trim().toLowerCase() : 'null'
+            statusLowerCase: type.status
+              ? type.status.trim().toLowerCase()
+              : 'null',
           });
         });
-        
+
         // Debug: Show all keys in master types
-        const allKeys = (types || []).map(t => t.key).filter(k => k);
+        const allKeys = (types || []).map((t) => t.key).filter((k) => k);
         console.log('DEBUG: All Master Type keys:', allKeys);
-        
+
         // Designation
         if (activeDesignationCode && activeDesignationCode.code) {
           this.designationOptions = (types || []).filter(
-            (t: any) => t.key && t.key.trim().toLowerCase() === activeDesignationCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
+            (t: any) =>
+              t.key &&
+              t.key.trim().toLowerCase() ===
+                activeDesignationCode.code.trim().toLowerCase() &&
+              t.status &&
+              t.status.trim().toLowerCase() === 'active'
           );
         } else {
           this.designationOptions = [];
           console.log('DEBUG: No active USER_DESIGNATION master code found');
         }
-        
+
         // Status
         if (activeStatusCode && activeStatusCode.code) {
-          console.log('DEBUG: Filtering types for USER_STATUS with key:', activeStatusCode.code);
+          console.log(
+            'DEBUG: Filtering types for USER_STATUS with key:',
+            activeStatusCode.code
+          );
           const allMatchingTypes = (types || []).filter(
-            (t: any) => t.key && t.key.trim().toLowerCase() === activeStatusCode.code.trim().toLowerCase()
+            (t: any) =>
+              t.key &&
+              t.key.trim().toLowerCase() ===
+                activeStatusCode.code.trim().toLowerCase()
           );
-          console.log('DEBUG: All types matching USER_STATUS key:', allMatchingTypes);
-          
+          console.log(
+            'DEBUG: All types matching USER_STATUS key:',
+            allMatchingTypes
+          );
+
           this.statusOptions = (types || []).filter(
-            (t: any) => t.key && t.key.trim().toLowerCase() === activeStatusCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
+            (t: any) =>
+              t.key &&
+              t.key.trim().toLowerCase() ===
+                activeStatusCode.code.trim().toLowerCase() &&
+              t.status &&
+              t.status.trim().toLowerCase() === 'active'
           );
-          console.log('DEBUG: Final filtered status options:', this.statusOptions);
+          console.log(
+            'DEBUG: Final filtered status options:',
+            this.statusOptions
+          );
         } else {
           this.statusOptions = [];
           console.log('DEBUG: No active USER_STATUS master code found');
         }
-        
+
         // Role
         if (activeRoleCode && activeRoleCode.code) {
           this.roleOptions = (types || []).filter(
-            (t: any) => t.key && t.key.trim().toLowerCase() === activeRoleCode.code.trim().toLowerCase() && t.status && t.status.trim().toLowerCase() === 'active'
+            (t: any) =>
+              t.key &&
+              t.key.trim().toLowerCase() ===
+                activeRoleCode.code.trim().toLowerCase() &&
+              t.status &&
+              t.status.trim().toLowerCase() === 'active'
           );
         } else {
           this.roleOptions = [];
           console.log('DEBUG: No active USER_ROLE master code found');
         }
-        
+
         console.log('Designation Options:', this.designationOptions);
         console.log('Status Options:', this.statusOptions);
         console.log('Role Options:', this.roleOptions);
@@ -942,59 +1331,76 @@ export class UserCreateComponent implements OnInit {
   goBack() {
     this.router.navigate(['/settings/user_management']);
   }
-  
 
   async createUser() {
     if (this.user.password !== this.user.confirmPassword) {
       this.toast.showError('Error', 'Passwords do not match!');
       return;
     }
-    
+
     const context = this.contextService.getContext();
-    
+
     // Store branch and department as comma-separated label strings
     const userToSend = {
       ...this.user,
       branch: Array.isArray(this.user.branch)
         ? this.user.branch
-            .map((b: any) => (b && typeof b === 'object' && typeof b.code === 'string' ? b.code : (typeof b === 'string' ? b : '')))
+            .map((b: any) =>
+              b && typeof b === 'object' && typeof b.code === 'string'
+                ? b.code
+                : typeof b === 'string'
+                ? b
+                : ''
+            )
             .filter((b: string) => !!b)
             .join(',')
         : '',
       department: Array.isArray(this.user.department)
         ? this.user.department
-            .map((d: any) => (d && typeof d === 'object' && typeof d.code === 'string' ? d.code : (typeof d === 'string' ? d : '')))
+            .map((d: any) =>
+              d && typeof d === 'object' && typeof d.code === 'string'
+                ? d.code
+                : typeof d === 'string'
+                ? d
+                : ''
+            )
             .filter((d: string) => !!d)
             .join(',')
         : '',
-      employmentType: this.user.employmentType && typeof this.user.employmentType === 'object' && (this.user.employmentType as any).label
-        ? (this.user.employmentType as any).label
-        : this.user.employmentType,
+      employmentType:
+        this.user.employmentType &&
+        typeof this.user.employmentType === 'object' &&
+        (this.user.employmentType as any).label
+          ? (this.user.employmentType as any).label
+          : this.user.employmentType,
       permission: this.selectedPermissions.join(','),
       // Add context information for backend number series generation
       seriesCode: this.mappedEmployeeSeriesCode,
       companyCode: context.companyCode,
       branchCode: context.branchCode,
       departmentCode: context.departmentCode,
-      serviceTypeCode: context.serviceType
+      serviceTypeCode: context.serviceType,
     };
-    
+
     // If not manual series, let backend generate employee ID
     if (!this.isManualSeries) {
       userToSend.employeeId = ''; // Use empty string instead of undefined
     }
-    
+
     try {
       const res = await this.userService.createUser(userToSend).toPromise();
       this.toast.showSuccess('Success', 'User created successfully!');
-      
+
       // Save documents if user was created successfully
       if (res && res.user && res.user.employee_id) {
         // Use the response data to ensure we have the correct employee_id
-        const userWithResponseData = { ...this.user, employeeId: res.user.employee_id };
+        const userWithResponseData = {
+          ...this.user,
+          employeeId: res.user.employee_id,
+        };
         await this.saveDocuments(userWithResponseData);
       }
-      
+
       this.confirmationService.confirm({
         message: 'Need to create another user?',
         header: 'Create Another User',
@@ -1006,10 +1412,13 @@ export class UserCreateComponent implements OnInit {
         },
         reject: () => {
           this.router.navigate(['/settings/user_management']);
-        }
+        },
       });
     } catch (err: any) {
-      this.toast.showError('Error', 'Error creating user: ' + (err.error?.message || err.message));
+      this.toast.showError(
+        'Error',
+        'Error creating user: ' + (err.error?.message || err.message)
+      );
     }
   }
 
@@ -1020,44 +1429,67 @@ export class UserCreateComponent implements OnInit {
       ...this.user,
       branch: Array.isArray(this.user.branch)
         ? this.user.branch
-            .map((b: any) => (b && typeof b === 'object' && typeof b.code === 'string' ? b.code : (typeof b === 'string' ? b : '')))
+            .map((b: any) =>
+              b && typeof b === 'object' && typeof b.code === 'string'
+                ? b.code
+                : typeof b === 'string'
+                ? b
+                : ''
+            )
             .filter((b: string) => !!b)
             .join(',')
         : '',
       department: Array.isArray(this.user.department)
         ? this.user.department
-            .map((d: any) => (d && typeof d === 'object' && typeof d.code === 'string' ? d.code : (typeof d === 'string' ? d : '')))
+            .map((d: any) =>
+              d && typeof d === 'object' && typeof d.code === 'string'
+                ? d.code
+                : typeof d === 'string'
+                ? d
+                : ''
+            )
             .filter((d: string) => !!d)
             .join(',')
         : '',
-      employmentType: this.user.employmentType && typeof this.user.employmentType === 'object' && (this.user.employmentType as any).label
-        ? (this.user.employmentType as any).label
-        : this.user.employmentType,
-      permission: this.selectedPermissions.join(',') // <-- send as comma-separated string
+      employmentType:
+        this.user.employmentType &&
+        typeof this.user.employmentType === 'object' &&
+        (this.user.employmentType as any).label
+          ? (this.user.employmentType as any).label
+          : this.user.employmentType,
+      permission: this.selectedPermissions.join(','), // <-- send as comma-separated string
     };
-    
+
     try {
-      const res = await this.userService.updateUser(this.userId, userToSend).toPromise();
+      const res = await this.userService
+        .updateUser(this.userId, userToSend)
+        .toPromise();
       this.toast.showSuccess('Success', 'User updated successfully!');
-      
+
       // Save documents if user was updated successfully
       if (res && res.user && res.user.employee_id) {
         // Use the response data to ensure we have the correct employee_id
-        const userWithResponseData = { ...this.user, employeeId: res.user.employee_id };
+        const userWithResponseData = {
+          ...this.user,
+          employeeId: res.user.employee_id,
+        };
         await this.saveDocuments(userWithResponseData);
       }
-      
+
       this.router.navigate(['/settings/user_management']);
     } catch (err: any) {
-      this.toast.showError('Error', 'Error updating user: ' + (err.error?.message || err.message));
+      this.toast.showError(
+        'Error',
+        'Error updating user: ' + (err.error?.message || err.message)
+      );
     }
   }
 
   get branchOptions() {
-    return this.branches.map(branch => ({
+    return this.branches.map((branch) => ({
       ...branch,
       label: `${branch.code}-${branch.name}`,
-      value: branch.code
+      value: branch.code,
     }));
   }
 
@@ -1065,13 +1497,15 @@ export class UserCreateComponent implements OnInit {
     if (!this.user.branch || this.user.branch.length === 0) {
       return [];
     }
-    const selectedBranchCodes = this.user.branch.map((b: any) => b.code ? b.code : b);
+    const selectedBranchCodes = this.user.branch.map((b: any) =>
+      b.code ? b.code : b
+    );
     return this.departments
-      .filter(dept => selectedBranchCodes.includes(dept.branch_code))
-      .map(dept => ({
+      .filter((dept) => selectedBranchCodes.includes(dept.branch_code))
+      .map((dept) => ({
         ...dept,
         label: `${dept.code}-${dept.name}`,
-        value: dept.code
+        value: dept.code,
       }));
   }
 
@@ -1090,7 +1524,7 @@ export class UserCreateComponent implements OnInit {
       error: (error: any) => {
         console.error('Error loading document upload path:', error);
         this.documentUploadPath = '/uploads/documents/user';
-      }
+      },
     });
   }
 
@@ -1098,14 +1532,14 @@ export class UserCreateComponent implements OnInit {
     this.masterTypeService.getAll().subscribe({
       next: (types: any[]) => {
         this.documentTypeOptions = (types || [])
-          .filter(t => t.key === 'USER_DOC_TYPE' && t.status === 'Active')
-          .map(t => ({ label: t.value, value: t.value }));
+          .filter((t) => t.key === 'USER_DOC_TYPE' && t.status === 'Active')
+          .map((t) => ({ label: t.value, value: t.value }));
         console.log('Document type options loaded:', this.documentTypeOptions);
       },
       error: (error) => {
         console.error('Error loading document types:', error);
         this.toast.showError('Error', 'Failed to load document types');
-      }
+      },
     });
   }
 
@@ -1120,7 +1554,7 @@ export class UserCreateComponent implements OnInit {
       file_path: '',
       file_name: '',
       file_size: 0,
-      mime_type: ''
+      mime_type: '',
     });
   }
 
@@ -1141,14 +1575,14 @@ export class UserCreateComponent implements OnInit {
             error: (error: any) => {
               console.error('Error deleting document:', error);
               this.toast.showError('Error', 'Failed to delete document');
-            }
+            },
           });
         } else {
           // Just remove from local array if not saved yet
           this.userDocuments.splice(index, 1);
           this.toast.showSuccess('Success', 'Document removed');
         }
-      }
+      },
     });
   }
 
@@ -1164,23 +1598,23 @@ export class UserCreateComponent implements OnInit {
 
   downloadDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
+
     console.log('=== FRONTEND DOWNLOAD REQUEST ===');
     console.log('Document ID:', doc.id);
     console.log('Document:', doc);
-    
+
     this.entityDocumentService.download(doc.id).subscribe({
       next: (blob: any) => {
         console.log('Download successful, blob size:', blob.size);
         console.log('Blob type:', blob.type);
-        
+
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = doc.file_name;
         link.click();
         window.URL.revokeObjectURL(url);
-        
+
         console.log('Download link clicked');
       },
       error: (error: any) => {
@@ -1189,36 +1623,37 @@ export class UserCreateComponent implements OnInit {
           status: error.status,
           statusText: error.statusText,
           message: error.message,
-          url: error.url
+          url: error.url,
         });
         this.toast.showError('Error', 'Failed to download document');
-      }
+      },
     });
   }
 
   viewDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
+
     console.log('=== FRONTEND VIEW REQUEST ===');
     console.log('Document ID:', doc.id);
     console.log('Document:', doc);
-    
+
     this.selectedDocument = doc;
     this.isDocumentViewerVisible = true;
     this.pdfLoaded = false;
     this.pdfError = false;
-    
+
     // Always load fresh from server - no caching for blob URLs
     this.entityDocumentService.view(doc.id).subscribe({
       next: (blob: any) => {
         console.log('View successful, blob size:', blob.size);
         console.log('Blob type:', blob.type);
-        
+
         this.documentViewerUrl = window.URL.createObjectURL(blob);
-        this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
-        
+        this.safeDocumentViewerUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
+
         console.log('Document viewer URL created:', this.documentViewerUrl);
-        
+
         // Immediate load for PDFs
         if (doc.mime_type === 'application/pdf') {
           this.pdfLoaded = true;
@@ -1235,11 +1670,11 @@ export class UserCreateComponent implements OnInit {
           status: error.status,
           statusText: error.statusText,
           message: error.message,
-          url: error.url
+          url: error.url,
         });
         this.toast.showError('Error', 'Failed to view document');
         this.hideDocumentViewer();
-      }
+      },
     });
   }
 
@@ -1257,14 +1692,14 @@ export class UserCreateComponent implements OnInit {
 
   getOfficeViewerUrl(): string {
     if (!this.documentViewerUrl || !this.selectedDocument) return '';
-    
+
     // Check if it's a blob URL
     if (this.documentViewerUrl.startsWith('blob:')) {
       // For blob URLs, we can't use online viewers directly
       // We'll return empty to show the fallback
       return '';
     }
-    
+
     // For regular URLs, try Microsoft Office Online Viewer
     const encodedUrl = encodeURIComponent(this.documentViewerUrl);
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
@@ -1303,75 +1738,97 @@ export class UserCreateComponent implements OnInit {
       error: (error: any) => {
         console.error('Error loading user documents:', error);
         this.userDocuments = [];
-      }
+      },
     });
   }
 
   private loadMappedEmployeeSeriesCode() {
     const context = this.contextService.getContext();
     console.log('Loading employee series code for context:', context);
-    
+
     // Use context-based mapping with NumberSeriesRelation
-    this.mappingService.findMappingByContext(
-      'employeeCode',
-      context.companyCode || '',
-      context.branchCode || '',
-      context.departmentCode || '',
-      context.serviceType || undefined
-    ).subscribe({
-      next: (contextMapping) => {
-        console.log('Employee mapping relation response:', contextMapping);
-        this.mappedEmployeeSeriesCode = contextMapping.mapping;
-        if (this.mappedEmployeeSeriesCode) {
-          this.numberSeriesService.getAll().subscribe({
-            next: (seriesList) => {
-              const found = seriesList.find((s: any) => s.code === this.mappedEmployeeSeriesCode);
-              this.isManualSeries = !!(found && found.is_manual);
-              console.log('Employee series code mapped:', this.mappedEmployeeSeriesCode, 'Manual:', this.isManualSeries);
+    this.mappingService
+      .findMappingByContext(
+        'employeeCode',
+        context.companyCode || '',
+        context.branchCode || '',
+        context.departmentCode || '',
+        context.serviceType || undefined
+      )
+      .subscribe({
+        next: (contextMapping) => {
+          console.log('Employee mapping relation response:', contextMapping);
+          this.mappedEmployeeSeriesCode = contextMapping.mapping;
+          if (this.mappedEmployeeSeriesCode) {
+            this.numberSeriesService.getAll().subscribe({
+              next: (seriesList) => {
+                const found = seriesList.find(
+                  (s: any) => s.code === this.mappedEmployeeSeriesCode
+                );
+                this.isManualSeries = !!(found && found.is_manual);
+                console.log(
+                  'Employee series code mapped:',
+                  this.mappedEmployeeSeriesCode,
+                  'Manual:',
+                  this.isManualSeries
+                );
+              },
+              error: (error) => {
+                console.error('Error loading number series:', error);
+              },
+            });
+          } else {
+            this.isManualSeries = false;
+            console.log('No employee series code mapping found for context');
+          }
+        },
+        error: (error) => {
+          console.error('Error loading employee mapping relation:', error);
+          if (error.error === 'No mapping found') {
+            this.toast.showError(
+              'Setup Required',
+              'Employee Code number series mapping is not configured. Please set up the mapping in Number Series Mapping.'
+            );
+          }
+          // Fallback to generic mapping if context-based mapping fails
+          console.log('Falling back to generic mapping method');
+          this.mappingService.getMapping().subscribe({
+            next: (mapping) => {
+              console.log('Fallback mapping response:', mapping);
+              this.mappedEmployeeSeriesCode = mapping.employeeCode || '';
+              if (this.mappedEmployeeSeriesCode) {
+                this.numberSeriesService.getAll().subscribe({
+                  next: (seriesList) => {
+                    const found = seriesList.find(
+                      (s: any) => s.code === this.mappedEmployeeSeriesCode
+                    );
+                    this.isManualSeries = !!(found && found.is_manual);
+                    console.log(
+                      'Employee series code mapped (fallback):',
+                      this.mappedEmployeeSeriesCode,
+                      'Manual:',
+                      this.isManualSeries
+                    );
+                  },
+                  error: (error) => {
+                    console.error(
+                      'Error loading number series (fallback):',
+                      error
+                    );
+                    this.isManualSeries = true; // Default to manual if error
+                  },
+                });
+              } else {
+                this.isManualSeries = true; // Default to manual if no mapping
+              }
             },
             error: (error) => {
-              console.error('Error loading number series:', error);
-            }
+              console.error('Error loading fallback mapping:', error);
+              this.isManualSeries = true; // Default to manual if error
+            },
           });
-        } else {
-          this.isManualSeries = false;
-          console.log('No employee series code mapping found for context');
-        }
-      },
-      error: (error) => {
-        console.error('Error loading employee mapping relation:', error);
-        if (error.error === 'No mapping found') {
-          this.toast.showError('Setup Required', 'Employee Code number series mapping is not configured. Please set up the mapping in Number Series Mapping.');
-        }
-        // Fallback to generic mapping if context-based mapping fails
-        console.log('Falling back to generic mapping method');
-        this.mappingService.getMapping().subscribe({
-          next: (mapping) => {
-            console.log('Fallback mapping response:', mapping);
-            this.mappedEmployeeSeriesCode = mapping.employeeCode || '';
-            if (this.mappedEmployeeSeriesCode) {
-              this.numberSeriesService.getAll().subscribe({
-                next: (seriesList) => {
-                  const found = seriesList.find((s: any) => s.code === this.mappedEmployeeSeriesCode);
-                  this.isManualSeries = !!(found && found.is_manual);
-                  console.log('Employee series code mapped (fallback):', this.mappedEmployeeSeriesCode, 'Manual:', this.isManualSeries);
-                },
-                error: (error) => {
-                  console.error('Error loading number series (fallback):', error);
-                  this.isManualSeries = true; // Default to manual if error
-                }
-              });
-            } else {
-              this.isManualSeries = true; // Default to manual if no mapping
-            }
-          },
-          error: (error) => {
-            console.error('Error loading fallback mapping:', error);
-            this.isManualSeries = true; // Default to manual if error
-          }
-        });
-      }
-    });
+        },
+      });
   }
 
   async saveDocuments(userData?: any) {
@@ -1380,63 +1837,71 @@ export class UserCreateComponent implements OnInit {
     console.log('User data received:', user);
     console.log('User employeeId:', user?.employeeId);
     console.log('User fullName:', user?.fullName);
-    
+
     if (!user?.employeeId) {
       console.log('No employeeId found, returning early');
       return;
     }
 
     // Filter out documents without doc_type selected
-    const documentsToUpload = this.userDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
-    const documentsWithoutDocType = this.userDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
-    
+    const documentsToUpload = this.userDocuments.filter(
+      (doc) => doc.file && !doc.id && doc.doc_type
+    );
+    const documentsWithoutDocType = this.userDocuments.filter(
+      (doc) => doc.file && !doc.id && !doc.doc_type
+    );
+
     if (documentsWithoutDocType.length > 0) {
-      this.toast.showError('Validation Error', 'Please select document type for all documents before saving');
+      this.toast.showError(
+        'Validation Error',
+        'Please select document type for all documents before saving'
+      );
       return;
     }
 
-    const uploadPromises = documentsToUpload
-      .map(doc => {
-        console.log('Preparing to upload document:', {
-          entity_type: 'user',
-          entity_code: user.employeeId,
-          entity_name: user.fullName, // Include user name for folder creation
-          doc_type: doc.doc_type,
-          document_number: doc.document_number || '',
-          valid_from: doc.valid_from || '',
-          valid_till: doc.valid_till || '',
-          file_name: doc.file?.name,
-          uploadPath: this.documentUploadPath
-        });
-
-        console.log('=== FRONTEND UPLOAD DEBUG ===');
-        console.log('Document upload path being sent:', this.documentUploadPath);
-        console.log('User employeeId:', user.employeeId);
-        console.log('User fullName:', user.fullName);
-        
-        const formData = new FormData();
-        formData.append('entity_type', 'user');
-        formData.append('entity_code', user.employeeId);
-        formData.append('entity_name', user.fullName); // Include user name for folder creation
-        formData.append('doc_type', doc.doc_type);
-        formData.append('document_number', doc.document_number || '');
-        formData.append('valid_from', doc.valid_from || '');
-        formData.append('valid_till', doc.valid_till || '');
-        formData.append('document', doc.file!);
-        formData.append('uploadPath', this.documentUploadPath);
-
-        return this.entityDocumentService.uploadDocument(formData).toPromise();
+    const uploadPromises = documentsToUpload.map((doc) => {
+      console.log('Preparing to upload document:', {
+        entity_type: 'user',
+        entity_code: user.employeeId,
+        entity_name: user.fullName, // Include user name for folder creation
+        doc_type: doc.doc_type,
+        document_number: doc.document_number || '',
+        valid_from: doc.valid_from || '',
+        valid_till: doc.valid_till || '',
+        file_name: doc.file?.name,
+        uploadPath: this.documentUploadPath,
       });
 
+      console.log('=== FRONTEND UPLOAD DEBUG ===');
+      console.log('Document upload path being sent:', this.documentUploadPath);
+      console.log('User employeeId:', user.employeeId);
+      console.log('User fullName:', user.fullName);
+
+      const formData = new FormData();
+      formData.append('entity_type', 'user');
+      formData.append('entity_code', user.employeeId);
+      formData.append('entity_name', user.fullName); // Include user name for folder creation
+      formData.append('doc_type', doc.doc_type);
+      formData.append('document_number', doc.document_number || '');
+      formData.append('valid_from', doc.valid_from || '');
+      formData.append('valid_till', doc.valid_till || '');
+      formData.append('document', doc.file!);
+      formData.append('uploadPath', this.documentUploadPath);
+
+      return this.entityDocumentService.uploadDocument(formData).toPromise();
+    });
+
     const updatePromises = this.userDocuments
-      .filter(doc => doc.id && !doc.file) // Only update existing documents without new files
-      .map(doc => {
-        return this.entityDocumentService.update(doc.id!, {
-          doc_type: doc.doc_type,
-          document_number: doc.document_number,
-          valid_from: doc.valid_from,
-          valid_till: doc.valid_till
-        }).toPromise();
+      .filter((doc) => doc.id && !doc.file) // Only update existing documents without new files
+      .map((doc) => {
+        return this.entityDocumentService
+          .update(doc.id!, {
+            doc_type: doc.doc_type,
+            document_number: doc.document_number,
+            valid_from: doc.valid_from,
+            valid_till: doc.valid_till,
+          })
+          .toPromise();
       });
 
     await Promise.all([...uploadPromises, ...updatePromises]);

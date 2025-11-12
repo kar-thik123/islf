@@ -52,7 +52,7 @@ router.get("/", async (req, res) => {
       SELECT *
       FROM tariff
       ${clause}
-      ORDER BY id ASC
+      ORDER BY id DESC
     `;
 
     console.log("tariff query:", query, "tariff Value", values);
@@ -510,7 +510,7 @@ router.post("/:tariffId/charge", async (req, res) => {
     }
 
     // dynamic build query
-    let query = `INSERT INTO tariff_charges (charge_name, tariff_id, currency,basis, charge, gst_vat, period_start_date, period_end_date, remarks, created_at) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) RETURNING *`;
+    let query = `INSERT INTO tariff_charges (charge_name, tariff_id, currency,basis, charge, gst_vat, period_start_date, period_end_date, remarks, created_at) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW() AT TIME ZONE 'Asia/Kolkata' ) RETURNING *`;
 
     const { rows: chargeResult } = await pool.query(query, [
       charge_name,
@@ -588,7 +588,7 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
 
     let query = `UPDATE tariff_charges SET updated_at = NOW()`;
     let params = [];
-     let paramIndex = 1;
+    let paramIndex = 1;
 
     if (charge_name && charge_name.trim() !== "") {
       query += `, charge_name = $${paramIndex}`;
@@ -638,7 +638,9 @@ router.put("/:tariffId/charge/:chargeId", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` WHERE id = $${paramIndex} AND tariff_id = $${paramIndex + 1} RETURNING *`;
+    query += ` WHERE id = $${paramIndex} AND tariff_id = $${
+      paramIndex + 1
+    } RETURNING *`;
     params.push(chargeId, tariffId);
     const { rows: updateChargeResult } = await pool.query(query, params);
     if (updateChargeResult.length !== 0) {

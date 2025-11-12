@@ -62,7 +62,6 @@ import { SourceSalesComponent } from './sourceSales';
 import { InputNumber } from 'primeng/inputnumber';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
-
 @Component({
   selector: 'app-tariff',
   standalone: true,
@@ -89,7 +88,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     InputSwitchModule,
     ServiceAreaComponent,
     SourceSalesComponent,
-    ConfirmDialogModule
+    ConfirmDialogModule,
   ],
   template: `
     <p-toast></p-toast>
@@ -652,7 +651,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
               }}</small>
             </div>
 
-            <div class="col-span-12 md:col-span-3">
+            <!-- <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Basis</label>
               <div class="flex gap-2">
                 <p-dropdown
@@ -682,8 +681,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
               <small *ngIf="fieldErrors['basis']" class="p-error">{{
                 fieldErrors['basis']
               }}</small>
-            </div>
-           <!-- <div class="col-span-12 md:col-span-3">
+            </div> -->
+            <!-- <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
                 <p-dropdown
@@ -840,13 +839,16 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                 fieldErrors['to']
               }}</small>
             </div>
-             <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
-            <p-inputSwitch 
-              [(ngModel)]="selectedTariff.isMandatory" 
-              inputId="mandatory">
-            </p-inputSwitch>
-            <label for="mandatory" class="ml-2 font-semibold">Mandatory</label>
-          </div>
+            <div class="col-span-12 md:col-span-2 flex items-center mt-8 ml-8">
+              <p-inputSwitch
+                [(ngModel)]="selectedTariff.isMandatory"
+                inputId="mandatory"
+              >
+              </p-inputSwitch>
+              <label for="mandatory" class="ml-2 font-semibold"
+                >Mandatory</label
+              >
+            </div>
             <!--<div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Source/Sales Person</label>
               <div class="flex gap-2">
@@ -922,7 +924,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                 <th>GST/VAT</th>
                 <th style="min-width: 180px;">Period Start Date</th>
                 <th style="min-width: 180px;">Period End Date</th>
-                <th style="min-width: 150px;">Date </th>
+                <th style="min-width: 150px;">Date</th>
                 <th>Remarks</th>
                 <th></th>
                 <th></th>
@@ -959,34 +961,34 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                   </div>
                 </td>
                 <td>
-               
-                <div class="flex gap-2">
-                  <p-dropdown
-                    [options]="basisOptions"
-                    [(ngModel)]="subCharge.basis"
-                    (ngModelChange)="onFieldChange('basis', selectedTariff.basis)"
-                    [ngClass]="getFieldErrorClass('basis')"
-                    [ngStyle]="getFieldErrorStyle('basis')"
-                    placeholder="Select Basis"
-                    class="flex-1"
-                    [filter]="true"
-                    filterBy="label"
-                    [showClear]="true"
-                    appendTo="body"
-                  ></p-dropdown>
-                  <button
-                    pButton
-                    [icon]="
-                      masterDialogLoading['basis']
-                        ? 'pi pi-spin pi-spinner'
-                        : 'pi pi-ellipsis-h'
-                    "
-                    class="p-button-sm"
-                    [disabled]="masterDialogLoading['basis']"
-                    (click)="openMaster('basis')"
-                  ></button>
-                 </div>
-             
+                  <div class="flex gap-2">
+                    <p-dropdown
+                      [options]="basisOptions"
+                      [(ngModel)]="subCharge.basis"
+                      (ngModelChange)="
+                        onFieldChange('basis', selectedTariff.basis)
+                      "
+                      [ngClass]="getFieldErrorClass('basis')"
+                      [ngStyle]="getFieldErrorStyle('basis')"
+                      placeholder="Select Basis"
+                      class="flex-1"
+                      [filter]="true"
+                      filterBy="label"
+                      [showClear]="true"
+                      appendTo="body"
+                    ></p-dropdown>
+                    <button
+                      pButton
+                      [icon]="
+                        masterDialogLoading['basis']
+                          ? 'pi pi-spin pi-spinner'
+                          : 'pi pi-ellipsis-h'
+                      "
+                      class="p-button-sm"
+                      [disabled]="masterDialogLoading['basis']"
+                      (click)="openMaster('basis')"
+                    ></button>
+                  </div>
                 </td>
                 <td>
                   <div class="flex gap-2">
@@ -1064,12 +1066,11 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                     [ngModelOptions]="{ standalone: true }"
                   />
                 </td>
-
                 <td>
                   <button
                     pButton
                     type="button"
-                    icon="subCharge.id ? pi pi-pencil : pi pi-save"
+                    [icon]="subCharge.id ? 'pi pi-pencil' : 'pi pi-save'"
                     pTooltip="Save"
                     (click)="saveCharge(i)"
                   ></button>
@@ -2718,94 +2719,105 @@ export class TariffComponent implements OnInit, OnDestroy {
       remarks: subCharge.remarks,
     };
 
+    console.log(
+      'subcharge Id,',
+      subCharge,
+      'payload prepared for save:',
+      subChargePayload
+    );
+
     // Step 4: Call the service to save the sub-charge
-    if(!subCharge.id){
-    this.tariffService
-      .saveCharge(this.selectedTariff.id, subChargePayload)
-      .subscribe({
-        next: (response: any) => {
-          // After save, reload sub-charges to ensure consistent UI mapping
-          this.tariffService.getCharges(this.selectedTariff.id).subscribe({
-            next: (subCharges) => {
-              this.selectedTariff.sub_charges = subCharges.map((sc: any) => ({
-                ...sc,
-                // Map backend created_at -> date_time (Date object)
-                date_time: sc?.created_at ? new Date(sc.created_at) : null,
-                // Ensure UI 'charges' is present from backend 'charge'
-                charges: sc.charges ?? sc.charge ?? null,
-                // Normalize period dates and parse to Date
-                periodStartDate: sc.periodStartDate
-                  ? this.parseDate(sc.periodStartDate)
-                  : sc.period_start_date
-                  ? this.parseDate(sc.period_start_date)
-                  : null,
-                periodEndDate: sc.periodEndDate
-                  ? this.parseDate(sc.periodEndDate)
-                  : sc.period_end_date
-                  ? this.parseDate(sc.period_end_date)
-                  : null,
-              }));
-              this.cdr.detectChanges();
-            },
-            error: (err) => {
-              console.error('Failed to reload sub-charges:', err);
-            },
-          });
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Sub-charge saved successfully.',
-          });
-        },
-        error: (error: any) => {
-          console.error('Error saving sub-charge:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to save sub-charge.',
-          });
-        },
-      });
-    }else {
-      this.tariffService.updateCharge(this.selectedTariff.id, subCharge.id, subChargePayload).subscribe( {next: (response: any) => {
-          // Reload charges to sync with backend and map created_at -> date_time
-          this.tariffService.getCharges(this.selectedTariff.id).subscribe({
-            next: (subCharges) => {
-              this.selectedTariff.sub_charges = subCharges.map((sc: any) => ({
-                ...sc,
-                date_time: sc?.created_at ? new Date(sc.created_at) : null,
-                charges: sc.charges ?? sc.charge ?? null,
-                periodStartDate: sc.periodStartDate
-                  ? this.parseDate(sc.periodStartDate)
-                  : sc.period_start_date
-                  ? this.parseDate(sc.period_start_date)
-                  : null,
-                periodEndDate: sc.periodEndDate
-                  ? this.parseDate(sc.periodEndDate)
-                  : sc.period_end_date
-                  ? this.parseDate(sc.period_end_date)
-                  : null,
-              }));
-              this.cdr.detectChanges();
-            },
-            error: (err) => {
-              console.error('Failed to reload sub-charges:', err);
-            },
-          });
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Sub-charge Updated successfully.',
-          });
-        },
-        error: (error: any) => {
-          console.error('Error saving sub-charge:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to Update sub-charge.',
-          });
-        },});
+    if (!subCharge.id) {
+      this.tariffService
+        .saveCharge(this.selectedTariff.id, subChargePayload)
+        .subscribe({
+          next: (response: any) => {
+            // After save, reload sub-charges to ensure consistent UI mapping
+            this.tariffService.getCharges(this.selectedTariff.id).subscribe({
+              next: (subCharges) => {
+                this.selectedTariff.sub_charges = subCharges.map((sc: any) => ({
+                  ...sc,
+                  // Map backend created_at -> date_time (Date object)
+                  date_time: sc?.created_at ? new Date(sc.created_at) : null,
+                  // Ensure UI 'charges' is present from backend 'charge'
+                  charges: sc.charges ?? sc.charge ?? null,
+                  // Normalize period dates and parse to Date
+                  periodStartDate: sc.periodStartDate
+                    ? this.parseDate(sc.periodStartDate)
+                    : sc.period_start_date
+                    ? this.parseDate(sc.period_start_date)
+                    : null,
+                  periodEndDate: sc.periodEndDate
+                    ? this.parseDate(sc.periodEndDate)
+                    : sc.period_end_date
+                    ? this.parseDate(sc.period_end_date)
+                    : null,
+                }));
+                this.cdr.detectChanges();
+              },
+              error: (err) => {
+                console.error('Failed to reload sub-charges:', err);
+              },
+            });
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Success',
+              detail: 'Sub-charge saved successfully.',
+            });
+          },
+          error: (error: any) => {
+            console.error('Error saving sub-charge:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to save sub-charge.',
+            });
+          },
+        });
+    } else {
+      this.tariffService
+        .updateCharge(this.selectedTariff.id, subCharge.id, subChargePayload)
+        .subscribe({
+          next: (response: any) => {
+            // Reload charges to sync with backend and map created_at -> date_time
+            this.tariffService.getCharges(this.selectedTariff.id).subscribe({
+              next: (subCharges) => {
+                this.selectedTariff.sub_charges = subCharges.map((sc: any) => ({
+                  ...sc,
+                  date_time: sc?.created_at ? new Date(sc.created_at) : null,
+                  charges: sc.charges ?? sc.charge ?? null,
+                  periodStartDate: sc.periodStartDate
+                    ? this.parseDate(sc.periodStartDate)
+                    : sc.period_start_date
+                    ? this.parseDate(sc.period_start_date)
+                    : null,
+                  periodEndDate: sc.periodEndDate
+                    ? this.parseDate(sc.periodEndDate)
+                    : sc.period_end_date
+                    ? this.parseDate(sc.period_end_date)
+                    : null,
+                }));
+                this.cdr.detectChanges();
+              },
+              error: (err) => {
+                console.error('Failed to reload sub-charges:', err);
+              },
+            });
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Success',
+              detail: 'Sub-charge Updated successfully.',
+            });
+          },
+          error: (error: any) => {
+            console.error('Error saving sub-charge:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to Update sub-charge.',
+            });
+          },
+        });
     }
   }
 
@@ -2945,7 +2957,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     this.originalTariffData = JSON.parse(JSON.stringify(tariff));
 
     this.selectedTariff = { ...tariff, isNew: false, isEdit: true };
-     // Fetch and load sub-charges
+    // Fetch and load sub-charges
     if (this.selectedTariff.id) {
       this.tariffService.getCharges(this.selectedTariff.id).subscribe({
         next: (subCharges) => {
@@ -2960,9 +2972,13 @@ export class TariffComponent implements OnInit, OnDestroy {
           });
           // Map backend snake_case period dates to UI camelCase and parse to Date
           this.selectedTariff.sub_charges.forEach((subCharge: any) => {
-            const startRaw = subCharge.periodStartDate ?? subCharge.period_start_date ?? null;
-            const endRaw = subCharge.periodEndDate ?? subCharge.period_end_date ?? null;
-            subCharge.periodStartDate = startRaw ? this.parseDate(startRaw) : null;
+            const startRaw =
+              subCharge.periodStartDate ?? subCharge.period_start_date ?? null;
+            const endRaw =
+              subCharge.periodEndDate ?? subCharge.period_end_date ?? null;
+            subCharge.periodStartDate = startRaw
+              ? this.parseDate(startRaw)
+              : null;
             subCharge.periodEndDate = endRaw ? this.parseDate(endRaw) : null;
             // Ensure UI 'charges' is present from backend 'charge'
             subCharge.charges = subCharge.charges ?? subCharge.charge ?? null;
@@ -3155,7 +3171,6 @@ export class TariffComponent implements OnInit, OnDestroy {
     // Force change detection to ensure UI updates
     this.cdr.detectChanges();
   }
-
 
   clear(table: any) {
     table.clear();
