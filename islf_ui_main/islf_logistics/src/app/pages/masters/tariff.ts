@@ -718,6 +718,30 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                 fieldErrors['itemName']
               }}</small>
             </div> -->
+             <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Period Start Date</label>
+              <p-calendar
+                [(ngModel)]="selectedTariff.periodStartDate"
+                dateFormat="dd/mm/yy"
+                showIcon="true"
+                appendTo="body"
+                class="w-full"
+                [showTime]="false"
+                [timeOnly]="false"
+              ></p-calendar>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Period End Date</label>
+              <p-calendar
+                [(ngModel)]="selectedTariff.periodEndDate"
+                dateFormat="dd/mm/yy"
+                showIcon="true"
+                appendTo="body"
+                class="w-full"
+                [showTime]="false"
+                [timeOnly]="false"
+              ></p-calendar>
+            </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Location Type From</label>
               <div class="flex gap-2">
@@ -1036,25 +1060,31 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                   <p-calendar
                     [(ngModel)]="subCharge.periodStartDate"
                     appendTo="body"
+                    [dateFormat]="'dd/mm/yy'"
                     [showTime]="false"
                     [showSeconds]="false"
                     [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="onSubChargeDateChange()"
                   ></p-calendar>
                 </td>
                 <td>
                   <p-calendar
                     [(ngModel)]="subCharge.periodEndDate"
                     appendTo="body"
+                    [dateFormat]="'dd/mm/yy'"
                     [showTime]="false"
                     [showSeconds]="false"
                     [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="onSubChargeDateChange()"
                   ></p-calendar>
                 </td>
                 <td>
                   <p-calendar
                     [(ngModel)]="subCharge.date_time"
+                    [dateFormat]="'dd/mm/yy'"
                     [showTime]="true"
-                    [showSeconds]="true"
+                    [hourFormat]="'24'"
+                    [showSeconds]="false"
                     [ngModelOptions]="{ standalone: true }"
                     [disabled]="true"
                   ></p-calendar>
@@ -1504,6 +1534,25 @@ export class TariffComponent implements OnInit, OnDestroy {
             // YYYY-MM-DD format
             return new Date(dateValue);
           }
+        }
+      }
+
+      // Handle slash-separated formats like DD/MM/YYYY or MM/DD/YYYY
+      if (dateValue.includes('/')) {
+        const parts = dateValue.split('/');
+        if (parts.length === 3) {
+          // If first part has 4 digits, treat as YYYY/MM/DD
+          if (parts[0].length === 4) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+          }
+          // Otherwise default to DD/MM/YYYY
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          return new Date(year, month, day);
         }
       }
 
@@ -2753,6 +2802,7 @@ export class TariffComponent implements OnInit, OnDestroy {
                     ? this.parseDate(sc.period_end_date)
                     : null,
                 }));
+                this.recalculateGeneralPeriodFromCharges();
                 this.cdr.detectChanges();
               },
               error: (err) => {
@@ -2797,6 +2847,7 @@ export class TariffComponent implements OnInit, OnDestroy {
                     ? this.parseDate(sc.period_end_date)
                     : null,
                 }));
+                this.recalculateGeneralPeriodFromCharges();
                 this.cdr.detectChanges();
               },
               error: (err) => {
@@ -2844,6 +2895,7 @@ export class TariffComponent implements OnInit, OnDestroy {
             next: (response: any) => {
               // Remove from local array after successful deletion
               this.selectedTariff.sub_charges.splice(index, 1);
+              this.recalculateGeneralPeriodFromCharges();
               this.messageService.add({
                 severity: 'success',
                 summary: 'Success',
@@ -2984,6 +3036,7 @@ export class TariffComponent implements OnInit, OnDestroy {
             subCharge.charges = subCharge.charges ?? subCharge.charge ?? null;
           });
           this.updateFormValidity(); // Re-validate form after loading sub-charges
+          this.recalculateGeneralPeriodFromCharges();
           this.cdr.detectChanges(); // Manually trigger change detection
         },
         error: (err) => {
@@ -3179,6 +3232,57 @@ export class TariffComponent implements OnInit, OnDestroy {
   onGlobalFilter(table: any, event: Event) {
     const value = (event.target as HTMLInputElement).value;
     table.filterGlobal(value, 'contains');
+  }
+
+  onSubChargeDateChange() {
+    // Recalculate general period dates whenever a sub-charge date is edited in the UI
+    this.recalculateGeneralPeriodFromCharges();
+  }
+
+  recalculateGeneralPeriodFromCharges() {
+    try {
+      if (!this.selectedTariff) return;
+      const subCharges = Array.isArray(this.selectedTariff.sub_charges)
+        ? this.selectedTariff.sub_charges
+        : [];
+
+      let earliest: Date | null = null;
+      let latest: Date | null = null;
+
+      const toDate = (val: any): Date | null => {
+        if (!val) return null;
+        if (val instanceof Date) return val;
+        if (typeof val === 'string') {
+          const parsed = this.parseDate(val);
+          return parsed && !isNaN(parsed.getTime()) ? parsed : null;
+        }
+        return null;
+      };
+
+      for (const sc of subCharges) {
+         const start = toDate(sc?.periodStartDate ?? sc?.period_start_date ?? null);
+         const end = toDate(sc?.periodEndDate ?? sc?.period_end_date ?? null);
+ 
+         if (start) {
+           if (!earliest || start.getTime() < earliest.getTime()) {
+             earliest = start;
+           }
+         }
+         if (end) {
+           if (!latest || end.getTime() > latest.getTime()) {
+             latest = end;
+           }
+         }
+       }
+
+      this.selectedTariff.periodStartDate = earliest || null;
+      this.selectedTariff.periodEndDate = latest || null;
+
+      this.updateFormValidity();
+      this.cdr.detectChanges();
+    } catch (e) {
+      console.error('Failed to recalculate general period dates:', e);
+    }
   }
 
   onVendorTypeChange() {
