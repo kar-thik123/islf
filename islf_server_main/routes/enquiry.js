@@ -114,27 +114,11 @@ router.get("/", async (req, res) => {
   console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
 
   try {
-    const username = getUsernameFromToken(req);
-    // if (!username) {
-    //     return res.status(401).json({ error: 'Unauthorized' });
-    // }
-    console.log("👤 [DEBUG] Authenticated user:", username || "system");
-    const { page = 1, limit = 10, search = "", status = "" } = req.query;
+    const { companyCode, branchCode, departmentCode, serviceTypeCode, page = 1, limit = 10, search = "", status = "" } = req.query;
 
-    // Get user context
-    const userResult = await pool.query(
-      "SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1",
-      [username]
-    );
-    console.log("✅ [DEBUG] User context rows:", userResult.rows);
-
-    if (userResult.rows.length === 0) {
-      console.warn("⚠️ [DEBUG] User not found in DB for username:", username);
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userContext = userResult.rows[0];
-    console.log("📌 [DEBUG] User context:", userContext);
+    // Do not require username for GET; proceed without user context
+    const userContext = {};
+    console.log("📌 [DEBUG] User context skipped for GET /enquiry; using optional query filters.");
 
     // Build dynamic query with context filtering
     let query = `
@@ -147,20 +131,28 @@ router.get("/", async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
-    // Context filtering
-    if (userContext.company_code) {
+    // Optional query param filtering (similar to master_location)
+    if (companyCode) {
       query += ` AND e.company_code = $${paramIndex}`;
-      params.push(userContext.company_code);
+      params.push(companyCode);
       paramIndex++;
+
+      if (branchCode) {
+        query += ` AND e.branch_code = $${paramIndex}`;
+        params.push(branchCode);
+        paramIndex++;
+
+        if (departmentCode) {
+          query += ` AND e.department_code = $${paramIndex}`;
+          params.push(departmentCode);
+          paramIndex++;
+        }
+      }
     }
-    if (userContext.branch_code) {
-      query += ` AND e.branch_code = $${paramIndex}`;
-      params.push(userContext.branch_code);
-      paramIndex++;
-    }
-    if (userContext.department_code) {
-      query += ` AND e.department_code = $${paramIndex}`;
-      params.push(userContext.department_code);
+
+    if (serviceTypeCode) {
+      query += ` AND e.service_type_code = $${paramIndex}`;
+      params.push(serviceTypeCode);
       paramIndex++;
     }
 
@@ -1620,8 +1612,8 @@ router.post("/:code/sourcing", async (req, res) => {
       to_location,
       effective_date_from,
       effective_date_to,
-      sourcing, 
-      local_tariff 
+      sourcing,
+      local_tariff,
     } = req.body;
 
     let query = `
@@ -1635,7 +1627,7 @@ router.post("/:code/sourcing", async (req, res) => {
         FROM sourcing
       ) WHERE source_status = 'Active'
     `;
-    
+
     const params = [];
     let paramIndex = 1;
 
@@ -1657,21 +1649,30 @@ router.post("/:code/sourcing", async (req, res) => {
         `SELECT from_location, to_location FROM master_service_area WHERE service_area = $1`,
         [service_area]
       );
-      
+
       if (serviceAreaResult.rows.length > 0) {
         const serviceAreaData = serviceAreaResult.rows[0];
         const saFromLoc = serviceAreaData.from_location;
         const saToLoc = serviceAreaData.to_location;
-        
-        console.log("Service Area configuration - from_location:", saFromLoc, "to_location:", saToLoc);
+
+        console.log(
+          "Service Area configuration - from_location:",
+          saFromLoc,
+          "to_location:",
+          saToLoc
+        );
 
         // Location filtering based on service area configuration and match_all/match_any
         let locationConditions = [];
-        
+
         // Add from_location condition if service area requires it AND we have from_location value
         if (saFromLoc && from_location && from_location.trim() !== "") {
           if (from_location_type && from_location_type.trim() !== "") {
-            locationConditions.push(`(from_location = $${paramIndex} AND location_type_from = $${paramIndex + 1})`);
+            locationConditions.push(
+              `(from_location = $${paramIndex} AND location_type_from = $${
+                paramIndex + 1
+              })`
+            );
             params.push(from_location, from_location_type);
             paramIndex += 2;
           } else {
@@ -1684,7 +1685,11 @@ router.post("/:code/sourcing", async (req, res) => {
         // Add to_location condition if service area requires it AND we have to_location value
         if (saToLoc && to_location && to_location.trim() !== "") {
           if (to_location_type && to_location_type.trim() !== "") {
-            locationConditions.push(`(to_location = $${paramIndex} AND location_type_to = $${paramIndex + 1})`);
+            locationConditions.push(
+              `(to_location = $${paramIndex} AND location_type_to = $${
+                paramIndex + 1
+              })`
+            );
             params.push(to_location, to_location_type);
             paramIndex += 2;
           } else {
@@ -1696,20 +1701,28 @@ router.post("/:code/sourcing", async (req, res) => {
 
         // Apply location conditions based on match_all/match_any
         if (locationConditions.length > 0) {
-          if (sourcing === 'match_all') {
+          if (sourcing === "match_all") {
             // Require ALL conditions to match (AND logic)
-            query += ` AND ${locationConditions.join(' AND ')}`;
-            console.log("Applying match_all logic:", locationConditions.join(' AND '));
-          } else if (sourcing === 'match_any') {
+            query += ` AND ${locationConditions.join(" AND ")}`;
+            console.log(
+              "Applying match_all logic:",
+              locationConditions.join(" AND ")
+            );
+          } else if (sourcing === "match_any") {
             // Require ANY condition to match (OR logic)
-            query += ` AND (${locationConditions.join(' OR ')})`;
-            console.log("Applying match_any logic:", locationConditions.join(' OR '));
+            query += ` AND (${locationConditions.join(" OR ")})`;
+            console.log(
+              "Applying match_any logic:",
+              locationConditions.join(" OR ")
+            );
           } else {
             // Default: require ALL conditions
-            query += ` AND ${locationConditions.join(' AND ')}`;
+            query += ` AND ${locationConditions.join(" AND ")}`;
           }
         } else {
-          console.log("No location conditions to apply based on service area configuration");
+          console.log(
+            "No location conditions to apply based on service area configuration"
+          );
         }
       }
     }
@@ -1729,7 +1742,12 @@ router.post("/:code/sourcing", async (req, res) => {
     }
 
     // Date range filter
-    if (effective_date_from && effective_date_from.trim() !== "" && effective_date_to && effective_date_to.trim() !== "") {
+    if (
+      effective_date_from &&
+      effective_date_from.trim() !== "" &&
+      effective_date_to &&
+      effective_date_to.trim() !== ""
+    ) {
       query += ` AND (
         (period_start_date IS NULL OR period_start_date <= $${paramIndex}) AND 
         (period_end_date IS NULL OR period_end_date >= $${paramIndex})
@@ -1742,11 +1760,34 @@ router.post("/:code/sourcing", async (req, res) => {
 
     console.log("Final sourcing query:", query);
     console.log("Final sourcing params:", params);
-    
-    const result = await pool.query(query, params);
-    console.log(`Found ${result.rows.length} sourcing vendors`);
 
-    res.json(result.rows);
+    const { rows: sourceResult } = await pool.query(query, params);
+    console.log(`Found ${sourceResult.length} sourcing vendors`);
+
+    const sourceIds = sourceResult.map((s) => s.id);
+
+    const { rows: sourceSubchargeResult } = await pool.query(
+      `SELECT * FROM sourcing_sub_charges WHERE sourcing_id = ANY($1) ORDER BY sourcing_id, id`,
+      sourceIds
+    );
+
+    // reducing the collected sub charge as per source id
+    const subChargesBySource = sourceSubchargeResult.reduce(
+      (acc, subCharge) => {
+        if (!acc[subCharge.sourcing_id]) acc[subCharge.sourcing_id] = [];
+        acc[subCharge.sourcing_id].push(subCharge);
+        return acc;
+      },
+      {}
+    );
+
+    const sourceResponse = sourceResult.map((src) => ({
+      ...src,
+      sub_charges: subChargesBySource[src.id] || [],
+    }));
+
+    console.log("Sourcing response prepared:", sourceResponse);
+    res.json(sourceResponse);
   } catch (error) {
     console.error("Error fetching sourcing options:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -1759,31 +1800,27 @@ router.post("/:code/tariff", async (req, res) => {
     const { code } = req.params;
     const {
       department,
-      basis,
       cargo_type,
-      service_area,
       service_type,
-      line_item_type,
       from_location,
       from_location_type,
       to_location,
       to_location_type,
       effective_date_from,
       effective_date_to,
-      sourcing, 
-      local_tariff 
+      sourcing,
+      local_tariff,
     } = req.body;
 
-    console.log("=== TARIFF REQUEST DEBUG ===");
-    console.log("local_tariff parameter:", local_tariff);
-    console.log("sourcing parameter:", sourcing);
-    console.log("from_location:", from_location);
-    console.log("to_location:", to_location);
-    console.log("service_area:", service_area);
-    console.log("=== END DEBUG ===");
+    if (!sourcing || sourcing.length === 0) {
+      return res.status(400).json({ error: "No sourcing vendors selected" });
+    }
+
+    const vendorNos = sourcing.map((v) => v.vendor_no || v.vendor_name);
+    const vendorTypes = sourcing.map((v) => v.vendor_type);
 
     let query = `
-      SELECT t.*, v.name as vendor_name, v.type as vendor_type
+      SELECT t.*, v.name AS vendor_name, v.type AS vendor_type
       FROM tariff AS t
       LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
       WHERE t.is_mandatory = true
@@ -1791,121 +1828,115 @@ router.post("/:code/tariff", async (req, res) => {
 
     const params = [];
     let paramIndex = 1;
+    if (effective_date_from && effective_date_to) {
+      query += `
+        AND t.period_start_date <= $${paramIndex}
+        AND ($${paramIndex + 1} <= t.expiry_date OR t.expiry_date IS NULL)
+      `;
+      params.push(effective_date_from, effective_date_to);
+      paramIndex += 2;
+    }
+    query += ` AND t.vendor_name = ANY($${paramIndex})`;
+    params.push(vendorNos);
+    paramIndex++;
 
-    // Department filter
+    query += ` AND v.type = ANY($${paramIndex})`;
+    params.push(vendorTypes);
+    paramIndex++;
     if (department && department.trim() !== "") {
       query += ` AND t.mode = $${paramIndex}`;
       params.push(department);
       paramIndex++;
     }
-
-    // Service Area filter
-    if (service_area && service_area.trim() !== "") {
-      query += ` AND t.service_area = $${paramIndex}`;
-      params.push(service_area);
-      paramIndex++;
-
-      // Get service area configuration
-      const serviceAreaResult = await pool.query(
-        `SELECT from_location, to_location FROM master_service_area WHERE service_area = $1`,
-        [service_area]
-      );
-      
-      if (serviceAreaResult.rows.length > 0) {
-        const serviceAreaData = serviceAreaResult.rows[0];
-        const saFromLoc = serviceAreaData.from_location;
-        const saToLoc = serviceAreaData.to_location;
-        
-        console.log("Service Area configuration - from_location:", saFromLoc, "to_location:", saToLoc);
-
-        // Location filtering based on service area configuration and match_all/match_any
-        let locationConditions = [];
-        
-        // Add from_location condition if service area requires it AND we have from_location value
-        if (saFromLoc && from_location && from_location.trim() !== "") {
-          if (from_location_type && from_location_type.trim() !== "") {
-            locationConditions.push(`(t.from_location = $${paramIndex} AND t.location_type_from = $${paramIndex + 1})`);
-            params.push(from_location, from_location_type);
-            paramIndex += 2;
-          } else {
-            locationConditions.push(`t.from_location = $${paramIndex}`);
-            params.push(from_location);
-            paramIndex++;
-          }
-        }
-
-        // Add to_location condition if service area requires it AND we have to_location value
-        if (saToLoc && to_location && to_location.trim() !== "") {
-          if (to_location_type && to_location_type.trim() !== "") {
-            locationConditions.push(`(t.to_location = $${paramIndex} AND t.location_type_to = $${paramIndex + 1})`);
-            params.push(to_location, to_location_type);
-            paramIndex += 2;
-          } else {
-            locationConditions.push(`t.to_location = $${paramIndex}`);
-            params.push(to_location);
-            paramIndex++;
-          }
-        }
-
-        console.log("Location conditions:", locationConditions);
-        console.log("local_tariff value:", local_tariff, "Type:", typeof local_tariff);
-
-        // Apply location conditions based on match_all/match_any
-        if (locationConditions.length > 0) {
-          if (local_tariff === 'match_any') {
-            // Require ANY condition to match (OR logic)
-            query += ` AND (${locationConditions.join(' OR ')})`;
-            console.log("Applying match_any logic (OR):", locationConditions.join(' OR '));
-          } else if (local_tariff === 'match_all') {
-            // Require ALL conditions to match (AND logic)
-            query += ` AND ${locationConditions.join(' AND ')}`;
-            console.log(" Applying match_all logic (AND):", locationConditions.join(' AND '));
-          } else {
-            // Default: require ALL conditions
-            query += ` AND ${locationConditions.join(' AND ')}`;
-            console.log(" Applying default logic (AND):", locationConditions.join(' AND '));
-          }
-        } else {
-          console.log("No location conditions to apply based on service area configuration");
-        }
-      }
-    }
-
-    // Cargo type filter
-    if (cargo_type && cargo_type.trim() !== "") {
-      query += ` AND t.cargo_type = $${paramIndex}`;
-      params.push(cargo_type);
-      paramIndex++;
-    }
-
-    // Service type filter
     if (service_type && service_type.trim() !== "") {
       query += ` AND t.shipping_type = $${paramIndex}`;
       params.push(service_type);
       paramIndex++;
     }
-
-    // Date range filter
-    if (effective_date_from && effective_date_from.trim() !== "" && effective_date_to && effective_date_to.trim() !== "") {
-      query += ` AND t.period_start_date <= $${paramIndex} AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})`;
-      params.push(effective_date_to);
+    if (cargo_type && cargo_type.trim() !== "") {
+      query += ` AND t.cargo_type = $${paramIndex}`;
+      params.push(cargo_type);
       paramIndex++;
     }
+    let locationConditions = [];
 
+    if (from_location) {
+      if (from_location_type) {
+        locationConditions.push(
+          `(t.from_location = $${paramIndex} AND t.location_type_from = $${
+            paramIndex + 1
+          })`
+        );
+        params.push(from_location, from_location_type);
+        paramIndex += 2;
+      } else {
+        locationConditions.push(`t.from_location = $${paramIndex}`);
+        params.push(from_location);
+        paramIndex++;
+      }
+    }
+
+    if (to_location) {
+      if (to_location_type) {
+        locationConditions.push(
+          `(t.to_location = $${paramIndex} AND t.location_type_to = $${
+            paramIndex + 1
+          })`
+        );
+        params.push(to_location, to_location_type);
+        paramIndex += 2;
+      } else {
+        locationConditions.push(`t.to_location = $${paramIndex}`);
+        params.push(to_location);
+        paramIndex++;
+      }
+    }
+
+    if (locationConditions.length > 0) {
+      if (local_tariff === "match_any") {
+        query += ` AND (${locationConditions.join(" OR ")})`;
+      } else {
+        // match_all + default
+        query += ` AND ${locationConditions.join(" AND ")}`;
+      }
+    }
     query += ` ORDER BY t.vendor_name, t.created_at DESC`;
-    
+
     console.log("Final tariff query:", query);
     console.log("Final tariff params:", params);
-    
-    const result = await pool.query(query, params);
-    console.log(`Found ${result.rows.length} tariff vendors`);
 
-    res.json(result.rows);
+    const {rows: tariffResult} = await pool.query(query, params);
+    const tariffIds = tariffResult.map((T) => T.id);
+
+    const { rows: tariffSubchargeResult } = await pool.query(
+      `SELECT * FROM tariff_charges WHERE tariff_id = ANY($1) ORDER BY tariff_id, id`,
+      tariffIds
+    );
+
+    // reducing the collected sub charge as per source id
+    const subChargesByTariff = tariffSubchargeResult.reduce(
+      (acc, subCharge) => {
+        if (!acc[subCharge.tariff_id]) acc[subCharge.tariff_id] = [];
+        acc[subCharge.tariff_id].push(subCharge);
+        return acc;
+      },
+      {}
+    );
+
+    const tariffResponse = tariffResult.map((tariff) => ({
+      ...tariff,
+      sub_charges: subChargesByTariff[tariff.id] || [],
+    }));
+
+    console.log(`Found ${tariff.length} tariff vendors`);
+
+    res.json(tariffResponse);
   } catch (error) {
     console.error("Error fetching tariff options:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 // POST /enquiry/:code/vendor-cards - Add vendor cards to enquiry
 router.post("/:code/vendor-cards", async (req, res) => {
   try {
