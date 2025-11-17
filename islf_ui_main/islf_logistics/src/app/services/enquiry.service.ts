@@ -359,12 +359,38 @@ export class EnquiryService {
   /** Vendor card operations */
   addVendorCards(
     enquiryCode: string,
-    vendorCards: EnquiryVendorCard[],
+    vendorCards: any[],
     vendorContext: {}
   ): Observable<any> {
-    const payload = this.contextPayload.withContext(
-      { vendorCards, ...vendorContext },
+    const lineItemId = (vendorContext as any)?.lineItemId;
+    const masterType = (vendorContext as any)?.masterType || (vendorContext as any)?.sourcingType;
 
+    const normalizedVendorCards = (vendorCards || []).map((card: any) => ({
+      enquiry_line_item_id: card.enquiry_line_item_id ?? lineItemId,
+      master_type: masterType || card.master_type || 'sourcing',
+      department: card.department,
+      service_type: card.service_type,
+      type: card.type,
+      service_area: card.service_area,
+      vendor_type: card.vendor_type,
+      vendor_name: card.vendor_name,
+      basis: card.basis,
+      cargo: card.cargo,
+      location_type_from: card.location_type_from,
+      from_location: card.from_location,
+      location_type_to: card.location_type_to,
+      to_location: card.to_location,
+      period_start_date: card.period_start_date,
+      period_end_date: card.period_end_date,
+      charges: Array.isArray(card.charges)
+        ? card.charges
+        : Array.isArray(card.selected_subcharges)
+        ? card.selected_subcharges
+        : []
+    }));
+
+    const payload = this.contextPayload.withContext(
+      { vendorCards: normalizedVendorCards, masterType, lineItemId },
       this.contextService.getContext()
     );
     console.log('add Vendor Cards payload,', payload);

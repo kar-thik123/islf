@@ -601,11 +601,7 @@ router.post("/", async (req, res) => {
       [name]
     );
 
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userContext = userResult.rows[0];
+    const userContext = userResult.rows[0] || {};
 
     const client = await pool.connect();
 
@@ -985,11 +981,7 @@ router.put("/:code", async (req, res) => {
       [username]
     );
 
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userContext = userResult.rows[0];
+    const userContext = userResult.rows[0] || {};
 
     const client = await pool.connect();
 
@@ -1271,13 +1263,7 @@ router.get("/customers/dropdown", async (req, res) => {
       "SELECT company_code, branch_code, department_code FROM users WHERE username = $1",
       [username]
     );
-
-    if (userResult.rows.length === 0) {
-      console.warn(`⚠️ No user found for username: ${username}`);
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userContext = userResult.rows[0];
+    const userContext = userResult.rows[0] || {};
     console.log("✅ User context:", userContext);
 
     // Get customers from customer table with primary contact details
@@ -1485,12 +1471,7 @@ router.get("/locations/dropdown", async (req, res) => {
       "SELECT company_code, branch_code, department_code FROM users WHERE username = $1",
       [username]
     );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userContext = userResult.rows[0];
+    const userContext = userResult.rows[0] || {};
 
     // Get locations from master_location table
     let locationQuery = `
@@ -1937,134 +1918,170 @@ router.post("/:code/tariff", async (req, res) => {
   }
 });
 
-// POST /enquiry/:code/vendor-cards - Add vendor cards to enquiry
 router.post("/:code/vendor-cards", async (req, res) => {
   try {
     const username = getUsernameFromToken(req);
+
     if (!username) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     const { code } = req.params;
-    const { vendorCards, sourcingType, lineItemId } = req.body;
-    let sourcedNo = 0;
+    const { vendorCards, masterType: masterTypeRaw, sourcingType, lineItemId } = req.body;
 
-    typeof vendorCards === "undefined" && (vendorCards = []);
+    const masterType = (masterTypeRaw || sourcingType || '').toLowerCase();
+    // Validate masterType
+    if (!masterType || (masterType !== 'sourcing' && masterType !== 'tariff')) {
+      return res.status(400).json({ 
+        error: "Invalid master type", 
+        details: "masterType must be either 'sourcing' or 'tariff'" 
+      });
+    }
 
-    console.log("DEBUG: vendor cards list from post met:", vendorCards);
-
-    // First get the enquiry ID from the code
+    // Fetch enquiry with context fields
     const enquiryResult = await pool.query(
-      "SELECT id FROM enquiry WHERE code = $1",
+      "SELECT id, department, service_type, cargo_type, from_location_type, to_location_type, effective_date_from, effective_date_to FROM enquiry WHERE code = $1",
       [code]
     );
+
     if (enquiryResult.rows.length === 0) {
       return res.status(404).json({ error: "Enquiry not found" });
     }
-    const enquiryId = enquiryResult.rows[0].id;
 
-    // sourced no value
-    let { rows: sourcedNoResult } = await pool.query(
-      `SELECT * FROM enquiry_vendor_cards WHERE enquiry_id =$1 AND enquiry_line_item_id =$2 AND source_type = $3 ORDER BY sourced_no DESC NULLS LAST LIMIT 1;
-`,
-      [enquiryId, lineItemId, sourcingType]
-    );
-
-    console.log("sourced no DB result", sourcedNoResult);
-
-    if (sourcedNoResult.length > 0) {
-      let { sourced_no: sourcedNoFromDB } = sourcedNoResult[0];
-      console.log("initial sourced No:,", sourcedNoFromDB);
-      if (sourcedNoFromDB == null) {
-        sourcedNo = 1;
-      } else {
-        sourcedNo = ++sourcedNoFromDB;
-      }
-      console.log("Altered sourced No,", sourcedNo);
-    } else if (sourcedNoResult.length === 0) {
-      sourcedNo = 1;
-    } else {
-      sourcedNo = -1;
-    }
+    const enquiryRow = enquiryResult.rows[0];
+    const enquiryId = enquiryRow.id;
 
     const client = await pool.connect();
 
     try {
       await client.query("BEGIN");
 
-      // Clear existing vendor cards
-      // await client.query(
-      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
-      //   [enquiryId]
-      // );
-      // await client.query(
-      //   "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1",
-      //   [enquiryId]
-      // );
+      const cards = Array.isArray(vendorCards) ? vendorCards : [];
+      
+      for (const card of cards) {
+        // master_type already validated above
+        
+        // Handle date fields based on master_type
+        let effectiveDate, expiryDate;
+        
+        if (masterType === 'sourcing') {
+          effectiveDate = card.effective_date || card.period_start_date || card.start_date || enquiryRow.effective_date_from || null;
+          expiryDate = card.expiry_date || card.period_end_date || card.end_date || enquiryRow.effective_date_to || null;
+        } else if (masterType === 'tariff') {
+          effectiveDate = card.effective_date || card.period_start_date || enquiryRow.effective_date_from || null;
+          expiryDate = card.expiry_date || enquiryRow.effective_date_to || null;
+        }
 
-      // Add new vendor cards
-      for (const card of vendorCards) {
-        // Handle date fields - convert empty strings to null
-        const effectiveDate =
-          card.effective_date && card.effective_date.trim() !== ""
-            ? card.effective_date
-            : null;
-        const expiryDate =
-          card.expiry_date && card.expiry_date.trim() !== ""
-            ? card.expiry_date
-            : null;
+        // Insert into enquiry_vendor_cards with proper master_type
+        const insertQuery = `
+          INSERT INTO enquiry_vendor_cards 
+            (enquiry_id, enquiry_line_item_id, master_type, department, service_type, 
+             type, service_area, vendor_type, vendor_name, basis, cargo, 
+             location_type_from, from_location, location_type_to, to_location, 
+             period_start_date, period_end_date)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          RETURNING id
+        `;
 
-        await client.query(
-          `INSERT INTO enquiry_vendor_cards (enquiry_id, vendor_name, vendor_type, is_active, charges, source_type, source_id, mode, from_location, to_location, basis, vendor_code, effective_date, expiry_date, currency, quantity, remarks, enquiry_line_item_id, sourced_no, is_selected)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
-          [
-            enquiryId,
-            card.vendor_name,
-            card.vendor_type,
-            card.is_active || false,
-            JSON.stringify(card.charges || []),
-            card.source_type,
-            card.source_id,
-            card.mode,
-            card.from_location,
-            card.to_location,
-            card.basis,
-            card.vendor_code,
-            effectiveDate,
-            expiryDate,
-            card.currency,
-            card.quantity,
-            card.remarks,
-            card.enquiry_line_item_id,
-            sourcedNo,
-            true,
-          ]
-        );
+        const insertParams = [
+          enquiryId,
+          lineItemId,
+          masterType,
+          card.department || enquiryRow.department || null,
+          card.service_type || enquiryRow.service_type || null,
+          card.type || null,
+          card.service_area || null,
+          card.vendor_type || null,
+          card.vendor_name || card.vendor || card.code || null,
+          card.basis || null,
+          card.cargo || card.cargo_type || enquiryRow.cargo_type || null,
+          card.location_type_from || enquiryRow.from_location_type || null,
+          card.from_location || null,
+          card.location_type_to || enquiryRow.to_location_type || null,
+          card.to_location || null,
+          effectiveDate,
+          expiryDate
+        ];
+
+        const result = await client.query(insertQuery, insertParams);
+        const vendorCardId = result.rows[0].id;
+
+        // Insert sub-charges with proper master_type reference
+        const chargesArr = Array.isArray(card.charges) ? card.charges : 
+                          (Array.isArray(card.selected_subcharges) ? card.selected_subcharges : []);
+
+        if (chargesArr.length > 0) {
+          for (const ch of chargesArr) {
+            const chargeName = ch.charge_name || ch.name || null;
+            const currencyVal = ch.currency || card.currency || null;
+            const basisVal = ch.basis || card.basis || null;
+            const amountVal = ch.amount ?? ch.charges ?? null;
+            const sellRateCur = ch.sell_rate_currency || null;
+            const sellRateVal = ch.sell_rate || null;
+            const gstVatVal = ch.gst_vat || ch.gst_rate || null;
+            const remarksVal = ch.remarks || null;
+
+            // Skip rows that would violate NOT NULL constraints
+            if (!chargeName || !currencyVal) {
+              console.warn('Skipping sub-charge due to missing required fields', {
+                chargeName,
+                currencyVal,
+                basisVal,
+                amountVal
+              });
+              continue;
+            }
+
+            const subChargeQuery = `
+              INSERT INTO enquiry_vendor_sub_charges 
+                (enquiry_id, enquiry_line_item_id, master_id, master_type, charge_name, 
+                 currency, basis, charges, sell_rate_currency, sell_rate, gst_vat, remarks)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            `;
+
+            const subChargeParams = [
+              enquiryId,
+              lineItemId,
+              vendorCardId,
+              masterType,
+              chargeName,
+              currencyVal,
+              basisVal,
+              amountVal,
+              sellRateCur,
+              sellRateVal,
+              gstVatVal,
+              remarksVal
+            ];
+
+            await client.query(subChargeQuery, subChargeParams);
+          }
+        }
       }
 
       await client.query("COMMIT");
 
-      // Log the update
-      await logMasterEvent({
-        username: username,
-        action: "UPDATE",
-        masterType: "Enquiry",
-        recordId: code,
-        details: `Enquiry "${code}" has been updated successfully.`,
+      res.json({ 
+        message: `Vendor cards added successfully for ${masterType}`,
+        master_type: masterType,
+        count: cards.length
       });
 
-      res.json({ message: "Enquiry updated successfully" });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
+
   } catch (error) {
-    console.error("Error updating vendor cards:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ 
+      error: "Internal server error", 
+      details: error.message
+    });
   }
 });
+
 
 // PUT /enquiry/:code/vendor-cards/:cardId/negotiate - Update negotiated charges
 router.put("/:code/vendor-cards/:cardId/negotiate", async (req, res) => {

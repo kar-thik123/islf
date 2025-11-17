@@ -1,43 +1,48 @@
 const pool = require('../db');
 
 /**
- * Get the update with context setting from configuration
+ * Check if updates should include context fields
  */
 async function shouldUpdateWithContext() {
   try {
-    const result = await pool.query('SELECT value FROM settings WHERE key = $1', ['validation_update_with_context']);
+    const result = await pool.query(
+      'SELECT value FROM settings WHERE key = $1',
+      ['validation_update_with_context']
+    );
     return result.rows.length > 0 && result.rows[0].value === 'true';
   } catch (err) {
-    console.error('Error checking update with context setting:', err);
-    return false; // Default to false if error
+    console.error('❌ Error reading update_with_context setting:', err.message);
+    return false; // Default to false on error
   }
 }
 
 /**
- * Build dynamic UPDATE query based on context setting
- * @param {string} tableName - The table to update
- * @param {object} data - The data to update
- * @param {string} whereClause - The WHERE clause (e.g., 'id = $X')
- * @param {array} whereParams - Parameters for the WHERE clause
- * @returns {object} - { query, params }
+ * Convert camelCase → snake_case safely
+ */
+function toSnakeCase(str) {
+  return str.replace(/([A-Z])/g, "_$1").toLowerCase();
+}
+
+/**
+ * Build UPDATE query dynamically based on system settings
  */
 async function buildUpdateQuery(tableName, data, whereClause, whereParams) {
   const updateWithContext = await shouldUpdateWithContext();
-  
+
   const setClauses = [];
   const params = [];
   let paramIndex = 1;
-  
-  // Always include non-context fields
+
+  // ALWAYS include normal fields
   for (const [key, value] of Object.entries(data)) {
     if (!['companyCode', 'branchCode', 'departmentCode', 'serviceTypeCode'].includes(key)) {
-      setClauses.push(`${key.replace(/([A-Z])/g, '_$1').toLowerCase()} = $${paramIndex}`);
+      setClauses.push(`${toSnakeCase(key)} = $${paramIndex}`);
       params.push(value);
       paramIndex++;
     }
   }
-  
-  // Include context fields only if setting is enabled
+
+  // INCLUDE CONTEXT FIELDS ONLY IF setting enabled
   if (updateWithContext) {
     if (data.companyCode !== undefined) {
       setClauses.push(`company_code = $${paramIndex}`);
@@ -60,52 +65,75 @@ async function buildUpdateQuery(tableName, data, whereClause, whereParams) {
       paramIndex++;
     }
   }
-  
-  // Add WHERE clause parameters
-  whereParams.forEach(param => {
-    params.push(param);
-  });
-  
-  const query = `UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE ${whereClause} RETURNING *`;
-  
-  return { query, params };
-}
-function getUsernameFromToken(req) {
-  if (!req.user) {
-    console.log('No user in request, using system');
-    return 'system';
+
+  // Add WHERE params after SET params
+  for (const w of whereParams) {
+    params.push(w);
   }
 
-  console.log('User object from JWT:', req.user);
+  const query = `
+      UPDATE ${tableName}
+      SET ${setClauses.join(', ')}
+      WHERE ${whereClause}
+      RETURNING *
+  `;
 
-  // For valid JWT tokens, prefer username over name, then email as fallback
-  // For system fallback (when no valid token), it will have { username: 'system' }
-  const username = req.user.username || req.user.name || req.user.email || 'system';
-  console.log('Extracted username:', username);
+  console.log("🔧 Generated UPDATE Query:", query);
+  console.log("📦 Params:", params);
+
+  return { query, params };
+}
+
+/**
+ * Extract username from JWT (req.user)
+ */
+function getUsernameFromToken(req) {
+  if (!req.user) {
+    console.log("⚠️ No req.user found → using 'system'");
+    return "system";
+  }
+
+  console.log("👤 JWT Payload:", req.user);
+
+  // Priority: username > name > email > system
+  const username =
+    req.user.username ||
+    req.user.name ||
+    req.user.email ||
+    "system";
+
+  console.log("➡️ Extracted Username:", username);
+
   return username;
 }
 
-
-// change Field Detection
-function fieldChangeDetection({fieldsToCheck, prevVal}) {
-  if( typeof fieldsToCheck !== 'object'|| typeof prevVal !== 'object' ){
-      throw new TypeError('fieldsToCheck and prevVal must be of type Object');      
+/**
+ * Detect changed fields between old and new values
+ */
+function fieldChangeDetection({ fieldsToCheck, prevVal }) {
+  if (typeof fieldsToCheck !== "object" || typeof prevVal !== "object") {
+    throw new TypeError("fieldsToCheck and prevVal must be objects");
   }
-  changedFields = [];
 
-  const normalize = (value)=>{
-    if (value==null || value ==undefined) return '';
+  let changedFields = [];
 
-    return value.toString().trim();
-  }
-  for (field in fieldsToCheck){
+  const normalize = (v) => {
+    if (v === null || v === undefined) return "";
+    return v.toString().trim();
+  };
+
+  for (const field of Object.keys(fieldsToCheck)) {
     const newVal = normalize(fieldsToCheck[field]);
-    const oldVal =normalize(prevVal[field]);
-    newVal !== oldVal && changedFields.push(`Field ${field} changed From ${oldVal} to ${newVal}`);
+    const oldVal = normalize(prevVal[field]);
+
+    if (newVal !== oldVal) {
+      changedFields.push(`Field '${field}' changed from '${oldVal}' to '${newVal}'`);
+    }
   }
 
-  return changedFields.length > 0 ? 'Changes detected in the field \n'+changedFields.join('\n') : 'No Changes Detected';
-  
+  return changedFields.length
+    ? "Changes detected:\n" + changedFields.join("\n")
+    : "No Changes Detected";
 }
 
 module.exports = {

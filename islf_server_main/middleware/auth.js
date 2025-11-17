@@ -1,30 +1,31 @@
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+console.log("JWT_SECRET loaded:", JWT_SECRET);
 
-// Debug: log the JWT secret being used
-console.log('JWT_SECRET loaded:', JWT_SECRET);
-
-// JWT authentication middleware
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+
     if (!token) {
-        // If no token, continue but set user as 'system'
-        req.user = { username: 'system' };
+        // No token → treat as system user
+        req.user = { username: "system" };
+        console.log("⚠️ No token → req.user = system");
         return next();
     }
-    
+
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
-            // If token is invalid, continue but set user as 'system'
-            req.user = { username: 'system' };
+            // Invalid token → treat as system user
+            req.user = { username: "system" };
+            console.log("⚠️ Invalid token → req.user = system");
             return next();
         }
+
         req.user = user;
+        console.log("✅ Valid JWT user:", user);
         next();
     });
 }
 
-module.exports = { authenticateToken }; 
+module.exports = { authenticateToken };
