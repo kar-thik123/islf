@@ -359,38 +359,38 @@ export class EnquiryService {
   /** Vendor card operations */
   addVendorCards(
     enquiryCode: string,
-    vendorCards: any[],
+    vendorCard: any,
     vendorContext: {}
   ): Observable<any> {
     const lineItemId = (vendorContext as any)?.lineItemId;
     const masterType = (vendorContext as any)?.masterType || (vendorContext as any)?.sourcingType;
 
-    const normalizedVendorCards = (vendorCards || []).map((card: any) => ({
-      enquiry_line_item_id: card.enquiry_line_item_id ?? lineItemId,
-      master_type: masterType || card.master_type || 'sourcing',
-      department: card.department,
-      service_type: card.service_type,
-      type: card.type,
-      service_area: card.service_area,
-      vendor_type: card.vendor_type,
-      vendor_name: card.vendor_name,
-      basis: card.basis,
-      cargo: card.cargo,
-      location_type_from: card.location_type_from,
-      from_location: card.from_location,
-      location_type_to: card.location_type_to,
-      to_location: card.to_location,
-      period_start_date: card.period_start_date,
-      period_end_date: card.period_end_date,
-      charges: Array.isArray(card.charges)
-        ? card.charges
-        : Array.isArray(card.selected_subcharges)
-        ? card.selected_subcharges
+    const normalizedVendorCard = {
+      enquiry_line_item_id: vendorCard.enquiry_line_item_id ?? lineItemId,
+      master_type: masterType || vendorCard.master_type || 'sourcing',
+      department: vendorCard.department,
+      service_type: vendorCard.service_type,
+      type: vendorCard.type,
+      service_area: vendorCard.service_area,
+      vendor_type: vendorCard.vendor_type,
+      vendor_name: vendorCard.vendor_name,
+      basis: vendorCard.basis,
+      cargo: vendorCard.cargo,
+      location_type_from: vendorCard.location_type_from,
+      from_location: vendorCard.from_location,
+      location_type_to: vendorCard.location_type_to,
+      to_location: vendorCard.to_location,
+      period_start_date: vendorCard.period_start_date,
+      period_end_date: vendorCard.period_end_date,
+      charges: Array.isArray(vendorCard.charges)
+        ? vendorCard.charges
+        : Array.isArray(vendorCard.selected_subcharges)
+        ? vendorCard.selected_subcharges
         : []
-    }));
+    };
 
     const payload = this.contextPayload.withContext(
-      { vendorCards: normalizedVendorCards, masterType, lineItemId },
+      { vendorCards: normalizedVendorCard, masterType, lineItemId },
       this.contextService.getContext()
     );
     console.log('add Vendor Cards payload,', payload);

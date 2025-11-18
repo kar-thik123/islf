@@ -114,11 +114,22 @@ router.get("/", async (req, res) => {
   console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
 
   try {
-    const { companyCode, branchCode, departmentCode, serviceTypeCode, page = 1, limit = 10, search = "", status = "" } = req.query;
+    const {
+      companyCode,
+      branchCode,
+      departmentCode,
+      serviceTypeCode,
+      page = 1,
+      limit = 10,
+      search = "",
+      status = "",
+    } = req.query;
 
     // Do not require username for GET; proceed without user context
     const userContext = {};
-    console.log("📌 [DEBUG] User context skipped for GET /enquiry; using optional query filters.");
+    console.log(
+      "📌 [DEBUG] User context skipped for GET /enquiry; using optional query filters."
+    );
 
     // Build dynamic query with context filtering
     let query = `
@@ -1749,7 +1760,7 @@ router.post("/:code/sourcing", async (req, res) => {
 
     const { rows: sourceSubchargeResult } = await pool.query(
       `SELECT * FROM sourcing_sub_charges WHERE sourcing_id = ANY($1) ORDER BY sourcing_id, id`,
-      sourceIds
+      [sourceIds]
     );
 
     // reducing the collected sub charge as per source id
@@ -1765,6 +1776,7 @@ router.post("/:code/sourcing", async (req, res) => {
     const sourceResponse = sourceResult.map((src) => ({
       ...src,
       sub_charges: subChargesBySource[src.id] || [],
+      selected_subcharges: subChargesBySource[src.id] || [],
     }));
 
     console.log("Sourcing response prepared:", sourceResponse);
@@ -1886,7 +1898,7 @@ router.post("/:code/tariff", async (req, res) => {
     console.log("Final tariff query:", query);
     console.log("Final tariff params:", params);
 
-    const {rows: tariffResult} = await pool.query(query, params);
+    const { rows: tariffResult } = await pool.query(query, params);
     const tariffIds = tariffResult.map((T) => T.id);
 
     const { rows: tariffSubchargeResult } = await pool.query(
@@ -1927,14 +1939,19 @@ router.post("/:code/vendor-cards", async (req, res) => {
     }
 
     const { code } = req.params;
-    const { vendorCards, masterType: masterTypeRaw, sourcingType, lineItemId } = req.body;
+    const {
+      vendorCard,
+      masterType: masterTypeRaw,
+      sourcingType,
+      lineItemId,
+    } = req.body;
 
-    const masterType = (masterTypeRaw || sourcingType || '').toLowerCase();
+    const masterType = (masterTypeRaw || sourcingType || "").toLowerCase();
     // Validate masterType
-    if (!masterType || (masterType !== 'sourcing' && masterType !== 'tariff')) {
-      return res.status(400).json({ 
-        error: "Invalid master type", 
-        details: "masterType must be either 'sourcing' or 'tariff'" 
+    if (!masterType || (masterType !== "sourcing" && masterType !== "tariff")) {
+      return res.status(400).json({
+        error: "Invalid master type",
+        details: "masterType must be either 'sourcing' or 'tariff'",
       });
     }
 
@@ -1951,24 +1968,48 @@ router.post("/:code/vendor-cards", async (req, res) => {
     const enquiryRow = enquiryResult.rows[0];
     const enquiryId = enquiryRow.id;
 
+    // retriving the previously selected sourcing Id
+    const {rows: vendorCardId} = await pool.query(`SELECT id FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_type=$3;`, [enquiryId, lineItemId, masterType]);
+
     const client = await pool.connect();
+
+    
 
     try {
       await client.query("BEGIN");
 
-      const cards = Array.isArray(vendorCards) ? vendorCards : [];
-      
-      for (const card of cards) {
+      const card = vendorCard ? vendorCard : null;
+
+      if(!card){
+        return res.status(400).json({error: "No vendor cards provided"});
+      }
+
+
+
         // master_type already validated above
-        
+
         // Handle date fields based on master_type
         let effectiveDate, expiryDate;
-        
-        if (masterType === 'sourcing') {
-          effectiveDate = card.effective_date || card.period_start_date || card.start_date || enquiryRow.effective_date_from || null;
-          expiryDate = card.expiry_date || card.period_end_date || card.end_date || enquiryRow.effective_date_to || null;
-        } else if (masterType === 'tariff') {
-          effectiveDate = card.effective_date || card.period_start_date || enquiryRow.effective_date_from || null;
+
+        if (masterType === "sourcing") {
+          effectiveDate =
+            card.effective_date ||
+            card.period_start_date ||
+            card.start_date ||
+            enquiryRow.effective_date_from ||
+            null;
+          expiryDate =
+            card.expiry_date ||
+            card.period_end_date ||
+            card.end_date ||
+            enquiryRow.effective_date_to ||
+            null;
+        } else if (masterType === "tariff") {
+          effectiveDate =
+            card.effective_date ||
+            card.period_start_date ||
+            enquiryRow.effective_date_from ||
+            null;
           expiryDate = card.expiry_date || enquiryRow.effective_date_to || null;
         }
 
@@ -1995,20 +2036,23 @@ router.post("/:code/vendor-cards", async (req, res) => {
           card.vendor_name || card.vendor || card.code || null,
           card.basis || null,
           card.cargo || card.cargo_type || enquiryRow.cargo_type || null,
-          card.location_type_from || enquiryRow.from_location_type || null,
+          card.location_type_from || enquiryRow.location_type_from || null,
           card.from_location || null,
-          card.location_type_to || enquiryRow.to_location_type || null,
+          card.location_type_to || enquiryRow.location_type_to || null,
           card.to_location || null,
           effectiveDate,
-          expiryDate
+          expiryDate,
         ];
 
         const result = await client.query(insertQuery, insertParams);
         const vendorCardId = result.rows[0].id;
 
         // Insert sub-charges with proper master_type reference
-        const chargesArr = Array.isArray(card.charges) ? card.charges : 
-                          (Array.isArray(card.selected_subcharges) ? card.selected_subcharges : []);
+        const chargesArr = Array.isArray(card.charges)
+          ? card.charges
+          : Array.isArray(card.selected_subcharges)
+          ? card.selected_subcharges
+          : [];
 
         if (chargesArr.length > 0) {
           for (const ch of chargesArr) {
@@ -2023,12 +2067,15 @@ router.post("/:code/vendor-cards", async (req, res) => {
 
             // Skip rows that would violate NOT NULL constraints
             if (!chargeName || !currencyVal) {
-              console.warn('Skipping sub-charge due to missing required fields', {
-                chargeName,
-                currencyVal,
-                basisVal,
-                amountVal
-              });
+              console.warn(
+                "Skipping sub-charge due to missing required fields",
+                {
+                  chargeName,
+                  currencyVal,
+                  basisVal,
+                  amountVal,
+                }
+              );
               continue;
             }
 
@@ -2051,37 +2098,40 @@ router.post("/:code/vendor-cards", async (req, res) => {
               sellRateCur,
               sellRateVal,
               gstVatVal,
-              remarksVal
+              remarksVal,
             ];
 
             await client.query(subChargeQuery, subChargeParams);
           }
         }
-      }
+      
 
       await client.query("COMMIT");
 
-      res.json({ 
-        message: `Vendor cards added successfully for ${masterType}`,
+      res.json({
+        message: `Vendor card added successfully for ${masterType}`,
         master_type: masterType,
-        count: cards.length
+        count: card.length,
       });
-
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
-
   } catch (error) {
-    res.status(500).json({ 
-      error: "Internal server error", 
-      details: error.message
+    res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
     });
   }
 });
 
+// // delete enquiry vendor card
+// router.delete("/:code/vendor-card/:cardId", async (req, res)=>{
+//   const { code, cardId } = req.params;
+
+// });
 
 // PUT /enquiry/:code/vendor-cards/:cardId/negotiate - Update negotiated charges
 router.put("/:code/vendor-cards/:cardId/negotiate", async (req, res) => {

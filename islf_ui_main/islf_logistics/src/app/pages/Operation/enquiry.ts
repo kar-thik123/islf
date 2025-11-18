@@ -952,12 +952,7 @@ import { VendorService } from '@/services/vendor.service';
                   <th style="width: 15%">Actions</th>
                 </tr>
               </ng-template>
-              <ng-template
-                pTemplate="body"
-                let-item
-                let-i="rowIndex"
-                
-              >
+              <ng-template pTemplate="body" let-item let-i="rowIndex">
                 <tr>
                   <td>
                     <p-tableCheckbox [value]="item" />
@@ -1080,7 +1075,6 @@ import { VendorService } from '@/services/vendor.service';
                         class="sourcing-btn"
                         pTooltip="Query Sourcing Table with matching conditions"
                       ></button>
-                     
 
                       <!--<button
                         pButton
@@ -1216,7 +1210,7 @@ import { VendorService } from '@/services/vendor.service';
         </div>
       </ng-template>
     </p-dialog>
-    
+
     <!-- Mail Preview Dialog -->
     <p-dialog
       header="Mail Preview"
@@ -1254,9 +1248,9 @@ import { VendorService } from '@/services/vendor.service';
       [style]="{ width: '60vw' }"
     >
       <ng-template pTemplate="content">
-        <p-table 
-          [value]="chargesDialogVendor?.sub_charges || []" 
-          dataKey="id" 
+        <p-table
+          [value]="chargesDialogVendor?.sub_charges || []"
+          dataKey="id"
           styleClass="p-datatable-sm"
           selectionMode="multiple"
           [(selection)]="chargesDialogVendor.selected_subcharges"
@@ -1283,460 +1277,592 @@ import { VendorService } from '@/services/vendor.service';
           </ng-template>
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="5" class="text-center py-3">No sub charges available</td>
+              <td colspan="5" class="text-center py-3">
+                No sub charges available
+              </td>
             </tr>
           </ng-template>
         </p-table>
       </ng-template>
       <ng-template pTemplate="footer">
-        <p-button label="Cancel" icon="pi pi-times" class="p-button-text" (onClick)="chargesDialogVisible = false"></p-button>
-        <p-button label="Save" icon="pi pi-check" (onClick)="saveSelectedSubCharges()"></p-button>
+        <p-button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          (onClick)="chargesDialogVisible = false"
+        ></p-button>
+        <p-button
+          label="Save"
+          icon="pi pi-check"
+          (onClick)="saveSelectedSubCharges()"
+        ></p-button>
       </ng-template>
     </p-dialog>
     <!-- Vendor Tabs Dialog -->
-<p-dialog
-  header="Vendor Selection"
-  [(visible)]="showVendorTabsDialog"
-  [modal]="true"
-  [style]="{ width: '95vw', height: '90vh' }"
-  [maximizable]="true"
->
-  <p-tabView [(activeIndex)]="activeVendorTab">
-    
-    <!-- Get Sourcing Tab -->
-    <p-tabPanel header="Get Sourcing">
-      <div class="p-fluid">
-        <!-- No additional manual filters for sourcing - uses backend filtering only -->
-        <div class="mb-4 p-3 bg-blue-50 border-round">
-          <p class="text-sm text-blue-700">
-            <i class="pi pi-info-circle mr-2"></i>
-            Sourcing vendors are filtered by backend based on your enquiry criteria.
-          </p>
-        </div>
+    <p-dialog
+      header="Vendor Selection"
+      [(visible)]="showVendorTabsDialog"
+      [modal]="true"
+      [style]="{ width: '95vw', height: '90vh' }"
+      [maximizable]="true"
+    >
+      <p-tabView [(activeIndex)]="activeVendorTab">
+        <!-- Get Sourcing Tab -->
+        <p-tabPanel header="Get Sourcing">
+          <div class="p-fluid">
+            <!-- No additional manual filters for sourcing - uses backend filtering only -->
+            <div class="mb-4 p-3 bg-blue-50 border-round">
+              <p class="text-sm text-blue-700">
+                <i class="pi pi-info-circle mr-2"></i>
+                Sourcing vendors are filtered by backend based on your enquiry
+                criteria.
+              </p>
+            </div>
 
-        <p-table #sourcingTable [value]="sourcingVendors" [paginator]="true" [rows]="10" dataKey="id" [(selection)]="sourcingSelection" selectionMode="multiple">
-          <ng-template pTemplate="header">
-            <tr>
-              <th style="width: 3rem">
-                <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
-              </th>
-              <th>Vendor Name</th>
-              <th>Vendor Type</th>
-              <th>Dept (Mode)</th>
-              <th>Route</th>
-              <th>Cargo Type</th>
-              <th>Basis</th>
-              <th>Charges Count</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-vendor>
-            <tr>
-              <td>
-                <p-tableCheckbox [value]="vendor"></p-tableCheckbox>
-              </td>
-              <td>
-                <button 
-                  pButton 
+            <p-table
+              #sourcingTable
+              [value]="sourcingVendors"
+              [paginator]="true"
+              [rows]="10"
+              dataKey="id"
+              [(selection)]="sourcingSelection"
+              selectionMode="single"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th style="width: 3rem"></th>
+                  <th style="width: 3rem"></th>
+                  <th>Vendor Name</th>
+                  <th>Vendor Type</th>
+                  <th>Dept (Mode)</th>
+                  <th>Route</th>
+                  <th>Cargo Type</th>
+                  <th>Basis</th>
+                  <th>Charges Count</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-vendor let-expanded="expanded">
+                <tr>
+                  <td>
+                    <p-tableRadioButton [value]="vendor"></p-tableRadioButton>
+                  </td>
+                  <td>
+                    <p-button
+                      type="button"
+                      pRipple
+                      [pRowToggler]="vendor"
+                      [text]="true"
+                      severity="secondary"
+                      [rounded]="true"
+                      [icon]="
+                        expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'
+                      "
+                    />
+                  </td>
+                  <td>
+                    <!-- <button
+                      pButton
+                      type="button"
+                      class="p-button-text p-button-sm mr-2"
+                      [icon]="
+                        vendor.showCharges
+                          ? 'pi pi-chevron-down'
+                          : 'pi pi-chevron-right'
+                      "
+                      (click)="toggleVendorChargesInline(vendor, 'sourcing')"
+                      pTooltip="Expand Sub Charges"
+                    ></button> -->
+                    {{ getVendorName(vendor.vendor_name) }}
+                  </td>
+                  <td>{{ vendor.vendor_type }}</td>
+                  <td>{{ vendor.mode }}</td>
+                  <td>
+                    {{ getLocationName(vendor.from_location) }} →
+                    {{ getLocationName(vendor.to_location) }}
+                  </td>
+                  <td>{{ vendor.cargo_type }}</td>
+                  <td>{{ vendor.basis }}</td>
+                  <td>
+                    {{ vendor.sub_charges ? vendor.sub_charges.length : 0 }}
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template #expandedrow let-vendor>
+                <tr>
+                  <td colspan="6">
+                    <div class="p-4">
+                      <h5>
+                        subcharges for vendor
+                        {{ getVendorName(vendor.vendor_name) }}
+                      </h5>
+                      <p-table
+                        [value]="vendor.sub_charges || []"
+                        [(selection)]="vendor.selected_subcharges"
+                        dataKey="vendor.selected_subcharges.id"
+                      >
+                        <ng-template pTemplate="header">
+                          <tr>
+                            <th style="width: 4rem">
+                              <p-tableHeaderCheckbox />
+                            </th>
+                            <th style="width: 30%">Charge Name</th>
+                            <th style="width: 20%">Basis</th>
+                            <th style="width: 15%">Currency</th>
+                            <th style="width: 15%">Charges</th>
+
+                            <th style="width: 17%">GST/VAT</th>
+                          </tr>
+                        </ng-template>
+                        <ng-template pTemplate="body" let-charge>
+                          <tr>
+                            <td>
+                              <p-tableCheckbox
+                                [value]="charge"
+                              ></p-tableCheckbox>
+                            </td>
+                            <td class="pl-4">
+                              {{ charge.charge_name || charge.name }}
+                            </td>
+                            <td>{{ charge.basis }}</td>
+                            <td>{{ charge.currency }}</td>
+                            <td>{{ charge.amount || charge.charges }}</td>
+
+                            <td>
+                              {{
+                                charge.gst_vat ||
+                                  charge.gst_rate ||
+                                  charge.vat_rate ||
+                                  '0'
+                              }}%
+                            </td>
+                          </tr>
+                        </ng-template>
+                      </p-table>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="8" class="text-center py-4">
+                    No sourcing vendors found for the current criteria.
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+
+            <div class="flex justify-between items-center mt-4">
+              <div class="text-sm text-gray-600">
+                Showing {{ sourcingVendors.length }} vendors
+              </div>
+              <button
+                pButton
+                label="Move to Select Sourcing"
+                icon="pi pi-arrow-right"
+                (click)="moveToSelectSourcing()"
+                [disabled]="!sourcingSelection"
+                class="p-button-primary"
+              ></button>
+            </div>
+          </div>
+        </p-tabPanel>
+
+        <!-- Select Sourcing Tab -->
+        <p-tabPanel header="Select Sourcing">
+          <div class="p-fluid">
+            <div
+              *ngIf="selectedSourcingVendors.length === 0"
+              class="p-4 text-center border-round bg-gray-50"
+            >
+              <p class="text-gray-500">No vendors selected for sourcing yet.</p>
+            </div>
+
+            <div
+              *ngFor="let vendor of selectedSourcingVendors; let i = index"
+              class="mb-6 p-4 border-round border-1"
+            >
+              <div class="flex justify-between items-center">
+                <h4>{{ getVendorName(vendor.vendor_name) }} - Charges</h4>
+                <button
+                  pButton
                   type="button"
-                  class="p-button-text p-button-sm mr-2"
-                  [icon]="vendor.showCharges ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
-                  (click)="toggleVendorChargesInline(vendor, 'sourcing')"
-                  pTooltip="Expand Sub Charges"
+                  icon="pi pi-trash"
+                  class="p-button-danger p-button-text"
+                  (click)="removeSelectedSourcingVendor(vendor)"
+                  pTooltip="Remove Vendor"
                 ></button>
-                {{ getVendorName(vendor.vendor_name) }}
-              </td>
-              <td>{{ vendor.vendor_type }}</td>
-              <td>{{ vendor.mode }}</td>
-              <td>{{ getLocationName(vendor.from_location) }} → {{ getLocationName(vendor.to_location) }}</td>
-              <td>{{ vendor.cargo_type }}</td>
-              <td>{{ vendor.basis }}</td>
-              <td>{{ vendor.sub_charges ? vendor.sub_charges.length : 0 }}</td>
-            </tr>
-            <tr *ngIf="vendor.showCharges">
-              <td colspan="8" class="bg-blue-50 p-2 border-round">
-                <p-table [value]="vendor.sub_charges || []">
-                  <ng-template pTemplate="header">
-                    <tr>
-                      <th style="width: 3rem">Select</th>
-                      <th style="width: 30%">Charge Name</th>
-                      <th style="width: 20%">Basis</th>
-                      <th style="width: 15%">Currency</th>
-                      <th style="width: 15%">Charges</th>
-                      
-                      <th style="width: 17%">GST/VAT</th>
-                    </tr>
-                  </ng-template>
-                  <ng-template pTemplate="body" let-charge>
-                    <tr>
-                      <td>
-                        <p-checkbox 
-                          [(ngModel)]="charge.selected"
-                          [binary]="true"
-                          (onChange)="toggleSourcingSubcharge(vendor, charge)"
-                        ></p-checkbox>
-                      </td>
-                      <td class="pl-4">{{ charge.charge_name || charge.name }}</td>
-                      <td>{{ charge.basis }}</td>
-                      <td>{{ charge.currency }}</td>
-                      <td>{{ charge.amount || charge.charges }}</td>
-                      
-                      <td>{{ charge.gst_vat || charge.gst_rate || charge.vat_rate || '0' }}%</td>
-                    </tr>
-                  </ng-template>
-                </p-table>
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr>
-              <td colspan="8" class="text-center py-4">
-                No sourcing vendors found for the current criteria.
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
+              </div>
 
-        <div class="flex justify-between items-center mt-4">
-          <div class="text-sm text-gray-600">
-            Showing {{ sourcingVendors.length }} vendors
+              <p-table [value]="vendor.sub_charges || []">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th style="width: 3rem">Select</th>
+                    <th>Charge Name</th>
+                    <th>Basis</th>
+                    <th>Currency</th>
+                    <th>Charges</th>
+                    <th>Sell Rate</th>
+                    <th>GST/VAT</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-charge>
+                  <tr>
+                    <td>
+                      <p-checkbox
+                        [(ngModel)]="charge.selected"
+                        (onChange)="toggleSourcingSubcharge(vendor, charge)"
+                      ></p-checkbox>
+                    </td>
+                    <td>{{ charge.charge_name || charge.name }}</td>
+                    <td>{{ charge.basis }}</td>
+                    <td>{{ charge.currency }}</td>
+                    <td>{{ charge.amount || charge.charges }}</td>
+                    <td>
+                      <input
+                        *ngIf="charge.selected"
+                        type="number"
+                        pInputText
+                        [(ngModel)]="vendor.sell_rates[charge.id]"
+                        [value]="charge.amount || charge.charges"
+                        style="width: 100px"
+                      />
+                      <span *ngIf="!charge.selected">--</span>
+                    </td>
+                    <td>
+                      {{
+                        charge.gst_vat ||
+                          charge.gst_rate ||
+                          charge.vat_rate ||
+                          '0'
+                      }}%
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+
+              <div class="mt-3">
+                <label class="block font-semibold mb-1">Remarks</label>
+                <textarea
+                  pInputTextarea
+                  [(ngModel)]="vendor.remarks"
+                  rows="2"
+                  style="width: 100%"
+                  placeholder="Enter remarks for this vendor"
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="flex justify-end mt-4">
+              <button
+                pButton
+                label="Save Sourcing"
+                icon="pi pi-save"
+                (click)="saveSourcingVendors()"
+                [disabled]="selectedSourcingVendors.length === 0"
+                class="p-button-success"
+              ></button>
+            </div>
           </div>
-          <button 
-            pButton 
-            label="Move to Select Sourcing" 
-            icon="pi pi-arrow-right"
-            (click)="moveToSelectSourcing()"
-            [disabled]="!(sourcingSelection?.length)"
-            class="p-button-primary"
-          ></button>
-        </div>
-      </div>
-    </p-tabPanel>
+        </p-tabPanel>
 
-    <!-- Select Sourcing Tab -->
-    <p-tabPanel header="Select Sourcing">
-      <div class="p-fluid">
-        <div *ngIf="selectedSourcingVendors.length === 0" class="p-4 text-center border-round bg-gray-50">
-          <p class="text-gray-500">No vendors selected for sourcing yet.</p>
-        </div>
+        <!-- Get Tariff Tab -->
+        <p-tabPanel header="Get Tariff">
+          <div class="p-fluid">
+            <!-- Manual filtering controls for tariff only -->
+            <div class="grid grid-cols-12 gap-4 mb-4">
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1"
+                  >Filter by Service Area</label
+                >
+                <p-dropdown
+                  [(ngModel)]="tariffFilter.service_area"
+                  [options]="serviceAreaDropdownOptions"
+                  [showClear]="true"
+                  placeholder="All Service Areas"
+                  (onChange)="applyManualTariffFilter()"
+                ></p-dropdown>
+              </div>
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1"
+                  >Filter by From Location</label
+                >
+                <p-dropdown
+                  [(ngModel)]="tariffFilter.from_location"
+                  [options]="fromLocationOptions"
+                  [showClear]="true"
+                  placeholder="All From Locations"
+                  (onChange)="applyManualTariffFilter()"
+                ></p-dropdown>
+              </div>
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1"
+                  >Filter by To Location</label
+                >
+                <p-dropdown
+                  [(ngModel)]="tariffFilter.to_location"
+                  [options]="toLocationOptions"
+                  [showClear]="true"
+                  placeholder="All To Locations"
+                  (onChange)="applyManualTariffFilter()"
+                ></p-dropdown>
+              </div>
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1"
+                  >Filter by Vendor Type</label
+                >
+                <p-dropdown
+                  [(ngModel)]="tariffFilter.vendor_type"
+                  [options]="vendorTypeOptions"
+                  [showClear]="true"
+                  placeholder="All Vendor Types"
+                  (onChange)="applyManualTariffFilter()"
+                ></p-dropdown>
+              </div>
+            </div>
 
-        <div *ngFor="let vendor of selectedSourcingVendors; let i = index" class="mb-6 p-4 border-round border-1">
-          <div class="flex justify-between items-center">
-            <h4>{{ getVendorName(vendor.vendor_name) }} - Charges</h4>
-            <button pButton type="button" icon="pi pi-trash" class="p-button-danger p-button-text" (click)="removeSelectedSourcingVendor(vendor)" pTooltip="Remove Vendor"></button>
+            <div class="mb-4 p-3 bg-green-50 border-round">
+              <p class="text-sm text-green-700">
+                <i class="pi pi-info-circle mr-2"></i>
+                Tariff vendors are first filtered by backend, then you can
+                manually filter further using the controls above.
+              </p>
+            </div>
+
+            <p-table
+              #tariffTable
+              [value]="filteredTariffVendors"
+              [paginator]="true"
+              [rows]="10"
+              dataKey="id"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th style="width: 3rem">
+                    <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
+                  </th>
+                  <th>Vendor Name</th>
+                  <th>Vendor Type</th>
+                  <th>Dept (Mode)</th>
+                  <th>Route</th>
+                  <th>Cargo Type</th>
+                  <th>Basis</th>
+                  <th>Sub Charges</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-vendor>
+                <tr>
+                  <td>
+                    <p-tableCheckbox
+                      [(ngModel)]="vendor.selected"
+                      [value]="vendor"
+                    >
+                    </p-tableCheckbox>
+                  </td>
+                  <td>
+                    <button
+                      pButton
+                      type="button"
+                      class="p-button-text p-button-sm mr-2"
+                      [icon]="
+                        vendor.showCharges
+                          ? 'pi pi-chevron-down'
+                          : 'pi pi-chevron-right'
+                      "
+                      (click)="toggleVendorChargesInline(vendor, 'tariff')"
+                      pTooltip="Expand Sub Charges"
+                    ></button>
+                    {{ getVendorName(vendor.vendor_name) }}
+                  </td>
+                  <td>{{ vendor.vendor_type }}</td>
+                  <td>{{ vendor.mode }}</td>
+                  <td>
+                    {{ getLocationName(vendor.from_location) }} →
+                    {{ getLocationName(vendor.to_location) }}
+                  </td>
+                  <td>{{ vendor.cargo_type }}</td>
+                  <td>{{ vendor.basis }}</td>
+                  <td>
+                    {{ vendor.sub_charges ? vendor.sub_charges.length : 0 }}
+                  </td>
+                </tr>
+                <tr *ngIf="vendor.showCharges">
+                  <td colspan="8" class="bg-blue-50 p-2 border-round">
+                    <p-table [value]="vendor.sub_charges || []">
+                      <ng-template pTemplate="header">
+                        <tr>
+                          <th style="width: 3rem">Select</th>
+                          <th style="width: 30%">Charge Name</th>
+                          <th style="width: 20%">Basis</th>
+                          <th style="width: 15%">Currency</th>
+                          <th style="width: 15%">Charges</th>
+
+                          <th style="width: 17%">GST/VAT</th>
+                        </tr>
+                      </ng-template>
+                      <ng-template pTemplate="body" let-charge>
+                        <tr>
+                          <td>
+                            <p-checkbox
+                              [(ngModel)]="charge.selected"
+                              [binary]="true"
+                              (onChange)="toggleTariffSubcharge(vendor, charge)"
+                            ></p-checkbox>
+                          </td>
+                          <td class="pl-4">
+                            {{ charge.charge_name || charge.name }}
+                          </td>
+                          <td>{{ charge.basis }}</td>
+                          <td>{{ charge.currency }}</td>
+                          <td>{{ charge.amount || charge.charges }}</td>
+
+                          <td>
+                            {{
+                              charge.gst_vat ||
+                                charge.gst_rate ||
+                                charge.vat_rate ||
+                                '0'
+                            }}%
+                          </td>
+                        </tr>
+                      </ng-template>
+                    </p-table>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="8" class="text-center py-4">
+                    No tariff vendors match the current filters.
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+
+            <div class="flex justify-between items-center mt-4">
+              <div class="text-sm text-gray-600">
+                Showing {{ filteredTariffVendors.length }} of
+                {{ tariffVendors.length }} vendors
+              </div>
+              <div class="flex gap-2">
+                <button
+                  pButton
+                  label="Clear Filters"
+                  icon="pi pi-filter-slash"
+                  (click)="clearTariffFilters()"
+                  class="p-button-secondary"
+                ></button>
+                <button
+                  pButton
+                  label="Move to Select Tariff"
+                  icon="pi pi-arrow-right"
+                  (click)="moveToSelectTariff()"
+                  [disabled]="!hasSelectedFilteredTariffVendors"
+                  class="p-button-primary"
+                ></button>
+              </div>
+            </div>
           </div>
-          
-          <p-table [value]="vendor.sub_charges || []">
-            <ng-template pTemplate="header">
-              <tr>
-                <th style="width: 3rem">Select</th>
-                <th>Charge Name</th>
-                <th>Basis</th>
-                <th>Currency</th>
-                <th>Charges</th>
-                <th>Sell Rate</th>
-                <th>GST/VAT</th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-charge>
-              <tr>
-                <td>
-                  <p-checkbox 
-                    [(ngModel)]="charge.selected"
-                    (onChange)="toggleSourcingSubcharge(vendor, charge)"
-                  ></p-checkbox>
-                </td>
-                <td>{{ charge.charge_name || charge.name }}</td>
-                <td>{{ charge.basis }}</td>
-                <td>{{ charge.currency }}</td>
-                <td>{{ charge.amount || charge.charges }}</td>
-                <td>
-                  <input 
-                    *ngIf="charge.selected"
-                    type="number" 
-                    pInputText
-                    [(ngModel)]="vendor.sell_rates[charge.id]"
-                    [value]="charge.amount || charge.charges"
-                    style="width: 100px"
-                  >
-                  <span *ngIf="!charge.selected">--</span>
-                </td>
-                <td>{{ charge.gst_vat || charge.gst_rate || charge.vat_rate || '0' }}%</td>
-              </tr>
-            </ng-template>
-          </p-table>
+        </p-tabPanel>
 
-          <div class="mt-3">
-            <label class="block font-semibold mb-1">Remarks</label>
-            <textarea 
-              pInputTextarea 
-              [(ngModel)]="vendor.remarks"
-              rows="2" 
-              style="width: 100%"
-              placeholder="Enter remarks for this vendor"
-            ></textarea>
-          </div>
+        <!-- Select Tariff Tab -->
+        <p-tabPanel header="Select Tariff">
+          <div class="p-fluid">
+            <div
+              *ngIf="selectedTariffVendors.length === 0"
+              class="p-4 text-center border-round bg-gray-50"
+            >
+              <p class="text-gray-500">No vendors selected for tariff yet.</p>
+            </div>
 
-          
-        </div>
-
-        <div class="flex justify-end mt-4">
-          <button 
-            pButton 
-            label="Save Sourcing" 
-            icon="pi pi-save"
-            (click)="saveSourcingVendors()"
-            [disabled]="selectedSourcingVendors.length === 0"
-            class="p-button-success"
-          ></button>
-        </div>
-      </div>
-    </p-tabPanel>
-
-    <!-- Get Tariff Tab -->
-    <p-tabPanel header="Get Tariff">
-      <div class="p-fluid">
-        <!-- Manual filtering controls for tariff only -->
-        <div class="grid grid-cols-12 gap-4 mb-4">
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by Service Area</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.service_area"
-              [options]="serviceAreaDropdownOptions"
-              [showClear]="true"
-              placeholder="All Service Areas"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by From Location</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.from_location"
-              [options]="fromLocationOptions"
-              [showClear]="true"
-              placeholder="All From Locations"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by To Location</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.to_location"
-              [options]="toLocationOptions"
-              [showClear]="true"
-              placeholder="All To Locations"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by Vendor Type</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.vendor_type"
-              [options]="vendorTypeOptions"
-              [showClear]="true"
-              placeholder="All Vendor Types"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-        </div>
-
-        <div class="mb-4 p-3 bg-green-50 border-round">
-          <p class="text-sm text-green-700">
-            <i class="pi pi-info-circle mr-2"></i>
-            Tariff vendors are first filtered by backend, then you can manually filter further using the controls above.
-          </p>
-        </div>
-
-        <p-table #tariffTable [value]="filteredTariffVendors" [paginator]="true" [rows]="10" dataKey="id">
-          <ng-template pTemplate="header">
-            <tr>
-              <th style="width: 3rem">
-                <p-tableHeaderCheckbox></p-tableHeaderCheckbox>
-              </th>
-              <th>Vendor Name</th>
-              <th>Vendor Type</th>
-              <th>Dept (Mode)</th>
-              <th>Route</th>
-              <th>Cargo Type</th>
-              <th>Basis</th>
-              <th>Sub Charges</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-vendor>
-            <tr>
-              <td>
-                <p-tableCheckbox 
-                  [(ngModel)]="vendor.selected" 
-                  [value]="vendor">
-                </p-tableCheckbox>
-              </td>
-              <td>
-                <button 
-                  pButton 
+            <div
+              *ngFor="let vendor of selectedTariffVendors; let i = index"
+              class="mb-6 p-4 border-round border-1"
+            >
+              <div class="flex justify-between items-center">
+                <h4>{{ getVendorName(vendor.vendor_name) }} - Charges</h4>
+                <button
+                  pButton
                   type="button"
-                  class="p-button-text p-button-sm mr-2"
-                  [icon]="vendor.showCharges ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
-                  (click)="toggleVendorChargesInline(vendor, 'tariff')"
-                  pTooltip="Expand Sub Charges"
+                  icon="pi pi-trash"
+                  class="p-button-danger p-button-text"
+                  (click)="removeSelectedTariffVendor(vendor)"
+                  pTooltip="Remove Vendor"
                 ></button>
-                {{ getVendorName(vendor.vendor_name) }}
-              </td>
-              <td>{{ vendor.vendor_type }}</td>
-              <td>{{ vendor.mode }}</td>
-              <td>{{ getLocationName(vendor.from_location) }} → {{ getLocationName(vendor.to_location) }}</td>
-              <td>{{ vendor.cargo_type }}</td>
-              <td>{{ vendor.basis }}</td>
-              <td>{{ vendor.sub_charges ? vendor.sub_charges.length : 0 }}</td>
-            </tr>
-            <tr *ngIf="vendor.showCharges">
-              <td colspan="8" class="bg-blue-50 p-2 border-round">
-                <p-table [value]="vendor.sub_charges || []">
-                  <ng-template pTemplate="header">
-                    <tr>
-                      <th style="width: 3rem">Select</th>
-                      <th style="width: 30%">Charge Name</th>
-                      <th style="width: 20%">Basis</th>
-                      <th style="width: 15%">Currency</th>
-                      <th style="width: 15%">Charges</th>
-                      
-                      <th style="width: 17%">GST/VAT</th>
-                    </tr>
-                  </ng-template>
-                  <ng-template pTemplate="body" let-charge>
-                    <tr>
-                      <td>
-                        <p-checkbox 
-                          [(ngModel)]="charge.selected"
-                          [binary]="true"
-                          (onChange)="toggleTariffSubcharge(vendor, charge)"
-                        ></p-checkbox>
-                      </td>
-                      <td class="pl-4">{{ charge.charge_name || charge.name }}</td>
-                      <td>{{ charge.basis }}</td>
-                      <td>{{ charge.currency }}</td>
-                      <td>{{ charge.amount || charge.charges }}</td>
-                      
-                      <td>{{ charge.gst_vat || charge.gst_rate || charge.vat_rate || '0' }}%</td>
-                    </tr>
-                  </ng-template>
-                </p-table>
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr>
-              <td colspan="8" class="text-center py-4">
-                No tariff vendors match the current filters.
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
+              </div>
 
-        <div class="flex justify-between items-center mt-4">
-          <div class="text-sm text-gray-600">
-            Showing {{ filteredTariffVendors.length }} of {{ tariffVendors.length }} vendors
+              <p-table [value]="vendor.sub_charges || []">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th style="width: 3rem">Select</th>
+                    <th>Charge Name</th>
+                    <th>Basis</th>
+                    <th>Currency</th>
+                    <th>Charges</th>
+                    <th>Sell Rate</th>
+                    <th>GST/VAT</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-charge>
+                  <tr>
+                    <td>
+                      <p-checkbox
+                        [(ngModel)]="charge.selected"
+                        (onChange)="toggleTariffSubcharge(vendor, charge)"
+                      ></p-checkbox>
+                    </td>
+                    <td>{{ charge.charge_name || charge.name }}</td>
+                    <td>{{ charge.basis }}</td>
+                    <td>{{ charge.currency }}</td>
+                    <td>{{ charge.amount || charge.charges }}</td>
+                    <td>
+                      <input
+                        *ngIf="charge.selected"
+                        type="number"
+                        pInputText
+                        [(ngModel)]="vendor.sell_rates[charge.id]"
+                        [value]="charge.amount || charge.charges"
+                        style="width: 100px"
+                      />
+                      <span *ngIf="!charge.selected">--</span>
+                    </td>
+                    <td>
+                      {{
+                        charge.gst_vat ||
+                          charge.gst_rate ||
+                          charge.vat_rate ||
+                          '0'
+                      }}%
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+
+              <div class="mt-3">
+                <label class="block font-semibold mb-1">Remarks</label>
+                <textarea
+                  pInputTextarea
+                  [(ngModel)]="vendor.remarks"
+                  rows="2"
+                  style="width: 100%"
+                  placeholder="Enter remarks for this vendor"
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="flex justify-end mt-4">
+              <button
+                pButton
+                label="Save Tariff"
+                icon="pi pi-save"
+                (click)="saveTariffVendors()"
+                [disabled]="selectedTariffVendors.length === 0"
+                class="p-button-success"
+              ></button>
+            </div>
           </div>
-          <div class="flex gap-2">
-            <button 
-              pButton 
-              label="Clear Filters" 
-              icon="pi pi-filter-slash"
-              (click)="clearTariffFilters()"
-              class="p-button-secondary"
-            ></button>
-            <button 
-              pButton 
-              label="Move to Select Tariff" 
-              icon="pi pi-arrow-right"
-              (click)="moveToSelectTariff()"
-              [disabled]="!hasSelectedFilteredTariffVendors"
-              class="p-button-primary"
-            ></button>
-          </div>
-        </div>
-      </div>
-    </p-tabPanel>
-
-    <!-- Select Tariff Tab -->
-    <p-tabPanel header="Select Tariff">
-      <div class="p-fluid">
-        <div *ngIf="selectedTariffVendors.length === 0" class="p-4 text-center border-round bg-gray-50">
-          <p class="text-gray-500">No vendors selected for tariff yet.</p>
-        </div>
-
-        <div *ngFor="let vendor of selectedTariffVendors; let i = index" class="mb-6 p-4 border-round border-1">
-          <div class="flex justify-between items-center">
-            <h4>{{ getVendorName(vendor.vendor_name) }} - Charges</h4>
-            <button pButton type="button" icon="pi pi-trash" class="p-button-danger p-button-text" (click)="removeSelectedTariffVendor(vendor)" pTooltip="Remove Vendor"></button>
-          </div>
-          
-          <p-table [value]="vendor.sub_charges || []">
-            <ng-template pTemplate="header">
-              <tr>
-                <th style="width: 3rem">Select</th>
-                <th>Charge Name</th>
-                <th>Basis</th>
-                <th>Currency</th>
-                <th>Charges</th>
-                <th>Sell Rate</th>
-                <th>GST/VAT</th>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-charge>
-              <tr>
-                <td>
-                  <p-checkbox 
-                    [(ngModel)]="charge.selected"
-                    (onChange)="toggleTariffSubcharge(vendor, charge)"
-                  ></p-checkbox>
-                </td>
-                <td>{{ charge.charge_name || charge.name }}</td>
-                <td>{{ charge.basis }}</td>
-                <td>{{ charge.currency }}</td>
-                <td>{{ charge.amount || charge.charges }}</td>
-                <td>
-                  <input 
-                    *ngIf="charge.selected"
-                    type="number" 
-                    pInputText
-                    [(ngModel)]="vendor.sell_rates[charge.id]"
-                    [value]="charge.amount || charge.charges"
-                    style="width: 100px"
-                  >
-                  <span *ngIf="!charge.selected">--</span>
-                </td>
-                <td>{{ charge.gst_vat || charge.gst_rate || charge.vat_rate || '0' }}%</td>
-              </tr>
-            </ng-template>
-          </p-table>
-
-          <div class="mt-3">
-            <label class="block font-semibold mb-1">Remarks</label>
-            <textarea 
-              pInputTextarea 
-              [(ngModel)]="vendor.remarks"
-              rows="2" 
-              style="width: 100%"
-              placeholder="Enter remarks for this vendor"
-            ></textarea>
-          </div>
-
-          
-        </div>
-
-        <div class="flex justify-end mt-4">
-          <button 
-            pButton 
-            label="Save Tariff" 
-            icon="pi pi-save"
-            (click)="saveTariffVendors()"
-            [disabled]="selectedTariffVendors.length === 0"
-            class="p-button-success"
-          ></button>
-        </div>
-      </div>
-    </p-tabPanel>
-  </p-tabView>
-</p-dialog>
+        </p-tabPanel>
+      </p-tabView>
+    </p-dialog>
 
     <!-- Toast Messages -->
     <p-toast></p-toast>
@@ -2542,7 +2668,7 @@ export class EnquiryComponent implements OnInit {
   selectedEffectiveDateTo: Date | null = null;
 
   //       11/15/2025
-    // New properties for tab-based sourcing/tariff
+  // New properties for tab-based sourcing/tariff
   activeVendorTab: number = 0;
   sourcingVendors: any[] = [];
   selectedSourcingVendors: any[] = [];
@@ -2550,10 +2676,10 @@ export class EnquiryComponent implements OnInit {
   selectedTariffVendors: any[] = [];
   showVendorTabsDialog: boolean = false;
   currentVendorCriteria: any = {};
-  sourcingSelection: any[] = [];
+  sourcingSelection : any = {};
   vendorTypeOptions: any[] = [];
-  filteredTariffVendors: any[] = []; 
-  tariffFilter: any = {}; 
+  filteredTariffVendors: any[] = [];
+  tariffFilter: any = {};
   expandedSourcingRows: any[] = [];
   expandedTariffRows: any[] = [];
   sourcingExpandedKeys: { [key: string]: boolean } = {};
@@ -2562,10 +2688,16 @@ export class EnquiryComponent implements OnInit {
   chargesDialogVendor: any = null;
 
   get hasSelectedSourcingVendors(): boolean {
-    return Array.isArray(this.sourcingVendors) && this.sourcingVendors.some((v: any) => !!v.selected);
+    return (
+      Array.isArray(this.sourcingVendors) &&
+      this.sourcingVendors.some((v: any) => !!v.selected)
+    );
   }
   get hasSelectedFilteredTariffVendors(): boolean {
-    return Array.isArray(this.filteredTariffVendors) && this.filteredTariffVendors.some((v: any) => !!v.selected);
+    return (
+      Array.isArray(this.filteredTariffVendors) &&
+      this.filteredTariffVendors.some((v: any) => !!v.selected)
+    );
   }
 
   onSourcingRowExpand(event: any) {
@@ -2616,15 +2748,15 @@ export class EnquiryComponent implements OnInit {
     const key = String(event.data?.id ?? '');
     if (key) delete this.tariffExpandedKeys[key];
   }
-    // Tab definitions
+  // Tab definitions
   vendorTabs = [
     { label: 'Get Sourcing', index: 0 },
     { label: 'Select Sourcing', index: 1 },
     { label: 'Get Tariff', index: 2 },
-    { label: 'Select Tariff', index: 3 }
+    { label: 'Select Tariff', index: 3 },
   ];
 
-constructor(
+  constructor(
     private fb: FormBuilder,
     private enquiryService: EnquiryService,
     private messageService: MessageService,
@@ -2743,9 +2875,13 @@ constructor(
   }
 
   getVendorName(codeOrNo: string): string {
-    if (!codeOrNo || !this.allVendors || this.allVendors.length === 0) return codeOrNo || '';
-    const v = this.allVendors.find((x: any) => x.vendor_no === codeOrNo || x.name === codeOrNo || x.name2 === codeOrNo);
-    return v ? (v.name2 || v.name || codeOrNo) : codeOrNo;
+    if (!codeOrNo || !this.allVendors || this.allVendors.length === 0)
+      return codeOrNo || '';
+    const v = this.allVendors.find(
+      (x: any) =>
+        x.vendor_no === codeOrNo || x.name === codeOrNo || x.name2 === codeOrNo
+    );
+    return v ? v.name2 || v.name || codeOrNo : codeOrNo;
   }
 
   getLocationName(locationCode: string): string {
@@ -4305,27 +4441,32 @@ constructor(
     let currentLineItemsCount = this.lineItems.length;
 
     // Save enquiry first if needed
-    this.enquiryService.getAllEnquiryLineItem(this.selectedEnquiry?.code || '').subscribe({
-      next: (data) => {
-        savedLineItemsCount = Number(data.lineItemCount);
-        if (!this.currentEnquiry?.code || this.currentEnquiry?.code === 'MAA_FF_ENQ' || 
-            savedLineItemsCount != currentLineItemsCount) {
-          this.saveEnquiry();
-        }
-        
-        this.executeGetSourcing(lineItemId);
-      },
-      error: (error) => {
-        console.error('Error fetching lineItem count:', error);
-        this.executeGetSourcing(lineItemId);
-      }
-    });
+    this.enquiryService
+      .getAllEnquiryLineItem(this.selectedEnquiry?.code || '')
+      .subscribe({
+        next: (data) => {
+          savedLineItemsCount = Number(data.lineItemCount);
+          if (
+            !this.currentEnquiry?.code ||
+            this.currentEnquiry?.code === 'MAA_FF_ENQ' ||
+            savedLineItemsCount != currentLineItemsCount
+          ) {
+            this.saveEnquiry();
+          }
+
+          this.executeGetSourcing(lineItemId);
+        },
+        error: (error) => {
+          console.error('Error fetching lineItem count:', error);
+          this.executeGetSourcing(lineItemId);
+        },
+      });
   }
 
   private executeGetSourcing(lineItemId: number) {
     const lineItemIndex = Number(lineItemId) - 1;
     const enq = this.selectedEnquiry!;
-    
+
     this.currentVendorCriteria = {
       line_item_type: this.lineItems[lineItemIndex]?.type,
       service_area: this.lineItems[lineItemIndex]?.service_area,
@@ -4339,19 +4480,23 @@ constructor(
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
       to_location_type: enq.location_type_to,
-      lineItemId: lineItemId
+      lineItemId: lineItemId,
     };
 
-    this.enquiryService.getSourcingOptions(this.currentEnquiry?.code!, this.currentVendorCriteria)
+    this.enquiryService
+      .getSourcingOptions(
+        this.currentEnquiry?.code!,
+        this.currentVendorCriteria
+      )
       .subscribe({
         next: (options) => {
-          this.sourcingVendors = options.map(opt => ({
+          this.sourcingVendors = options.map((opt) => ({
             ...opt,
             enquiry_line_item_id: lineItemId,
             selected_subcharges: [],
             sell_rates: {},
             remarks: '',
-            sub_charges: this.normalizeCharges(opt.charges)
+            sub_charges: this.normalizeCharges(opt.charges),
           }));
           this.selectedSourcingVendors = [];
           this.activeVendorTab = 0; // Get Sourcing tab
@@ -4367,9 +4512,9 @@ constructor(
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: 'Failed to get sourcing options'
+            detail: 'Failed to get sourcing options',
           });
-        }
+        },
       });
   }
 
@@ -4380,7 +4525,7 @@ constructor(
       this.messageService.add({
         severity: 'warn',
         summary: 'Warning',
-        detail: 'Please save the enquiry first before getting tariff options'
+        detail: 'Please save the enquiry first before getting tariff options',
       });
       return;
     }
@@ -4391,7 +4536,7 @@ constructor(
   private executeGetTariff(lineItemId: number) {
     const lineItemIndex = Number(lineItemId) - 1;
     const enq = this.selectedEnquiry!;
-    
+
     this.currentVendorCriteria = {
       line_item_type: this.lineItems[lineItemIndex]?.type,
       service_area: this.lineItems[lineItemIndex]?.service_area,
@@ -4405,19 +4550,20 @@ constructor(
       service_type: enq.service_type,
       from_location_type: enq.location_type_from,
       to_location_type: enq.location_type_to,
-      lineItemId: lineItemId
+      lineItemId: lineItemId,
     };
 
-    this.enquiryService.getTariffOptions(this.currentEnquiry?.code!, this.currentVendorCriteria)
+    this.enquiryService
+      .getTariffOptions(this.currentEnquiry?.code!, this.currentVendorCriteria)
       .subscribe({
         next: (options) => {
-          this.tariffVendors = options.map(opt => ({
+          this.tariffVendors = options.map((opt) => ({
             ...opt,
             enquiry_line_item_id: lineItemId,
             selected_subcharges: [],
             sell_rates: {},
             remarks: '',
-            sub_charges: this.normalizeCharges(opt.charges)
+            sub_charges: this.normalizeCharges(opt.charges),
           }));
           this.filteredTariffVendors = [...this.tariffVendors];
           this.selectedTariffVendors = [];
@@ -4430,115 +4576,136 @@ constructor(
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: 'Failed to get tariff options'
+            detail: 'Failed to get tariff options',
           });
-        }
+        },
       });
   }
-    // Move selected vendors from Get Sourcing to Select Sourcing tab
+  // Move selected vendors from Get Sourcing to Select Sourcing tab
   moveToSelectSourcing() {
-    const selected = Array.isArray(this.sourcingSelection) ? this.sourcingSelection : [];
-    if (selected.length === 0) {
+    const selectedVendor = this.sourcingSelection;
+    console.log('Selected sourcing vendors to move:', selectedVendor);
+    if (!selectedVendor) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Warning',
-        detail: 'Please select at least one vendor'
+        detail: 'Please select at least one vendor',
       });
       return;
     }
 
-    const movedVendors = selected.map((vendor) => {
-      const allSub = vendor.sub_charges || [];
-      if (!vendor.selected_subcharges || vendor.selected_subcharges.length === 0) {
-        vendor.selected_subcharges = [...allSub];
+    
+      const allSub = selectedVendor?.sub_charges ;
+      if (
+        !selectedVendor?.selected_subcharges ||
+        selectedVendor?.selected_subcharges.length === 0
+      ) {
+        selectedVendor.selected_subcharges = [...allSub];
         allSub.forEach((c: any) => (c.selected = true));
       }
-      const selectedIds = new Set((vendor.selected_subcharges || []).map((sc: any) => sc.id));
+      const selectedIds = new Set(
+        (selectedVendor.selected_subcharges || []).map((sc: any) => sc.id)
+      );
       const filteredSub = allSub.filter((c: any) => selectedIds.has(c.id));
       filteredSub.forEach((c: any) => (c.selected = true));
-      return {
-        ...vendor,
+      const movedVendors = {
+        ...selectedVendor,
         sub_charges: filteredSub,
         selected_subcharges: [...filteredSub],
       };
-    });
+   
 
-    this.selectedSourcingVendors = [...this.selectedSourcingVendors, ...movedVendors];
+    this.selectedSourcingVendors = [
+      ...this.selectedSourcingVendors,
+      ...movedVendors,
+    ];
 
     const ctx = this.currentVendorCriteria || {};
-    const vendorsToSave = movedVendors.map(vendor => ({
-      enquiry_line_item_id: vendor.enquiry_line_item_id ?? ctx.lineItemId,
+    const vendorToSave = {
+      enquiry_line_item_id: selectedVendor.enquiry_line_item_id ?? ctx.lineItemId,
       master_type: 'sourcing',
       department: ctx.department,
       service_type: ctx.service_type,
       type: ctx.line_item_type,
       service_area: ctx.service_area,
-      vendor_type: vendor.vendor_type,
-      vendor_name: vendor.vendor_name,
-      basis: vendor.basis ?? ctx.basis,
+      vendor_type: selectedVendor.vendor_type,
+      vendor_name: selectedVendor.vendor_name,
+      basis: selectedVendor.basis ?? ctx.basis,
       cargo: ctx.cargo_type,
       location_type_from: ctx.from_location_type,
-      from_location: vendor.from_location ?? ctx.from_location,
+      from_location: selectedVendor.from_location ?? ctx.from_location,
       location_type_to: ctx.to_location_type,
-      to_location: vendor.to_location ?? ctx.to_location,
-      period_start_date: vendor.effective_date ?? ctx.effective_date_from,
-      period_end_date: vendor.expiry_date ?? ctx.effective_date_to,
-      charges: vendor.selected_subcharges
-    }));
+      to_location: selectedVendor.to_location ?? ctx.to_location,
+      period_start_date: selectedVendor.effective_date ?? ctx.effective_date_from,
+      period_end_date: selectedVendor.expiry_date ?? ctx.effective_date_to,
+      charges: selectedVendor.selected_subcharges,
+    };
 
-    this.enquiryService.addVendorCards(
-      this.currentEnquiry?.code!,
-      vendorsToSave,
-      { masterType: 'sourcing', lineItemId: ctx.lineItemId }
-    ).subscribe({
-      next: () => {},
-      error: (error) => {
-        console.error('Error saving sourcing vendors:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save sourcing vendors' });
-      }
-    });
+    this.enquiryService
+      .addVendorCards(this.currentEnquiry?.code!, vendorToSave, {
+        masterType: 'sourcing',
+        lineItemId: ctx.lineItemId,
+      })
+      .subscribe({
+        next: () => {},
+        error: (error) => {
+          console.error('Error saving sourcing vendors:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save sourcing vendors',
+          });
+        },
+      });
 
     // Remove from sourcing vendors
-    const selectedIds = new Set(selected.map((v: any) => v.id));
-    this.sourcingVendors = this.sourcingVendors.filter(v => !selectedIds.has(v.id));
+    const selectedVendorId = selectedVendor.id;
+    this.sourcingVendors = this.sourcingVendors.filter(
+      (v) => selectedVendorId!==v.id
+    );
 
-    this.sourcingSelection = [];
-    
+    this.sourcingSelection = {};
+
     // Move to Select Sourcing tab
     this.activeVendorTab = 1;
-    
+
     this.messageService.add({
       severity: 'success',
       summary: 'Success',
-      detail: `${selected.length} vendor(s) moved to Select Sourcing`
+      detail: `${selectedVendor.vendor_name} vendor moved to Select Sourcing`,
     });
   }
 
   // Move selected vendors from Get Tariff to Select Tariff tab
   moveToSelectTariff() {
-    const selected = this.tariffVendors.filter(v => v.selected);
+    const selected = this.tariffVendors.filter((v) => v.selected);
     if (selected.length === 0) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Warning',
-        detail: 'Please select at least one vendor'
+        detail: 'Please select at least one vendor',
       });
       return;
     }
 
     this.selectedTariffVendors = [...this.selectedTariffVendors, ...selected];
     this.selectedTariffVendors.forEach((vendor) => {
-      if (!vendor.selected_subcharges || vendor.selected_subcharges.length === 0) {
+      if (
+        !vendor.selected_subcharges ||
+        vendor.selected_subcharges.length === 0
+      ) {
         vendor.selected_subcharges = [...(vendor.sub_charges || [])];
       }
       (vendor.sub_charges || []).forEach((c: any) => {
-        c.selected = vendor.selected_subcharges?.some((sc: any) => sc.id === c.id);
+        c.selected = vendor.selected_subcharges?.some(
+          (sc: any) => sc.id === c.id
+        );
       });
     });
-    
+
     // Persist tariff vendors immediately
     const ctxT = this.currentVendorCriteria || {};
-    const vendorsToSaveT = selected.map(vendor => ({
+    const vendorsToSaveT = selected.map((vendor) => ({
       enquiry_line_item_id: vendor.enquiry_line_item_id ?? ctxT.lineItemId,
       master_type: 'tariff',
       department: ctxT.department,
@@ -4555,37 +4722,46 @@ constructor(
       to_location: vendor.to_location ?? ctxT.to_location,
       period_start_date: vendor.effective_date ?? ctxT.effective_date_from,
       period_end_date: vendor.expiry_date ?? ctxT.effective_date_to,
-      charges: vendor.selected_subcharges?.length ? vendor.selected_subcharges : (vendor.sub_charges || [])
+      charges: vendor.selected_subcharges?.length
+        ? vendor.selected_subcharges
+        : vendor.sub_charges || [],
     }));
 
-    this.enquiryService.addVendorCards(
-      this.currentEnquiry?.code!,
-      vendorsToSaveT,
-      { masterType: 'tariff', lineItemId: ctxT.lineItemId }
-    ).subscribe({
-      next: () => {},
-      error: (error) => {
-        console.error('Error saving tariff vendors:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save tariff vendors' });
-      }
-    });
+    this.enquiryService
+      .addVendorCards(this.currentEnquiry?.code!, vendorsToSaveT, {
+        masterType: 'tariff',
+        lineItemId: ctxT.lineItemId,
+      })
+      .subscribe({
+        next: () => {},
+        error: (error) => {
+          console.error('Error saving tariff vendors:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save tariff vendors',
+          });
+        },
+      });
 
     // Remove from tariff vendors
-    this.tariffVendors = this.tariffVendors.filter(v => !v.selected);
-    
+    this.tariffVendors = this.tariffVendors.filter((v) => !v.selected);
+
     // Move to Select Tariff tab
     this.activeVendorTab = 3;
-    
+
     this.messageService.add({
       severity: 'success',
       summary: 'Success',
-      detail: `${selected.length} vendor(s) moved to Select Tariff`
+      detail: `${selected.length} vendor(s) moved to Select Tariff`,
     });
   }
 
   // Toggle subcharge selection for sourcing
   toggleSourcingSubcharge(vendor: any, subcharge: any) {
-    const index = vendor.selected_subcharges.findIndex((sc: any) => sc.id === subcharge.id);
+    const index = vendor.selected_subcharges.findIndex(
+      (sc: any) => sc.id === subcharge.id
+    );
     if (index > -1) {
       vendor.selected_subcharges.splice(index, 1);
       delete vendor.sell_rates[subcharge.id];
@@ -4597,7 +4773,9 @@ constructor(
 
   // Toggle subcharge selection for tariff
   toggleTariffSubcharge(vendor: any, subcharge: any) {
-    const index = vendor.selected_subcharges.findIndex((sc: any) => sc.id === subcharge.id);
+    const index = vendor.selected_subcharges.findIndex(
+      (sc: any) => sc.id === subcharge.id
+    );
     if (index > -1) {
       vendor.selected_subcharges.splice(index, 1);
       delete vendor.sell_rates[subcharge.id];
@@ -4608,48 +4786,61 @@ constructor(
   }
 
   removeSelectedSourcingVendor(vendor: any) {
-    this.selectedSourcingVendors = this.selectedSourcingVendors.filter(v => v.id !== vendor.id);
-    this.messageService.add({ severity: 'info', summary: 'Removed', detail: `${vendor.vendor_name} removed from Select Sourcing` });
+    this.selectedSourcingVendors = this.selectedSourcingVendors.filter(
+      (v) => v.id !== vendor.id
+    );
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Removed',
+      detail: `${vendor.vendor_name} removed from Select Sourcing`,
+    });
   }
 
   removeSelectedTariffVendor(vendor: any) {
-    this.selectedTariffVendors = this.selectedTariffVendors.filter(v => v.id !== vendor.id);
-    this.messageService.add({ severity: 'info', summary: 'Removed', detail: `${vendor.vendor_name} removed from Select Tariff` });
+    this.selectedTariffVendors = this.selectedTariffVendors.filter(
+      (v) => v.id !== vendor.id
+    );
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Removed',
+      detail: `${vendor.vendor_name} removed from Select Tariff`,
+    });
   }
-    saveTariffVendors() {
-    const vendorsToSave = this.selectedTariffVendors.map(vendor => ({
+  saveTariffVendors() {
+    const vendorsToSave = this.selectedTariffVendors.map((vendor) => ({
       ...vendor,
       source_type: 'tariff',
       charges: vendor.selected_subcharges,
       negotiated_charges: vendor.sell_rates,
-      negotiated_remarks: vendor.remarks
+      negotiated_remarks: vendor.remarks,
     }));
 
-    this.enquiryService.addVendorCards(
-      this.currentEnquiry?.code!,
-      vendorsToSave,
-      { sourcingType: 'tariff', lineItemId: this.currentVendorCriteria.lineItemId }
-    ).subscribe({
-      next: () => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Tariff vendors saved successfully'
-        });
-        this.showVendorTabsDialog = false;
-        this.loadEnquiry(this.currentEnquiry?.code!);
-      },
-      error: (error) => {
-        console.error('Error saving tariff vendors:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to save tariff vendors'
-        });
-      }
-    });
+    this.enquiryService
+      .addVendorCards(this.currentEnquiry?.code!, vendorsToSave, {
+        sourcingType: 'tariff',
+        lineItemId: this.currentVendorCriteria.lineItemId,
+      })
+      .subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Tariff vendors saved successfully',
+          });
+          this.showVendorTabsDialog = false;
+          this.loadEnquiry(this.currentEnquiry?.code!);
+        },
+        error: (error) => {
+          console.error('Error saving tariff vendors:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save tariff vendors',
+          });
+        },
+      });
   }
-    // Calculate total charges for display
+  // Calculate total charges for display
   calculateTotalCharges(vendor: any): number {
     return vendor.selected_subcharges.reduce((total: number, sc: any) => {
       return total + (vendor.sell_rates[sc.id] || sc.amount || 0);
@@ -4663,158 +4854,189 @@ constructor(
   }
 
   filterTariffVendors() {
-    // Implement filtering logic based on your criteria  
+    // Implement filtering logic based on your criteria
     // This would filter this.tariffVendors based on currentVendorCriteria
   }
   applyManualTariffFilter() {
-  this.filteredTariffVendors = this.tariffVendors.filter(vendor => {
-    let matches = true;
-    
-    if (this.tariffFilter.service_area && vendor.service_area !== this.tariffFilter.service_area) {
-      matches = false;
-    }
-    
-    if (this.tariffFilter.from_location && vendor.from_location !== this.tariffFilter.from_location) {
-      matches = false;
-    }
-    
-    if (this.tariffFilter.to_location && vendor.to_location !== this.tariffFilter.to_location) {
-      matches = false;
-    }
-    
-    if (this.tariffFilter.vendor_type && vendor.vendor_type !== this.tariffFilter.vendor_type) {
-      matches = false;
-    }
-    
-    return matches;
-  });
-}
+    this.filteredTariffVendors = this.tariffVendors.filter((vendor) => {
+      let matches = true;
 
-// Clear tariff filters
-clearTariffFilters() {
-  this.tariffFilter = {};
-  this.filteredTariffVendors = [...this.tariffVendors];
-}
-openChargesDialog(vendor: any) {
-  this.toggleVendorChargesInline(vendor, 'sourcing');
-}
+      if (
+        this.tariffFilter.service_area &&
+        vendor.service_area !== this.tariffFilter.service_area
+      ) {
+        matches = false;
+      }
 
-saveSelectedSubCharges() {
-  if (this.chargesDialogVendor) {
-    if (!this.chargesDialogVendor.selected_subcharges || this.chargesDialogVendor.selected_subcharges.length === 0) {
-      this.chargesDialogVendor.selected_subcharges = [...(this.chargesDialogVendor.sub_charges || [])];
-    }
-    this.chargesDialogVendor.selected = true;
+      if (
+        this.tariffFilter.from_location &&
+        vendor.from_location !== this.tariffFilter.from_location
+      ) {
+        matches = false;
+      }
+
+      if (
+        this.tariffFilter.to_location &&
+        vendor.to_location !== this.tariffFilter.to_location
+      ) {
+        matches = false;
+      }
+
+      if (
+        this.tariffFilter.vendor_type &&
+        vendor.vendor_type !== this.tariffFilter.vendor_type
+      ) {
+        matches = false;
+      }
+
+      return matches;
+    });
   }
-  this.chargesDialogVisible = false;
-}
 
-toggleVendorChargesInline(vendor: any, type: 'sourcing' | 'tariff') {
-  if (!vendor.sell_rates) vendor.sell_rates = {};
-  vendor.showCharges = !vendor.showCharges;
-  if (vendor.showCharges) {
-    if (!vendor.sub_charges || vendor.sub_charges.length === 0) {
-      this.sourceService.getSubCharges(Number(vendor.id)).subscribe({
-        next: (list) => {
-          vendor.sub_charges = Array.isArray(list) ? list : [];
-          if (!vendor.selected_subcharges || vendor.selected_subcharges.length === 0) {
-            vendor.selected_subcharges = [...vendor.sub_charges];
-          }
-          (vendor.sub_charges || []).forEach((s: any) => {
-            if (typeof s.selected === 'undefined') s.selected = true;
-            if (vendor.sell_rates[s.id] === undefined) vendor.sell_rates[s.id] = s.amount || s.charges || 0;
+  // Clear tariff filters
+  clearTariffFilters() {
+    this.tariffFilter = {};
+    this.filteredTariffVendors = [...this.tariffVendors];
+  }
+  openChargesDialog(vendor: any) {
+    this.toggleVendorChargesInline(vendor, 'sourcing');
+  }
+
+  saveSelectedSubCharges() {
+    if (this.chargesDialogVendor) {
+      if (
+        !this.chargesDialogVendor.selected_subcharges ||
+        this.chargesDialogVendor.selected_subcharges.length === 0
+      ) {
+        this.chargesDialogVendor.selected_subcharges = [
+          ...(this.chargesDialogVendor.sub_charges || []),
+        ];
+      }
+      this.chargesDialogVendor.selected = true;
+    }
+    this.chargesDialogVisible = false;
+  }
+
+  toggleVendorChargesInline(vendor: any, type: 'sourcing' | 'tariff') {
+    if (!vendor.sell_rates) vendor.sell_rates = {};
+    vendor.showCharges = !vendor.showCharges;
+    if (vendor.showCharges) {
+      if (!vendor.sub_charges || vendor.sub_charges.length === 0) {
+        this.sourceService.getSubCharges(Number(vendor.id)).subscribe({
+          next: (list) => {
+            vendor.sub_charges = Array.isArray(list) ? list : [];
+            if (
+              !vendor.selected_subcharges ||
+              vendor.selected_subcharges.length === 0
+            ) {
+              vendor.selected_subcharges = [...vendor.sub_charges];
+            }
+            (vendor.sub_charges || []).forEach((s: any) => {
+              if (typeof s.selected === 'undefined') s.selected = true;
+              if (vendor.sell_rates[s.id] === undefined)
+                vendor.sell_rates[s.id] = s.amount || s.charges || 0;
+            });
+            this.cdr.detectChanges();
+          },
+        });
+      } else {
+        if (
+          !vendor.selected_subcharges ||
+          vendor.selected_subcharges.length === 0
+        ) {
+          vendor.selected_subcharges = [...vendor.sub_charges];
+        }
+        (vendor.sub_charges || []).forEach((s: any) => {
+          if (typeof s.selected === 'undefined') s.selected = true;
+          if (vendor.sell_rates[s.id] === undefined)
+            vendor.sell_rates[s.id] = s.amount || s.charges || 0;
+        });
+      }
+    }
+  }
+
+  // Save sourcing vendors
+  saveSourcingVendors() {
+    const vendorsToSave = this.selectedSourcingVendors.map((vendor) => ({
+      ...vendor,
+      source_type: 'sourcing',
+      charges: vendor.selected_subcharges,
+      negotiated_charges: vendor.sell_rates,
+      negotiated_remarks: vendor.remarks,
+    }));
+
+    this.enquiryService
+      .addVendorCards(this.currentEnquiry?.code!, vendorsToSave, {
+        sourcingType: 'sourcing',
+        lineItemId: this.currentVendorCriteria.lineItemId,
+      })
+      .subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Sourcing vendors saved successfully',
           });
-          this.cdr.detectChanges();
+          this.showVendorTabsDialog = false;
+          this.loadEnquiry(this.currentEnquiry?.code!);
+        },
+        error: (error) => {
+          console.error('Error saving sourcing vendors:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save sourcing vendors',
+          });
         },
       });
-    } else {
-      if (!vendor.selected_subcharges || vendor.selected_subcharges.length === 0) {
-        vendor.selected_subcharges = [...vendor.sub_charges];
+  }
+  private normalizeCharges(charges: any): any[] {
+    if (!charges) return [];
+    if (Array.isArray(charges)) return charges;
+    if (typeof charges === 'string') {
+      try {
+        const parsed = JSON.parse(charges);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
       }
-      (vendor.sub_charges || []).forEach((s: any) => {
-        if (typeof s.selected === 'undefined') s.selected = true;
-        if (vendor.sell_rates[s.id] === undefined) vendor.sell_rates[s.id] = s.amount || s.charges || 0;
-      });
     }
-  }
-}
-
-// Save sourcing vendors
-saveSourcingVendors() {
-  const vendorsToSave = this.selectedSourcingVendors.map(vendor => ({
-    ...vendor,
-    source_type: 'sourcing',
-    charges: vendor.selected_subcharges,
-    negotiated_charges: vendor.sell_rates,
-    negotiated_remarks: vendor.remarks
-  }));
-
-  this.enquiryService.addVendorCards(
-    this.currentEnquiry?.code!,
-    vendorsToSave,
-    { sourcingType: 'sourcing', lineItemId: this.currentVendorCriteria.lineItemId }
-  ).subscribe({
-      next: () => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Sourcing vendors saved successfully'
-        });
-        this.showVendorTabsDialog = false;
-        this.loadEnquiry(this.currentEnquiry?.code!);
-      },
-      error: (error) => {
-        console.error('Error saving sourcing vendors:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to save sourcing vendors'
-        });
-      }
-  });
-}
-private normalizeCharges(charges: any): any[] {
-  if (!charges) return [];
-  if (Array.isArray(charges)) return charges;
-  if (typeof charges === 'string') {
-    try {
-      const parsed = JSON.parse(charges);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
+    if (typeof charges === 'object') {
+      return charges.items && Array.isArray(charges.items) ? charges.items : [];
     }
+    return [];
   }
-  if (typeof charges === 'object') {
-    return (charges.items && Array.isArray(charges.items)) ? charges.items : [];
-  }
-  return [];
-}
 
-private hydrateSubCharges(vendors: any[], updateFiltered: boolean = false) {
-  if (!vendors || vendors.length === 0) return;
-  const requests = vendors.map((v) =>
-    this.sourceService.getSubCharges(Number(v.id)).pipe(catchError(() => of([])))
-  );
-  forkJoin(requests).subscribe({
-    next: (subcharges) => {
-      subcharges.forEach((list, idx) => {
-        vendors[idx].sub_charges = Array.isArray(list) ? list : [];
-        if (!vendors[idx].selected_subcharges || vendors[idx].selected_subcharges.length === 0) {
-          vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
+  private hydrateSubCharges(vendors: any[], updateFiltered: boolean = false) {
+    console.log('Vendor value before hydrating sub charges:', vendors);
+    if (!vendors || vendors.length === 0) return;
+    const requests = vendors.map((v) =>
+      this.sourceService
+        .getSubCharges(Number(v.id))
+        .pipe(catchError(() => of([])))
+    );
+    forkJoin(requests).subscribe({
+      next: (subcharges) => {
+        subcharges.forEach((list, idx) => {
+          vendors[idx].sub_charges = Array.isArray(list) ? list : [];
+          if (
+            !vendors[idx].selected_subcharges ||
+            vendors[idx].selected_subcharges.length === 0
+          ) {
+            vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
+          }
+        });
+        if (updateFiltered) {
+          this.filteredTariffVendors = [...vendors];
         }
-      });
-      if (updateFiltered) {
-        this.filteredTariffVendors = [...vendors];
-      }
-      console.log('Hydrated sub charges for vendors:', vendors);
-    },
-    error: (err) => {
-      console.error('Error hydrating sub charges:', err);
-    },
-  });
-}
+        console.log('Hydrated sub charges for vendors:', vendors);
+      },
+      error: (err) => {
+        console.error('Error hydrating sub charges:', err);
+      },
+    });
+  }
   //11/15/2025
-
 
   // Get only finalized sources for a line item
   getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
