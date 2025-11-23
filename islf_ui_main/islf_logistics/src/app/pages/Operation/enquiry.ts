@@ -56,6 +56,7 @@ import { MasterItemService } from '../../services/master-item.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { CurrencyCodeService } from '../../services/currencycode.service';
+import { CarriageService } from '../../services/carriage.service';
 import { AuthService } from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
@@ -365,25 +366,20 @@ import { VendorService } from '@/services/vendor.service';
                 >{{ fieldErrors['code'] }}</small
               >
             </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Date</label>
-              <p-calendar
-                id="date"
-                [(ngModel)]="selectedDate"
-                (ngModelChange)="onDateChange($event)"
-                [showIcon]="true"
-                dateFormat="dd-mm-yy"
-                appendTo="body"
-                placeholder="Select Date"
-                [showTime]="false"
-                [timeOnly]="false"
+            
+          
+                 <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Enquiry Type</label>
+              <p-dropdown
+                [(ngModel)]="selectedEnquiry.enquiry_type"
+                [options]="enquiryTypeOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select Enquiry Type"
+                [showClear]="true"
+                class="w-full"
               >
-              </p-calendar>
-              <small
-                *ngIf="fieldErrors['date']"
-                class="p-error text-red-500 text-xs ml-2"
-                >{{ fieldErrors['date'] }}</small
-              >
+              </p-dropdown>
             </div>
 
             <div class="col-span-12 md:col-span-3">
@@ -866,22 +862,7 @@ import { VendorService } from '@/services/vendor.service';
                 fieldErrors['sourceSalesCode']
               }}</small>
             </div>
-
-            <div class="col-span-12 md:col-span-6">
-              <label class="block font-semibold mb-1">Remarks</label>
-              <textarea
-                id="remarks"
-                pInputTextarea
-                [(ngModel)]="selectedEnquiry.remarks"
-                rows="3"
-                placeholder="Enter remarks"
-                class="w-full"
-              >
-                  >
-                </textarea
-              >
-            </div>
-            <div class="col-span-12 md:col-span-3">
+             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Status</label>
               <p-dropdown
                 id="status"
@@ -894,6 +875,83 @@ import { VendorService } from '@/services/vendor.service';
               >
               </p-dropdown>
             </div>
+            <div class="col-span-12 md:col-span-6">
+              <label class="block font-semibold mb-1">Remarks</label>
+              <textarea
+                id="remarks"
+                pInputTextarea
+                [(ngModel)]="selectedEnquiry.remarks"
+                rows="3"
+                placeholder="Enter remarks"
+                class="w-full"
+              ></textarea>
+            </div>
+             <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Date</label>
+              <p-calendar
+                id="date"
+                [(ngModel)]="selectedDate"
+                (ngModelChange)="onDateChange($event)"
+                [showIcon]="true"
+                dateFormat="dd-mm-yy"
+                appendTo="body"
+                placeholder="Select Date"
+                [showTime]="false"
+                [timeOnly]="false"
+              >
+              </p-calendar>
+              <small
+                *ngIf="fieldErrors['date']"
+                class="p-error text-red-500 text-xs ml-2"
+                >{{ fieldErrors['date'] }}</small
+              >
+            </div>
+
+
+            <div class="col-span-12">
+              <div class="section-header">
+                <h3>Carriage List</h3>
+              </div>
+              <div class="mb-3 flex items-center gap-2">
+                <button pButton type="button" label="Add carriage" icon="pi pi-plus" (click)="addCarriageRow()" class="p-button-sm"></button>
+              </div>
+              <p-table [value]="carriageMappings" dataKey="id" [paginator]="false" styleClass="p-datatable-sm">
+                <ng-template pTemplate="header">
+                 <tr>
+                  <th style="min-width: 100px;">Direction</th>
+                  <th style="min-width: 150px;">Carriage</th>
+                  <th style="min-width: 130px;">Location Type</th>
+                  <th style="min-width: 180px;">Location</th>
+                  <th style="min-width: 80px;">Delete</th>
+                </tr>
+
+                </ng-template>
+                <ng-template pTemplate="body" let-row let-i="rowIndex">
+                  <tr>
+                    <td>
+                      <p-dropdown [(ngModel)]="row.direction" [options]="[{label:'FROM',value:'FROM'},{label:'TO',value:'TO'}]" appendTo="body" [showClear]="true"></p-dropdown>
+                    </td>
+                    <td>
+                      <p-dropdown [(ngModel)]="row.carriage" [options]="row.direction==='FROM'?carriageOptionsFrom:carriageOptionsTo" appendTo="body" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                    </td>
+                    <td>
+                      <p-dropdown [(ngModel)]="row.location_type" [options]="locationTypeFromOptions" appendTo="body" [showClear]="true"></p-dropdown>
+                    </td>
+                    <td>
+                      <p-dropdown [(ngModel)]="row.location" [options]="getLocationsForType(row.location_type)" appendTo="body" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                    </td>
+                    <td>
+                      <button pButton type="button" icon="pi pi-trash" class="p-button-danger p-button-text" (click)="removeCarriageRow(i)"></button>
+                    </td>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                  <tr><td colspan="5" class="text-center py-4">No carriage rows. Click Add.</td></tr>
+                </ng-template>
+              </p-table>
+            </div>
+           
+           
           </div>
 
           <!-- Line Items Section -->
@@ -1501,6 +1559,7 @@ import { VendorService } from '@/services/vendor.service';
                     <th>Basis</th>
                     <th>Currency</th>
                     <th>Charges</th>
+                    <th>Sell Rate Currency</th>
                     <th>Sell Rate</th>
                     <th>GST/VAT</th>
                   </tr>
@@ -1517,6 +1576,34 @@ import { VendorService } from '@/services/vendor.service';
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
                     <td>{{ charge.amount || charge.charges }}</td>
+                    <td>
+                      <ng-container *ngIf="charge.selected; else sellRateCurrencyDash">
+                        <div class="flex gap-2 items-center">
+                          <p-dropdown
+                            appendTo="body"
+                            [options]="sellPriceCurrencyOptions"
+                            [(ngModel)]="charge.sell_rate_currency"
+                            placeholder="Select Currency"
+                            [filter]="true"
+                            filterBy="label"
+                            [showClear]="true"
+                            class="small-dropdown"
+                          ></p-dropdown>
+                          <button
+                            pButton
+                            [icon]="
+                              masterDialogLoading['currencyCode']
+                                ? 'pi pi-spin pi-spinner'
+                                : 'pi pi-ellipsis-h'
+                            "
+                            class="p-button-sm"
+                            [disabled]="masterDialogLoading['currencyCode']"
+                            (click)="openMaster('currencyCode')"
+                          ></button>
+                        </div>
+                      </ng-container>
+                      <ng-template #sellRateCurrencyDash>--</ng-template>
+                    </td>
                     <td>
                       <input
                         *ngIf="charge.selected"
@@ -2585,6 +2672,16 @@ export class EnquiryComponent implements OnInit {
   serviceTypeOptions: any[] = [];
   allServiceTypes: any[] = [];
 
+  // Enquiry type options
+  enquiryTypeOptions = [
+    { label: 'Direct', value: 'Direct' },
+    { label: 'Nomination', value: 'Nomination' },
+  ];
+
+  carriageMappings: any[] = [];
+  carriageOptionsFrom: any[] = [];
+  carriageOptionsTo: any[] = [];
+
   // Location type options
   locationTypeFromOptions: any[] = [];
   locationTypeToOptions: any[] = [];
@@ -2772,6 +2869,7 @@ export class EnquiryComponent implements OnInit {
     private vendorService: VendorService,
     private masterTypeService: MasterTypeService,
     private currencyCodeService: CurrencyCodeService,
+    private carriageService: CarriageService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
     private sourceSalesService: SourceSalesService,
@@ -3054,6 +3152,19 @@ export class EnquiryComponent implements OnInit {
     );
   }
 
+  loadCarriageDirectionOptions() {
+    this.carriageService.getCarriageDirection().subscribe({
+      next: (rows: any[]) => {
+        this.carriageOptionsFrom = (rows || [])
+          .filter((r) => r.is_from)
+          .map((r) => ({ label: r.description || r.carriage, value: r.carriage }));
+        this.carriageOptionsTo = (rows || [])
+          .filter((r) => r.is_to)
+          .map((r) => ({ label: r.description || r.carriage, value: r.carriage }));
+      },
+    });
+  }
+
   loadSourceSalesOptions() {
     return this.sourceSalesService.getSourceSales().pipe(
       tap((sourceSales: any[]) => {
@@ -3147,6 +3258,28 @@ export class EnquiryComponent implements OnInit {
         );
       })
     );
+  }
+
+  getLocationsForType(type: string) {
+    if (!type || !this.allLocations || this.allLocations.length === 0) return [];
+    const exact = this.allLocations.filter((l: any) => l.type === type);
+    const list = exact.length > 0
+      ? exact
+      : this.allLocations.filter(
+          (l: any) => (l.type || '').toLowerCase() === (type || '').toLowerCase()
+        );
+    return list.map((l: any) => ({ label: `${l.code} - ${l.name}`, value: l.code }));
+  }
+
+  addCarriageRow() {
+    this.carriageMappings = [
+      ...this.carriageMappings,
+      { direction: 'FROM', carriage: null, location_type: null, location: null },
+    ];
+  }
+
+  removeCarriageRow(i: number) {
+    this.carriageMappings = this.carriageMappings.filter((_, idx) => idx !== i);
   }
 
   // Master type options property
@@ -3436,6 +3569,7 @@ export class EnquiryComponent implements OnInit {
       effective_date_from: today.toISOString().split('T')[0],
       effective_date_to: today.toISOString().split('T')[0],
       status: 'Open',
+      enquiry_type: '',
       remarks: '',
       line_items: [],
       isNew: true,
@@ -3472,6 +3606,8 @@ export class EnquiryComponent implements OnInit {
     this.selectedEffectiveDateTo = today;
 
     this.isDialogVisible = true;
+
+    this.loadCarriageDirectionOptions();
   }
 
   editEnquiry(enquiry: Enquiry) {
@@ -3792,6 +3928,7 @@ export class EnquiryComponent implements OnInit {
       // Force change detection to update the UI
       this.cdr.detectChanges();
     }
+
   }
 
   // Calculate total charge from selected items
@@ -4594,8 +4731,7 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-    
-      const allSub = selectedVendor?.sub_charges ;
+      const allSub = selectedVendor?.sub_charges || [];
       if (
         !selectedVendor?.selected_subcharges ||
         selectedVendor?.selected_subcharges.length === 0
@@ -4617,7 +4753,7 @@ export class EnquiryComponent implements OnInit {
 
     this.selectedSourcingVendors = [
       ...this.selectedSourcingVendors,
-      ...movedVendors,
+      movedVendors,
     ];
 
     const ctx = this.currentVendorCriteria || {};
@@ -4642,7 +4778,7 @@ export class EnquiryComponent implements OnInit {
     };
 
     this.enquiryService
-      .addVendorCards(this.currentEnquiry?.code!, vendorToSave, {
+      .addVendorCards(this.currentEnquiry?.code!, [vendorToSave], {
         masterType: 'sourcing',
         lineItemId: ctx.lineItemId,
       })
@@ -4664,7 +4800,7 @@ export class EnquiryComponent implements OnInit {
       (v) => selectedVendorId!==v.id
     );
 
-    this.sourcingSelection = {};
+    this.sourcingSelection = null;
 
     // Move to Select Sourcing tab
     this.activeVendorTab = 1;
@@ -5409,6 +5545,13 @@ export class EnquiryComponent implements OnInit {
           // if (this.vendorCards.length > 0) {
           //   this.saveVendorCards();
           // }
+        }
+
+        const enqId = response.id || this.selectedEnquiry?.id;
+        if (enqId) {
+          this.carriageService
+            .saveEnquiryCarriageMapping(enqId, this.carriageMappings)
+            .subscribe();
         }
 
         this.enquiryService

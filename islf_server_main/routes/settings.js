@@ -409,3 +409,72 @@ router.post('/config', async (req, res) => {
 });
 
 module.exports = router;
+// Carriage Direction APIs
+router.get('/carriage-direction', async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS carriage_direction (
+      id SERIAL PRIMARY KEY,
+      carriage VARCHAR(150) UNIQUE NOT NULL,
+      is_from BOOLEAN DEFAULT false,
+      is_to BOOLEAN DEFAULT false
+    )`);
+
+    const { rows: carriageCodes } = await pool.query(
+      `SELECT value, description FROM master_type WHERE key = 'CARRIAGE' AND status IN ('Active','active') ORDER BY value`
+    );
+
+    for (const c of carriageCodes) {
+      const existing = await pool.query(
+        'SELECT id FROM carriage_direction WHERE carriage = $1',
+        [c.value]
+      );
+      if (existing.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO carriage_direction (carriage, is_from, is_to) VALUES ($1, false, false)',
+          [c.value]
+        );
+      }
+    }
+
+    const { rows } = await pool.query(
+      `SELECT cd.id, cd.carriage, cd.is_from, cd.is_to, mt.description 
+       FROM carriage_direction cd 
+       LEFT JOIN master_type mt ON mt.value = cd.carriage AND mt.key = 'CARRIAGE' 
+       ORDER BY cd.carriage`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching carriage-direction:', err);
+    res.status(500).json({ error: 'Failed to fetch carriage-direction' });
+  }
+});
+
+router.post('/carriage-direction/save', async (req, res) => {
+  try {
+    const list = Array.isArray(req.body) ? req.body : req.body?.list || [];
+    await pool.query(`CREATE TABLE IF NOT EXISTS carriage_direction (
+      id SERIAL PRIMARY KEY,
+      carriage VARCHAR(150) UNIQUE NOT NULL,
+      is_from BOOLEAN DEFAULT false,
+      is_to BOOLEAN DEFAULT false
+    )`);
+
+    for (const item of list) {
+      const { carriage, is_from, is_to } = item;
+      const upd = await pool.query(
+        'UPDATE carriage_direction SET is_from=$2, is_to=$3 WHERE carriage=$1 RETURNING id',
+        [carriage, !!is_from, !!is_to]
+      );
+      if (upd.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO carriage_direction (carriage, is_from, is_to) VALUES ($1, $2, $3)',
+          [carriage, !!is_from, !!is_to]
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving carriage-direction:', err);
+    res.status(500).json({ error: 'Failed to save carriage-direction' });
+  }
+});

@@ -294,7 +294,7 @@ router.get("/:code", async (req, res) => {
         },
       ];
       const { rows: vendorCardsResult } = await pool.query(
-        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC NULLS LAST;",
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY id DESC;",
         [enquiry_id, line_item_id]
       );
       // console.log("list of vendor cards,", vendorCardsResult);
@@ -303,12 +303,13 @@ router.get("/:code", async (req, res) => {
       let tariff_list = [];
       let selected_tariff_list = [];
       vendorCardsResult.forEach((vendorCard) => {
-        if (vendorCard.source_type.toLowerCase() == "tariff") {
+        const typeVal = (vendorCard.master_type || vendorCard.source_type || "").toLowerCase();
+        if (typeVal === "tariff") {
           if (vendorCard.is_selected) {
             selected_tariff_list.push(vendorCard);
           }
           tariff_list.push(vendorCard);
-        } else if (vendorCard.source_type.toLowerCase() == "sourcing") {
+        } else if (typeVal === "sourcing") {
           if (vendorCard.is_selected) {
             selected_source_list.push(vendorCard);
           }
@@ -469,22 +470,17 @@ router.get("/:code/preview", async (req, res) => {
         },
       ];
       const { rows: vendorCardsResult } = await pool.query(
-        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY sourced_no DESC;",
+        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY id DESC;",
         [enquiry_id, line_item_id]
       );
       // console.log("list of vendor cards,", vendorCardsResult);
       let selected_source_list = [];
       let selected_tariff_list = [];
       vendorCardsResult.forEach((vendorCard) => {
-        if (
-          vendorCard.source_type.toLowerCase() == "tariff" &&
-          vendorCard.is_selected
-        ) {
+        const typeVal = (vendorCard.master_type || vendorCard.source_type || "").toLowerCase();
+        if (typeVal === "tariff" && vendorCard.is_selected) {
           selected_tariff_list.push(vendorCard);
-        } else if (
-          vendorCard.source_type.toLowerCase() == "sourcing" &&
-          vendorCard.is_selected
-        ) {
+        } else if (typeVal === "sourcing" && vendorCard.is_selected) {
           selected_source_list.push(vendorCard);
         }
       });
@@ -599,6 +595,7 @@ router.post("/", async (req, res) => {
       service_type,
       status = "Open",
       remarks,
+      enquiry_type,
       line_items = [],
       is_new_customer = false,
       code,
@@ -624,15 +621,12 @@ router.post("/", async (req, res) => {
         `SELECT cus.customer_id FROM (SELECT * FROM customer_contacts AS cc JOIN customer AS c ON c.id = cc.customer_id WHERE cc.name = $1 ) AS cus;`,
         [customer_name]
       );
-
       let { rows: isCompanyExists } = await pool.query(
         `SELECT exists (SELECT 1 FROM customer WHERE name= $1) AS found`,
         [company_name]
       );
       console.log("is New Customer contact DB response", isOldCustomerContact);
-
       let finalCustomerId = customer_id;
-
       // If new customer, create customer record first
       if (
         (is_new_customer ||
@@ -652,7 +646,6 @@ router.post("/", async (req, res) => {
             userContext.department_code,
           ]
         );
-
         let customerNo;
         if (customerNumberResult.rows.length > 0) {
           const numberSeries = customerNumberResult.rows[0];
@@ -860,8 +853,8 @@ router.post("/", async (req, res) => {
       const enquiryResult = await client.query(
         `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
                  company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, company_code, branch_code, department_code, service_type_code, source_sales_code, cargo_type)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,$25,$26) RETURNING id`,
+                 service_type, status, remarks, enquiry_type, company_code, branch_code, department_code, service_type_code, source_sales_code, cargo_type)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING id`,
         [
           enquiryNo,
           enquiryCode,
@@ -883,6 +876,7 @@ router.post("/", async (req, res) => {
           service_type,
           status,
           remarks,
+          enquiry_type || null,
           userContext.company_code,
           userContext.branch_code,
           userContext.department_code,
@@ -967,6 +961,7 @@ router.put("/:code", async (req, res) => {
       service_type,
       status,
       remarks,
+      enquiry_type,
       source_sales_code,
       line_items = [],
       cargo_type,
@@ -1102,7 +1097,7 @@ router.put("/:code", async (req, res) => {
       await client.query(
         `UPDATE enquiry SET date = $1, customer_id = $2, customer_name = $3, email = $4,
                  mobile = $5, landline = $6, company_name = $7, contact_department = $8, from_location = $9, to_location = $10,
-                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, source_sales_code = $17,
+                 effective_date_from = $11, effective_date_to = $12, department = $13, service_type = $14, status = $15, remarks = $16, enquiry_type = $22, source_sales_code = $17,
                  cargo_type= $19, location_type_from= $20, location_type_to= $21 WHERE id = $18`,
         [
           date,
@@ -1126,6 +1121,7 @@ router.put("/:code", async (req, res) => {
           cargo_type,
           location_type_from,
           location_type_to,
+          enquiry_type || null,
         ]
       );
 
@@ -1941,6 +1937,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
     const { code } = req.params;
     const {
       vendorCard,
+      vendorCards,
       masterType: masterTypeRaw,
       sourcingType,
       lineItemId,
@@ -1957,7 +1954,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
 
     // Fetch enquiry with context fields
     const enquiryResult = await pool.query(
-      "SELECT id, department, service_type, cargo_type, from_location_type, to_location_type, effective_date_from, effective_date_to FROM enquiry WHERE code = $1",
+      "SELECT id, department, service_type, cargo_type, location_type_from, location_type_to, effective_date_from, effective_date_to FROM enquiry WHERE code = $1",
       [code]
     );
 
@@ -1978,7 +1975,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
     try {
       await client.query("BEGIN");
 
-      const card = vendorCard ? vendorCard : null;
+      const card = vendorCard || (Array.isArray(vendorCards) ? vendorCards[0] : vendorCards) || null;
 
       if(!card){
         return res.status(400).json({error: "No vendor cards provided"});
@@ -2279,6 +2276,61 @@ router.get("/:code/lineItem", async (req, res) => {
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Carriage mapping APIs
+router.get("/:id/carriage-mapping", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`CREATE TABLE IF NOT EXISTS enquiry_carriage_mapping (
+      id SERIAL PRIMARY KEY,
+      enquiry_id INT NOT NULL,
+      direction VARCHAR(10) NOT NULL,
+      carriage VARCHAR(150) NOT NULL,
+      location_type VARCHAR(150),
+      location VARCHAR(150)
+    )`);
+    const { rows } = await pool.query(
+      'SELECT * FROM enquiry_carriage_mapping WHERE enquiry_id = $1 ORDER BY id',
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching enquiry carriage-mapping:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/carriage-mapping/save', async (req, res) => {
+  try {
+    const { enquiry_id, list } = req.body || {};
+    if (!enquiry_id) {
+      return res.status(400).json({ error: 'enquiry_id is required' });
+    }
+    const items = Array.isArray(list) ? list : [];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM enquiry_carriage_mapping WHERE enquiry_id = $1', [enquiry_id]);
+      for (const it of items) {
+        await client.query(
+          `INSERT INTO enquiry_carriage_mapping (enquiry_id, direction, carriage, location_type, location)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [enquiry_id, it.direction, it.carriage, it.location_type || null, it.location || null]
+        );
+      }
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error saving enquiry carriage-mapping:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

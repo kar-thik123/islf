@@ -65,6 +65,11 @@ export class AppMenu {
                 icon: 'fa-solid fa-user',
                 routerLink: ['/settings/user_management'],
               },
+              {
+                label: 'Carriage Direction',
+                icon: 'fa-solid fa-sort-numeric-up',
+                routerLink: ['/settings/carriage_direction'],
+              }
             ],
           },
         ],

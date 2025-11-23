@@ -81,6 +81,7 @@ export interface Enquiry {
   service_type: string;
   basis: string;
   status: string;
+  enquiry_type?: string;
   remarks: string;
   line_items: EnquiryLineItem[];
   vendor_cards?: EnquiryVendorCard[];

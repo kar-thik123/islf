@@ -7,6 +7,7 @@ import { mappingComponent } from './mapping';
 import { ITSetupComponent } from './itsetup';
 import {  UserListComponent } from './userManagement/userlist';
 import { Title } from '@angular/platform-browser';
+import { CarriageDirectionSettingsComponent } from './carriage-direction';
 import {  UserCreateComponent } from './userManagement/usercreate';
 
 
@@ -21,10 +22,11 @@ export default [
     {path: 'it_setup', component: ITSetupComponent, data: { breadcrumb: 'Settings >>> IT Setup', title: 'IT Setup - ISLF' } },
     {path:'user_management',component:UserListComponent,data:{ breadcrumb: 'Settings >>> User management',title:'User_management - ISLF'}},
     {path:'create_user',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Create User',title:'Create_User - ISLF'}},
-    {path:'create_user/:id',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Edit User',title:'Edit_User - ISLF'}}
+    {path:'create_user/:id',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Edit User',title:'Edit_User - ISLF'}},
+    {path:'carriage_direction',component:CarriageDirectionSettingsComponent,data:{ breadcrumb: 'Settings >>> Carriage Configuration',title:'Carriage_Configuration - ISLF'}}
 
     
 
-] as Routes; 
+] as Routes;
 
 
