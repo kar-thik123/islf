@@ -18,6 +18,11 @@ export interface EnquiryLineItem {
   enquiry_id?: string | number;
   enquiry_summary?: EnquirySummary[];
   serviceAreaOptions?: any[];
+  fromLocation?: string;
+  fromLocationType?: string;
+  toLocation?: string;
+  toLocationType?: string;
+  
   is_selected?: boolean;
 }
 
@@ -71,10 +76,10 @@ export interface Enquiry {
   landline: string;
   company_name: string;
   cargo_type: string;
-  from_location: string;
-  to_location: string;
-  location_type_from: string;
-  location_type_to: string;
+  // from_location: string;
+  // to_location: string;
+  // location_type_from: string;
+  // location_type_to: string;
   effective_date_from: string;
   effective_date_to: string;
   department: string;
@@ -467,8 +472,6 @@ Thank you for your enquiry. Please find below the quotation details:
 ENQUIRY DETAILS:
 Enquiry No: ${enquiry.enquiry_no}
 Date: ${enquiry.date}
-From: ${enquiry.from_location}
-To: ${enquiry.to_location}
 Department: ${enquiry.department}
 Effective Period: ${enquiry.effective_date_from} to ${enquiry.effective_date_to}
 
@@ -516,8 +519,8 @@ ISLF Logistics Team
 
     if (!enquiry.date) errors.push('Date is required');
     if (!enquiry.customer_name) errors.push('Customer name is required');
-    if (!enquiry.from_location) errors.push('From location is required');
-    if (!enquiry.to_location) errors.push('To location is required');
+    // if (!enquiry.from_location) errors.push('From location is required');
+    // if (!enquiry.to_location) errors.push('To location is required');
     if (!enquiry.department) errors.push('Department is required');
     if (!enquiry.effective_date_from)
       errors.push('Effective date from is required');

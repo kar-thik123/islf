@@ -595,7 +595,7 @@ import { VendorService } from '@/services/vendor.service';
                 ></button>
               </div>
             </div>
-            <div class="col-span-12 md:col-span-3">
+            <!-- <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">From Location Type</label>
               <div class="flex gap-2">
                 <p-dropdown
@@ -732,7 +732,7 @@ import { VendorService } from '@/services/vendor.service';
                 class="p-error text-red-500 text-xs ml-2"
                 >{{ fieldErrors['to_location'] }}</small
               >
-            </div>
+            </div> -->
 
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Department</label>
@@ -1049,12 +1049,16 @@ import { VendorService } from '@/services/vendor.service';
                   <th style="width: 3%"><p-tableHeaderCheckbox /></th>
                   <!-- Checkbox -->
                   <th style="width: 5%">S.No.</th>
-                  <th style="width: 8%">Quantity</th>
+                  <!-- <th style="width: 8%">Quantity</th> -->
                   <th style="width: 15%">Type</th>
                   <th style="width: 15%">Service Area</th>
                   <th style="width: 15%">Basis</th>
-                  <th style="width: 15%">Remarks</th>
-                  <th style="width: 10%">Status</th>
+                  <th style="width: 15%">From Location Type</th>
+                  <th style="width: 15%">From Location</th>
+                  <th style="width: 15%">To Location Type</th>
+                  <th style="width: 15%">To Location</th>
+                  <!-- <th style="width: 15%">Remarks</th>
+                  <th style="width: 10%">Status</th> -->
                   <th style="width: 15%">Actions</th>
                 </tr>
               </ng-template>
@@ -1064,7 +1068,7 @@ import { VendorService } from '@/services/vendor.service';
                     <p-tableCheckbox [value]="item" />
                   </td>
                   <td>{{ i + 1 }}</td>
-                  <td class="px-1">
+                  <!-- <td class="px-1">
                     <p-inputNumber
                       [(ngModel)]="item.quantity"
                       [min]="0"
@@ -1073,7 +1077,7 @@ import { VendorService } from '@/services/vendor.service';
                       [style]="{ width: '60px' }"
                     >
                     </p-inputNumber>
-                  </td>
+                  </td> -->
                   <td>
                     <div class="flex gap-2">
                       <p-dropdown
@@ -1152,7 +1156,124 @@ import { VendorService } from '@/services/vendor.service';
                       ></button>
                     </div>
                   </td>
-                  <td>
+
+                  <td style="width: 300px; min-width: 300px">
+                    <div class="flex gap-2">
+                      <p-dropdown
+                        appendTo="body"
+                        [options]="locationTypeFromOptions[i]"
+                        [(ngModel)]="item.location_type_from"
+                        (ngModelChange)="onLocationTypeFromChange($event)"
+                        placeholder="Select From Location Type"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                        class="flex-1"
+                      >
+                      </p-dropdown>
+                      <button
+                        pButton
+                        [icon]="
+                          masterDialogLoading['locationTypeFrom']
+                            ? 'pi pi-spin pi-spinner'
+                            : 'pi pi-ellipsis-h'
+                        "
+                        class="p-button-sm"
+                        [disabled]="masterDialogLoading['locationTypeFrom']"
+                        (click)="openMaster('locationTypeFrom')"
+                      ></button>
+                    </div>
+                  </td>
+                  <td style="width: 300px; min-width: 300px">
+                    <div class="flex gap-2">
+                      <p-dropdown
+                        appendTo="body"
+                        [options]="fromLocationOptions[i]"
+                        [(ngModel)]="item.from_location"
+                        (ngModelChange)="
+                          onFieldChange('from_location', item.from_location)
+                        "
+                        [ngClass]="getFieldErrorClass('from_location')"
+                        [ngStyle]="getFieldErrorStyle('from_location')"
+                        placeholder="Select From Location"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                        class="flex-1"
+                      >
+                      </p-dropdown>
+                      <button
+                        pButton
+                        [icon]="
+                          masterDialogLoading['from']
+                            ? 'pi pi-spin pi-spinner'
+                            : 'pi pi-ellipsis-h'
+                        "
+                        class="p-button-sm"
+                        [disabled]="masterDialogLoading['from']"
+                        (click)="openMaster('from')"
+                      ></button>
+                    </div>
+                  </td>
+                  <td style="width: 300px; min-width: 300px">
+                    <div class="flex gap-2">
+                      <p-dropdown
+                        appendTo="body"
+                        [options]="locationTypeToOptions[i]"
+                        [(ngModel)]="item.location_type_to"
+                        (ngModelChange)="onLocationTypeToChange($event)"
+                        placeholder="Select To Location Type"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                        class="flex-1"
+                      >
+                      </p-dropdown>
+                      <button
+                        pButton
+                        [icon]="
+                          masterDialogLoading['locationTypeTo']
+                            ? 'pi pi-spin pi-spinner'
+                            : 'pi pi-ellipsis-h'
+                        "
+                        class="p-button-sm"
+                        [disabled]="masterDialogLoading['locationTypeTo']"
+                        (click)="openMaster('locationTypeTo')"
+                      ></button>
+                    </div>
+                  </td>
+                  <td style="width: 300px; min-width: 300px">
+                    <div class="flex gap-2">
+                      <p-dropdown
+                        appendTo="body"
+                        [options]="toLocationOptions[i]"
+                        [(ngModel)]="item.to_location"
+                        (ngModelChange)="
+                          onFieldChange('to_location', item.to_location)
+                        "
+                        [ngClass]="getFieldErrorClass('to_location')"
+                        [ngStyle]="getFieldErrorStyle('to_location')"
+                        placeholder="Select To Location"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                        class="flex-1"
+                      >
+                      </p-dropdown>
+                      <button
+                        pButton
+                        [icon]="
+                          masterDialogLoading['to']
+                            ? 'pi pi-spin pi-spinner'
+                            : 'pi pi-ellipsis-h'
+                        "
+                        class="p-button-sm"
+                        [disabled]="masterDialogLoading['to']"
+                        (click)="openMaster('to')"
+                      ></button>
+                    </div>
+                  </td>
+                  <!-- <td>
                     <input
                       pInputText
                       [(ngModel)]="item.remarks"
@@ -1169,7 +1290,7 @@ import { VendorService } from '@/services/vendor.service';
                       appendTo="body"
                     >
                     </p-dropdown>
-                  </td>
+                  </td> -->
                   <td style="width: 300px; min-width: 300px">
                     <div class="flex gap-1 action-buttons">
                       <button
@@ -1181,21 +1302,6 @@ import { VendorService } from '@/services/vendor.service';
                         class="sourcing-btn"
                         pTooltip="Query Sourcing Table with matching conditions"
                       ></button>
-
-                      <!--<button
-                        pButton
-                        icon="pi pi-pencil"
-                        (click)="editLineItem(i)"
-                        class="p-button-warning p-button-sm p-button-text"
-                        pTooltip="Edit Row"
-                      ></button>
-                      <button
-                        pButton
-                        icon="pi pi-trash"
-                        (click)="deleteLineItem(i)"
-                        class="p-button-danger p-button-sm p-button-text"
-                        pTooltip="Delete Row"
-                      ></button> -->
                     </div>
                   </td>
                 </tr>
@@ -1745,7 +1851,7 @@ import { VendorService } from '@/services/vendor.service';
                   (onChange)="applyManualTariffFilter()"
                 ></p-dropdown>
               </div>
-               <div class="col-span-12 md:col-span-3">
+              <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1"
                   >Filter by To Location Type</label
                 >
@@ -1769,7 +1875,6 @@ import { VendorService } from '@/services/vendor.service';
                   (onChange)="applyManualTariffFilter()"
                 ></p-dropdown>
               </div>
-              
             </div>
 
             <div class="mb-4 p-3 bg-green-50 border-round">
@@ -2121,7 +2226,7 @@ import { VendorService } from '@/services/vendor.service';
       </ng-template>
     </p-dialog>
 
-    <!--Master Type Dialog-->
+    <!--Service Type Dialog-->
     <p-dialog
       header="Service Type Master"
       [(visible)]="showServiceTypeDialog"
@@ -2245,14 +2350,14 @@ import { VendorService } from '@/services/vendor.service';
                 <span class="font-semibold">Company:</span>
                 {{ currentEnquiry?.company_name || '--' }}
               </p>
-              <p>
+              <!-- <p>
                 <span class="font-semibold">From:</span>
                 {{ selectedEnquiryPreview?.from_location || '--' }}
               </p>
               <p>
                 <span class="font-semibold">To:</span>
                 {{ selectedEnquiryPreview?.to_location || '--' }}
-              </p>
+              </p> -->
             </div>
             <div>
               <p>
@@ -2723,6 +2828,11 @@ export class EnquiryComponent implements OnInit {
   fromLocationOptions: any[] = [];
   toLocationOptions: any[] = [];
 
+  // Location type options
+  locationTypeFromOptions: any[] = [];
+  locationTypeToOptions: any[] = [];
+  allLocationTypes: any[] = [];
+
   // Department options
   departmentOptions: any[] = [];
 
@@ -2746,11 +2856,6 @@ export class EnquiryComponent implements OnInit {
   carriageMappings: any[] = [];
   carriageOptionsFrom: any[] = [];
   carriageOptionsTo: any[] = [];
-
-  // Location type options
-  locationTypeFromOptions: any[] = [];
-  locationTypeToOptions: any[] = [];
-  allLocationTypes: any[] = [];
 
   // Mode options for vendor cards
   modeOptions = [
@@ -3643,10 +3748,6 @@ export class EnquiryComponent implements OnInit {
       department: '',
       basis: '',
       cargo_type: '',
-      from_location: '',
-      to_location: '',
-      location_type_from: '',
-      location_type_to: '',
       service_type: '',
       effective_date_from: today.toISOString().split('T')[0],
       effective_date_to: today.toISOString().split('T')[0],
@@ -3901,14 +4002,14 @@ export class EnquiryComponent implements OnInit {
     const enq = this.selectedEnquiry!;
     const criteria = {
       department: enq.department,
-      from_location: enq.from_location,
-      to_location: enq.to_location,
+      // from_location: enq.from_location,
+      // to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       basis: this.lineItems[lineIndex]?.basis || this.lineItems[0]?.basis,
       service_type: enq.service_type,
-      from_location_type: enq.location_type_from,
-      to_location_type: enq.location_type_to,
+      // from_location_type: enq.location_type_from,
+      // to_location_type: enq.location_type_to,
     };
 
     const sourcing$ =
@@ -4630,8 +4731,8 @@ export class EnquiryComponent implements OnInit {
     return !!(
       enq &&
       (enq.company_name || enq.customer_name) &&
-      enq.from_location &&
-      enq.to_location &&
+      // enq.from_location &&
+      // enq.to_location &&
       enq.effective_date_from &&
       enq.effective_date_to &&
       firstBasis &&
@@ -4645,8 +4746,8 @@ export class EnquiryComponent implements OnInit {
     return !!(
       enq &&
       (enq.company_name || enq.customer_name) &&
-      enq.from_location &&
-      enq.to_location &&
+      // enq.from_location &&
+      // enq.to_location &&
       enq.effective_date_from &&
       enq.effective_date_to &&
       firstBasis &&
@@ -4691,13 +4792,13 @@ export class EnquiryComponent implements OnInit {
       basis: this.lineItems[lineItemIndex]?.basis,
       department: enq.department,
       cargo_type: enq.cargo_type,
-      from_location: enq.from_location,
-      to_location: enq.to_location,
+      // from_location: enq.from_location,
+      // to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       service_type: enq.service_type,
-      from_location_type: enq.location_type_from,
-      to_location_type: enq.location_type_to,
+      // from_location_type: enq.location_type_from,
+      // to_location_type: enq.location_type_to,
       lineItemId: lineItemId,
     };
 
@@ -4761,13 +4862,13 @@ export class EnquiryComponent implements OnInit {
       basis: this.lineItems[lineItemIndex]?.basis,
       department: enq.department,
       cargo_type: enq.cargo_type,
-      from_location: enq.from_location,
-      to_location: enq.to_location,
+      // from_location: enq.from_location,
+      // to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       service_type: enq.service_type,
-      from_location_type: enq.location_type_from,
-      to_location_type: enq.location_type_to,
+      // from_location_type: enq.location_type_from,
+      // to_location_type: enq.location_type_to,
       lineItemId: lineItemId,
     };
 
@@ -5106,8 +5207,6 @@ export class EnquiryComponent implements OnInit {
       ) {
         matches = false;
       }
-
-     
 
       return matches;
     });
@@ -5800,10 +5899,10 @@ export class EnquiryComponent implements OnInit {
             department: '',
             basis: '',
             cargo_type: '',
-            from_location: '',
-            to_location: '',
-            location_type_from: '',
-            location_type_to: '',
+            // from_location: '',
+            // to_location: '',
+            // location_type_from: '',
+            // location_type_to: '',
             service_type: '',
             effective_date_from: '',
             effective_date_to: '',
@@ -5940,7 +6039,7 @@ export class EnquiryComponent implements OnInit {
 
     // Clear the from location when location type changes
     if (this.selectedEnquiry) {
-      this.selectedEnquiry.from_location = '';
+      // this.selectedEnquiry.from_location = '';
       this.fieldErrors['from_location'] = '';
 
       // Filter from locations based on selected location type
@@ -5953,7 +6052,7 @@ export class EnquiryComponent implements OnInit {
 
     // Clear the to location when location type changes
     if (this.selectedEnquiry) {
-      this.selectedEnquiry.to_location = '';
+      // this.selectedEnquiry.to_location = '';
       this.fieldErrors['to_location'] = '';
 
       // Filter to locations based on selected location type
@@ -5966,18 +6065,18 @@ export class EnquiryComponent implements OnInit {
     console.log('Filtering from locations for type:', this.selectedEnquiry);
     console.log('All locations:', this.allLocations);
 
-    if (this.selectedEnquiry?.location_type_from) {
+    // if (this.selectedEnquiry?.location_type_from) {
+    if (this.lineItems[0]?.fromLocationType) {
       // Debug: Log all location types to see what's available
       const availableTypes = [...new Set(this.allLocations.map((l) => l.type))];
       console.log('Available location types in data:', availableTypes);
 
       const filteredLocations = this.allLocations.filter((l) => {
         console.log(
-          `Comparing location type '${l.type}' with selected '${
-            this.selectedEnquiry!.location_type_from
-          }'`
+          `Comparing location type '${l.type}' with selected '${this.lineItems[0]?.fromLocationType}'`
         );
-        return l.type === this.selectedEnquiry!.location_type_from;
+        // return l.type === this.selectedEnquiry!.location_type_from;
+        return l.type === this.lineItems[0]!.fromLocationType;
       });
       console.log('Filtered from locations:', filteredLocations.length);
 
@@ -5986,7 +6085,7 @@ export class EnquiryComponent implements OnInit {
         const caseInsensitiveFiltered = this.allLocations.filter(
           (l) =>
             l.type?.toLowerCase() ===
-            this.selectedEnquiry!.location_type_from?.toLowerCase()
+            this.lineItems[0]?.fromLocationType?.toLowerCase()
         );
         console.log(
           'Case-insensitive filtered locations:',
@@ -6016,31 +6115,35 @@ export class EnquiryComponent implements OnInit {
   filterToLocations() {
     console.log(
       'Filtering to locations for type:',
-      this.selectedEnquiry?.location_type_to
+      this.lineItems[0]?.toLocationType
     );
     console.log('All locations:', this.allLocations.length);
 
-    if (this.selectedEnquiry?.location_type_to) {
+    // if (this.selectedEnquiry?.location_type_to) {
+    if (this.lineItems[0]?.toLocationType) {
       // Debug: Log all location types to see what's available
       const availableTypes = [...new Set(this.allLocations.map((l) => l.type))];
       console.log('Available location types in data:', availableTypes);
 
       const filteredLocations = this.allLocations.filter((l) => {
         console.log(
-          `Comparing location type '${l.type}' with selected '${
-            this.selectedEnquiry!.location_type_to
-          }'`
+          `Comparing location type '${l.type}' with selected '${this.lineItems[0]?.toLocationType}'`
         );
-        return l.type === this.selectedEnquiry!.location_type_to;
+        return l.type === this.lineItems[0]!.toLocationType;
       });
       console.log('Filtered to locations:', filteredLocations.length);
 
       // If no exact match, try case-insensitive comparison
       if (filteredLocations.length === 0) {
+        // const caseInsensitiveFiltered = this.allLocations.filter(
+        //   (l) =>
+        //     l.type?.toLowerCase() ===
+        //     this.selectedEnquiry!.location_type_to?.toLowerCase()
+        // );
         const caseInsensitiveFiltered = this.allLocations.filter(
           (l) =>
             l.type?.toLowerCase() ===
-            this.selectedEnquiry!.location_type_to?.toLowerCase()
+            this.lineItems[0]?.toLocationType?.toLowerCase()
         );
         console.log(
           'Case-insensitive filtered locations:',
