@@ -33,6 +33,24 @@ export class MasterTypeService {
     return this.http.get<any[]>(this.apiUrl, { params });
   }
 
+  getAllByType(type: string): Observable<any[]>{
+    const context = this.contextService.getContext();
+    const params: any = {};
+    
+    if (context.companyCode) {
+      params.companyCode = context.companyCode;
+    }
+    if (context.branchCode) {
+      params.branchCode = context.branchCode;
+    }
+    if (context.departmentCode) {
+      params.departmentCode = context.departmentCode;
+    }
+    
+    console.log("Fetching Master Types for type:", type);
+    return this.http.get<any[]>(`${this.apiUrl}/type/${type}`, {params});
+  }
+
   create(type: any): Observable<any> {
     return this.http.post<any>(this.apiUrl, this.contextPayload.withContext(type, this.contextService.getContext()));
   }

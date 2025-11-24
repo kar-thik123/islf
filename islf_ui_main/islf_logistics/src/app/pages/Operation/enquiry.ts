@@ -366,9 +366,8 @@ import { VendorService } from '@/services/vendor.service';
                 >{{ fieldErrors['code'] }}</small
               >
             </div>
-            
-          
-                 <div class="col-span-12 md:col-span-3">
+
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Enquiry Type</label>
               <p-dropdown
                 [(ngModel)]="selectedEnquiry.enquiry_type"
@@ -862,7 +861,7 @@ import { VendorService } from '@/services/vendor.service';
                 fieldErrors['sourceSalesCode']
               }}</small>
             </div>
-             <div class="col-span-12 md:col-span-3">
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Status</label>
               <p-dropdown
                 id="status"
@@ -886,7 +885,7 @@ import { VendorService } from '@/services/vendor.service';
                 class="w-full"
               ></textarea>
             </div>
-             <div class="col-span-12 md:col-span-3">
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Date</label>
               <p-calendar
                 id="date"
@@ -907,51 +906,100 @@ import { VendorService } from '@/services/vendor.service';
               >
             </div>
 
-
             <div class="col-span-12">
               <div class="section-header">
                 <h3>Carriage List</h3>
               </div>
               <div class="mb-3 flex items-center gap-2">
-                <button pButton type="button" label="Add carriage" icon="pi pi-plus" (click)="addCarriageRow()" class="p-button-sm"></button>
+                <button
+                  pButton
+                  type="button"
+                  label="Add carriage"
+                  icon="pi pi-plus"
+                  (click)="addCarriageRow()"
+                  class="p-button-sm"
+                ></button>
               </div>
-              <p-table [value]="carriageMappings" dataKey="id" [paginator]="false" styleClass="p-datatable-sm">
+              <p-table
+                [value]="carriageMappings"
+                dataKey="id"
+                [paginator]="false"
+                styleClass="p-datatable-sm"
+              >
                 <ng-template pTemplate="header">
-                 <tr>
-                  <th style="min-width: 100px;">Direction</th>
-                  <th style="min-width: 150px;">Carriage</th>
-                  <th style="min-width: 130px;">Location Type</th>
-                  <th style="min-width: 180px;">Location</th>
-                  <th style="min-width: 80px;">Delete</th>
-                </tr>
-
+                  <tr>
+                    <th style="min-width: 100px;">Direction</th>
+                    <th style="min-width: 150px;">Carriage</th>
+                    <th style="min-width: 130px;">Location Type</th>
+                    <th style="min-width: 180px;">Location</th>
+                    <th style="min-width: 80px;">Delete</th>
+                  </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-row let-i="rowIndex">
                   <tr>
                     <td>
-                      <p-dropdown [(ngModel)]="row.direction" [options]="[{label:'FROM',value:'FROM'},{label:'TO',value:'TO'}]" appendTo="body" [showClear]="true"></p-dropdown>
+                      <p-dropdown
+                        [(ngModel)]="row.direction"
+                        [options]="[
+                          { label: 'FROM', value: 'FROM' },
+                          { label: 'TO', value: 'TO' }
+                        ]"
+                        appendTo="body"
+                        [showClear]="true"
+                      ></p-dropdown>
                     </td>
                     <td>
-                      <p-dropdown [(ngModel)]="row.carriage" [options]="row.direction==='FROM'?carriageOptionsFrom:carriageOptionsTo" appendTo="body" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                      <p-dropdown
+                        [(ngModel)]="row.carriage"
+                        [options]="
+                          row.direction === 'FROM'
+                            ? carriageOptionsFrom
+                            : carriageOptionsTo
+                        "
+                        appendTo="body"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                      ></p-dropdown>
                     </td>
                     <td>
-                      <p-dropdown [(ngModel)]="row.location_type" [options]="locationTypeFromOptions" appendTo="body" [showClear]="true"></p-dropdown>
+                      <p-dropdown
+                        [(ngModel)]="row.location_type"
+                        [options]="locationTypeFromOptions"
+                        appendTo="body"
+                        [showClear]="true"
+                      ></p-dropdown>
                     </td>
                     <td>
-                      <p-dropdown [(ngModel)]="row.location" [options]="getLocationsForType(row.location_type)" appendTo="body" [filter]="true" filterBy="label" [showClear]="true"></p-dropdown>
+                      <p-dropdown
+                        [(ngModel)]="row.location"
+                        [options]="getLocationsForType(row.location_type)"
+                        appendTo="body"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                      ></p-dropdown>
                     </td>
                     <td>
-                      <button pButton type="button" icon="pi pi-trash" class="p-button-danger p-button-text" (click)="removeCarriageRow(i)"></button>
+                      <button
+                        pButton
+                        type="button"
+                        icon="pi pi-trash"
+                        class="p-button-danger p-button-text"
+                        (click)="removeCarriageRow(i)"
+                      ></button>
                     </td>
                   </tr>
                 </ng-template>
                 <ng-template pTemplate="emptymessage">
-                  <tr><td colspan="5" class="text-center py-4">No carriage rows. Click Add.</td></tr>
+                  <tr>
+                    <td colspan="5" class="text-center py-4">
+                      No carriage rows. Click Add.
+                    </td>
+                  </tr>
                 </ng-template>
               </p-table>
             </div>
-           
-           
           </div>
 
           <!-- Line Items Section -->
@@ -1456,7 +1504,7 @@ import { VendorService } from '@/services/vendor.service';
                       <p-table
                         [value]="vendor.sub_charges || []"
                         [(selection)]="vendor.selected_subcharges"
-                        dataKey="vendor.selected_subcharges.id"
+                        dataKey="id"
                       >
                         <ng-template pTemplate="header">
                           <tr>
@@ -1554,11 +1602,12 @@ import { VendorService } from '@/services/vendor.service';
               <p-table [value]="vendor.sub_charges || []">
                 <ng-template pTemplate="header">
                   <tr>
-                    <th style="width: 3rem">Select</th>
                     <th>Charge Name</th>
                     <th>Basis</th>
                     <th>Currency</th>
                     <th>Charges</th>
+                    <th>GST/VAT</th>
+
                     <th>Sell Rate Currency</th>
                     <th>Sell Rate</th>
                     <th>GST/VAT</th>
@@ -1566,18 +1615,22 @@ import { VendorService } from '@/services/vendor.service';
                 </ng-template>
                 <ng-template pTemplate="body" let-charge>
                   <tr>
-                    <td>
-                      <p-checkbox
-                        [(ngModel)]="charge.selected"
-                        (onChange)="toggleSourcingSubcharge(vendor, charge)"
-                      ></p-checkbox>
-                    </td>
                     <td>{{ charge.charge_name || charge.name }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
                     <td>{{ charge.amount || charge.charges }}</td>
                     <td>
-                      <ng-container *ngIf="charge.selected; else sellRateCurrencyDash">
+                      {{
+                        charge.gst_vat ||
+                          charge.gst_rate ||
+                          charge.vat_rate ||
+                          '0'
+                      }}%
+                    </td>
+                    <td>
+                      <ng-container
+                        *ngIf="charge.selected; else sellRateCurrencyDash"
+                      >
                         <div class="flex gap-2 items-center">
                           <p-dropdown
                             appendTo="body"
@@ -1616,12 +1669,11 @@ import { VendorService } from '@/services/vendor.service';
                       <span *ngIf="!charge.selected">--</span>
                     </td>
                     <td>
-                      {{
-                        charge.gst_vat ||
-                          charge.gst_rate ||
-                          charge.vat_rate ||
-                          '0'
-                      }}%
+                      <p-inputnumber
+                        [(ngModel)]="charge.sell_rate_gst_vat"
+                        inputId="percent"
+                        suffix="%"
+                      />
                     </td>
                   </tr>
                 </ng-template>
@@ -1671,6 +1723,18 @@ import { VendorService } from '@/services/vendor.service';
               </div>
               <div class="col-span-12 md:col-span-3">
                 <label class="block font-semibold mb-1"
+                  >Filter by From Location Type</label
+                >
+                <p-dropdown
+                  [(ngModel)]="tariffFilter.from_location_type"
+                  [options]="locationTypeFromOptions"
+                  [showClear]="true"
+                  placeholder="All From Locations Type"
+                  (onChange)="applyManualTariffFilter()"
+                ></p-dropdown>
+              </div>
+              <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1"
                   >Filter by From Location</label
                 >
                 <p-dropdown
@@ -1678,6 +1742,18 @@ import { VendorService } from '@/services/vendor.service';
                   [options]="fromLocationOptions"
                   [showClear]="true"
                   placeholder="All From Locations"
+                  (onChange)="applyManualTariffFilter()"
+                ></p-dropdown>
+              </div>
+               <div class="col-span-12 md:col-span-3">
+                <label class="block font-semibold mb-1"
+                  >Filter by To Location Type</label
+                >
+                <p-dropdown
+                  [(ngModel)]="tariffFilter.to_location_type"
+                  [options]="locationTypeToOptions"
+                  [showClear]="true"
+                  placeholder="All To Locations Type"
                   (onChange)="applyManualTariffFilter()"
                 ></p-dropdown>
               </div>
@@ -1693,18 +1769,7 @@ import { VendorService } from '@/services/vendor.service';
                   (onChange)="applyManualTariffFilter()"
                 ></p-dropdown>
               </div>
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1"
-                  >Filter by Vendor Type</label
-                >
-                <p-dropdown
-                  [(ngModel)]="tariffFilter.vendor_type"
-                  [options]="vendorTypeOptions"
-                  [showClear]="true"
-                  placeholder="All Vendor Types"
-                  (onChange)="applyManualTariffFilter()"
-                ></p-dropdown>
-              </div>
+              
             </div>
 
             <div class="mb-4 p-3 bg-green-50 border-round">
@@ -2773,7 +2838,7 @@ export class EnquiryComponent implements OnInit {
   selectedTariffVendors: any[] = [];
   showVendorTabsDialog: boolean = false;
   currentVendorCriteria: any = {};
-  sourcingSelection : any = {};
+  sourcingSelection: any = {};
   vendorTypeOptions: any[] = [];
   filteredTariffVendors: any[] = [];
   tariffFilter: any = {};
@@ -3157,10 +3222,16 @@ export class EnquiryComponent implements OnInit {
       next: (rows: any[]) => {
         this.carriageOptionsFrom = (rows || [])
           .filter((r) => r.is_from)
-          .map((r) => ({ label: r.description || r.carriage, value: r.carriage }));
+          .map((r) => ({
+            label: r.description || r.carriage,
+            value: r.carriage,
+          }));
         this.carriageOptionsTo = (rows || [])
           .filter((r) => r.is_to)
-          .map((r) => ({ label: r.description || r.carriage, value: r.carriage }));
+          .map((r) => ({
+            label: r.description || r.carriage,
+            value: r.carriage,
+          }));
       },
     });
   }
@@ -3261,20 +3332,31 @@ export class EnquiryComponent implements OnInit {
   }
 
   getLocationsForType(type: string) {
-    if (!type || !this.allLocations || this.allLocations.length === 0) return [];
+    if (!type || !this.allLocations || this.allLocations.length === 0)
+      return [];
     const exact = this.allLocations.filter((l: any) => l.type === type);
-    const list = exact.length > 0
-      ? exact
-      : this.allLocations.filter(
-          (l: any) => (l.type || '').toLowerCase() === (type || '').toLowerCase()
-        );
-    return list.map((l: any) => ({ label: `${l.code} - ${l.name}`, value: l.code }));
+    const list =
+      exact.length > 0
+        ? exact
+        : this.allLocations.filter(
+            (l: any) =>
+              (l.type || '').toLowerCase() === (type || '').toLowerCase()
+          );
+    return list.map((l: any) => ({
+      label: `${l.code} - ${l.name}`,
+      value: l.code,
+    }));
   }
 
   addCarriageRow() {
     this.carriageMappings = [
       ...this.carriageMappings,
-      { direction: 'FROM', carriage: null, location_type: null, location: null },
+      {
+        direction: 'FROM',
+        carriage: null,
+        location_type: null,
+        location: null,
+      },
     ];
   }
 
@@ -3928,7 +4010,6 @@ export class EnquiryComponent implements OnInit {
       // Force change detection to update the UI
       this.cdr.detectChanges();
     }
-
   }
 
   // Calculate total charge from selected items
@@ -4731,34 +4812,43 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-      const allSub = selectedVendor?.sub_charges || [];
-      if (
-        !selectedVendor?.selected_subcharges ||
-        selectedVendor?.selected_subcharges.length === 0
-      ) {
-        selectedVendor.selected_subcharges = [...allSub];
-        allSub.forEach((c: any) => (c.selected = true));
-      }
-      const selectedIds = new Set(
-        (selectedVendor.selected_subcharges || []).map((sc: any) => sc.id)
-      );
-      const filteredSub = allSub.filter((c: any) => selectedIds.has(c.id));
-      filteredSub.forEach((c: any) => (c.selected = true));
-      const movedVendors = {
-        ...selectedVendor,
-        sub_charges: filteredSub,
-        selected_subcharges: [...filteredSub],
-      };
-   
+    const allSub = selectedVendor?.sub_charges || [];
+    if (
+      !selectedVendor?.selected_subcharges ||
+      selectedVendor?.selected_subcharges.length === 0
+    ) {
+      selectedVendor.selected_subcharges = [...allSub];
+      allSub.forEach((c: any) => (c.selected = true));
+    }
+    const selectedIds = new Set(
+      (selectedVendor.selected_subcharges || []).map((sc: any) => sc.id)
+    );
+    const filteredSub = allSub.filter((c: any) => selectedIds.has(c.id));
+    filteredSub.forEach((c: any) => (c.selected = true));
+    const movedVendors = {
+      ...selectedVendor,
+      sub_charges: filteredSub,
+      selected_subcharges: [...filteredSub],
+    };
 
     this.selectedSourcingVendors = [
       ...this.selectedSourcingVendors,
       movedVendors,
-    ];
-
+    ].map((srcVendor) => ({
+      ...srcVendor,
+      sub_charges: srcVendor.sub_charges?.map((sc: any) => ({
+        ...sc,
+        sell_rate_gst_vat: sc.gst_vat,
+      })),
+    }));
+    console.log(
+      'Selected Sourcing Vendor Value,',
+      this.selectedSourcingVendors
+    );
     const ctx = this.currentVendorCriteria || {};
     const vendorToSave = {
-      enquiry_line_item_id: selectedVendor.enquiry_line_item_id ?? ctx.lineItemId,
+      enquiry_line_item_id:
+        selectedVendor.enquiry_line_item_id ?? ctx.lineItemId,
       master_type: 'sourcing',
       department: ctx.department,
       service_type: ctx.service_type,
@@ -4772,7 +4862,8 @@ export class EnquiryComponent implements OnInit {
       from_location: selectedVendor.from_location ?? ctx.from_location,
       location_type_to: ctx.to_location_type,
       to_location: selectedVendor.to_location ?? ctx.to_location,
-      period_start_date: selectedVendor.effective_date ?? ctx.effective_date_from,
+      period_start_date:
+        selectedVendor.effective_date ?? ctx.effective_date_from,
       period_end_date: selectedVendor.expiry_date ?? ctx.effective_date_to,
       charges: selectedVendor.selected_subcharges,
     };
@@ -4795,10 +4886,10 @@ export class EnquiryComponent implements OnInit {
       });
 
     // Remove from sourcing vendors
-    const selectedVendorId = selectedVendor.id;
-    this.sourcingVendors = this.sourcingVendors.filter(
-      (v) => selectedVendorId!==v.id
-    );
+    // const selectedVendorId = selectedVendor.id;
+    // this.sourcingVendors = this.sourcingVendors.filter(
+    //   (v) => selectedVendorId !== v.id
+    // );
 
     this.sourcingSelection = null;
 
@@ -4891,20 +4982,6 @@ export class EnquiryComponent implements OnInit {
       summary: 'Success',
       detail: `${selected.length} vendor(s) moved to Select Tariff`,
     });
-  }
-
-  // Toggle subcharge selection for sourcing
-  toggleSourcingSubcharge(vendor: any, subcharge: any) {
-    const index = vendor.selected_subcharges.findIndex(
-      (sc: any) => sc.id === subcharge.id
-    );
-    if (index > -1) {
-      vendor.selected_subcharges.splice(index, 1);
-      delete vendor.sell_rates[subcharge.id];
-    } else {
-      vendor.selected_subcharges.push(subcharge);
-      vendor.sell_rates[subcharge.id] = subcharge.amount || 0;
-    }
   }
 
   // Toggle subcharge selection for tariff
@@ -5005,6 +5082,12 @@ export class EnquiryComponent implements OnInit {
       }
 
       if (
+        this.tariffFilter.from_location_type &&
+        vendor.from_location_type !== this.tariffFilter.from_location_type
+      ) {
+        matches = false;
+      }
+      if (
         this.tariffFilter.from_location &&
         vendor.from_location !== this.tariffFilter.from_location
       ) {
@@ -5012,18 +5095,19 @@ export class EnquiryComponent implements OnInit {
       }
 
       if (
+        this.tariffFilter.to_location_type &&
+        vendor.to_location_type !== this.tariffFilter.to_location_type
+      ) {
+        matches = false;
+      }
+      if (
         this.tariffFilter.to_location &&
         vendor.to_location !== this.tariffFilter.to_location
       ) {
         matches = false;
       }
 
-      if (
-        this.tariffFilter.vendor_type &&
-        vendor.vendor_type !== this.tariffFilter.vendor_type
-      ) {
-        matches = false;
-      }
+     
 
       return matches;
     });

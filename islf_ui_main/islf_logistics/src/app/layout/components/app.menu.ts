@@ -49,7 +49,7 @@ export class AppMenu {
                 icon: 'fa-solid fa-link',
                 routerLink: ['/settings/number_relation'],
               },
-               {
+              {
                 label: 'No. Series Mapping',
                 icon: 'fa-solid fa-sliders-h',
                 routerLink: ['/settings/mapping'],
@@ -59,7 +59,7 @@ export class AppMenu {
                 icon: 'fa-solid fa-sliders-h',
                 routerLink: ['/settings/it_setup'],
               },
-              
+
               {
                 label: 'User Mgmt',
                 icon: 'fa-solid fa-user',
@@ -69,7 +69,7 @@ export class AppMenu {
                 label: 'Carriage Direction',
                 icon: 'fa-solid fa-sort-numeric-up',
                 routerLink: ['/settings/carriage_direction'],
-              }
+              },
             ],
           },
         ],
@@ -86,15 +86,15 @@ export class AppMenu {
                 routerLink: ['/logs/auth_logs'],
               },
               {
-                label:'Masters Logs',
-                icon:'fa-solid fa-list',
-                routerLink : ['/logs/masters_logs'],
+                label: 'Masters Logs',
+                icon: 'fa-solid fa-list',
+                routerLink: ['/logs/masters_logs'],
               },
               {
-                label:'Setup Logs',
-                icon:'fa-solid fa-list',
-                routerLink : ['/logs/setup_logs'],
-              }
+                label: 'Setup Logs',
+                icon: 'fa-solid fa-list',
+                routerLink: ['/logs/setup_logs'],
+              },
             ],
           },
         ],
@@ -105,7 +105,7 @@ export class AppMenu {
             label: 'Masters',
             icon: 'fa-solid fa-brain',
             items: [
-               {
+              {
                 label: 'Master Code',
                 icon: 'fa-solid fa-code',
                 routerLink: ['/master/master_code'],
@@ -116,120 +116,185 @@ export class AppMenu {
                 routerLink: ['/master/master_type'],
               },
               {
-                label:'Customer',
-                icon:'fa-solid fa-people-roof',
-                routerLink : ['/master/customer']
+                label: 'Customer',
+                icon: 'fa-solid fa-people-roof',
+                routerLink: ['/master/customer'],
               },
               {
-                label:'Vendor',
-                icon:'fa-solid fa-building',
-                routerLink : ['/master/vendor']
+                label: 'Vendor',
+                icon: 'fa-solid fa-building',
+                routerLink: ['/master/vendor'],
               },
-             
+
               {
-                label:'Location',
-                icon:'fa-solid fa-location-dot',
-                routerLink : ['/master/location']
-              },
-              {
-                label:'Vessel',
-                icon:'fa-solid fa-ship',
-                routerLink : ['/master/vessel']
+                label: 'Location',
+                icon: 'fa-solid fa-location-dot',
+                routerLink: ['/master/location'],
               },
               {
-                label:'Unit of Measure',
-                icon:'fa-solid fa-scale-unbalanced',
-                routerLink : ['/master/uom']
+                label: 'Vessel',
+                icon: 'fa-solid fa-ship',
+                routerLink: ['/master/vessel'],
               },
               {
-                label:'Basis',
-                icon:'fa-solid fa-scale-unbalanced',
-                routerLink : ['/master/basis']
+                label: 'Unit of Measure',
+                icon: 'fa-solid fa-scale-unbalanced',
+                routerLink: ['/master/uom'],
               },
               {
-                label:'Master Item',
-                icon:'fa-solid fa-box',
-                routerLink : ['/master/master_item']
+                label: 'Basis',
+                icon: 'fa-solid fa-scale-unbalanced',
+                routerLink: ['/master/basis'],
               },
               {
-                label:'Cargo ',
-                icon:'fa-solid fa-dolly',
-                routerLink : ['/master/cargo']
+                label: 'Master Item',
+                icon: 'fa-solid fa-box',
+                routerLink: ['/master/master_item'],
               },
               {
-                label:'Charges',
-                icon:'fa-solid fa-receipt',
-                routerLink : ['/master/charges']
+                label: 'Cargo ',
+                icon: 'fa-solid fa-dolly',
+                routerLink: ['/master/cargo'],
               },
               {
-                label:'Currency Code',
-                icon:'fa-solid fa-money-bill',
-                routerLink : ['/master/currency_code']
+                label: 'Charges',
+                icon: 'fa-solid fa-receipt',
+                routerLink: ['/master/charges'],
               },
               {
-                label:'Container',
-                icon:'fa-solid fa-box',
-                routerLink : ['/master/container']
+                label: 'Currency Code',
+                icon: 'fa-solid fa-money-bill',
+                routerLink: ['/master/currency_code'],
               },
               {
-                label:'GST Setup',
-                icon:'fa-solid fa-money-check-dollar',
-                routerLink : ['/master/gst_setup']
+                label: 'Container',
+                icon: 'fa-solid fa-box',
+                routerLink: ['/master/container'],
               },
               {
-                label:'Local Tariff',
-                icon:'fa-solid fa-percent',
-                routerLink : ['/master/tariff']
+                label: 'GST Setup',
+                icon: 'fa-solid fa-money-check-dollar',
+                routerLink: ['/master/gst_setup'],
               },
               {
-                label:'Sourcing',
-                icon:'fa-solid fa-globe',
-                routerLink: ['/master/sourcing']
+                label: 'Local Tariff',
+                icon: 'fa-solid fa-percent',
+                routerLink: ['/master/tariff'],
               },
               {
-                label:'Service Area',
-                icon:'fa-solid fa-map-marked-alt',
-                routerLink: ['/master/service_area']
+                label: 'Sourcing',
+                icon: 'fa-solid fa-globe',
+                routerLink: ['/master/sourcing'],
               },
               {
-                label:'Source Sales',
-                icon:'fa-solid fa-users',
-                routerLink: ['/master/source_sales']
-              }
+                label: 'Service Area',
+                icon: 'fa-solid fa-map-marked-alt',
+                routerLink: ['/master/service_area'],
+              },
+              {
+                label: 'Source Sales',
+                icon: 'fa-solid fa-users',
+                routerLink: ['/master/source_sales'],
+              },
             ],
           },
         ],
       },
       {
-       items: [
+        items: [
+          {
+            label: 'Master Types',
+            icon: 'fa-solid fa-th-list',
+            items: [
+              {
+                label: 'User Status',
+                icon: 'fa-solid fa-user-check',
+                routerLink: ['/masterTypes/user_status'],
+              },
+              {
+                label: 'Tariff Type',
+                icon: 'fa-solid fa-percent',
+                routerLink: ['/masterTypes/tariff_type'],
+              },
+              {
+                label: 'Customer',
+                icon: 'fa-solid fa-people-roof',
+                routerLink: ['/masterTypes/customer'],
+              },
+              {
+                label: 'Vendor',
+                icon: 'fa-solid fa-building',
+                routerLink: ['/masterTypes/vendor'],
+              },
+              {
+                label: 'Cargo Type',
+                icon: 'fa-solid fa-dolly',
+                routerLink: ['/masterTypes/cargo_type'],
+              },
+              {
+                label: 'Charge Type',
+                icon: 'fa-solid fa-receipt',
+                routerLink: ['/masterTypes/charge_type'],
+              },
+              {
+                label: 'Basis',
+                icon: 'fa-solid fa-scale-unbalanced',
+                routerLink: ['/masterTypes/basis'],
+              },
+              {
+                label: 'Service Area',
+                icon: 'fa-solid fa-map-marked-alt',
+                routerLink: ['/masterTypes/service_area'],
+              },
+              {
+                label: 'Item',
+                icon: 'fa-solid fa-box',
+                routerLink: ['/masterTypes/item'],
+              },
+              {
+                label: 'Location',
+                icon: 'fa-solid fa-location-dot',
+                routerLink: ['/masterTypes/location'],
+              },
+              {
+                label: 'Carriage',
+                icon: 'fa-solid fa-truck',
+                routerLink: ['/masterTypes/carriage'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        items: [
           {
             label: 'Search',
             icon: 'fa-solid fa-search',
             items: [
               {
-                label:'Tariff',
-                icon:'fa-solid fa-percent',
-                routerLink : ['/master/tariff_view']
-              }
-            ]
-          }
-        ]
+                label: 'Tariff',
+                icon: 'fa-solid fa-percent',
+                routerLink: ['/master/tariff_view'],
+              },
+            ],
+          },
+        ],
       },
-       {
-       items: [
+      {
+        items: [
           {
             label: 'Operations',
             icon: 'fa-solid fa-briefcase',
             items: [
               {
-                label:'Enquiry',
-                icon:'fa-solid fa-question',
-                routerLink : ['/operation/enquiry']
-              }
-            ]
-          }
-        ]
-      }
+                label: 'Enquiry',
+                icon: 'fa-solid fa-question',
+                routerLink: ['/operation/enquiry'],
+              },
+            ],
+          },
+        ],
+      },
     ];
   }
 }
