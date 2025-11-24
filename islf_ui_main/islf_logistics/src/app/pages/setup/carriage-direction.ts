@@ -32,10 +32,18 @@ import { MessageService } from 'primeng/api';
           <tr>
             <td>{{ r.description || r.carriage }}</td>
             <td>
-              <p-checkbox [binary]="true" [(ngModel)]="r.is_from"></p-checkbox>
+             <p-checkbox
+              [binary]="true"
+              [(ngModel)]="r.is_from"
+              (onChange)="toggleDirection(r, 'from')">  
+            </p-checkbox>
             </td>
             <td>
-              <p-checkbox [binary]="true" [(ngModel)]="r.is_to"></p-checkbox>
+              <p-checkbox
+              [binary]="true"
+              [(ngModel)]="r.is_to"
+              (onChange)="toggleDirection(r, 'to')">
+            </p-checkbox>
             </td>
           </tr>
         </ng-template>
@@ -68,6 +76,14 @@ export class CarriageDirectionSettingsComponent {
       next: (list) => (this.rows = list || []),
     });
   }
+  toggleDirection(row: CarriageDirection, type: 'from' | 'to') {
+  if (type === 'from') {
+    if (row.is_from) row.is_to = false;   // Uncheck TO
+  } else {
+    if (row.is_to) row.is_from = false;   // Uncheck FROM
+  }
+}
+
   save() {
     this.service.saveCarriageDirection(this.rows).subscribe({
       next: () => {

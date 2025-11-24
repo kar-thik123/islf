@@ -894,8 +894,10 @@ router.post("/", async (req, res) => {
       for (let i = 0; i < line_items.length; i++) {
         const item = line_items[i];
         await client.query(
-          `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO enquiry_line_items (
+             enquiry_id, s_no, quantity, type, service_area, basis, remarks, status,
+             line_from_location_type, line_from_location, line_to_location_type, line_to_location
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             enquiryId,
             i + 1,
@@ -905,6 +907,10 @@ router.post("/", async (req, res) => {
             item.basis,
             item.remarks,
             item.status || "Active",
+            item.line_from_location_type || null,
+            item.line_from_location || null,
+            item.line_to_location_type || null,
+            item.line_to_location || null,
           ]
         );
       }
@@ -1143,8 +1149,10 @@ router.put("/:code", async (req, res) => {
         for (let i = 0; i < line_items.length; i++) {
           let item = line_items[i];
           await client.query(
-            `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            `INSERT INTO enquiry_line_items (
+               enquiry_id, s_no, quantity, type, service_area, basis, remarks, status,
+               line_from_location_type, line_from_location, line_to_location_type, line_to_location
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
               enquiryId,
               i + 1,
@@ -1154,6 +1162,10 @@ router.put("/:code", async (req, res) => {
               item.basis,
               item.remarks,
               item.status || "Active",
+              item.line_from_location_type || null,
+              item.line_from_location || null,
+              item.line_to_location_type || null,
+              item.line_to_location || null,
             ]
           );
         }
@@ -1162,8 +1174,11 @@ router.put("/:code", async (req, res) => {
           let item = line_items[i];
           if (item.id) {
             await client.query(
-              `UPDATE enquiry_line_items SET quantity =$1, type = $2, service_area =$3, basis=$4, remarks=$5, status=$6
-           WHERE enquiry_id= $7 AND s_no = $8 AND id = $9 `,
+              `UPDATE enquiry_line_items SET 
+                 quantity = $1, type = $2, service_area = $3, basis = $4, remarks = $5, status = $6,
+                 line_from_location_type = $7, line_from_location = $8,
+                 line_to_location_type = $9, line_to_location = $10
+               WHERE enquiry_id = $11 AND s_no = $12 AND id = $13`,
               [
                 item.quantity,
                 item.type,
@@ -1171,6 +1186,10 @@ router.put("/:code", async (req, res) => {
                 item.basis,
                 item.remarks,
                 item.status || "Active",
+                item.line_from_location_type || null,
+                item.line_from_location || null,
+                item.line_to_location_type || null,
+                item.line_to_location || null,
                 enquiryId,
                 i + 1,
                 lineItemResult[i].id,
@@ -1178,8 +1197,10 @@ router.put("/:code", async (req, res) => {
             );
           } else {
             await client.query(
-              `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              `INSERT INTO enquiry_line_items (
+                 enquiry_id, s_no, quantity, type, service_area, basis, remarks, status,
+                 line_from_location_type, line_from_location, line_to_location_type, line_to_location
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
               [
                 enquiryId,
                 i + 1,
@@ -1189,6 +1210,10 @@ router.put("/:code", async (req, res) => {
                 item.basis,
                 item.remarks,
                 item.status || "Active",
+                item.line_from_location_type || null,
+                item.line_from_location || null,
+                item.line_to_location_type || null,
+                item.line_to_location || null,
               ]
             );
           }
@@ -1602,7 +1627,39 @@ router.post("/:code/sourcing", async (req, res) => {
       effective_date_to,
       sourcing,
       local_tariff,
+      lineItemId,
     } = req.body;
+
+    let fromLoc = from_location;
+    let fromLocType = from_location_type;
+    let toLoc = to_location;
+    let toLocType = to_location_type;
+
+    // Fallback to line item locations if not provided in payload
+    if ((!fromLoc || !toLoc) || (!fromLocType && !toLocType)) {
+      try {
+        const { rows: liRows } = await pool.query(
+          `SELECT eli.line_from_location, eli.line_from_location_type, eli.line_to_location, eli.line_to_location_type,
+                  e.from_location AS enq_from_location, e.location_type_from AS enq_from_location_type,
+                  e.to_location AS enq_to_location, e.location_type_to AS enq_to_location_type
+           FROM enquiry e
+           JOIN enquiry_line_items eli ON eli.enquiry_id = e.id
+           WHERE e.code = $1 AND ($2::int IS NULL OR eli.s_no = $2::int)
+           ORDER BY eli.s_no ASC
+           LIMIT 1`,
+          [code, lineItemId ? Number(lineItemId) : null]
+        );
+        if (liRows.length > 0) {
+          const r = liRows[0];
+          fromLoc = fromLoc || r.line_from_location || r.enq_from_location;
+          fromLocType = fromLocType || r.line_from_location_type || r.enq_from_location_type;
+          toLoc = toLoc || r.line_to_location || r.enq_to_location;
+          toLocType = toLocType || r.line_to_location_type || r.enq_to_location_type;
+        }
+      } catch (e) {
+        console.log("sourcing route: fallback line item lookup error", e.message);
+      }
+    }
 
     let query = `
       SELECT * FROM ( 
@@ -1626,92 +1683,48 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    // Service Area filter
+    // Service Area filter (independent of location filtering)
     if (service_area && service_area.trim() !== "") {
       query += ` AND service_area = $${paramIndex}`;
       params.push(service_area);
       paramIndex++;
+    }
 
-      // Get service area configuration
-      const serviceAreaResult = await pool.query(
-        `SELECT from_location, to_location FROM master_service_area WHERE service_area = $1`,
-        [service_area]
-      );
-
-      if (serviceAreaResult.rows.length > 0) {
-        const serviceAreaData = serviceAreaResult.rows[0];
-        const saFromLoc = serviceAreaData.from_location;
-        const saToLoc = serviceAreaData.to_location;
-
-        console.log(
-          "Service Area configuration - from_location:",
-          saFromLoc,
-          "to_location:",
-          saToLoc
+    // Location filtering: always apply based on provided/resolved values
+    const locationConditions = [];
+    if (fromLoc && fromLoc.trim() !== "") {
+      if (fromLocType && fromLocType.trim() !== "") {
+        locationConditions.push(
+          `(from_location = $${paramIndex} AND location_type_from = $${paramIndex + 1})`
         );
-
-        // Location filtering based on service area configuration and match_all/match_any
-        let locationConditions = [];
-
-        // Add from_location condition if service area requires it AND we have from_location value
-        if (saFromLoc && from_location && from_location.trim() !== "") {
-          if (from_location_type && from_location_type.trim() !== "") {
-            locationConditions.push(
-              `(from_location = $${paramIndex} AND location_type_from = $${
-                paramIndex + 1
-              })`
-            );
-            params.push(from_location, from_location_type);
-            paramIndex += 2;
-          } else {
-            locationConditions.push(`from_location = $${paramIndex}`);
-            params.push(from_location);
-            paramIndex++;
-          }
-        }
-
-        // Add to_location condition if service area requires it AND we have to_location value
-        if (saToLoc && to_location && to_location.trim() !== "") {
-          if (to_location_type && to_location_type.trim() !== "") {
-            locationConditions.push(
-              `(to_location = $${paramIndex} AND location_type_to = $${
-                paramIndex + 1
-              })`
-            );
-            params.push(to_location, to_location_type);
-            paramIndex += 2;
-          } else {
-            locationConditions.push(`to_location = $${paramIndex}`);
-            params.push(to_location);
-            paramIndex++;
-          }
-        }
-
-        // Apply location conditions based on match_all/match_any
-        if (locationConditions.length > 0) {
-          if (sourcing === "match_all") {
-            // Require ALL conditions to match (AND logic)
-            query += ` AND ${locationConditions.join(" AND ")}`;
-            console.log(
-              "Applying match_all logic:",
-              locationConditions.join(" AND ")
-            );
-          } else if (sourcing === "match_any") {
-            // Require ANY condition to match (OR logic)
-            query += ` AND (${locationConditions.join(" OR ")})`;
-            console.log(
-              "Applying match_any logic:",
-              locationConditions.join(" OR ")
-            );
-          } else {
-            // Default: require ALL conditions
-            query += ` AND ${locationConditions.join(" AND ")}`;
-          }
-        } else {
-          console.log(
-            "No location conditions to apply based on service area configuration"
-          );
-        }
+        params.push(fromLoc, fromLocType);
+        paramIndex += 2;
+      } else {
+        locationConditions.push(`from_location = $${paramIndex}`);
+        params.push(fromLoc);
+        paramIndex++;
+      }
+    }
+    if (toLoc && toLoc.trim() !== "") {
+      if (toLocType && toLocType.trim() !== "") {
+        locationConditions.push(
+          `(to_location = $${paramIndex} AND location_type_to = $${paramIndex + 1})`
+        );
+        params.push(toLoc, toLocType);
+        paramIndex += 2;
+      } else {
+        locationConditions.push(`to_location = $${paramIndex}`);
+        params.push(toLoc);
+        paramIndex++;
+      }
+    }
+    if (locationConditions.length > 0) {
+      if (sourcing === "match_any") {
+        query += ` AND (${locationConditions.join(" OR ")})`;
+        console.log("Applying match_any logic:", locationConditions.join(" OR "));
+      } else {
+        query += ` AND ${locationConditions.join(" AND ")}`;
+        console.log("Applying match_all logic:", locationConditions.join(" AND "));
       }
     }
 
@@ -1799,6 +1812,7 @@ router.post("/:code/tariff", async (req, res) => {
       effective_date_to,
       sourcing,
       local_tariff,
+      service_area,
     } = req.body;
 
     if (!sourcing || sourcing.length === 0) {
@@ -1812,7 +1826,7 @@ router.post("/:code/tariff", async (req, res) => {
       SELECT t.*, v.name AS vendor_name, v.type AS vendor_type
       FROM tariff AS t
       LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
-      WHERE t.is_mandatory = true
+      WHERE 1=1
     `;
 
     const params = [];
@@ -1837,58 +1851,13 @@ router.post("/:code/tariff", async (req, res) => {
       params.push(department);
       paramIndex++;
     }
-    if (service_type && service_type.trim() !== "") {
-      query += ` AND t.shipping_type = $${paramIndex}`;
-      params.push(service_type);
-      paramIndex++;
-    }
+    // shipping_type is not filtered here; handled by UI selection
     if (cargo_type && cargo_type.trim() !== "") {
       query += ` AND t.cargo_type = $${paramIndex}`;
       params.push(cargo_type);
       paramIndex++;
     }
-    let locationConditions = [];
-
-    if (from_location) {
-      if (from_location_type) {
-        locationConditions.push(
-          `(t.from_location = $${paramIndex} AND t.location_type_from = $${
-            paramIndex + 1
-          })`
-        );
-        params.push(from_location, from_location_type);
-        paramIndex += 2;
-      } else {
-        locationConditions.push(`t.from_location = $${paramIndex}`);
-        params.push(from_location);
-        paramIndex++;
-      }
-    }
-
-    if (to_location) {
-      if (to_location_type) {
-        locationConditions.push(
-          `(t.to_location = $${paramIndex} AND t.location_type_to = $${
-            paramIndex + 1
-          })`
-        );
-        params.push(to_location, to_location_type);
-        paramIndex += 2;
-      } else {
-        locationConditions.push(`t.to_location = $${paramIndex}`);
-        params.push(to_location);
-        paramIndex++;
-      }
-    }
-
-    if (locationConditions.length > 0) {
-      if (local_tariff === "match_any") {
-        query += ` AND (${locationConditions.join(" OR ")})`;
-      } else {
-        // match_all + default
-        query += ` AND ${locationConditions.join(" AND ")}`;
-      }
-    }
+    
     query += ` ORDER BY t.vendor_name, t.created_at DESC`;
 
     console.log("Final tariff query:", query);
@@ -1899,7 +1868,7 @@ router.post("/:code/tariff", async (req, res) => {
 
     const { rows: tariffSubchargeResult } = await pool.query(
       `SELECT * FROM tariff_charges WHERE tariff_id = ANY($1) ORDER BY tariff_id, id`,
-      tariffIds
+      [tariffIds]
     );
 
     // reducing the collected sub charge as per source id
@@ -1917,7 +1886,7 @@ router.post("/:code/tariff", async (req, res) => {
       sub_charges: subChargesByTariff[tariff.id] || [],
     }));
 
-    console.log(`Found ${tariff.length} tariff vendors`);
+    console.log(`Found ${tariffResult.length} tariff vendors`);
 
     res.json(tariffResponse);
   } catch (error) {

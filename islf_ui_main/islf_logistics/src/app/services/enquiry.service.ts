@@ -9,12 +9,16 @@ import { BasisService } from './basis.service';
 export interface EnquiryLineItem {
   id?: number;
   s_no: number;
-  quantity: number;
+  quantity?: number;
   type: string;
   service_area: string;
   basis: string;
   remarks: string;
   status: string;
+  line_from_location_type?: string;
+  line_from_location?: string;
+  line_to_location_type?: string;
+  line_to_location?: string;
   enquiry_id?: string | number;
   enquiry_summary?: EnquirySummary[];
   serviceAreaOptions?: any[];
@@ -143,6 +147,7 @@ export interface TariffOption {
   from_location: string;
   to_location: string;
   charges: any[];
+  sub_charges?: any[];
   effective_date: string;
   expiry_date: string;
   enquiry_line_item_id?: number;
@@ -455,7 +460,7 @@ export class EnquiryService {
     const lineItemsText = enquiry.line_items
       .map(
         (item) =>
-          `${item.s_no}. Quantity: ${item.quantity}, Basis: ${item.basis}, Remarks: ${item.remarks}`
+          `${item.s_no}. Type: ${item.type}, Basis: ${item.basis}, From: ${item.line_from_location || ''} (${item.line_from_location_type || ''}) -> To: ${item.line_to_location || ''} (${item.line_to_location_type || ''})`
       )
       .join('\n');
 
@@ -540,9 +545,6 @@ ISLF Logistics Team
     }
 
     enquiry.line_items.forEach((item, index) => {
-      if (!item.quantity || item.quantity <= 0) {
-        errors.push(`Line item ${index + 1}: Quantity must be greater than 0`);
-      }
       if (!item.basis) {
         errors.push(`Line item ${index + 1}: Basis is required`);
       }

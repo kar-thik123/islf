@@ -118,6 +118,7 @@ import { VendorService } from '@/services/vendor.service';
   providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Enquiry Management</div>
 
@@ -928,10 +929,9 @@ import { VendorService } from '@/services/vendor.service';
               >
                 <ng-template pTemplate="header">
                   <tr>
-                    <th style="min-width: 100px;">Direction</th>
-                    <th style="min-width: 150px;">Carriage</th>
-                    <th style="min-width: 130px;">Location Type</th>
-                    <th style="min-width: 180px;">Location</th>
+                    <th style="min-width: 260px;">Carriage</th>
+                    <th style="min-width: 260px;">Location Type</th>
+                    <th style="min-width: 260px;">Location</th>
                     <th style="min-width: 80px;">Delete</th>
                   </tr>
                 </ng-template>
@@ -939,27 +939,14 @@ import { VendorService } from '@/services/vendor.service';
                   <tr>
                     <td>
                       <p-dropdown
-                        [(ngModel)]="row.direction"
-                        [options]="[
-                          { label: 'FROM', value: 'FROM' },
-                          { label: 'TO', value: 'TO' }
-                        ]"
-                        appendTo="body"
-                        [showClear]="true"
-                      ></p-dropdown>
-                    </td>
-                    <td>
-                      <p-dropdown
                         [(ngModel)]="row.carriage"
-                        [options]="
-                          row.direction === 'FROM'
-                            ? carriageOptionsFrom
-                            : carriageOptionsTo
-                        "
+                        [options]="carriageOptionsAll"
                         appendTo="body"
                         [filter]="true"
                         filterBy="label"
                         [showClear]="true"
+                        (onChange)="onCarriageChanged(row, $event.value)"
+                        [style.width.px]="260"
                       ></p-dropdown>
                     </td>
                     <td>
@@ -968,6 +955,7 @@ import { VendorService } from '@/services/vendor.service';
                         [options]="locationTypeFromOptions"
                         appendTo="body"
                         [showClear]="true"
+                        [style.width.px]="260"
                       ></p-dropdown>
                     </td>
                     <td>
@@ -978,6 +966,7 @@ import { VendorService } from '@/services/vendor.service';
                         [filter]="true"
                         filterBy="label"
                         [showClear]="true"
+                        [style.width.px]="260"
                       ></p-dropdown>
                     </td>
                     <td>
@@ -993,7 +982,7 @@ import { VendorService } from '@/services/vendor.service';
                 </ng-template>
                 <ng-template pTemplate="emptymessage">
                   <tr>
-                    <td colspan="5" class="text-center py-4">
+                    <td colspan="4" class="text-center py-4">
                       No carriage rows. Click Add.
                     </td>
                   </tr>
@@ -1049,12 +1038,13 @@ import { VendorService } from '@/services/vendor.service';
                   <th style="width: 3%"><p-tableHeaderCheckbox /></th>
                   <!-- Checkbox -->
                   <th style="width: 5%">S.No.</th>
-                  <th style="width: 8%">Quantity</th>
                   <th style="width: 15%">Type</th>
                   <th style="width: 15%">Service Area</th>
                   <th style="width: 15%">Basis</th>
-                  <th style="width: 15%">Remarks</th>
-                  <th style="width: 10%">Status</th>
+                  <th style="width: 15%">From Type</th>
+                  <th style="width: 15%">From</th>
+                  <th style="width: 15%">To Type</th>
+                  <th style="width: 15%">To</th>
                   <th style="width: 15%">Actions</th>
                 </tr>
               </ng-template>
@@ -1064,16 +1054,6 @@ import { VendorService } from '@/services/vendor.service';
                     <p-tableCheckbox [value]="item" />
                   </td>
                   <td>{{ i + 1 }}</td>
-                  <td class="px-1">
-                    <p-inputNumber
-                      [(ngModel)]="item.quantity"
-                      [min]="0"
-                      [maxFractionDigits]="0"
-                      placeholder="0"
-                      [style]="{ width: '60px' }"
-                    >
-                    </p-inputNumber>
-                  </td>
                   <td>
                     <div class="flex gap-2">
                       <p-dropdown
@@ -1153,22 +1133,40 @@ import { VendorService } from '@/services/vendor.service';
                     </div>
                   </td>
                   <td>
-                    <input
-                      pInputText
-                      [(ngModel)]="item.remarks"
-                      placeholder="Remarks"
-                      class="w-full"
-                    />
+                    <p-dropdown
+                      [(ngModel)]="item.line_from_location_type"
+                      [options]="locationTypeFromOptions"
+                      appendTo="body"
+                      [showClear]="true"
+                    ></p-dropdown>
                   </td>
                   <td>
                     <p-dropdown
-                      [(ngModel)]="item.status"
-                      [options]="lineItemStatusOptions"
-                      optionLabel="label"
-                      optionValue="value"
+                      [(ngModel)]="item.line_from_location"
+                      [options]="getLocationsForType(item.line_from_location_type)"
                       appendTo="body"
-                    >
-                    </p-dropdown>
+                      [filter]="true"
+                      filterBy="label"
+                      [showClear]="true"
+                    ></p-dropdown>
+                  </td>
+                  <td>
+                    <p-dropdown
+                      [(ngModel)]="item.line_to_location_type"
+                      [options]="locationTypeToOptions.length ? locationTypeToOptions : locationTypeFromOptions"
+                      appendTo="body"
+                      [showClear]="true"
+                    ></p-dropdown>
+                  </td>
+                  <td>
+                    <p-dropdown
+                      [(ngModel)]="item.line_to_location"
+                      [options]="getLocationsForType(item.line_to_location_type)"
+                      appendTo="body"
+                      [filter]="true"
+                      filterBy="label"
+                      [showClear]="true"
+                    ></p-dropdown>
                   </td>
                   <td style="width: 300px; min-width: 300px">
                     <div class="flex gap-1 action-buttons">
@@ -1596,6 +1594,15 @@ import { VendorService } from '@/services/vendor.service';
                   class="p-button-danger p-button-text"
                   (click)="removeSelectedSourcingVendor(vendor)"
                   pTooltip="Remove Vendor"
+                ></button>
+                <button
+                  pButton
+                  type="button"
+                  label="Get Tariff"
+                  icon="pi pi-download"
+                  class="p-button-primary p-button-text"
+                  (click)="getTariffForVendor(vendor)"
+                  pTooltip="Fetch tariff for this vendor"
                 ></button>
               </div>
 
@@ -2746,6 +2753,7 @@ export class EnquiryComponent implements OnInit {
   carriageMappings: any[] = [];
   carriageOptionsFrom: any[] = [];
   carriageOptionsTo: any[] = [];
+  carriageOptionsAll: any[] = [];
 
   // Location type options
   locationTypeFromOptions: any[] = [];
@@ -2950,6 +2958,7 @@ export class EnquiryComponent implements OnInit {
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
     this.loadMasterTypeOptions();
+    this.loadCarriageDirectionOptions();
     this.updateFinalizedVendorsPreview(); // Initialize finalized vendors preview
   }
 
@@ -3223,15 +3232,20 @@ export class EnquiryComponent implements OnInit {
         this.carriageOptionsFrom = (rows || [])
           .filter((r) => r.is_from)
           .map((r) => ({
-            label: r.description || r.carriage,
+            label: r.carriage,
             value: r.carriage,
           }));
         this.carriageOptionsTo = (rows || [])
           .filter((r) => r.is_to)
           .map((r) => ({
-            label: r.description || r.carriage,
+            label: r.carriage,
             value: r.carriage,
           }));
+        const union: Record<string, { label: string; value: string }> = {};
+        [...this.carriageOptionsFrom, ...this.carriageOptionsTo].forEach((opt) => {
+          union[opt.value] = union[opt.value] || opt;
+        });
+        this.carriageOptionsAll = Object.values(union);
       },
     });
   }
@@ -3348,20 +3362,51 @@ export class EnquiryComponent implements OnInit {
     }));
   }
 
+  onCarriageChanged(row: any, selectedCarriage: string) {
+    const inFrom = this.carriageOptionsFrom.some((o) => o.value === selectedCarriage);
+    const inTo = this.carriageOptionsTo.some((o) => o.value === selectedCarriage);
+    if (inFrom && !inTo) row.direction = 'FROM';
+    else if (!inFrom && inTo) row.direction = 'TO';
+    else if (inFrom && inTo) row.direction = row.direction || 'TO';
+    else row.direction = null;
+  }
+
   addCarriageRow() {
     this.carriageMappings = [
       ...this.carriageMappings,
-      {
-        direction: 'FROM',
-        carriage: null,
-        location_type: null,
-        location: null,
-      },
+      { direction: null, carriage: null, location_type: null, location: null },
     ];
   }
 
   removeCarriageRow(i: number) {
-    this.carriageMappings = this.carriageMappings.filter((_, idx) => idx !== i);
+    this.confirmationService.confirm({
+      message: 'Delete this carriage row?',
+      header: 'Confirm Delete',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.carriageMappings = this.carriageMappings.filter((_, idx) => idx !== i);
+        const enqId = this.selectedEnquiry?.id;
+        if (enqId) {
+          this.carriageService
+            .saveEnquiryCarriageMapping(enqId, this.carriageMappings)
+            .subscribe({
+              next: () => {
+                this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Carriage row deleted' });
+                this.confirmationService.close();
+              },
+              error: () => {
+                this.confirmationService.close();
+              }
+            });
+        }
+        else {
+          this.confirmationService.close();
+        }
+      },
+      reject: () => {
+        this.confirmationService.close();
+      },
+    });
   }
 
   // Master type options property
@@ -3815,6 +3860,16 @@ export class EnquiryComponent implements OnInit {
         // Apply location filtering based on selected location types
         this.filterFromLocations();
         this.filterToLocations();
+
+        if (this.selectedEnquiry?.id) {
+          this.carriageService
+            .getEnquiryCarriageMapping(this.selectedEnquiry.id)
+            .subscribe({
+              next: (rows) => {
+                this.carriageMappings = Array.isArray(rows) ? rows : [];
+              },
+            });
+        }
 
         // Ensure context-filtered dropdowns contain the saved values when editing
         forkJoin({
@@ -4588,6 +4643,10 @@ export class EnquiryComponent implements OnInit {
       basis: '',
       remarks: '',
       status: 'Active',
+      line_from_location_type: '',
+      line_from_location: '',
+      line_to_location_type: '',
+      line_to_location: '',
       enquiry_id: this.selectedEnquiry!.id || '',
       enquiry_summary: [],
     };
@@ -4604,6 +4663,8 @@ export class EnquiryComponent implements OnInit {
   deleteLineItem(index: number) {
     this.confirmationService.confirm({
       message: 'Are you sure you want to delete this line item?',
+      header: 'Confirm Delete',
+      icon: 'pi pi-exclamation-triangle',
       accept: () => {
         this.lineItems.splice(index, 1);
         // Renumber items
@@ -4615,6 +4676,10 @@ export class EnquiryComponent implements OnInit {
           summary: 'Success',
           detail: 'Line item deleted successfully',
         });
+        this.confirmationService.close();
+      },
+      reject: () => {
+        this.confirmationService.close();
       },
     });
   }
@@ -4685,19 +4750,20 @@ export class EnquiryComponent implements OnInit {
     const lineItemIndex = Number(lineItemId) - 1;
     const enq = this.selectedEnquiry!;
 
+    const li = this.lineItems[lineItemIndex];
     this.currentVendorCriteria = {
-      line_item_type: this.lineItems[lineItemIndex]?.type,
-      service_area: this.lineItems[lineItemIndex]?.service_area,
-      basis: this.lineItems[lineItemIndex]?.basis,
+      line_item_type: li?.type,
+      service_area: li?.service_area,
+      basis: li?.basis,
       department: enq.department,
       cargo_type: enq.cargo_type,
-      from_location: enq.from_location,
-      to_location: enq.to_location,
+      from_location: li?.line_from_location || enq.from_location,
+      to_location: li?.line_to_location || enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       service_type: enq.service_type,
-      from_location_type: enq.location_type_from,
-      to_location_type: enq.location_type_to,
+      from_location_type: li?.line_from_location_type || enq.location_type_from,
+      to_location_type: li?.line_to_location_type || enq.location_type_to,
       lineItemId: lineItemId,
     };
 
@@ -4755,24 +4821,74 @@ export class EnquiryComponent implements OnInit {
     const lineItemIndex = Number(lineItemId) - 1;
     const enq = this.selectedEnquiry!;
 
+    const li = this.lineItems[lineItemIndex];
     this.currentVendorCriteria = {
-      line_item_type: this.lineItems[lineItemIndex]?.type,
-      service_area: this.lineItems[lineItemIndex]?.service_area,
-      basis: this.lineItems[lineItemIndex]?.basis,
+      line_item_type: li?.type,
+      service_area: li?.service_area,
+      basis: li?.basis,
       department: enq.department,
       cargo_type: enq.cargo_type,
-      from_location: enq.from_location,
-      to_location: enq.to_location,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       service_type: enq.service_type,
-      from_location_type: enq.location_type_from,
-      to_location_type: enq.location_type_to,
       lineItemId: lineItemId,
     };
 
     this.enquiryService
       .getTariffOptions(this.currentEnquiry?.code!, this.currentVendorCriteria)
+      .subscribe({
+        next: (options) => {
+          this.tariffVendors = options.map((opt) => ({
+            ...opt,
+            enquiry_line_item_id: lineItemId,
+            selected_subcharges: [],
+            sell_rates: {},
+            remarks: '',
+            sub_charges: opt.sub_charges || this.normalizeCharges(opt.charges),
+          }));
+          this.filteredTariffVendors = [...this.tariffVendors];
+          this.selectedTariffVendors = [];
+          this.activeVendorTab = 2; // Get Tariff tab
+          this.showVendorTabsDialog = true;
+          this.hydrateSubCharges(this.tariffVendors, true);
+        },
+        error: (error) => {
+          console.error('Error getting tariff options:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to get tariff options',
+          });
+        },
+      });
+  }
+
+  getTariffForVendor(vendor: any) {
+    if (!this.selectedEnquiry) {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Save enquiry first' });
+      return;
+    }
+    const enq = this.selectedEnquiry!;
+    const lineItemId = vendor?.enquiry_line_item_id || 1;
+    const li = this.lineItems[(Number(lineItemId) - 1) || 0];
+    const criteria: any = {
+      department: enq.department,
+      cargo_type: enq.cargo_type,
+      service_type: enq.service_type,
+      effective_date_from: this.formatDateForAPI(enq.effective_date_from),
+      effective_date_to: this.formatDateForAPI(enq.effective_date_to),
+      service_area: li?.service_area || vendor?.service_area || undefined,
+      sourcing: [
+        {
+          vendor_no: vendor.vendor_name || vendor.vendor_no || vendor.code,
+          vendor_type: vendor.vendor_type,
+        },
+      ],
+      lineItemId,
+    };
+
+    this.enquiryService
+      .getTariffOptions(this.currentEnquiry?.code!, criteria)
       .subscribe({
         next: (options) => {
           this.tariffVendors = options.map((opt) => ({
@@ -4789,13 +4905,8 @@ export class EnquiryComponent implements OnInit {
           this.showVendorTabsDialog = true;
           this.hydrateSubCharges(this.tariffVendors, true);
         },
-        error: (error) => {
-          console.error('Error getting tariff options:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to get tariff options',
-          });
+        error: () => {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to get tariff for vendor' });
         },
       });
   }
