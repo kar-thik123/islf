@@ -136,6 +136,7 @@ export interface SourcingOption {
   start_date: string;
   end_date: string;
   effective_date: string;
+  sub_charges?: any[];  
 }
 
 export interface TariffOption {
@@ -371,32 +372,36 @@ export class EnquiryService {
     const lineItemId = (vendorContext as any)?.lineItemId;
     const masterType = (vendorContext as any)?.masterType || (vendorContext as any)?.sourcingType;
 
-    const normalizedVendorCard = {
-      enquiry_line_item_id: vendorCard.enquiry_line_item_id ?? lineItemId,
-      master_type: masterType || vendorCard.master_type || 'sourcing',
-      department: vendorCard.department,
-      service_type: vendorCard.service_type,
-      type: vendorCard.type,
-      service_area: vendorCard.service_area,
-      vendor_type: vendorCard.vendor_type,
-      vendor_name: vendorCard.vendor_name,
-      basis: vendorCard.basis,
-      cargo: vendorCard.cargo,
-      location_type_from: vendorCard.location_type_from,
-      from_location: vendorCard.from_location,
-      location_type_to: vendorCard.location_type_to,
-      to_location: vendorCard.to_location,
-      period_start_date: vendorCard.period_start_date,
-      period_end_date: vendorCard.period_end_date,
-      charges: Array.isArray(vendorCard.charges)
-        ? vendorCard.charges
-        : Array.isArray(vendorCard.selected_subcharges)
-        ? vendorCard.selected_subcharges
+    const normalizeOne = (vc: any) => ({
+      enquiry_line_item_id: vc.enquiry_line_item_id ?? lineItemId,
+      master_type: masterType || vc.master_type || 'sourcing',
+      department: vc.department,
+      service_type: vc.service_type || vc.shipping_type,
+      type: vc.type,
+      service_area: vc.service_area,
+      vendor_type: vc.vendor_type,
+      vendor_name: vc.vendor_name || vc.vendor_code || vc.vendor || vc.code,
+      basis: vc.basis,
+      cargo: vc.cargo || vc.cargo_type,
+      location_type_from: vc.location_type_from,
+      from_location: vc.from_location,
+      location_type_to: vc.location_type_to,
+      to_location: vc.to_location,
+      period_start_date: vc.period_start_date || vc.start_date,
+      period_end_date: vc.period_end_date || vc.end_date,
+      charges: Array.isArray(vc.charges)
+        ? vc.charges
+        : Array.isArray(vc.selected_subcharges)
+        ? vc.selected_subcharges
         : []
-    };
+    });
+
+    const normalizedVendorCards = Array.isArray(vendorCard)
+      ? vendorCard.map(normalizeOne)
+      : [normalizeOne(vendorCard)];
 
     const payload = this.contextPayload.withContext(
-      { vendorCards: normalizedVendorCard, masterType, lineItemId },
+      { vendorCards: normalizedVendorCards, masterType, lineItemId },
       this.contextService.getContext()
     );
     console.log('add Vendor Cards payload,', payload);
@@ -417,6 +422,21 @@ export class EnquiryService {
     );
     return this.http.put(
       `${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/negotiate`,
+      payload
+    );
+  }
+
+  updateVendorSubCharges(
+    enquiryCode: string,
+    cardId: number,
+    list: any[]
+  ): Observable<any> {
+    const payload = this.contextPayload.withContext(
+      { list },
+      this.contextService.getContext()
+    );
+    return this.http.put(
+      `${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/sub-charges`,
       payload
     );
   }

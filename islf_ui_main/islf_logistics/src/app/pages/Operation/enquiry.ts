@@ -4780,9 +4780,25 @@ export class EnquiryComponent implements OnInit {
             selected_subcharges: [],
             sell_rates: {},
             remarks: '',
-            sub_charges: this.normalizeCharges(opt.charges),
+            sub_charges: opt.sub_charges || this.normalizeCharges(opt.charges),
           }));
-          this.selectedSourcingVendors = [];
+          const existingSelected = (() => {
+            const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
+            const sourcingSummary = li?.enquiry_summary?.[0];
+            const prev = sourcingSummary?.selected_source_items || [];
+            return (prev || []).map((v: any) => ({
+              ...v,
+              enquiry_line_item_id: lineItemId,
+              source_type: 'sourcing',
+              selected_subcharges: v.selected_subcharges || [],
+              sell_rates: v.sell_rates || {},
+              remarks: v.remarks || '',
+            }));
+          })();
+          if (existingSelected && existingSelected.length) {
+            this.selectedSourcingVendors = existingSelected;
+            this.hydrateSubCharges(this.selectedSourcingVendors);
+          }
           this.activeVendorTab = 0; // Get Sourcing tab
           this.showVendorTabsDialog = true;
           this.hydrateSubCharges(this.sourcingVendors);
@@ -4942,8 +4958,11 @@ export class EnquiryComponent implements OnInit {
       selected_subcharges: [...filteredSub],
     };
 
+    // Remove any previously moved sourcing for the same line item, then add the new one
     this.selectedSourcingVendors = [
-      ...this.selectedSourcingVendors,
+      ...this.selectedSourcingVendors.filter(
+        (v) => v.enquiry_line_item_id !== (this.currentVendorCriteria?.lineItemId)
+      ),
       movedVendors,
     ].map((srcVendor) => ({
       ...srcVendor,
@@ -4985,7 +5004,21 @@ export class EnquiryComponent implements OnInit {
         lineItemId: ctx.lineItemId,
       })
       .subscribe({
-        next: () => {},
+        next: (res) => {
+          try {
+            const inserted = (res && res.inserted) ? res.inserted : [];
+            const cardId = inserted.length ? inserted[0].id : undefined;
+            if (cardId) {
+              // attach card id for later PUT updates
+              this.selectedSourcingVendors = this.selectedSourcingVendors.map((v) => {
+                if (v.vendor_name === selectedVendor.vendor_name) {
+                  return { ...v, card_id: cardId };
+                }
+                return v;
+              });
+            }
+          } catch {}
+        },
         error: (error) => {
           console.error('Error saving sourcing vendors:', error);
           this.messageService.add({
@@ -5286,40 +5319,54 @@ export class EnquiryComponent implements OnInit {
     }
   }
 
-  // Save sourcing vendors
+  // Save sourcing vendors (PUT updates for sub-charges)
   saveSourcingVendors() {
-    const vendorsToSave = this.selectedSourcingVendors.map((vendor) => ({
-      ...vendor,
-      source_type: 'sourcing',
-      charges: vendor.selected_subcharges,
-      negotiated_charges: vendor.sell_rates,
-      negotiated_remarks: vendor.remarks,
-    }));
+    const code = this.currentEnquiry?.code!;
+    const lineItemId = this.currentVendorCriteria.lineItemId;
 
-    this.enquiryService
-      .addVendorCards(this.currentEnquiry?.code!, vendorsToSave, {
-        sourcingType: 'sourcing',
-        lineItemId: this.currentVendorCriteria.lineItemId,
-      })
-      .subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Sourcing vendors saved successfully',
-          });
-          this.showVendorTabsDialog = false;
-          this.loadEnquiry(this.currentEnquiry?.code!);
-        },
-        error: (error) => {
-          console.error('Error saving sourcing vendors:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to save sourcing vendors',
-          });
-        },
+    const requests = this.selectedSourcingVendors
+      .filter((v) => v.card_id)
+      .map((vendor) => {
+        const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
+          id: sc.id,
+          charge_name: sc.charge_name || sc.name,
+          currency: sc.currency,
+          sell_rate_currency: sc.sell_rate_currency || sc.currency,
+          sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
+          gst_vat: sc.gst_vat ?? sc.gst_rate,
+          remarks: sc.remarks,
+        }));
+        return this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates);
       });
+
+    if (requests.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'No saved vendor cards to update',
+      });
+      return;
+    }
+
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: 'Sourcing sub-charges updated',
+        });
+        this.showVendorTabsDialog = false;
+        this.loadEnquiry(code);
+      },
+      error: (error) => {
+        console.error('Error updating sourcing sub-charges:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to update sourcing sub-charges',
+        });
+      },
+    });
   }
   private normalizeCharges(charges: any): any[] {
     if (!charges) return [];

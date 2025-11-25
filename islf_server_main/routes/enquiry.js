@@ -1944,17 +1944,20 @@ router.post("/:code/vendor-cards", async (req, res) => {
     try {
       await client.query("BEGIN");
 
-      const card = vendorCard || (Array.isArray(vendorCards) ? vendorCards[0] : vendorCards) || null;
+      const list = Array.isArray(vendorCards)
+        ? vendorCards
+        : vendorCard
+        ? [vendorCard]
+        : [];
 
-      if(!card){
-        return res.status(400).json({error: "No vendor cards provided"});
+      if (list.length === 0) {
+        return res.status(400).json({ error: "No vendor cards provided" });
       }
 
+      let insertedCount = 0;
+      const inserted = [];
 
-
-        // master_type already validated above
-
-        // Handle date fields based on master_type
+      for (const card of list) {
         let effectiveDate, expiryDate;
 
         if (masterType === "sourcing") {
@@ -1979,7 +1982,6 @@ router.post("/:code/vendor-cards", async (req, res) => {
           expiryDate = card.expiry_date || enquiryRow.effective_date_to || null;
         }
 
-        // Insert into enquiry_vendor_cards with proper master_type
         const insertQuery = `
           INSERT INTO enquiry_vendor_cards 
             (enquiry_id, enquiry_line_item_id, master_type, department, service_type, 
@@ -1995,11 +1997,11 @@ router.post("/:code/vendor-cards", async (req, res) => {
           lineItemId,
           masterType,
           card.department || enquiryRow.department || null,
-          card.service_type || enquiryRow.service_type || null,
+          card.service_type || card.shipping_type || enquiryRow.service_type || null,
           card.type || null,
           card.service_area || null,
           card.vendor_type || null,
-          card.vendor_name || card.vendor || card.code || null,
+          card.vendor_name || card.vendor_code || card.vendor || card.code || null,
           card.basis || null,
           card.cargo || card.cargo_type || enquiryRow.cargo_type || null,
           card.location_type_from || enquiryRow.location_type_from || null,
@@ -2012,8 +2014,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
 
         const result = await client.query(insertQuery, insertParams);
         const vendorCardId = result.rows[0].id;
+        inserted.push({ id: vendorCardId, vendor_name: insertParams[8], master_type: masterType });
 
-        // Insert sub-charges with proper master_type reference
         const chargesArr = Array.isArray(card.charges)
           ? card.charges
           : Array.isArray(card.selected_subcharges)
@@ -2031,17 +2033,13 @@ router.post("/:code/vendor-cards", async (req, res) => {
             const gstVatVal = ch.gst_vat || ch.gst_rate || null;
             const remarksVal = ch.remarks || null;
 
-            // Skip rows that would violate NOT NULL constraints
             if (!chargeName || !currencyVal) {
-              console.warn(
-                "Skipping sub-charge due to missing required fields",
-                {
-                  chargeName,
-                  currencyVal,
-                  basisVal,
-                  amountVal,
-                }
-              );
+              console.warn("Skipping sub-charge due to missing fields", {
+                chargeName,
+                currencyVal,
+                basisVal,
+                amountVal,
+              });
               continue;
             }
 
@@ -2070,14 +2068,18 @@ router.post("/:code/vendor-cards", async (req, res) => {
             await client.query(subChargeQuery, subChargeParams);
           }
         }
+
+        insertedCount++;
+      }
       
 
       await client.query("COMMIT");
 
       res.json({
-        message: `Vendor card added successfully for ${masterType}`,
+        message: `Vendor cards added successfully for ${masterType}`,
         master_type: masterType,
-        count: card.length,
+        count: insertedCount,
+        inserted
       });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -2113,6 +2115,63 @@ router.put("/:code/vendor-cards/:cardId/negotiate", async (req, res) => {
     res.json({ message: "Negotiated charges updated successfully" });
   } catch (error) {
     console.error("Error updating negotiated charges:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Update sub-charges for a vendor card
+router.put("/:code/vendor-cards/:cardId/sub-charges", async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    const updates = Array.isArray(req.body?.list) ? req.body.list : [];
+    if (!cardId) {
+      return res.status(400).json({ error: "cardId is required" });
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No sub-charge updates provided" });
+    }
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      let updated = 0;
+      for (const u of updates) {
+        const params = [
+          u.sell_rate_currency || u.currency || null,
+          u.sell_rate ?? u.amount ?? null,
+          u.gst_vat ?? u.gst_rate ?? null,
+          u.remarks || null,
+          Number(cardId),
+          u.id || null,
+          u.charge_name || null,
+        ];
+
+        const qById = `UPDATE enquiry_vendor_sub_charges 
+          SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4 
+          WHERE master_id=$5 AND id=$6`;
+        let r;
+        if (u.id) {
+          r = await client.query(qById, params.slice(0, 6));
+        }
+        if (!u.id || r.rowCount === 0) {
+          const qByName = `UPDATE enquiry_vendor_sub_charges 
+            SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4 
+            WHERE master_id=$5 AND charge_name=$6`;
+          r = await client.query(qByName, [
+            params[0], params[1], params[2], params[3], params[4], params[6]
+          ]);
+        }
+        updated += r.rowCount || 0;
+      }
+      await client.query("COMMIT");
+      res.json({ updated });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error updating sub-charges:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

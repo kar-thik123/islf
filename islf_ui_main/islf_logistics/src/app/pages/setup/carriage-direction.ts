@@ -83,7 +83,6 @@ export class CarriageDirectionSettingsComponent {
     if (row.is_to) row.is_from = false;   // Uncheck FROM
   }
 }
-
   save() {
     this.service.saveCarriageDirection(this.rows).subscribe({
       next: () => {
