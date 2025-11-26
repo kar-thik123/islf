@@ -1746,7 +1746,7 @@ import { VendorService } from '@/services/vendor.service';
                 >
                 <p-dropdown
                   [(ngModel)]="tariffFilter.from_location"
-                  [options]="fromLocationOptions"
+                  [options]="getLocationsForType(tariffFilter.from_location_type)"
                   [showClear]="true"
                   placeholder="All From Locations"
                   (onChange)="applyManualTariffFilter()"
@@ -1770,7 +1770,7 @@ import { VendorService } from '@/services/vendor.service';
                 >
                 <p-dropdown
                   [(ngModel)]="tariffFilter.to_location"
-                  [options]="toLocationOptions"
+                  [options]="getLocationsForType(tariffFilter.to_location_type)"
                   [showClear]="true"
                   placeholder="All To Locations"
                   (onChange)="applyManualTariffFilter()"
@@ -1793,6 +1793,8 @@ import { VendorService } from '@/services/vendor.service';
               [paginator]="true"
               [rows]="10"
               dataKey="id"
+              selectionMode="multiple"
+              [(selection)]="selectedTariffSelection"
             >
               <ng-template pTemplate="header">
                 <tr>
@@ -1811,11 +1813,7 @@ import { VendorService } from '@/services/vendor.service';
               <ng-template pTemplate="body" let-vendor>
                 <tr>
                   <td>
-                    <p-tableCheckbox
-                      [(ngModel)]="vendor.selected"
-                      [value]="vendor"
-                    >
-                    </p-tableCheckbox>
+                    <p-tableCheckbox [value]="vendor"></p-tableCheckbox>
                   </td>
                   <td>
                     <button
@@ -1952,38 +1950,26 @@ import { VendorService } from '@/services/vendor.service';
               <p-table [value]="vendor.sub_charges || []">
                 <ng-template pTemplate="header">
                   <tr>
-                    <th style="width: 3rem">Select</th>
+                    <th colspan="5" class="text-left">Buy Rate</th>
+                    <th colspan="3" class="text-left">Sell Rate</th>
+                  </tr>
+                  <tr>
                     <th>Charge Name</th>
                     <th>Basis</th>
                     <th>Currency</th>
                     <th>Charges</th>
+                    <th>GST/VAT</th>
+                    <th>Sell Rate Currency</th>
                     <th>Sell Rate</th>
                     <th>GST/VAT</th>
                   </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-charge>
                   <tr>
-                    <td>
-                      <p-checkbox
-                        [(ngModel)]="charge.selected"
-                        (onChange)="toggleTariffSubcharge(vendor, charge)"
-                      ></p-checkbox>
-                    </td>
                     <td>{{ charge.charge_name || charge.name }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
                     <td>{{ charge.amount || charge.charges }}</td>
-                    <td>
-                      <input
-                        *ngIf="charge.selected"
-                        type="number"
-                        pInputText
-                        [(ngModel)]="vendor.sell_rates[charge.id]"
-                        [value]="charge.amount || charge.charges"
-                        style="width: 100px"
-                      />
-                      <span *ngIf="!charge.selected">--</span>
-                    </td>
                     <td>
                       {{
                         charge.gst_vat ||
@@ -1991,6 +1977,49 @@ import { VendorService } from '@/services/vendor.service';
                           charge.vat_rate ||
                           '0'
                       }}%
+                    </td>
+                    <td>
+                      <ng-container *ngIf="true">
+                        <div class="flex gap-2 items-center">
+                          <p-dropdown
+                            appendTo="body"
+                            [options]="sellPriceCurrencyOptions"
+                            [(ngModel)]="charge.sell_rate_currency"
+                            placeholder="Select Currency"
+                            [filter]="true"
+                            filterBy="label"
+                            [showClear]="true"
+                            class="small-dropdown"
+                          ></p-dropdown>
+                          <button
+                            pButton
+                            [icon]="
+                              masterDialogLoading['currencyCode']
+                                ? 'pi pi-spin pi-spinner'
+                                : 'pi pi-ellipsis-h'
+                            "
+                            class="p-button-sm"
+                            [disabled]="masterDialogLoading['currencyCode']"
+                            (click)="openMaster('currencyCode')"
+                          ></button>
+                        </div>
+                      </ng-container>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        pInputText
+                        [(ngModel)]="vendor.sell_rates[charge.id]"
+                        [value]="charge.amount || charge.charges"
+                        style="width: 100px"
+                      />
+                    </td>
+                    <td>
+                      <p-inputnumber
+                        [(ngModel)]="charge.sell_rate_gst_vat"
+                        inputId="percent"
+                        suffix="%"
+                      />
                     </td>
                   </tr>
                 </ng-template>
@@ -2852,6 +2881,7 @@ export class EnquiryComponent implements OnInit {
   tariffFilter: any = {};
   expandedSourcingRows: any[] = [];
   expandedTariffRows: any[] = [];
+  selectedTariffSelection: any[] = [];
   sourcingExpandedKeys: { [key: string]: boolean } = {};
   tariffExpandedKeys: { [key: string]: boolean } = {};
   chargesDialogVisible: boolean = false;
@@ -2864,10 +2894,7 @@ export class EnquiryComponent implements OnInit {
     );
   }
   get hasSelectedFilteredTariffVendors(): boolean {
-    return (
-      Array.isArray(this.filteredTariffVendors) &&
-      this.filteredTariffVendors.some((v: any) => !!v.selected)
-    );
+    return Array.isArray(this.selectedTariffSelection) && this.selectedTariffSelection.length > 0;
   }
 
   onSourcingRowExpand(event: any) {
@@ -4785,7 +4812,7 @@ export class EnquiryComponent implements OnInit {
           const existingSelected = (() => {
             const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
             const sourcingSummary = li?.enquiry_summary?.[0];
-            const prev = sourcingSummary?.selected_source_items || [];
+            const prev = sourcingSummary?.sourced_list || sourcingSummary?.selected_source_items || [];
             return (prev || []).map((v: any) => ({
               ...v,
               enquiry_line_item_id: lineItemId,
@@ -4838,15 +4865,29 @@ export class EnquiryComponent implements OnInit {
     const enq = this.selectedEnquiry!;
 
     const li = this.lineItems[lineItemIndex];
+    const selectedVendor = this.sourcingSelection || this.selectedSourcingVendors.find(v => v.enquiry_line_item_id === lineItemId);
+    const sourcingList = selectedVendor
+      ? [
+          {
+            vendor_no: selectedVendor.vendor_name || selectedVendor.vendor_no || selectedVendor.code,
+            vendor_type: selectedVendor.vendor_type,
+          },
+        ]
+      : undefined;
     this.currentVendorCriteria = {
       line_item_type: li?.type,
       service_area: li?.service_area,
       basis: li?.basis,
       department: enq.department,
       cargo_type: enq.cargo_type,
+      from_location: li?.line_from_location || enq.from_location,
+      from_location_type: li?.line_from_location_type || enq.location_type_from,
+      to_location: li?.line_to_location || enq.to_location,
+      to_location_type: li?.line_to_location_type || enq.location_type_to,
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
       effective_date_to: this.formatDateForAPI(enq.effective_date_to),
       service_type: enq.service_type,
+      sourcing: sourcingList,
       lineItemId: lineItemId,
     };
 
@@ -4863,9 +4904,21 @@ export class EnquiryComponent implements OnInit {
             sub_charges: opt.sub_charges || this.normalizeCharges(opt.charges),
           }));
           this.filteredTariffVendors = [...this.tariffVendors];
-          this.selectedTariffVendors = [];
+          const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
+          const tariffSummary = li?.enquiry_summary?.[1];
+          const prevTariff = tariffSummary?.sourced_list || tariffSummary?.selected_source_items || [];
+          this.selectedTariffVendors = (prevTariff || []).map((v: any) => ({
+            ...v,
+            enquiry_line_item_id: lineItemId,
+            selected_subcharges: v.selected_subcharges || [],
+            sell_rates: v.sell_rates || {},
+            remarks: v.remarks || '',
+          }));
           this.activeVendorTab = 2; // Get Tariff tab
           this.showVendorTabsDialog = true;
+          if (this.selectedTariffVendors.length) {
+            this.hydrateSubCharges(this.selectedTariffVendors);
+          }
           this.hydrateSubCharges(this.tariffVendors, true);
         },
         error: (error) => {
@@ -4900,6 +4953,14 @@ export class EnquiryComponent implements OnInit {
           vendor_type: vendor.vendor_type,
         },
       ],
+      from_location: li?.line_from_location || enq.from_location,
+      from_location_type: li?.line_from_location_type || enq.location_type_from,
+      to_location: li?.line_to_location || enq.to_location,
+      to_location_type: li?.line_to_location_type || enq.location_type_to,
+      from_location_code: li?.line_from_location || enq.from_location,
+      from_location_name: this.getLocationName(li?.line_from_location || enq.from_location),
+      to_location_code: li?.line_to_location || enq.to_location,
+      to_location_name: this.getLocationName(li?.line_to_location || enq.to_location),
       lineItemId,
     };
 
@@ -5049,7 +5110,9 @@ export class EnquiryComponent implements OnInit {
 
   // Move selected vendors from Get Tariff to Select Tariff tab
   moveToSelectTariff() {
-    const selected = this.tariffVendors.filter((v) => v.selected);
+    const selected = Array.isArray(this.selectedTariffSelection)
+      ? [...this.selectedTariffSelection]
+      : [];
     if (selected.length === 0) {
       this.messageService.add({
         severity: 'warn',
@@ -5059,7 +5122,17 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-    this.selectedTariffVendors = [...this.selectedTariffVendors, ...selected];
+    this.selectedTariffVendors = [...this.selectedTariffVendors, ...selected].map((vendor) => {
+      if (!vendor.sell_rates) vendor.sell_rates = {};
+      (vendor.sub_charges || []).forEach((sc: any) => {
+        const amt = sc.amount ?? sc.charges ?? 0;
+        if (vendor.sell_rates[sc.id] === undefined) vendor.sell_rates[sc.id] = amt;
+        if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
+        if (sc.sell_rate_gst_vat === undefined)
+          sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+      });
+      return vendor;
+    });
     this.selectedTariffVendors.forEach((vendor) => {
       if (
         !vendor.selected_subcharges ||
@@ -5104,7 +5177,16 @@ export class EnquiryComponent implements OnInit {
         lineItemId: ctxT.lineItemId,
       })
       .subscribe({
-        next: () => {},
+        next: (res) => {
+          try {
+            const inserted = (res && res.inserted) ? res.inserted : [];
+            // Attach returned card ids to the corresponding selectedTariffVendors
+            inserted.forEach((row: any, idx: number) => {
+              const target = this.selectedTariffVendors[idx];
+              if (target) target.card_id = row.id;
+            });
+          } catch {}
+        },
         error: (error) => {
           console.error('Error saving tariff vendors:', error);
           this.messageService.add({
@@ -5115,8 +5197,11 @@ export class EnquiryComponent implements OnInit {
         },
       });
 
-    // Remove from tariff vendors
-    this.tariffVendors = this.tariffVendors.filter((v) => !v.selected);
+    // Remove from tariff vendors and filtered list
+    const selectedIds = new Set(selected.map((s: any) => s.id));
+    this.tariffVendors = this.tariffVendors.filter((v) => !selectedIds.has(v.id));
+    this.filteredTariffVendors = this.filteredTariffVendors.filter((v) => !selectedIds.has(v.id));
+    this.selectedTariffSelection = [];
 
     // Move to Select Tariff tab
     this.activeVendorTab = 3;
@@ -5164,38 +5249,50 @@ export class EnquiryComponent implements OnInit {
     });
   }
   saveTariffVendors() {
-    const vendorsToSave = this.selectedTariffVendors.map((vendor) => ({
-      ...vendor,
-      source_type: 'tariff',
-      charges: vendor.selected_subcharges,
-      negotiated_charges: vendor.sell_rates,
-      negotiated_remarks: vendor.remarks,
-    }));
-
-    this.enquiryService
-      .addVendorCards(this.currentEnquiry?.code!, vendorsToSave, {
-        sourcingType: 'tariff',
-        lineItemId: this.currentVendorCriteria.lineItemId,
-      })
-      .subscribe({
-        next: () => {
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Tariff vendors saved successfully',
-          });
-          this.showVendorTabsDialog = false;
-          this.loadEnquiry(this.currentEnquiry?.code!);
-        },
-        error: (error) => {
-          console.error('Error saving tariff vendors:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to save tariff vendors',
-          });
-        },
+    const code = this.currentEnquiry?.code!;
+    const requests = this.selectedTariffVendors
+      .filter((v) => v.card_id)
+      .map((vendor) => {
+        const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
+          id: sc.id,
+          charge_name: sc.charge_name || sc.name,
+          currency: sc.currency,
+          sell_rate_currency: sc.sell_rate_currency || sc.currency,
+          sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
+          gst_vat: sc.gst_vat ?? sc.gst_rate,
+          remarks: sc.remarks,
+        }));
+        return this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates);
       });
+
+    if (requests.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'No saved tariff vendors to update',
+      });
+      return;
+    }
+
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: 'Tariff sub-charges updated',
+        });
+        this.showVendorTabsDialog = false;
+        this.loadEnquiry(code);
+      },
+      error: (error) => {
+        console.error('Error updating tariff sub-charges:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to update tariff sub-charges',
+        });
+      },
+    });
   }
   // Calculate total charges for display
   calculateTotalCharges(vendor: any): number {
@@ -5217,6 +5314,15 @@ export class EnquiryComponent implements OnInit {
   applyManualTariffFilter() {
     this.filteredTariffVendors = this.tariffVendors.filter((vendor) => {
       let matches = true;
+      const norm = (s: any) => (s ?? '').toString().trim().toLowerCase();
+      const normType = (s: any) => norm(s).replace(/[^a-z0-9]/g, '');
+      const findTypeByValue = (val: string) => {
+        const v = (val || '').toString();
+        const rec = (this.allLocations || []).find(
+          (l: any) => l.code === v || norm(l.name) === norm(v)
+        );
+        return rec ? rec.type : '';
+      };
 
       if (
         this.tariffFilter.service_area &&
@@ -5225,33 +5331,49 @@ export class EnquiryComponent implements OnInit {
         matches = false;
       }
 
-      if (
-        this.tariffFilter.from_location_type &&
-        vendor.from_location_type !== this.tariffFilter.from_location_type
-      ) {
-        matches = false;
+      if (this.tariffFilter.from_location_type) {
+        const vfType = normType(vendor.from_location_type) || normType(findTypeByValue(vendor.from_location_code || vendor.from_location));
+        const fltType = normType(this.tariffFilter.from_location_type);
+        if (vfType !== fltType) matches = false;
       }
-      if (
-        this.tariffFilter.from_location &&
-        vendor.from_location !== this.tariffFilter.from_location
-      ) {
-        matches = false;
-      }
-
-      if (
-        this.tariffFilter.to_location_type &&
-        vendor.to_location_type !== this.tariffFilter.to_location_type
-      ) {
-        matches = false;
-      }
-      if (
-        this.tariffFilter.to_location &&
-        vendor.to_location !== this.tariffFilter.to_location
-      ) {
-        matches = false;
+      if (this.tariffFilter.from_location) {
+        const code = (this.tariffFilter.from_location || '').toString();
+        const rec = (this.allLocations || []).find((l: any) => l.code === code);
+        const name = rec ? (rec.name || '') : '';
+        const vloc = (vendor.from_location || '').toString();
+        const vcode = (vendor.from_location_code || '').toString();
+        const normText = (s: any) => (s ?? '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const ok =
+          normText(vloc) === normText(code) ||
+          normText(vloc) === normText(name) ||
+          normText(vcode) === normText(code) ||
+          normText(vloc).includes(normText(name)) ||
+          normText(vloc).includes(normText(code));
+        if (!ok) matches = false;
       }
 
-     
+      if (this.tariffFilter.to_location_type) {
+        const vtType = normType(vendor.to_location_type) || normType(findTypeByValue(vendor.to_location_code || vendor.to_location));
+        const fltTypeTo = normType(this.tariffFilter.to_location_type);
+        if (vtType !== fltTypeTo) matches = false;
+      }
+      if (this.tariffFilter.to_location) {
+        const code = (this.tariffFilter.to_location || '').toString();
+        const rec = (this.allLocations || []).find((l: any) => l.code === code);
+        const name = rec ? (rec.name || '') : '';
+        const vloc = (vendor.to_location || '').toString();
+        const vcode = (vendor.to_location_code || '').toString();
+        const normText = (s: any) => (s ?? '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const ok =
+          normText(vloc) === normText(code) ||
+          normText(vloc) === normText(name) ||
+          normText(vcode) === normText(code) ||
+          normText(vloc).includes(normText(name)) ||
+          normText(vloc).includes(normText(code));
+        if (!ok) matches = false;
+      }
+
+      
 
       return matches;
     });
@@ -5403,6 +5525,16 @@ export class EnquiryComponent implements OnInit {
           ) {
             vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
           }
+          if (!vendors[idx].sell_rates) vendors[idx].sell_rates = {};
+          (vendors[idx].sub_charges || []).forEach((sc: any) => {
+            const amt = sc.amount ?? sc.charges ?? 0;
+            if (vendors[idx].sell_rates[sc.id] === undefined) {
+              vendors[idx].sell_rates[sc.id] = amt;
+            }
+            if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
+            if (sc.sell_rate_gst_vat === undefined)
+              sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+          });
         });
         if (updateFiltered) {
           this.filteredTariffVendors = [...vendors];

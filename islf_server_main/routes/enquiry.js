@@ -1808,19 +1808,16 @@ router.post("/:code/tariff", async (req, res) => {
       from_location_type,
       to_location,
       to_location_type,
+      from_location_code,
+      from_location_name,
+      to_location_code,
+      to_location_name,
       effective_date_from,
       effective_date_to,
       sourcing,
       local_tariff,
       service_area,
     } = req.body;
-
-    if (!sourcing || sourcing.length === 0) {
-      return res.status(400).json({ error: "No sourcing vendors selected" });
-    }
-
-    const vendorNos = sourcing.map((v) => v.vendor_no || v.vendor_name);
-    const vendorTypes = sourcing.map((v) => v.vendor_type);
 
     let query = `
       SELECT t.*, v.name AS vendor_name, v.type AS vendor_type
@@ -1831,47 +1828,82 @@ router.post("/:code/tariff", async (req, res) => {
 
     const params = [];
     let paramIndex = 1;
+
     if (effective_date_from && effective_date_to) {
+      // Overlap date range instead of full containment
       query += `
-        AND t.period_start_date <= $${paramIndex}
-        AND ($${paramIndex + 1} <= t.expiry_date OR t.expiry_date IS NULL)
+        AND t.period_start_date <= $${paramIndex + 1}
+        AND (t.expiry_date IS NULL OR t.expiry_date >= $${paramIndex})
       `;
       params.push(effective_date_from, effective_date_to);
       paramIndex += 2;
     }
-    query += ` AND t.vendor_name = ANY($${paramIndex})`;
-    params.push(vendorNos);
-    paramIndex++;
 
-    query += ` AND v.type = ANY($${paramIndex})`;
-    params.push(vendorTypes);
-    paramIndex++;
     if (department && department.trim() !== "") {
       query += ` AND t.mode = $${paramIndex}`;
       params.push(department);
       paramIndex++;
     }
-    // shipping_type is not filtered here; handled by UI selection
+
     if (cargo_type && cargo_type.trim() !== "") {
       query += ` AND t.cargo_type = $${paramIndex}`;
       params.push(cargo_type);
       paramIndex++;
     }
-    
-    query += ` ORDER BY t.vendor_name, t.created_at DESC`;
 
-    console.log("Final tariff query:", query);
-    console.log("Final tariff params:", params);
+    // Route filtering based on provided from/to
+    const normCmp = (field, idx) => `LOWER(REPLACE(${field}, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))`;
+
+    const hasFrom = !!(from_location || from_location_code || from_location_name);
+    const hasTo = !!(to_location || to_location_code || to_location_name);
+
+    if (hasFrom && hasTo) {
+      const fromVals = [from_location, from_location_code, from_location_name].filter(Boolean);
+      const toVals = [to_location, to_location_code, to_location_name].filter(Boolean);
+      const fromIdxStart = paramIndex;
+      fromVals.forEach((v) => { params.push(v); paramIndex++; });
+      const toIdxStart = paramIndex;
+      toVals.forEach((v) => { params.push(v); paramIndex++; });
+      const fromConds = fromVals.map((_, i) => normCmp('t.from_location', fromIdxStart + i)).join(' OR ');
+      const toConds = toVals.map((_, i) => normCmp('t.to_location', toIdxStart + i)).join(' OR ');
+      query += ` AND (${fromConds}) AND (${toConds})`;
+    } else if (hasFrom) {
+      const fromVals = [from_location, from_location_code, from_location_name].filter(Boolean);
+      const fromIdxStart = paramIndex;
+      fromVals.forEach((v) => { params.push(v); paramIndex++; });
+      const fromConds = fromVals.map((_, i) => normCmp('t.from_location', fromIdxStart + i)).join(' OR ');
+      query += ` AND (${fromConds}) AND (t.to_location IS NULL OR TRIM(t.to_location) = '')`;
+    } else if (hasTo) {
+      const toVals = [to_location, to_location_code, to_location_name].filter(Boolean);
+      const toIdxStart = paramIndex;
+      toVals.forEach((v) => { params.push(v); paramIndex++; });
+      const toConds = toVals.map((_, i) => normCmp('t.to_location', toIdxStart + i)).join(' OR ');
+      query += ` AND (${toConds}) AND (t.from_location IS NULL OR TRIM(t.from_location) = '')`;
+    }
+
+    if (Array.isArray(sourcing) && sourcing.length > 0) {
+      const vendorNos = sourcing.map((v) => v.vendor_no || v.vendor_name);
+      const vendorTypes = sourcing.map((v) => v.vendor_type);
+      query += ` AND t.vendor_name = ANY($${paramIndex})`;
+      params.push(vendorNos);
+      paramIndex++;
+      query += ` AND v.type = ANY($${paramIndex})`;
+      params.push(vendorTypes);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY t.vendor_name, t.created_at DESC`;
 
     const { rows: tariffResult } = await pool.query(query, params);
     const tariffIds = tariffResult.map((T) => T.id);
+
+    if (tariffIds.length === 0) return res.json([]);
 
     const { rows: tariffSubchargeResult } = await pool.query(
       `SELECT * FROM tariff_charges WHERE tariff_id = ANY($1) ORDER BY tariff_id, id`,
       [tariffIds]
     );
 
-    // reducing the collected sub charge as per source id
     const subChargesByTariff = tariffSubchargeResult.reduce(
       (acc, subCharge) => {
         if (!acc[subCharge.tariff_id]) acc[subCharge.tariff_id] = [];
@@ -1885,8 +1917,6 @@ router.post("/:code/tariff", async (req, res) => {
       ...tariff,
       sub_charges: subChargesByTariff[tariff.id] || [],
     }));
-
-    console.log(`Found ${tariffResult.length} tariff vendors`);
 
     res.json(tariffResponse);
   } catch (error) {
