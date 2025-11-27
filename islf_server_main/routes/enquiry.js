@@ -1882,14 +1882,22 @@ router.post("/:code/tariff", async (req, res) => {
     }
 
     if (Array.isArray(sourcing) && sourcing.length > 0) {
-      const vendorNos = sourcing.map((v) => v.vendor_no || v.vendor_name);
-      const vendorTypes = sourcing.map((v) => v.vendor_type);
-      query += ` AND t.vendor_name = ANY($${paramIndex})`;
-      params.push(vendorNos);
-      paramIndex++;
-      query += ` AND v.type = ANY($${paramIndex})`;
-      params.push(vendorTypes);
-      paramIndex++;
+      const vendorNos = (sourcing || [])
+        .map((v) => v.vendor_no || v.vendor_name)
+        .filter((x) => x && String(x).trim() !== "");
+      const vendorTypes = (sourcing || [])
+        .map((v) => v.vendor_type)
+        .filter((x) => x && String(x).trim() !== "");
+      if (vendorNos.length > 0) {
+        query += ` AND t.vendor_name = ANY($${paramIndex})`;
+        params.push(vendorNos);
+        paramIndex++;
+      }
+      if (vendorTypes.length > 0) {
+        query += ` AND v.type = ANY($${paramIndex})`;
+        params.push(vendorTypes);
+        paramIndex++;
+      }
     }
 
     query += ` ORDER BY t.vendor_name, t.created_at DESC`;
@@ -2202,6 +2210,36 @@ router.put("/:code/vendor-cards/:cardId/sub-charges", async (req, res) => {
     }
   } catch (error) {
     console.error("Error updating sub-charges:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/:code/vendor-cards/:cardId/sub-charges", async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    if (!cardId) return res.status(400).json({ error: "cardId is required" });
+    const { rows } = await pool.query(
+      `SELECT id, master_id, charge_name, currency, basis, charges, sell_rate_currency, sell_rate, gst_vat, remarks
+       FROM enquiry_vendor_sub_charges WHERE master_id = $1 ORDER BY id`,
+      [Number(cardId)]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching vendor sub-charges:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/tariff/sub-charges/:tariffId", async (req, res) => {
+  try {
+    const { tariffId } = req.params;
+    const { rows } = await pool.query(
+      `SELECT id, tariff_id, charge_name, currency, basis, amount AS charges, gst_vat
+       FROM tariff_charges WHERE tariff_id = $1 ORDER BY id`,
+      [Number(tariffId)]
+    );
+    res.json(rows);
+  } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -2576,3 +2614,40 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
 });
 
 module.exports = router;
+// DELETE all vendor cards and sub-charges for an enquiry line item (scope: all|sourcing|tariff)
+router.delete("/:code/line-item/:lineItemId/vendor-cards", async (req, res) => {
+  try {
+    const { code, lineItemId } = req.params;
+    const scope = (req.query.scope || 'all').toString();
+    const { rows: enqRows } = await pool.query("SELECT id FROM enquiry WHERE code = $1", [code]);
+    if (enqRows.length === 0) return res.status(404).json({ error: "Enquiry not found" });
+    const enquiryId = enqRows[0].id;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      let typeCond = '';
+      if (scope === 'sourcing') typeCond = " AND master_type = 'sourcing'";
+      else if (scope === 'tariff') typeCond = " AND master_type = 'tariff'";
+
+      const delSub = await client.query(
+        `DELETE FROM enquiry_vendor_sub_charges WHERE enquiry_id = $1 AND enquiry_line_item_id = $2${typeCond}`,
+        [enquiryId, Number(lineItemId)]
+      );
+      const delCards = await client.query(
+        `DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2${typeCond}`,
+        [enquiryId, Number(lineItemId)]
+      );
+      await client.query('COMMIT');
+      res.json({ deleted_cards: delCards.rowCount, deleted_sub_charges: delSub.rowCount });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error deleting vendor cards/sub-charges:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});

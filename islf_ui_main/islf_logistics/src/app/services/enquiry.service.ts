@@ -441,6 +441,44 @@ export class EnquiryService {
     );
   }
 
+  getVendorSubCharges(enquiryCode: string, cardId: number): Observable<any[]> {
+    return this.http.get<any[]>(
+      `${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}/sub-charges`
+    );
+  }
+
+  deleteLineItemVendorData(
+    enquiryCode: string,
+    lineItemId: number,
+    scope: 'all' | 'sourcing' | 'tariff' = 'all'
+  ): Observable<{ deleted_cards: number; deleted_sub_charges: number }> {
+    const params = new HttpParams().set('scope', scope);
+    return this.http.delete<{ deleted_cards: number; deleted_sub_charges: number }>(
+      `${this.baseUrl}/${enquiryCode}/line-item/${lineItemId}/vendor-cards`,
+      { params }
+    );
+  }
+
+  selectLineItemVendorCards(
+    enquiryCode: string,
+    lineItemId: number,
+    vendorCardIds: number[],
+    sourcingType: 'sourcing' | 'tariff'
+  ): Observable<any> {
+    const payload = this.contextPayload.withContext(
+      { vendorCardList: vendorCardIds.map((id) => ({ id })), sourcingType },
+      this.contextService.getContext()
+    );
+    return this.http.put(
+      `${this.baseUrl}/${enquiryCode}/line-item/${lineItemId}/selection`,
+      payload
+    );
+  }
+
+  getTariffSubCharges(tariffId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl.replace('/enquiry','')}/tariff/sub-charges/${tariffId}`);
+  }
+
   /** Get all enquiries (alias for compatibility) */
   getAllEnquiryLineItem(enquiryCode: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/${enquiryCode}/lineItem`);
