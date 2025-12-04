@@ -1035,7 +1035,7 @@ import { VendorService } from '@/services/vendor.service';
             >
               <ng-template pTemplate="header">
                 <tr>
-                  <th style="width: 3%"><p-tableHeaderCheckbox /></th>
+                 <!-- <th style="width: 3%"><p-tableHeaderCheckbox /></th> -->
                   <!-- Checkbox -->
                   <th style="width: 5%">S.No.</th>
                   <th style="width: 15%">Type</th>
@@ -1050,9 +1050,7 @@ import { VendorService } from '@/services/vendor.service';
               </ng-template>
               <ng-template pTemplate="body" let-item let-i="rowIndex">
                 <tr>
-                  <td>
-                    <p-tableCheckbox [value]="item" />
-                  </td>
+                  
                   <td>{{ i + 1 }}</td>
                   <td>
                     <div class="flex gap-2">
@@ -1064,6 +1062,7 @@ import { VendorService } from '@/services/vendor.service';
                         placeholder="Select type"
                         class="flex-1"
                         appendTo="body"
+                        [showClear]="true"
                         (onChange)="onLineItemTypeChange(item)"
                       >
                       </p-dropdown>
@@ -1089,6 +1088,7 @@ import { VendorService } from '@/services/vendor.service';
                         optionLabel="label"
                         optionValue="value"
                         placeholder="Select service area"
+                        [showClear]="true"
                         class="flex-1"
                         appendTo="body"
                       >
@@ -1116,6 +1116,7 @@ import { VendorService } from '@/services/vendor.service';
                         optionValue="value"
                         placeholder="Select basis"
                         class="flex-1"
+                        [showClear]="true"
                         appendTo="body"
                       >
                       </p-dropdown>
@@ -1179,6 +1180,16 @@ import { VendorService } from '@/services/vendor.service';
                         (click)="getSourcing(i + 1)"
                         class="sourcing-btn"
                         pTooltip="Query Sourcing Table with matching conditions"
+                      ></button>
+
+                      <button
+                        pButton
+                        type="button"
+                        label="Delete"
+                        icon="pi pi-trash"
+                        (click)="deleteLineItemCascade(i + 1)"
+                        class="p-button-danger"
+                        pTooltip="Delete line item and its selected vendors"
                       ></button>
 
                       <!--<button
@@ -1373,7 +1384,7 @@ import { VendorService } from '@/services/vendor.service';
           <ng-template pTemplate="body" let-charge>
             <tr>
               <td><p-tableCheckbox [value]="charge" /></td>
-              <td>{{ charge.charge_name }}</td>
+              <td>{{ getChargeNameLabel(charge) }}</td>
               <td>{{ charge.basis }}</td>
               <td>{{ charge.currency }}</td>
               <td>{{ charge.charges }}</td>
@@ -1411,10 +1422,10 @@ import { VendorService } from '@/services/vendor.service';
       [style]="{ width: '95vw', height: '90vh' }"
       [maximizable]="true"
     >
-      <p-tabView [(activeIndex)]="activeVendorTab">
+      <p-tabView [(activeIndex)]="activeVendorTab" (activeIndexChange)="onVendorTabChange($event)">
         <!-- Get Sourcing Tab -->
         <p-tabPanel header="Get Sourcing">
-          <div class="p-fluid">
+            <div class="p-fluid">
             <p-table
               #sourcingTable
               [value]="sourcingVendors"
@@ -1517,7 +1528,7 @@ import { VendorService } from '@/services/vendor.service';
                               ></p-tableCheckbox>
                             </td>
                             <td class="pl-4">
-                              {{ charge.charge_name || charge.name }}
+                              {{ getChargeNameLabel(charge) }}
                             </td>
                             <td>{{ charge.basis }}</td>
                             <td>{{ charge.currency }}</td>
@@ -1567,14 +1578,14 @@ import { VendorService } from '@/services/vendor.service';
         <p-tabPanel header="Select Sourcing">
           <div class="p-fluid">
             <div
-              *ngIf="selectedSourcingVendors.length === 0"
+              *ngIf="selectedSourcingVendorsForTab.length === 0"
               class="p-4 text-center border-round bg-gray-50"
             >
               <p class="text-gray-500">No vendors selected for sourcing yet.</p>
             </div>
 
             <div
-              *ngFor="let vendor of selectedSourcingVendors; let i = index"
+              *ngFor="let vendor of selectedSourcingVendorsForTab; let i = index"
               class="mb-6 p-4 border-round border-1"
             >
               <div class="flex justify-between items-center">
@@ -1614,7 +1625,7 @@ import { VendorService } from '@/services/vendor.service';
                 </ng-template>
                 <ng-template pTemplate="body" let-charge>
                   <tr>
-                    <td>{{ charge.charge_name || charge.name }}</td>
+                    <td>{{ getChargeNameLabel(charge) }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
                     <td>{{ charge.amount || charge.charges }}</td>
@@ -1662,7 +1673,6 @@ import { VendorService } from '@/services/vendor.service';
                         type="number"
                         pInputText
                         [(ngModel)]="vendor.sell_rates[charge.id]"
-                        [value]="charge.amount || charge.charges"
                         style="width: 100px"
                       />
                       <span *ngIf="!charge.selected">--</span>
@@ -1696,7 +1706,7 @@ import { VendorService } from '@/services/vendor.service';
                 label="Save Sourcing"
                 icon="pi pi-save"
                 (click)="saveSourcingVendors()"
-                [disabled]="selectedSourcingVendors.length === 0"
+                [disabled]="selectedSourcingVendorsForTab.length === 0"
                 class="p-button-success"
               ></button>
             </div>
@@ -1790,6 +1800,28 @@ import { VendorService } from '@/services/vendor.service';
               (onChange)="applyManualTariffFilter()"
             ></p-dropdown>
           </div>
+          <div class="col-span-12 md:col-span-3">
+            <label class="block font-semibold mb-1">Filter by Vendor Type</label>
+            <p-dropdown
+              [(ngModel)]="tariffFilter.vendor_type"
+              [options]="tariffVendorTypeOptions"
+              [showClear]="true"
+              placeholder="All Vendor Types"
+              (onChange)="applyManualTariffFilter()"
+            ></p-dropdown>
+          </div>
+          <div class="col-span-12 md:col-span-3">
+            <label class="block font-semibold mb-1">Filter by Vendor Name</label>
+            <p-dropdown
+              [(ngModel)]="tariffFilter.vendor_name"
+              [options]="tariffVendorNameOptions"
+              [filter]="true"
+              filterBy="label"
+              [showClear]="true"
+              placeholder="All Vendor Names"
+              (onChange)="applyManualTariffFilter()"
+            ></p-dropdown>
+          </div>
           
         </div>
             <p-table
@@ -1812,7 +1844,7 @@ import { VendorService } from '@/services/vendor.service';
                   <th>Route</th>
                   <th>Cargo Type</th>
                   <th>Basis</th>
-                  <th>Sub Charges</th>
+                  <th>Charges Count</th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-vendor>
@@ -1848,7 +1880,7 @@ import { VendorService } from '@/services/vendor.service';
                   </td>
                 </tr>
                 <tr *ngIf="vendor.showCharges">
-                  <td colspan="8" class="bg-blue-50 p-2 border-round">
+                  <td colspan="4" >
                     <p-table [value]="vendor.sub_charges || []">
                       <ng-template pTemplate="header">
                         <tr>
@@ -1871,7 +1903,7 @@ import { VendorService } from '@/services/vendor.service';
                             ></p-checkbox>
                           </td>
                           <td class="pl-4">
-                            {{ charge.charge_name || charge.name }}
+                            {{ getChargeNameLabel(charge) }}
                           </td>
                           <td>{{ charge.basis }}</td>
                           <td>{{ charge.currency }}</td>
@@ -1930,14 +1962,14 @@ import { VendorService } from '@/services/vendor.service';
         <p-tabPanel header="Select Tariff">
           <div class="p-fluid">
             <div
-              *ngIf="selectedTariffVendors.length === 0"
+              *ngIf="selectedTariffVendorsForTab.length === 0"
               class="p-4 text-center border-round bg-gray-50"
             >
               <p class="text-gray-500">No vendors selected for tariff yet.</p>
             </div>
 
             <div
-              *ngFor="let vendor of selectedTariffVendors; let i = index"
+              *ngFor="let vendor of selectedTariffVendorsForTab; let i = index"
               class="mb-6 p-4 border-round border-1"
             >
               <div class="flex justify-between items-center">
@@ -1971,7 +2003,7 @@ import { VendorService } from '@/services/vendor.service';
                 </ng-template>
                 <ng-template pTemplate="body" let-charge>
                   <tr>
-                    <td>{{ charge.charge_name || charge.name }}</td>
+                    <td>{{ getChargeNameLabel(charge) }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
                     <td>{{ charge.amount || charge.charges }}</td>
@@ -2015,7 +2047,6 @@ import { VendorService } from '@/services/vendor.service';
                         type="number"
                         pInputText
                         [(ngModel)]="vendor.sell_rates[charge.id]"
-                        [value]="charge.amount || charge.charges"
                         style="width: 100px"
                       />
                     </td>
@@ -2048,7 +2079,7 @@ import { VendorService } from '@/services/vendor.service';
                 label="Save Tariff"
                 icon="pi pi-save"
                 (click)="saveTariffVendors()"
-                [disabled]="selectedTariffVendors.length === 0"
+                [disabled]="selectedTariffVendorsForTab.length === 0"
                 class="p-button-success"
               ></button>
             </div>
@@ -2882,12 +2913,17 @@ export class EnquiryComponent implements OnInit {
   selectedSourcingVendors: any[] = [];
   tariffVendors: any[] = [];
   selectedTariffVendors: any[] = [];
+  selectedSourcingVendorsForTab: any[] = [];
+  selectedTariffVendorsForTab: any[] = [];
   showVendorTabsDialog: boolean = false;
   currentVendorCriteria: any = {};
   sourcingSelection: any = {};
   vendorTypeOptions: any[] = [];
   filteredTariffVendors: any[] = [];
   tariffFilter: any = {};
+  tariffVendorTypeOptions: any[] = [];
+  tariffVendorNameOptions: any[] = [];
+  chargeCodeToName: Map<string, string> = new Map<string, string>();
   expandedSourcingRows: any[] = [];
   expandedTariffRows: any[] = [];
   selectedTariffSelection: any[] = [];
@@ -2895,6 +2931,12 @@ export class EnquiryComponent implements OnInit {
   tariffExpandedKeys: { [key: string]: boolean } = {};
   chargesDialogVisible: boolean = false;
   chargesDialogVendor: any = null;
+
+  private refreshSelectedVendorCaches() {
+    const id = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
+    this.selectedSourcingVendorsForTab = (this.selectedSourcingVendors || []).filter((v: any) => v.enquiry_line_item_id === id);
+    this.selectedTariffVendorsForTab = (this.selectedTariffVendors || []).filter((v: any) => v.enquiry_line_item_id === id);
+  }
 
   get hasSelectedSourcingVendors(): boolean {
     return (
@@ -2996,6 +3038,7 @@ export class EnquiryComponent implements OnInit {
     this.loadMasterTypeOptions();
     this.loadCarriageDirectionOptions();
     this.updateFinalizedVendorsPreview(); // Initialize finalized vendors preview
+    this.loadChargeTypeNames().subscribe();
   }
 
   initializeForm() {
@@ -4773,6 +4816,79 @@ export class EnquiryComponent implements OnInit {
     });
   }
 
+  deleteLineItemCascade(lineItemId: number) {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this line item and its vendors?',
+      header: 'Confirm Delete',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.confirmationService.close();
+        const code = this.currentEnquiry?.code || this.selectedEnquiry?.code || '';
+        const index = this.lineItems.findIndex((li) => Number(li.s_no) === Number(lineItemId));
+        const targetLineItem = this.lineItems[index];
+        const targetLineItemId = targetLineItem?.id ?? lineItemId;
+          const doLocalCleanup = () => {
+            if (index >= 0) {
+              this.lineItems.splice(index, 1);
+              this.lineItems.forEach((item, i) => (item.s_no = i + 1));
+            }
+            this.selectedLineItems = (this.selectedLineItems || []).filter((li) => Number(li.s_no) !== Number(lineItemId));
+            this.selectedSourcingVendors = (this.selectedSourcingVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+            this.selectedTariffVendors = (this.selectedTariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+            this.sourcingVendors = (this.sourcingVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+            this.tariffVendors = (this.tariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+            this.filteredTariffVendors = (this.filteredTariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+            this.selectedTariffSelection = [];
+            this.sourcingSelection = null;
+            if (this.selectedEnquiry) this.selectedEnquiry.line_items = [...this.lineItems];
+            this.refreshSelectedVendorCaches();
+          };
+        const persistUpdate = () => {
+          if (code) {
+            const updatedEnquiry = { ...(this.selectedEnquiry || {}), line_items: this.lineItems };
+            this.enquiryService.update(code, updatedEnquiry).subscribe({
+              next: () => {
+                this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Line item and vendors deleted' });
+                // Persist selection mapping
+                this.enquiryService
+                  .updateEnquiryLineItemSelection(code, { selectedLineItems: this.selectedLineItems })
+                  .subscribe({ next: () => {}, error: () => {} });
+                // Reload to verify deletion from DB
+                this.loadEnquiry(code);
+              },
+              error: () => {
+                this.messageService.add({ severity: 'warn', summary: 'Partial', detail: 'Deleted locally; failed to persist update' });
+              },
+            });
+          } else {
+            this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Line item removed' });
+          }
+        };
+        const doServerCleanup = () => {
+          if (code) {
+            this.enquiryService.deleteLineItemVendorData(code, Number(targetLineItemId), 'all').subscribe({
+              next: () => {
+                doLocalCleanup();
+                persistUpdate();
+              },
+              error: () => {
+                doLocalCleanup();
+                persistUpdate();
+              },
+            });
+          } else {
+            doLocalCleanup();
+            persistUpdate();
+          }
+        };
+        doServerCleanup();
+      },
+      reject: () => {
+        this.confirmationService.close();
+      },
+    });
+  }
+
   /*
   -----------------------------
    Sourcing and Tariff methods
@@ -4840,6 +4956,7 @@ export class EnquiryComponent implements OnInit {
     const enq = this.selectedEnquiry!;
 
     const li = this.lineItems[lineItemIndex];
+    this.sourcingSelection = null;
     this.currentVendorCriteria = {
       line_item_type: li?.type,
       service_area: li?.service_area,
@@ -4888,7 +5005,31 @@ export class EnquiryComponent implements OnInit {
           if (existingSelected && existingSelected.length) {
             this.selectedSourcingVendors = existingSelected;
             this.hydrateSubCharges(this.selectedSourcingVendors);
+          } else {
+            const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
+            const sourcingSummary = li?.enquiry_summary?.[0];
+            const allCards = (sourcingSummary?.sourced_list || []) as any[];
+            const latest = allCards.length ? allCards[allCards.length - 1] : null;
+            if (latest) {
+              const normalized = {
+                ...latest,
+                card_id: latest.card_id || latest.master_id || latest.id,
+                enquiry_line_item_id: lineItemId,
+                source_type: 'sourcing',
+                selected_subcharges: latest.selected_subcharges || [],
+                sell_rates: latest.sell_rates || {},
+                remarks: latest.remarks || '',
+              };
+              this.selectedSourcingVendors = [normalized];
+              this.hydrateSubCharges(this.selectedSourcingVendors);
+              if (normalized.card_id) {
+                this.enquiryService
+                  .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [normalized.card_id], 'sourcing')
+                  .subscribe({ next: () => {}, error: () => {} });
+              }
+            }
           }
+          this.refreshSelectedVendorCaches();
           this.activeVendorTab = 0; // Get Sourcing tab
           this.showVendorTabsDialog = true;
           this.hydrateSubCharges(this.sourcingVendors);
@@ -4928,7 +5069,11 @@ export class EnquiryComponent implements OnInit {
     const enq = this.selectedEnquiry!;
 
     const li = this.lineItems[lineItemIndex];
-    const selectedVendor = this.sourcingSelection || this.selectedSourcingVendors.find(v => v.enquiry_line_item_id === lineItemId);
+    const selectedVendor =
+      this.selectedSourcingVendors.find((v: any) => v.enquiry_line_item_id === lineItemId) ||
+      (this.sourcingSelection && this.sourcingSelection.enquiry_line_item_id === lineItemId
+        ? this.sourcingSelection
+        : null);
     const sourcingList = selectedVendor
       ? [
           {
@@ -4967,22 +5112,50 @@ export class EnquiryComponent implements OnInit {
             sub_charges: opt.sub_charges || this.normalizeCharges(opt.charges),
           }));
           this.filteredTariffVendors = [...this.tariffVendors];
+          const uniq = (arr: any[]) => Array.from(new Set(arr.filter((x) => x !== undefined && x !== null).map((x) => x.toString().trim())));
+          const types = uniq(this.tariffVendors.map((v) => v.vendor_type));
+          const names = uniq(this.tariffVendors.map((v) => v.vendor_name || v.vendor_code || v.vendor));
+          this.tariffVendorTypeOptions = types.map((t) => ({ label: t, value: t }));
+          this.tariffVendorNameOptions = names.map((n) => ({ label: this.getVendorName(n), value: n }));
           const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
           const tariffSummary = li?.enquiry_summary?.[1];
           const prevTariff = tariffSummary?.selected_source_items || [];
           this.selectedTariffVendors = (prevTariff || []).map((v: any) => ({
             ...v,
+            card_id: v.card_id || v.master_id || v.id,
             enquiry_line_item_id: lineItemId,
             selected_subcharges: v.selected_subcharges || [],
             sell_rates: v.sell_rates || {},
             remarks: v.remarks || '',
           }));
+          if (!this.selectedTariffVendors.length) {
+            const allTariff = (tariffSummary?.sourced_list || []) as any[];
+            const latestT = allTariff.length ? allTariff[allTariff.length - 1] : null;
+            if (latestT) {
+              const normalizedT = {
+                ...latestT,
+                card_id: latestT.card_id || latestT.master_id || latestT.id,
+                enquiry_line_item_id: lineItemId,
+                selected_subcharges: latestT.selected_subcharges || [],
+                sell_rates: latestT.sell_rates || {},
+                remarks: latestT.remarks || '',
+              };
+              this.selectedTariffVendors = [normalizedT];
+              this.hydrateSubCharges(this.selectedTariffVendors);
+              if (normalizedT.card_id) {
+                this.enquiryService
+                  .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [normalizedT.card_id], 'tariff')
+                  .subscribe({ next: () => {}, error: () => {} });
+              }
+            }
+          }
           this.activeVendorTab = 2; // Get Tariff tab
           this.showVendorTabsDialog = true;
           if (this.selectedTariffVendors.length) {
             this.hydrateSubCharges(this.selectedTariffVendors);
           }
           this.hydrateSubCharges(this.tariffVendors, true);
+          this.refreshSelectedVendorCaches();
         },
         error: (error) => {
           console.error('Error getting tariff options:', error);
@@ -5006,6 +5179,7 @@ export class EnquiryComponent implements OnInit {
       sourcing: [
         {
           vendor_type: vendor.vendor_type,
+          vendor_no: vendor.vendor_name || vendor.vendor_no || vendor.code,
         },
       ],
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
@@ -5026,6 +5200,11 @@ export class EnquiryComponent implements OnInit {
             sub_charges: this.normalizeCharges(opt.charges),
           }));
           this.filteredTariffVendors = [...this.tariffVendors];
+          const uniq = (arr: any[]) => Array.from(new Set(arr.filter((x) => x !== undefined && x !== null).map((x) => x.toString().trim())));
+          const types = uniq(this.tariffVendors.map((v) => v.vendor_type));
+          const names = uniq(this.tariffVendors.map((v) => v.vendor_name || v.vendor_code || v.vendor));
+          this.tariffVendorTypeOptions = types.map((t) => ({ label: t, value: t }));
+          this.tariffVendorNameOptions = names.map((n) => ({ label: this.getVendorName(n), value: n }));
           this.selectedTariffVendors = [];
           this.activeVendorTab = 2; // Get Tariff tab
           this.showVendorTabsDialog = true;
@@ -5073,20 +5252,23 @@ export class EnquiryComponent implements OnInit {
       this.currentVendorCriteria?.lineItemId ??
       (this.lineItems && this.lineItems.length ? this.lineItems[0]?.s_no : undefined);
     // Hard delete any prior saved vendor cards and sub-charges for this line item (both sourcing and tariff)
-    this.enquiryService
-      .deleteLineItemVendorData(this.currentEnquiry?.code!, lineItemId, 'all')
-      .subscribe({
-        next: () => {
-          // Clear UI selections for this line item
-          this.selectedSourcingVendors = this.selectedSourcingVendors.filter(
-            (v) => v.enquiry_line_item_id !== lineItemId
-          );
-          this.selectedTariffVendors = this.selectedTariffVendors.filter(
-            (v) => v.enquiry_line_item_id !== lineItemId
-          );
-          this.filteredTariffVendors = this.filteredTariffVendors.filter(
-            (v) => v.enquiry_line_item_id !== lineItemId
-          );
+    const hasCode = !!this.currentEnquiry?.code;
+    const hasLineId = lineItemId !== undefined && lineItemId !== null;
+    const hadPrior = this.selectedSourcingVendors.some((v) => v.enquiry_line_item_id === lineItemId) ||
+      this.selectedTariffVendors.some((v) => v.enquiry_line_item_id === lineItemId);
+    const performDelete = hasCode && hasLineId && hadPrior;
+        const afterDeleteSuccess = () => {
+              // Clear UI selections for this line item
+              this.selectedSourcingVendors = this.selectedSourcingVendors.filter(
+                (v) => v.enquiry_line_item_id !== lineItemId
+              );
+              this.selectedTariffVendors = this.selectedTariffVendors.filter(
+                (v) => v.enquiry_line_item_id !== lineItemId
+              );
+              this.filteredTariffVendors = this.filteredTariffVendors.filter(
+                (v) => v.enquiry_line_item_id !== lineItemId
+              );
+              this.refreshSelectedVendorCaches();
 
           // Add newly moved vendor
           this.selectedSourcingVendors = [movedVendors].map((srcVendor) => ({
@@ -5096,6 +5278,7 @@ export class EnquiryComponent implements OnInit {
               sell_rate_gst_vat: sc.gst_vat,
             })),
           }));
+          this.refreshSelectedVendorCaches();
 
           // Persist the new sourcing vendor
           const ctx = this.currentVendorCriteria || {};
@@ -5146,12 +5329,21 @@ export class EnquiryComponent implements OnInit {
           this.sourcingSelection = null;
           this.activeVendorTab = 1;
           this.messageService.add({ severity: 'success', summary: 'Success', detail: `${selectedVendor.vendor_name} vendor moved to Select Sourcing` });
-        },
-        error: (err) => {
-          console.error('Failed to clear prior vendor data:', err);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to reset previous vendor data for this line item' });
-        },
-      });
+    };
+
+    if (performDelete) {
+      this.enquiryService
+        .deleteLineItemVendorData(this.currentEnquiry?.code!, lineItemId, 'all')
+        .subscribe({
+          next: afterDeleteSuccess,
+          error: (err) => {
+            console.warn('Clear prior vendor data skipped:', err);
+            afterDeleteSuccess();
+          },
+        });
+    } else {
+      afterDeleteSuccess();
+    }
     // removed duplicate save block
 
     this.messageService.add({
@@ -5186,6 +5378,7 @@ export class EnquiryComponent implements OnInit {
       });
       return vendor;
     });
+    this.refreshSelectedVendorCaches();
     this.selectedTariffVendors.forEach((vendor) => {
       if (
         !vendor.selected_subcharges ||
@@ -5233,11 +5426,20 @@ export class EnquiryComponent implements OnInit {
         next: (res) => {
           try {
             const inserted = (res && res.inserted) ? res.inserted : [];
-            // Attach returned card ids to the corresponding selectedTariffVendors
-            inserted.forEach((row: any, idx: number) => {
-              const target = this.selectedTariffVendors[idx];
-              if (target) target.card_id = row.id;
+            const ids = inserted.map((row: any) => row.id).filter((id: any) => !!id);
+            // Attach returned card ids to the corresponding moved vendors
+            selected.forEach((sel, idx) => {
+              const tIdx = this.selectedTariffVendors.findIndex(
+                (v: any) => v.id === sel.id && (v.enquiry_line_item_id === (sel.enquiry_line_item_id ?? ctxT.lineItemId))
+              );
+              if (tIdx >= 0 && ids[idx]) this.selectedTariffVendors[tIdx].card_id = ids[idx];
             });
+            // Mark these cards as selected for this line item
+            if (ids.length) {
+              this.enquiryService
+                .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), ids, 'tariff')
+                .subscribe({ next: () => {}, error: () => {} });
+            }
           } catch {}
         },
         error: (error) => {
@@ -5303,8 +5505,9 @@ export class EnquiryComponent implements OnInit {
   }
   saveTariffVendors() {
     const code = this.currentEnquiry?.code!;
+    const lineItemId = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
     const requests = this.selectedTariffVendors
-      .filter((v) => v.card_id)
+      .filter((v) => v.card_id && v.enquiry_line_item_id === lineItemId)
       .map((vendor) => {
         const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
           id: sc.id,
@@ -5327,16 +5530,17 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-    forkJoin(requests).subscribe({
-      next: () => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Saved',
-          detail: 'Tariff sub-charges updated',
-        });
-        this.showVendorTabsDialog = false;
-        this.loadEnquiry(code);
-      },
+        forkJoin(requests).subscribe({
+          next: () => {
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Saved',
+              detail: 'Tariff sub-charges updated',
+            });
+            this.showVendorTabsDialog = false;
+            this.loadEnquiry(code);
+            this.refreshSelectedVendorCaches();
+          },
       error: (error) => {
         console.error('Error updating tariff sub-charges:', error);
         this.messageService.add({
@@ -5378,16 +5582,31 @@ export class EnquiryComponent implements OnInit {
       };
 
       if (this.tariffFilter.department) {
-        const vDept = vendor.department || vendor.department_name || '';
-        if (norm(vDept) !== norm(this.tariffFilter.department)) matches = false;
+        const deptLabel = this.tariffFilter.department;
+        const deptCode = this.departmentNameToCode.get(deptLabel) || deptLabel;
+        const vDept = vendor.mode || vendor.department || vendor.department_name || vendor.department_code || '';
+        const vDeptNorm = norm(vDept);
+        if (vDeptNorm !== norm(deptLabel) && vDeptNorm !== norm(deptCode)) matches = false;
       }
 
       if (this.tariffFilter.service_type) {
-        const vSt = vendor.service_type || vendor.shipping_type || vendor.type || '';
-        const fltSt = this.tariffFilter.service_type;
-        if (norm(vSt) !== norm(fltSt) && norm(vSt) !== norm((this.serviceTypeFilterOptions.find((o:any)=>o.value===fltSt)||{}).label?.split(' - ')[1])) {
-          matches = false;
-        }
+        const fltStCode = this.tariffFilter.service_type;
+        const opt = (this.serviceTypeFilterOptions.find((o: any) => o.value === fltStCode) || {});
+        const fltStName = (opt.label || '').split(' - ')[1] || fltStCode;
+        const vSt = vendor.type || vendor.service_type || vendor.shippingType || vendor.shipping_type || '';
+        const vStNorm = norm(vSt);
+        if (vStNorm !== norm(fltStCode) && vStNorm !== norm(fltStName)) matches = false;
+      }
+
+      if (this.tariffFilter.vendor_type) {
+        const vType = vendor.vendor_type || vendor.type || '';
+        if (norm(vType) !== norm(this.tariffFilter.vendor_type)) matches = false;
+      }
+
+      if (this.tariffFilter.vendor_name) {
+        const target = (this.tariffFilter.vendor_name || '').toString();
+        const vn = (vendor.vendor_name || vendor.vendor_code || vendor.vendor || vendor.code || '').toString();
+        if (norm(vn) !== norm(target)) matches = false;
       }
 
       if (
@@ -5530,13 +5749,26 @@ export class EnquiryComponent implements OnInit {
     }
   }
 
+  onVendorTabChange(index: number) {
+    this.activeVendorTab = index;
+    if (index === 2) {
+      const liId = this.currentVendorCriteria?.lineItemId || (this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1);
+      this.sourcingSelection = null;
+      if (!Array.isArray(this.tariffVendors) || this.tariffVendors.length === 0) {
+        this.getTariff(Number(liId));
+      }
+    }
+  }
+
+  
+
   // Save sourcing vendors (PUT updates for sub-charges)
   saveSourcingVendors() {
     const code = this.currentEnquiry?.code!;
-    const lineItemId = this.currentVendorCriteria.lineItemId;
+    const lineItemId = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
 
     const requests = this.selectedSourcingVendors
-      .filter((v) => v.card_id)
+      .filter((v) => v.card_id && v.enquiry_line_item_id === lineItemId)
       .map((vendor) => {
         const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
           id: sc.id,
@@ -5596,6 +5828,29 @@ export class EnquiryComponent implements OnInit {
     return [];
   }
 
+  loadChargeTypeNames() {
+    return this.masterItemService.getAll().pipe(
+      tap((items: any[]) => {
+        const list = (items || []).filter((it: any) => it.item_type === 'CHARGE_TYPE' && (it.active === true || String(it.active).toLowerCase() === 'active'));
+        this.chargeCodeToName.clear();
+        list.forEach((it: any) => {
+          const code = (it.code || '').toString().trim();
+          const name = (it.name || '').toString().trim();
+          if (code) this.chargeCodeToName.set(code, name || code);
+        });
+      }),
+      catchError(() => of([]))
+    );
+  }
+
+  getChargeNameLabel(charge: any): string {
+    const code = (charge?.charge_name || charge?.code || '').toString().trim();
+    const name = (charge?.name || '').toString().trim();
+    if (name) return name;
+    if (!code) return '';
+    return this.chargeCodeToName.get(code) || code;
+  }
+
   private hydrateSubCharges(vendors: any[], updateFiltered: boolean = false) {
     console.log('Vendor value before hydrating sub charges:', vendors);
     if (!vendors || vendors.length === 0) return;
@@ -5625,14 +5880,22 @@ export class EnquiryComponent implements OnInit {
             vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
           }
           if (!vendors[idx].sell_rates) vendors[idx].sell_rates = {};
+          const selectedIds = new Set(
+            (vendors[idx].selected_subcharges || []).map((s: any) => s.id)
+          );
           (vendors[idx].sub_charges || []).forEach((sc: any) => {
             const amt = sc.amount ?? sc.charges ?? 0;
+            const persisted = sc.sell_rate ?? undefined;
             if (vendors[idx].sell_rates[sc.id] === undefined) {
-              vendors[idx].sell_rates[sc.id] = amt;
+              vendors[idx].sell_rates[sc.id] = persisted !== undefined ? persisted : amt;
             }
             if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
             if (sc.sell_rate_gst_vat === undefined)
               sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+            sc.selected =
+              typeof sc.selected === 'boolean'
+                ? sc.selected
+                : selectedIds.has(sc.id) || true;
           });
         });
         if (updateFiltered) {

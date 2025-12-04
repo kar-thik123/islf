@@ -1137,17 +1137,58 @@ router.put("/:code", async (req, res) => {
       //   [enquiryId]
       // );
 
-      // selecting the line item of the enquiry
-      const { rows: lineItemResult } = await client.query(
-        `SELECT id FROM enquiry_line_items WHERE enquiry_id = $1`,
+      // selecting existing line items for the enquiry
+      const { rows: existingLineItems } = await client.query(
+        `SELECT id, s_no FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no`,
         [enquiryId]
       );
-      console.log("line items list for the enquiry", lineItemResult);
-      // Create new line items
-      if (lineItemResult.length === 0) {
-        // Create new line items
-        for (let i = 0; i < line_items.length; i++) {
-          let item = line_items[i];
+
+      // Delete line items that are not present in the incoming payload
+      const incomingIds = (line_items || [])
+        .filter((li) => li && li.id)
+        .map((li) => Number(li.id));
+
+      if (existingLineItems.length > 0) {
+        const toDeleteIds = existingLineItems
+          .map((li) => Number(li.id))
+          .filter((id) => !incomingIds.includes(id));
+        if (toDeleteIds.length > 0) {
+          await client.query(
+            `DELETE FROM enquiry_line_items WHERE enquiry_id = $1 AND id = ANY($2::int[])`,
+            [enquiryId, toDeleteIds]
+          );
+        }
+      }
+
+      // Upsert the incoming line_items and ensure correct s_no ordering
+      for (let i = 0; i < line_items.length; i++) {
+        const item = line_items[i];
+        const newSno = i + 1;
+        if (item.id) {
+          await client.query(
+            `UPDATE enquiry_line_items SET 
+               s_no = $1,
+               quantity = $2, type = $3, service_area = $4, basis = $5, remarks = $6, status = $7,
+               line_from_location_type = $8, line_from_location = $9,
+               line_to_location_type = $10, line_to_location = $11
+             WHERE enquiry_id = $12 AND id = $13`,
+            [
+              newSno,
+              item.quantity,
+              item.type,
+              item.service_area,
+              item.basis,
+              item.remarks,
+              item.status || "Active",
+              item.line_from_location_type || null,
+              item.line_from_location || null,
+              item.line_to_location_type || null,
+              item.line_to_location || null,
+              enquiryId,
+              item.id,
+            ]
+          );
+        } else {
           await client.query(
             `INSERT INTO enquiry_line_items (
                enquiry_id, s_no, quantity, type, service_area, basis, remarks, status,
@@ -1155,7 +1196,7 @@ router.put("/:code", async (req, res) => {
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
               enquiryId,
-              i + 1,
+              newSno,
               item.quantity,
               item.type,
               item.service_area,
@@ -1168,55 +1209,6 @@ router.put("/:code", async (req, res) => {
               item.line_to_location || null,
             ]
           );
-        }
-      } else {
-        for (let i = 0; i < line_items.length; i++) {
-          let item = line_items[i];
-          if (item.id) {
-            await client.query(
-              `UPDATE enquiry_line_items SET 
-                 quantity = $1, type = $2, service_area = $3, basis = $4, remarks = $5, status = $6,
-                 line_from_location_type = $7, line_from_location = $8,
-                 line_to_location_type = $9, line_to_location = $10
-               WHERE enquiry_id = $11 AND s_no = $12 AND id = $13`,
-              [
-                item.quantity,
-                item.type,
-                item.service_area,
-                item.basis,
-                item.remarks,
-                item.status || "Active",
-                item.line_from_location_type || null,
-                item.line_from_location || null,
-                item.line_to_location_type || null,
-                item.line_to_location || null,
-                enquiryId,
-                i + 1,
-                lineItemResult[i].id,
-              ]
-            );
-          } else {
-            await client.query(
-              `INSERT INTO enquiry_line_items (
-                 enquiry_id, s_no, quantity, type, service_area, basis, remarks, status,
-                 line_from_location_type, line_from_location, line_to_location_type, line_to_location
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-              [
-                enquiryId,
-                i + 1,
-                item.quantity,
-                item.type,
-                item.service_area,
-                item.basis,
-                item.remarks,
-                item.status || "Active",
-                item.line_from_location_type || null,
-                item.line_from_location || null,
-                item.line_to_location_type || null,
-                item.line_to_location || null,
-              ]
-            );
-          }
         }
       }
       await client.query("COMMIT");
