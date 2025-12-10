@@ -291,6 +291,11 @@ export class AppMenu {
                 icon: 'fa-solid fa-question',
                 routerLink: ['/operation/enquiry'],
               },
+              {
+                label: 'Booking',
+                icon: 'fa-solid fa-clipboard-check',
+                routerLink: ['/operation/booking'],
+              }
             ],
           },
         ],

@@ -4806,23 +4806,54 @@ export class EnquiryComponent implements OnInit {
   ------------------------
 */
   addLineItem() {
-    const newItem: EnquiryLineItem = {
-      s_no: this.lineItems.length + 1,
-      quantity: 0,
-      type: '',
-      service_area: '',
-      basis: '',
-      remarks: '',
-      status: 'Active',
-      line_from_location_type: '',
-      line_from_location: '',
-      line_to_location_type: '',
-      line_to_location: '',
-      enquiry_id: this.selectedEnquiry!.id || '',
-      enquiry_summary: [],
+    const add = () => {
+      const newItem: EnquiryLineItem = {
+        s_no: this.lineItems.length + 1,
+        quantity: 0,
+        type: '',
+        service_area: '',
+        basis: '',
+        remarks: '',
+        status: 'Active',
+        line_from_location_type: '',
+        line_from_location: '',
+        line_to_location_type: '',
+        line_to_location: '',
+        enquiry_id: this.selectedEnquiry!.id || '',
+        enquiry_summary: [],
+      };
+      console.log('add Line Item is clicked and the new item value is,', newItem);
+      this.lineItems.push(newItem);
     };
-    console.log('add Line Item is clicked and the new item value is,', newItem);
-    this.lineItems.push(newItem);
+
+    if (!this.selectedEnquiry?.id) {
+      const data: any = {
+        ...this.selectedEnquiry,
+        line_items: this.lineItems,
+        is_new_customer: this.isNewCustomer,
+        date: this.formatDateForAPI(this.selectedEnquiry?.date || ''),
+        effective_date_from: this.formatDateForAPI(this.selectedEnquiry?.effective_date_from || ''),
+        effective_date_to: this.formatDateForAPI(this.selectedEnquiry?.effective_date_to || ''),
+        name: this.authService.getUserName()!,
+      };
+      if (!this.isManualSeries && this.selectedEnquiry?.isNew) data.code = '';
+      this.enquiryService.createEnquiry(data).subscribe({
+        next: (res: any) => {
+          this.selectedEnquiry!.id = res.id;
+          this.selectedEnquiry!.enquiry_no = res.enquiry_no;
+          this.selectedEnquiry!.code = res.code;
+          this.currentEnquiry = { ...data, id: res.id, enquiry_no: res.enquiry_no, code: res.code };
+          add();
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Enquiry created before adding line item' });
+        },
+        error: () => {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to auto-save enquiry' });
+        }
+      });
+      return;
+    }
+
+    add();
     // calling the hierarchy mapping function to update the tree nodes
   }
 
