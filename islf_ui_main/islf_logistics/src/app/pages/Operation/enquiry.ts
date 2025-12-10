@@ -1673,6 +1673,7 @@ import { VendorService } from '@/services/vendor.service';
                         type="number"
                         pInputText
                         [(ngModel)]="vendor.sell_rates[charge.id]"
+                        [value]="charge.amount || charge.charges"
                         style="width: 100px"
                       />
                       <span *ngIf="!charge.selected">--</span>
@@ -2047,6 +2048,7 @@ import { VendorService } from '@/services/vendor.service';
                         type="number"
                         pInputText
                         [(ngModel)]="vendor.sell_rates[charge.id]"
+                        [value]="charge.amount || charge.charges"
                         style="width: 100px"
                       />
                     </td>
@@ -4012,6 +4014,43 @@ export class EnquiryComponent implements OnInit {
           error: () => this.cdr.detectChanges(),
         });
 
+        this.selectedSourcingVendors = [];
+        this.selectedTariffVendors = [];
+        (this.lineItems || []).forEach((li: any) => {
+          const lineId = li?.s_no;
+          const summary = li?.enquiry_summary || [];
+          const src = (summary[0]?.selected_source_items || []).map((v: any) => ({
+            ...v,
+            card_id: v.card_id || v.master_id || v.id,
+            enquiry_line_item_id: lineId,
+            selected_subcharges: v.selected_subcharges || [],
+            sell_rates: v.sell_rates || {},
+            remarks: v.remarks || '',
+          }));
+          const trf = (summary[1]?.selected_source_items || []).map((v: any) => ({
+            ...v,
+            card_id: v.card_id || v.master_id || v.id,
+            enquiry_line_item_id: lineId,
+            selected_subcharges: v.selected_subcharges || [],
+            sell_rates: v.sell_rates || {},
+            remarks: v.remarks || '',
+          }));
+          this.selectedSourcingVendors = this.selectedSourcingVendors.concat(src);
+          this.selectedTariffVendors = this.selectedTariffVendors.concat(trf);
+        });
+        // Default cache context to the first selected line item or first line item
+        const defaultLineId = (this.selectedLineItems?.[0]?.s_no) ?? (this.lineItems?.[0]?.s_no) ?? 1;
+        const sourcedLineId = this.selectedSourcingVendors[0]?.enquiry_line_item_id;
+        const tariffLineId = this.selectedTariffVendors[0]?.enquiry_line_item_id;
+        const initialLineId = sourcedLineId || tariffLineId || defaultLineId;
+        this.currentVendorCriteria = { ...(this.currentVendorCriteria || {}), lineItemId: initialLineId };
+        if (this.selectedSourcingVendors.length) {
+          this.hydrateSubCharges(this.selectedSourcingVendors);
+        }
+        if (this.selectedTariffVendors.length) {
+          this.hydrateSubCharges(this.selectedTariffVendors);
+        }
+        this.refreshSelectedVendorCaches();
         this.isDialogVisible = true;
       },
       error: (error: any) => {
@@ -5005,34 +5044,12 @@ export class EnquiryComponent implements OnInit {
           if (existingSelected && existingSelected.length) {
             this.selectedSourcingVendors = existingSelected;
             this.hydrateSubCharges(this.selectedSourcingVendors);
-          } else {
-            const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
-            const sourcingSummary = li?.enquiry_summary?.[0];
-            const allCards = (sourcingSummary?.sourced_list || []) as any[];
-            const latest = allCards.length ? allCards[allCards.length - 1] : null;
-            if (latest) {
-              const normalized = {
-                ...latest,
-                card_id: latest.card_id || latest.master_id || latest.id,
-                enquiry_line_item_id: lineItemId,
-                source_type: 'sourcing',
-                selected_subcharges: latest.selected_subcharges || [],
-                sell_rates: latest.sell_rates || {},
-                remarks: latest.remarks || '',
-              };
-              this.selectedSourcingVendors = [normalized];
-              this.hydrateSubCharges(this.selectedSourcingVendors);
-              if (normalized.card_id) {
-                this.enquiryService
-                  .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [normalized.card_id], 'sourcing')
-                  .subscribe({ next: () => {}, error: () => {} });
-              }
-            }
           }
           this.refreshSelectedVendorCaches();
           this.activeVendorTab = 0; // Get Sourcing tab
           this.showVendorTabsDialog = true;
           this.hydrateSubCharges(this.sourcingVendors);
+          this.filterSourcingVendors();
           if (this.sourcingVendors.length) {
             const first = this.sourcingVendors[0];
             this.sourcingExpandedKeys = { [String(first.id)]: true };
@@ -5122,33 +5139,11 @@ export class EnquiryComponent implements OnInit {
           const prevTariff = tariffSummary?.selected_source_items || [];
           this.selectedTariffVendors = (prevTariff || []).map((v: any) => ({
             ...v,
-            card_id: v.card_id || v.master_id || v.id,
             enquiry_line_item_id: lineItemId,
             selected_subcharges: v.selected_subcharges || [],
             sell_rates: v.sell_rates || {},
             remarks: v.remarks || '',
           }));
-          if (!this.selectedTariffVendors.length) {
-            const allTariff = (tariffSummary?.sourced_list || []) as any[];
-            const latestT = allTariff.length ? allTariff[allTariff.length - 1] : null;
-            if (latestT) {
-              const normalizedT = {
-                ...latestT,
-                card_id: latestT.card_id || latestT.master_id || latestT.id,
-                enquiry_line_item_id: lineItemId,
-                selected_subcharges: latestT.selected_subcharges || [],
-                sell_rates: latestT.sell_rates || {},
-                remarks: latestT.remarks || '',
-              };
-              this.selectedTariffVendors = [normalizedT];
-              this.hydrateSubCharges(this.selectedTariffVendors);
-              if (normalizedT.card_id) {
-                this.enquiryService
-                  .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [normalizedT.card_id], 'tariff')
-                  .subscribe({ next: () => {}, error: () => {} });
-              }
-            }
-          }
           this.activeVendorTab = 2; // Get Tariff tab
           this.showVendorTabsDialog = true;
           if (this.selectedTariffVendors.length) {
@@ -5240,7 +5235,12 @@ export class EnquiryComponent implements OnInit {
       (selectedVendor.selected_subcharges || []).map((sc: any) => sc.id)
     );
     const filteredSub = allSub.filter((c: any) => selectedIds.has(c.id));
-    filteredSub.forEach((c: any) => (c.selected = true));
+    filteredSub.forEach((c: any) => {
+      c.selected = true;
+      const sell = (selectedVendor.sell_rates || {})[c.id];
+      if (sell !== undefined) c.sell_rate = sell;
+      if (!c.sell_rate_currency) c.sell_rate_currency = c.currency;
+    });
     const movedVendors = {
       ...selectedVendor,
       sub_charges: filteredSub,
@@ -5371,7 +5371,9 @@ export class EnquiryComponent implements OnInit {
       if (!vendor.sell_rates) vendor.sell_rates = {};
       (vendor.sub_charges || []).forEach((sc: any) => {
         const amt = sc.amount ?? sc.charges ?? 0;
-        if (vendor.sell_rates[sc.id] === undefined) vendor.sell_rates[sc.id] = amt;
+        const sell = vendor.sell_rates[sc.id] ?? sc.sell_rate ?? amt;
+        vendor.sell_rates[sc.id] = sell;
+        sc.sell_rate = sell;
         if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
         if (sc.sell_rate_gst_vat === undefined)
           sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
@@ -5426,18 +5428,15 @@ export class EnquiryComponent implements OnInit {
         next: (res) => {
           try {
             const inserted = (res && res.inserted) ? res.inserted : [];
-            const ids = inserted.map((row: any) => row.id).filter((id: any) => !!id);
-            // Attach returned card ids to the corresponding moved vendors
-            selected.forEach((sel, idx) => {
-              const tIdx = this.selectedTariffVendors.findIndex(
-                (v: any) => v.id === sel.id && (v.enquiry_line_item_id === (sel.enquiry_line_item_id ?? ctxT.lineItemId))
-              );
-              if (tIdx >= 0 && ids[idx]) this.selectedTariffVendors[tIdx].card_id = ids[idx];
+            // Attach returned card ids to the corresponding selectedTariffVendors
+            inserted.forEach((row: any, idx: number) => {
+              const target = this.selectedTariffVendors[idx];
+              if (target) target.card_id = row.id;
             });
-            // Mark these cards as selected for this line item
-            if (ids.length) {
+            const insertedIds = inserted.map((row: any) => Number(row.id)).filter((id: any) => !!id);
+            if (insertedIds.length) {
               this.enquiryService
-                .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), ids, 'tariff')
+                .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), insertedIds, 'tariff')
                 .subscribe({ next: () => {}, error: () => {} });
             }
           } catch {}
@@ -5560,8 +5559,70 @@ export class EnquiryComponent implements OnInit {
 
   // Filter vendors based on location and service area
   filterSourcingVendors() {
-    // Implement filtering logic based on your criteria
-    // This would filter this.sourcingVendors based on currentVendorCriteria
+    const criteria = this.currentVendorCriteria || {};
+    const norm = (s: any) => (s ?? '').toString().trim().toLowerCase();
+    const normType = (s: any) => norm(s).replace(/[^a-z0-9]/g, '');
+    const findTypeByValue = (val: string) => {
+      const v = (val || '').toString();
+      const rec = (this.allLocations || []).find(
+        (l: any) => l.code === v || norm(l.name) === norm(v)
+      );
+      return rec ? rec.type : '';
+    };
+
+    this.sourcingVendors = (this.sourcingVendors || []).filter((vendor: any) => {
+      let matches = true;
+
+      if (criteria.department) {
+        const vDept = vendor.mode || vendor.department || '';
+        if (norm(vDept) !== norm(criteria.department)) matches = false;
+      }
+
+      if (criteria.cargo_type) {
+        const vCargo = vendor.cargo_type || '';
+        if (norm(vCargo) !== norm(criteria.cargo_type)) matches = false;
+      }
+
+      if (criteria.service_area) {
+        const vArea = vendor.service_area || '';
+        if (norm(vArea) !== norm(criteria.service_area)) matches = false;
+      }
+
+      if (criteria.service_type) {
+        const vSt = vendor.shipping_type || vendor.type || '';
+        const stNorm = norm(vSt);
+        if (stNorm !== norm(criteria.service_type)) matches = false;
+      }
+
+      if (criteria.basis) {
+        const vBasis = vendor.basis || '';
+        if (norm(vBasis) !== norm(criteria.basis)) matches = false;
+      }
+
+      const hasFrom = !!criteria.from_location;
+      const hasTo = !!criteria.to_location;
+      const hasFromType = !!criteria.from_location_type;
+      const hasToType = !!criteria.to_location_type;
+
+      if (hasFrom) {
+        const vFrom = vendor.from_location || '';
+        if (norm(vFrom) !== norm(criteria.from_location)) matches = false;
+      }
+      if (hasTo) {
+        const vTo = vendor.to_location || '';
+        if (norm(vTo) !== norm(criteria.to_location)) matches = false;
+      }
+      if (hasFromType) {
+        const vFromType = vendor.location_type_from || findTypeByValue(vendor.from_location || '');
+        if (normType(vFromType) !== normType(criteria.from_location_type)) matches = false;
+      }
+      if (hasToType) {
+        const vToType = vendor.location_type_to || findTypeByValue(vendor.to_location || '');
+        if (normType(vToType) !== normType(criteria.to_location_type)) matches = false;
+      }
+
+      return matches;
+    });
   }
 
   filterTariffVendors() {
@@ -5880,22 +5941,15 @@ export class EnquiryComponent implements OnInit {
             vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
           }
           if (!vendors[idx].sell_rates) vendors[idx].sell_rates = {};
-          const selectedIds = new Set(
-            (vendors[idx].selected_subcharges || []).map((s: any) => s.id)
-          );
           (vendors[idx].sub_charges || []).forEach((sc: any) => {
             const amt = sc.amount ?? sc.charges ?? 0;
-            const persisted = sc.sell_rate ?? undefined;
-            if (vendors[idx].sell_rates[sc.id] === undefined) {
-              vendors[idx].sell_rates[sc.id] = persisted !== undefined ? persisted : amt;
-            }
+            const sell = sc.sell_rate ?? vendors[idx].sell_rates[sc.id] ?? amt;
+            vendors[idx].sell_rates[sc.id] = sell;
+            sc.sell_rate = sell;
             if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
             if (sc.sell_rate_gst_vat === undefined)
               sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
-            sc.selected =
-              typeof sc.selected === 'boolean'
-                ? sc.selected
-                : selectedIds.has(sc.id) || true;
+            if (typeof sc.selected === 'undefined') sc.selected = true;
           });
         });
         if (updateFiltered) {

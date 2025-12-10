@@ -302,17 +302,25 @@ router.get("/:code", async (req, res) => {
       let selected_source_list = [];
       let tariff_list = [];
       let selected_tariff_list = [];
+      // Determine selected lists by presence of sub-charges mapped to vendor card id
+      const cardIds = vendorCardsResult.map((vc) => vc.id);
+      let selectedCardIdSet = new Set();
+      if (cardIds.length > 0) {
+        const { rows: subMapRows } = await pool.query(
+          `SELECT DISTINCT master_id, master_type FROM enquiry_vendor_sub_charges 
+           WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_id = ANY($3)`,
+          [enquiry_id, line_item_id, cardIds]
+        );
+        selectedCardIdSet = new Set(subMapRows.map((r) => r.master_id));
+      }
       vendorCardsResult.forEach((vendorCard) => {
-        const typeVal = (vendorCard.master_type || vendorCard.source_type || "").toLowerCase();
+        const typeVal = (vendorCard.master_type || "").toLowerCase();
+        const isSelected = selectedCardIdSet.has(vendorCard.id);
         if (typeVal === "tariff") {
-          if (vendorCard.is_selected) {
-            selected_tariff_list.push(vendorCard);
-          }
+          if (isSelected) selected_tariff_list.push(vendorCard);
           tariff_list.push(vendorCard);
         } else if (typeVal === "sourcing") {
-          if (vendorCard.is_selected) {
-            selected_source_list.push(vendorCard);
-          }
+          if (isSelected) selected_source_list.push(vendorCard);
           source_list.push(vendorCard);
         }
       });
@@ -1668,16 +1676,16 @@ router.post("/:code/sourcing", async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
-    // Department filter
+    // Department filter (normalized compare against name/code stored in "mode")
     if (department && department.trim() !== "") {
-      query += ` AND mode = $${paramIndex}`;
+      query += ` AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
       params.push(department);
       paramIndex++;
     }
 
-    // Service Area filter (independent of location filtering)
+    // Service Area filter (normalized)
     if (service_area && service_area.trim() !== "") {
-      query += ` AND service_area = $${paramIndex}`;
+      query += ` AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
       params.push(service_area);
       paramIndex++;
     }
@@ -1720,31 +1728,43 @@ router.post("/:code/sourcing", async (req, res) => {
       }
     }
 
-    // Cargo type filter
+    // Cargo type filter (normalized)
     if (cargo_type && cargo_type.trim() !== "") {
-      query += ` AND cargo_type = $${paramIndex}`;
+      query += ` AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
       params.push(cargo_type);
       paramIndex++;
     }
 
-    // Basis filter
+    // Basis filter (code match, normalized)
     if (basis && basis.trim() !== "") {
-      query += ` AND basis = $${paramIndex}`;
+      query += ` AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
       params.push(basis);
       paramIndex++;
     }
 
-    // Date range filter
-    if (
-      effective_date_from &&
-      effective_date_from.trim() !== "" &&
-      effective_date_to &&
-      effective_date_to.trim() !== ""
-    ) {
+    // Service type filter -> match either "shipping_type" or "type" columns
+    if (service_type && service_type.trim() !== "") {
+      query += ` AND (LOWER(REPLACE(shipping_type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')) OR LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')))`;
+      params.push(service_type);
+      paramIndex++;
+    }
+
+    // Date range filter (overlap logic; apply with whichever values are present)
+    const hasFromDate = !!(effective_date_from && effective_date_from.trim() !== "");
+    const hasToDate = !!(effective_date_to && effective_date_to.trim() !== "");
+    if (hasFromDate && hasToDate) {
       query += ` AND (
-        (period_start_date IS NULL OR period_start_date <= $${paramIndex}) AND 
+        (period_start_date IS NULL OR period_start_date <= $${paramIndex + 1}) AND 
         (period_end_date IS NULL OR period_end_date >= $${paramIndex})
       )`;
+      params.push(effective_date_from, effective_date_to);
+      paramIndex += 2;
+    } else if (hasFromDate) {
+      query += ` AND (period_end_date IS NULL OR period_end_date >= $${paramIndex})`;
+      params.push(effective_date_from);
+      paramIndex++;
+    } else if (hasToDate) {
+      query += ` AND (period_start_date IS NULL OR period_start_date <= $${paramIndex})`;
       params.push(effective_date_to);
       paramIndex++;
     }
@@ -2549,20 +2569,24 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
     }
     const enquiryId = enquiryResult.rows[0].id;
 
-    // unselect all selected vendor card
-    await pool.query(
-      `UPDATE enquiry_vendor_cards SET is_selected=false 
-        WHERE enquiry_id = $1 AND enquiry_line_item_id = $2
-        AND source_type = $3; `,
-      [enquiryId, lineItemId, sourcingType]
-    );
+    // Unselect all selected vendor cards (if schema supports is_selected)
+    try {
+      await pool.query(
+        `UPDATE enquiry_vendor_cards SET is_selected=false 
+          WHERE enquiry_id = $1 AND enquiry_line_item_id = $2
+          AND master_type = $3; `,
+        [enquiryId, lineItemId, sourcingType]
+      );
+    } catch (e) {
+      console.warn('Selection flag update skipped (schema may not have is_selected):', e.message);
+    }
 
     let selectedVendorCardList = vendorCardList.map((vendorCard) => ({
       vendorCardId: vendorCard.id,
       enquiryId: vendorCard.enquiry_id,
     }));
     if (selectedVendorCardList.length > 0) {
-      query = ` UPDATE enquiry_vendor_cards SET is_selected = true WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND source_type = $3 AND`;
+      query = ` UPDATE enquiry_vendor_cards SET is_selected = true WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_type = $3 AND`;
       params = [enquiryId, lineItemId, sourcingType];
       console.log("mapped Line Item Result,", selectedVendorCardList);
       selectedVendorCardList.forEach((vendorCard, index) => {
@@ -2586,10 +2610,15 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
         }
       });
       console.log("line item selection query,", query, "params list,", params);
-      const { rows: vendorCardSelectionResult } = await pool.query(
-        query,
-        params
-      );
+      try {
+        const { rows: vendorCardSelectionResult } = await pool.query(
+          query,
+          params
+        );
+        console.log('Vendor Card Selection Result:', vendorCardSelectionResult);
+      } catch (e) {
+        console.warn('Selection flag set skipped (schema may not have is_selected):', e.message);
+      }
       console.log("Vendor Card Selection Result,", vendorCardSelectionResult);
     }
     // const lineItemSelectionResult = await pool.query(
