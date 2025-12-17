@@ -46,7 +46,7 @@ export class VendorService {
     private contextPayload: ContextPayloadService,
     private contextService: ContextService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   getAll(): Observable<Vendor[]> {
     const context = this.contextService.getContext();

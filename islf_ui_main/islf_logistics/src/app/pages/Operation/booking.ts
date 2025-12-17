@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { Observable, forkJoin } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
@@ -10,6 +11,7 @@ import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
+import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
 import { BookingService, BookingRecord } from '../../services/booking.service';
 import { EnquiryService } from '../../services/enquiry.service';
@@ -19,6 +21,7 @@ import { MasterLocationService } from '../../services/master-location.service';
 import { MasterLocationComponent } from '../../pages/masters/masterlocation';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { MasterItemService, MasterItem } from '../../services/master-item.service';
+import { VendorService } from '../../services/vendor.service';
 
 @Component({
   selector: 'app-booking',
@@ -35,6 +38,7 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
     ToastModule,
     TableModule,
     CalendarModule,
+    TooltipModule,
     MasterLocationComponent,
   ],
   providers: [MessageService],
@@ -42,7 +46,7 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
     <p-toast></p-toast>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Booking Dashboard</div>
-      <p-table #dt [value]="bookings" [paginator]="true" [rows]="10" dataKey="booking_no" [showGridlines]="true" [globalFilterFields]="['booking_no','customer_name','company_name','department','service_type','from_location','to_location','status']">
+      <p-table #dt [value]="bookings" [lazy]="true" (onLazyLoad)="loadBookings($event)" [totalRecords]="totalRecords" [paginator]="true" [rows]="10" [loading]="loading" dataKey="booking_no" [showGridlines]="true" [globalFilterFields]="['booking_no','customer_name','company_name','department','service_type','from_location','to_location','status']">
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <div class="flex gap-2">
@@ -57,6 +61,11 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
         </ng-template>
         <ng-template pTemplate="header">
           <tr>
+          <th>
+              <div class="flex justify-between items-center">Date
+                <p-columnFilter field="created_at" matchMode="contains" display="menu"></p-columnFilter>
+              </div>
+            </th>
             <th>
               <div class="flex justify-between items-center">Booking No
                 <p-columnFilter field="booking_no" matchMode="contains" display="menu"></p-columnFilter>
@@ -92,16 +101,13 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
                 <p-columnFilter field="status" matchMode="equals" display="menu"></p-columnFilter>
               </div>
             </th>
-            <th>
-              <div class="flex justify-between items-center">Date
-                <p-columnFilter field="created_at" matchMode="contains" display="menu"></p-columnFilter>
-              </div>
-            </th>
+            
             <th>Action</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-row>
           <tr>
+            <td>{{ row.created_at | date:'dd/MM/yyyy' }}</td>
             <td>{{ row.booking_no }}</td>
             <td>{{ row.customer_name }}</td>
             <td>{{ row.department }}</td>
@@ -109,9 +115,10 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
             <td>{{ locName(row.from_location) }}</td>
             <td>{{ locName(row.to_location) }}</td>
             <td>{{ row.status }}</td>
-            <td>{{ row.created_at | date:'dd/MM/yyyy' }}</td>
+            
             <td>
               <button pButton label="Open" icon="pi pi-external-link" class="p-button-sm" (click)="openBooking(row.booking_no)"></button>
+              <button pButton icon="pi pi-link" class="p-button-secondary p-button-sm ml-1" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
             </td>
           </tr>
         </ng-template>
@@ -128,17 +135,29 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
           <label class="block mb-1">Service Type</label>
           <p-dropdown [options]="serviceTypeOptions" [(ngModel)]="dialog.service_type" [filter]="true" filterBy="label" placeholder="Select Service Type"></p-dropdown>
         </div>
-        <div class="col-span-6">
-          <label class="block mb-1">From Location</label>
-          <p-dropdown [options]="fromLocationOptions" [(ngModel)]="dialog.from_location" [filter]="true" filterBy="label" placeholder="Select From"></p-dropdown>
+        <div class="col-span-6 flex gap-2">
+          <div class="w-1/3">
+            <label class="block mb-1">From Location Type</label>
+            <p-dropdown [options]="locationTypeOptions" [(ngModel)]="dialog.from_location_type" (onChange)="onLocationTypeChange('from')" placeholder="Type" [showClear]="true"></p-dropdown>
+          </div>
+          <div class="w-2/3">
+            <label class="block mb-1">From Location</label>
+            <p-dropdown [options]="fromLocationOptions" [(ngModel)]="dialog.from_location" [filter]="true" filterBy="label" placeholder="Select From"></p-dropdown>
+          </div>
         </div>
-        <div class="col-span-6">
-          <label class="block mb-1">To Location</label>
-          <p-dropdown [options]="toLocationOptions" [(ngModel)]="dialog.to_location" [filter]="true" filterBy="label" placeholder="Select To"></p-dropdown>
+        <div class="col-span-6 flex gap-2">
+          <div class="w-1/3">
+             <label class="block mb-1">To Location Type</label>
+             <p-dropdown [options]="locationTypeOptions" [(ngModel)]="dialog.to_location_type" (onChange)="onLocationTypeChange('to')" placeholder="Type" [showClear]="true"></p-dropdown>
+          </div>
+          <div class="w-2/3">
+            <label class="block mb-1">To Location</label>
+            <p-dropdown [options]="toLocationOptions" [(ngModel)]="dialog.to_location" [filter]="true" filterBy="label" placeholder="Select To"></p-dropdown>
+          </div>
         </div>
       </div>
       <div class="flex gap-2 mt-3">
-        <button pButton label="Search Enquiries" icon="pi pi-search" (click)="searchEnquiries()"></button>
+        <button pButton label="Search Enquiry" icon="pi pi-search" (click)="searchEnquiries()"></button>
       </div>
 
       <div class="mt-3" *ngIf="matchingEnquiries.length">
@@ -164,9 +183,9 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
               <td>{{ enq.customer_name }}</td>
               <td>{{ enq.department }}</td>
               <td>{{ enq.service_type }}</td>
-              <td>{{ enq.from_location }}</td>
-              <td>{{ enq.to_location }}</td>
-              <td>{{ enq.effective_date_from }} → {{ enq.effective_date_to }}</td>
+              <td>{{ locName(enq.from_location) }}</td>
+              <td>{{ locName(enq.to_location) }}</td>
+              <td>{{ enq.effective_date_from | date:'dd/MM/yyyy' }} → {{ enq.effective_date_to | date:'dd/MM/yyyy' }}</td>
             </tr>
           </ng-template>
         </p-table>
@@ -178,7 +197,9 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
       </ng-template>
     </p-dialog>
 
-    <p-dialog header="Add Booking" [(visible)]="showBookingForm" [modal]="true" [draggable]="false" [resizable]="false" [closeOnEscape]="true" [style]="{ width: '95vw', maxWidth: '1700px', height: '90vh' }" [contentStyle]="{ overflow: 'auto', maxHeight: '75vh' }">
+
+
+    <p-dialog header="Add Booking" [(visible)]="showBookingForm" [modal]="true" [draggable]="false" [resizable]="false" [closeOnEscape]="true" [style]="{ width: '98vw', height: '95vh' }" [contentStyle]="{ overflow: 'auto', height: '100%' }">
       <ng-template pTemplate="content">
       <div class="p-fluid form-grid dialog-body-padding">
       <div class="section-header">General Booking Details</div>
@@ -189,7 +210,15 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Enquiry Type</label>
-          <input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="currentBooking.booking_type"/>
+          <div class="flex gap-1">
+            <ng-container *ngIf="currentBooking.booking_type === 'manual' || !currentBooking.booking_type">
+              <p-dropdown [options]="enquiryTypeOptions" [(ngModel)]="currentBooking.enquiry_type" placeholder="Select Type" class="w-60"></p-dropdown>
+            </ng-container>
+            <ng-container *ngIf="currentBooking.booking_type === 'from_enquiry'">
+              <input pInputText class="bg-yellow-50" [readonly]="true" [(ngModel)]="currentBooking.enquiry_type"/>
+            </ng-container>
+            <button pButton icon="pi pi-search" class="p-button-sm" (click)="openEnquirySelection()" pTooltip="Link Enquiry"></button>
+          </div>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Company Name</label>
@@ -217,15 +246,15 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date From</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-80" [inputStyle]="{ width: '220px' }"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '220px' }"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date To</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-80" [inputStyle]="{ width: '220px' }"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '220px' }"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Status</label>
-          <p-dropdown [(ngModel)]="currentBooking.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" placeholder="Select Status" class="w-full"></p-dropdown>
+          <p-dropdown [(ngModel)]="currentBooking.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" placeholder="Select Status" [style]="{'width': '20rem'}"></p-dropdown>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Remarks</label>
@@ -233,7 +262,7 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Date</label>
-          <p-calendar [(ngModel)]="currentBooking.created_at" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-80" [inputStyle]="{ width: '220px' }"></p-calendar>
+          <input pInputText [value]="currentBooking.created_at | date:'dd/MM/yyyy'" readonly class="bg-gray-100 w-60" />
         </div>
       </div>
 
@@ -418,6 +447,12 @@ export class BookingComponent implements OnInit {
   showMasterLocationDialog = false;
   matchingEnquiries: any[] = [];
   selectedEnquiries: any[] = [];
+  showLinkDialog = false;
+  linkTargetBooking: any = null;
+  pendingLinkEnquiries: any[] = [];
+
+  totalRecords: number = 0;
+  loading: boolean = false;
 
   showBookingForm = false;
   currentBooking: BookingRecord = { booking_type: 'manual', status: 'Open' } as any;
@@ -426,9 +461,13 @@ export class BookingComponent implements OnInit {
   carriageRows: any[] = [];
   lineItemsRows: any[] = [];
   scheduleGroups: { [service: string]: any[] } = {};
-  yesNoOptions = [ { label: 'YES', value: 'YES' }, { label: 'NO', value: 'NO' } ];
+  yesNoOptions = [{ label: 'YES', value: 'YES' }, { label: 'NO', value: 'NO' }];
+  enquiryTypeOptions = [{ label: 'Direct', value: 'Direct' }, { label: 'Nominee', value: 'Nominee' }];
   allCargoItems: MasterItem[] = [];
+
   cargoTypeOptions: any[] = [];
+  allVendors: any[] = [];
+  isSelectingForExisting = false;
 
   constructor(
     private bookingService: BookingService,
@@ -438,18 +477,32 @@ export class BookingComponent implements OnInit {
     private masterLocationService: MasterLocationService,
     private masterTypeService: MasterTypeService,
     private masterItemService: MasterItemService,
+    private vendorService: VendorService,
     private messageService: MessageService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit() {
-    this.loadBookings();
+    // Initial load happens via onLazyLoad
     this.loadDropdowns();
   }
 
-  loadBookings() {
-    this.bookingService.getAll(1, 10, this.search, this.statusFilter).subscribe({
-      next: (res) => { this.bookings = res?.data || []; this.cdr.detectChanges(); },
+  loadBookings(event?: any) {
+    this.loading = true;
+    const page = event ? (event.first / event.rows) + 1 : 1;
+    const limit = event ? event.rows : 10;
+
+    // Handle filters if needed, usually passed in event.filters
+    // For now keeping simple search/status binding
+
+    this.bookingService.getAll(page, limit, this.search, this.statusFilter).subscribe({
+      next: (res) => {
+        this.bookings = res?.data || [];
+        this.totalRecords = res?.total || 0;
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.loading = false; }
     });
   }
 
@@ -461,7 +514,7 @@ export class BookingComponent implements OnInit {
     });
     this.enquiryService.getLocationsDropdown('').subscribe((rows) => {
       const list = rows || [];
-      const opts = list.map((l: any) => ({ label: l.display_name || l.name, value: l.code }));
+      const opts = list.map((l: any) => ({ label: l.name, value: l.code }));
       this.locationMap = {};
       for (const l of list) this.locationMap[l.code] = l.name || l.code;
       this.fromLocationOptions = opts; this.toLocationOptions = opts;
@@ -482,12 +535,39 @@ export class BookingComponent implements OnInit {
       const types = [...new Set(cargoItems.map(ci => (ci.cargo_type || ci.charge_type || '').toString()).filter(Boolean))];
       this.cargoTypeOptions = types.map(t => ({ label: t, value: t }));
     });
+    this.vendorService.getAll().subscribe(rows => { this.allVendors = rows || []; });
   }
 
   openCreateDialog() {
-    this.dialog = { department: '', service_type: '', from_location: '', to_location: '' };
+    this.dialog = { department: '', service_type: '', from_location_type: '', from_location: '', to_location_type: '', to_location: '' };
     this.matchingEnquiries = []; this.selectedEnquiries = [];
     this.showCreateDialog = true;
+    this.isSelectingForExisting = false;
+    this.onLocationTypeChange('from');
+    this.onLocationTypeChange('to');
+  }
+
+  openEnquirySelection() {
+    this.dialog = { department: '', service_type: '', from_location_type: '', from_location: '', to_location_type: '', to_location: '' };
+    this.matchingEnquiries = []; this.selectedEnquiries = [];
+    this.showCreateDialog = true;
+    this.isSelectingForExisting = true;
+    this.onLocationTypeChange('from');
+    this.onLocationTypeChange('to');
+  }
+
+  onLocationTypeChange(field: 'from' | 'to') {
+    const type = field === 'from' ? this.dialog.from_location_type : this.dialog.to_location_type;
+    let opts: any[] = [];
+    if (!type) {
+      opts = this.allLocations.map((l: any) => ({ label: l.name, value: l.code }));
+    } else {
+      opts = this.allLocations
+        .filter((l: any) => (l.type || '').toString() === type)
+        .map((l: any) => ({ label: l.name, value: l.code }));
+    }
+    if (field === 'from') this.fromLocationOptions = opts;
+    else this.toLocationOptions = opts;
   }
 
   onDepartmentChange() {
@@ -509,13 +589,31 @@ export class BookingComponent implements OnInit {
 
   saveFromEnquiries() {
     const selected = this.selectedEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
+
+    // Check for Link Mode (Existing Booking)
+    if (this.linkTargetBooking) {
+      if (selected.length === 0) {
+        this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No enquiry selected' });
+        return;
+      }
+      this.pendingLinkEnquiries = [...this.selectedEnquiries];
+      this.showCreateDialog = false;
+      this.openBooking(this.linkTargetBooking.booking_no);
+      this.linkTargetBooking = null;
+      return;
+    }
+
     if (selected.length === 0) {
+      if (!this.dialog.department || !this.dialog.service_type || !this.dialog.from_location || !this.dialog.to_location) {
+        this.messageService.add({ severity: 'error', summary: 'Missing Fields', detail: 'Please select Department, Service Type, From and To Location' });
+        return;
+      }
       const manual: BookingRecord = {
         booking_type: 'manual',
         department: this.dialog.department,
         service_type: this.dialog.service_type,
-        from_location: this.dialog.from_location,
-        to_location: this.dialog.to_location,
+        from_location: this.locName(this.dialog.from_location),
+        to_location: this.locName(this.dialog.to_location),
         status: 'Open',
       } as any;
       this.bookingService.createManualBooking(manual).subscribe({
@@ -532,36 +630,60 @@ export class BookingComponent implements OnInit {
       return;
     }
     this.bookingService.createFromEnquiries(this.dialog, selected).subscribe({
-        next: (res) => {
-          this.showCreateDialog = false;
-          this.loadBookings();
-          this.isFrozen = true;
-          const bkNo = (res && res.booking_no) ? String(res.booking_no) : '';
-          if (bkNo) this.openBooking(bkNo);
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: `Booking ${bkNo || ''} created` });
-        },
+      next: (res) => {
+        this.showCreateDialog = false;
+        this.loadBookings();
+        this.isFrozen = true;
+        const bkNo = (res && res.booking_no) ? String(res.booking_no) : '';
+        if (bkNo) this.openBooking(bkNo);
+        this.messageService.add({ severity: 'success', summary: 'Success', detail: `Booking ${bkNo || ''} created` });
+      },
       error: () => { this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to create booking' }); }
     });
   }
 
   createManual() {
     this.isFrozen = false;
-    this.currentBooking = { booking_type: 'manual', status: 'Open' } as any;
+    this.currentBooking = { booking_type: 'manual', status: 'Open', created_at: new Date() } as any;
     this.showBookingForm = true;
   }
 
   finalSave() {
     const payload = { ...this.currentBooking, cargo: this.cargoRows, carriage_map: this.carriageRows, line_items: this.lineItemsRows, schedules: this.flattenSchedules() } as BookingRecord;
     if (this.isFrozen) { this.showBookingForm = false; return; }
-    this.bookingService.createManualBooking(payload).subscribe({
-      next: (res) => { this.showBookingForm = false; this.loadBookings(); this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Booking ${res.booking_no} created` }); },
-      error: () => { this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save booking' }); }
-    });
+
+    if (payload.id) {
+      this.bookingService.updateBooking(payload.id, payload).subscribe({
+        next: (res) => { this.showBookingForm = false; this.loadBookings(); this.messageService.add({ severity: 'success', summary: 'Updated', detail: `Booking ${res.booking_no} updated` }); },
+        error: () => { this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update booking' }); }
+      });
+    } else {
+      this.bookingService.createManualBooking(payload).subscribe({
+        next: (res) => { this.showBookingForm = false; this.loadBookings(); this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Booking ${res.booking_no} created` }); },
+        error: () => { this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save booking' }); }
+      });
+    }
   }
 
+  getBookingModeLabel(type: string | undefined): string {
+    if (type === 'from_enquiry') return 'From Enquiry';
+    if (type === 'manual') return 'Manual';
+    return type || '';
+  }
   openBooking(bookingNo: string) {
-    this.bookingService.getByNo(bookingNo).subscribe(b => {
+    forkJoin({
+      vendors: this.vendorService.getAll(),
+      booking: this.bookingService.getByNo(bookingNo)
+    }).subscribe(({ vendors, booking }) => {
+      this.allVendors = vendors || [];
+      console.log('DEBUG: All Vendors Loaded:', this.allVendors.length);
+      if (this.allVendors.length > 0) console.log('DEBUG: Sample Vendor:', this.allVendors[0]);
+
+      const b = booking;
       this.currentBooking = b as any;
+      if (this.currentBooking.effective_date_from) this.currentBooking.effective_date_from = new Date(this.currentBooking.effective_date_from) as any;
+      if (this.currentBooking.effective_date_to) this.currentBooking.effective_date_to = new Date(this.currentBooking.effective_date_to) as any;
+
       this.isFrozen = (b as any)?.booking_type === 'from_enquiry';
       this.cargoRows = Array.isArray((b as any)?.cargo) ? (b as any).cargo : [];
       this.carriageRows = Array.isArray((b as any)?.carriage_map) ? (b as any).carriage_map : [];
@@ -572,12 +694,18 @@ export class BookingComponent implements OnInit {
       this.lineItemsRows = rawItems.map((li: any) => {
         const svc = li.service_area || li.type || '';
         const match = vendorCards.find((vc: any) => (vc.service_area || '').toString().trim().toLowerCase() === (svc || '').toString().trim().toLowerCase());
-        const vendorName = (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
+        const validVendor = vendorCards.find((vc: any) => {
+          const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
+          return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
+            (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
+            (vc.code || '').toString().trim().toLowerCase() === lookup;
+        });
+        const vendorName = validVendor?.vendor_name || li.sourced_vendor || (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
         return {
           ...li,
           from_location: toLabel(li.from_location || li.line_from_location || li.line_from_location_name || ''),
           to_location: toLabel(li.to_location || li.line_to_location || li.line_to_location_name || ''),
-          sourced_vendor: li.sourced_vendor || vendorName || ''
+          sourced_vendor: vendorName
         };
       });
       // Map carriage locations to names
@@ -599,6 +727,96 @@ export class BookingComponent implements OnInit {
         const key = li.service_area || li.type || 'SERVICE';
         li.schedule = (this.scheduleGroups[key] && this.scheduleGroups[key].length > 0) ? 'YES' : 'NO';
       }
+
+
+      if (this.pendingLinkEnquiries.length > 0) {
+        // this.currentBooking.booking_type = 'from_enquiry'; // Removed to prevents creation of new booking
+        const selected = this.pendingLinkEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
+        this.currentBooking.selected_enquiries = selected;
+        // Map first enquiry details to booking
+        if (this.pendingLinkEnquiries.length === 1) {
+          const enq = this.pendingLinkEnquiries[0];
+          // Fetch full details since table row might be partial
+          this.enquiryService.getByCode(enq.code).subscribe((fullEnq: any) => {
+            this.currentBooking.company_name = fullEnq.customer_name;
+            this.currentBooking.department = fullEnq.department;
+            this.currentBooking.service_type = fullEnq.service_type;
+            this.currentBooking.from_location = this.locName(fullEnq.from_location);
+            this.currentBooking.to_location = this.locName(fullEnq.to_location);
+            this.currentBooking.enquiry_type = fullEnq.enquiry_type;
+            this.currentBooking.effective_date_from = fullEnq.effective_date_from ? new Date(fullEnq.effective_date_from) : undefined as any;
+            this.currentBooking.effective_date_to = fullEnq.effective_date_to ? new Date(fullEnq.effective_date_to) : undefined as any;
+            this.currentBooking.source_sales_person = fullEnq.sales_person;
+
+            // Map Line Items
+            if (Array.isArray(fullEnq.line_items)) {
+              const enqVendorCards = fullEnq.vendor_cards || [];
+              this.lineItemsRows = fullEnq.line_items.map((li: any) => {
+                const sourcingSummary = Array.isArray(li.enquiry_summary) ? li.enquiry_summary.find((s: any) => s.summary_type === 'sourcing') : null;
+
+                const validVendor = enqVendorCards.find((vc: any) => {
+                  const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
+                  return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
+                    (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
+                    (vc.code || '').toString().trim().toLowerCase() === lookup;
+                });
+
+                let vendorName = validVendor?.vendor_name || (sourcingSummary ? sourcingSummary.vendor_name : (li.sourced_vendor || ''));
+
+                // Attempt to resolve vendor name from master list if it's a code
+                if (vendorName && this.allVendors.length > 0) {
+                  const lookup = vendorName.toString().trim().toLowerCase();
+                  const masterVendor = this.allVendors.find((v: any) => (v.vendor_no || '').toString().trim().toLowerCase() === lookup || (v.code || '').toString().trim().toLowerCase() === lookup);
+                  if (masterVendor) vendorName = masterVendor.name || masterVendor.name2 || masterVendor.vendor_name || vendorName;
+                }
+
+                console.log('DEBUG Vendor Lookup:', {
+                  sourced: li.sourced_vendor,
+                  validVendor: validVendor,
+                  vendorName: vendorName
+                });
+
+                return {
+                  type: li.type,
+                  service_area: li.service_area,
+                  basis: li.basis,
+                  from_location: this.locName(li.line_from_location || li.from_location),
+                  to_location: this.locName(li.line_to_location || li.to_location),
+                  sourced_vendor: vendorName,
+                  basis_qty: li.basis_qty,
+                  booking_ref: '',
+                  valid_till: li.valid_till ? new Date(li.valid_till) : undefined,
+                  status: 'Active',
+                  remarks: li.remarks,
+                  schedule: 'NO'
+                };
+              });
+            }
+
+            // Map Cargo
+            if (Array.isArray(fullEnq.cargo)) {
+              this.cargoRows = fullEnq.cargo.map((cg: any) => ({
+                cargo_type: cg.cargo_type,
+                description: cg.description,
+                hs_code: cg.hs_code
+              }));
+            }
+
+            // Map Carriage List
+            if (Array.isArray(fullEnq.carriage_map)) {
+              this.carriageRows = fullEnq.carriage_map.map((cm: any) => ({
+                carriage: cm.carriage,
+                location_type: cm.location_type,
+                location: this.locName(cm.location)
+              }));
+            }
+          });
+        }
+
+        this.pendingLinkEnquiries = [];
+        this.messageService.add({ severity: 'info', summary: 'Enquiry Linked', detail: 'Please review and save changes' });
+      }
+
       this.showBookingForm = true;
     });
   }
@@ -684,5 +902,37 @@ export class BookingComponent implements OnInit {
     this.showMasterLocationDialog = false;
     this.masterLocationService.getAll().subscribe(rows => { this.allLocations = rows || []; });
   }
+  openLinkEnquiryDialog(row: any) {
+    this.linkTargetBooking = row;
+    this.dialog = {
+      department: row.department,
+      service_type: row.service_type,
+      from_location_type: '',
+      from_location: row.from_location,
+      to_location_type: '',
+      to_location: row.to_location
+    };
+    if (this.dialog.from_location) {
+      const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location);
+      if (loc) this.dialog.from_location_type = loc.type;
+    }
+    if (this.dialog.to_location) {
+      const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location);
+      if (loc) this.dialog.to_location_type = loc.type;
+    }
+    this.onLocationTypeChange('from');
+    this.onLocationTypeChange('to');
+    this.onDepartmentChange();
+
+    this.matchingEnquiries = [];
+    this.selectedEnquiries = [];
+    this.showCreateDialog = true;
+    this.isSelectingForExisting = true;
+  }
+
+  saveLinkEnquiry() {
+    // Deprecated: Logic moved to saveFromEnquiries
+  }
+
   addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', basis_qty: '', booking_ref: '', valid_till: '', status: 'Active', remarks: '', schedule: 'NO' }]; }
 }

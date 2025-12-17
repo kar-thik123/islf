@@ -264,6 +264,12 @@ router.get("/:code", async (req, res) => {
     //   [enquiry_id]
     // );
 
+    // Get carriage mappings
+    const { rows: carriageResult } = await pool.query(
+      "SELECT * FROM enquiry_carriage_mapping WHERE enquiry_id = $1 ORDER BY id",
+      [enquiry_id]
+    );
+
     // let nested_line_item = lineItemsResult.rows.forEach(lineItem => {
     for (let lineItem of lineItemsResult) {
       let line_item_id = lineItem.s_no;
@@ -297,6 +303,8 @@ router.get("/:code", async (req, res) => {
         "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY id DESC;",
         [enquiry_id, line_item_id]
       );
+      console.log(`DEBUG Loop: LineItem S_NO=${lineItem.s_no}, ID=${lineItem.id}, Searching Cards for EnqID=${enquiry_id}, LineItemID=${line_item_id}`);
+      console.log(`DEBUG Result: Found ${vendorCardsResult.length} cards. Top:`, vendorCardsResult.length > 0 ? vendorCardsResult[0].vendor_name : 'None');
       // console.log("list of vendor cards,", vendorCardsResult);
       let source_list = [];
       let selected_source_list = [];
@@ -409,6 +417,7 @@ router.get("/:code", async (req, res) => {
     res.json({
       ...enquiry,
       line_items: line_items,
+      carriage_map: carriageResult,
       // vendor_cards: vendorCardsResult.rows,
     });
   } catch (error) {
@@ -1147,7 +1156,7 @@ router.put("/:code", async (req, res) => {
 
       // selecting existing line items for the enquiry
       const { rows: existingLineItems } = await client.query(
-        `SELECT id, s_no FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no`,
+        `SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no`,
         [enquiryId]
       );
 
@@ -1173,6 +1182,25 @@ router.put("/:code", async (req, res) => {
         const item = line_items[i];
         const newSno = i + 1;
         if (item.id) {
+          // Check if critical fields changed, triggering vendor card cleanup
+          const existingItem = existingLineItems.find(ex => ex.id === Number(item.id));
+          if (existingItem) {
+            const keyFields = ['type', 'service_area', 'line_from_location', 'line_to_location'];
+            const hasChange = keyFields.some(field => {
+              const newVal = (item[field] || '').toString().trim();
+              const oldVal = (existingItem[field] || '').toString().trim();
+              return newVal !== oldVal;
+            });
+
+            if (hasChange) {
+              console.log(`Line Item ${item.id} changed. Clearing associated vendor cards for S_NO ${newSno}.`);
+              await client.query(
+                `DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2`,
+                [enquiryId, newSno]
+              );
+            }
+          }
+
           await client.query(
             `UPDATE enquiry_line_items SET 
                s_no = $1,
@@ -1985,11 +2013,11 @@ router.post("/:code/vendor-cards", async (req, res) => {
     const enquiryId = enquiryRow.id;
 
     // retriving the previously selected sourcing Id
-    const {rows: vendorCardId} = await pool.query(`SELECT id FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_type=$3;`, [enquiryId, lineItemId, masterType]);
+    const { rows: vendorCardId } = await pool.query(`SELECT id FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_type=$3;`, [enquiryId, lineItemId, masterType]);
 
     const client = await pool.connect();
 
-    
+
 
     try {
       await client.query("BEGIN");
@@ -1997,8 +2025,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
       const list = Array.isArray(vendorCards)
         ? vendorCards
         : vendorCard
-        ? [vendorCard]
-        : [];
+          ? [vendorCard]
+          : [];
 
       if (list.length === 0) {
         return res.status(400).json({ error: "No vendor cards provided" });
@@ -2069,8 +2097,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
         const chargesArr = Array.isArray(card.charges)
           ? card.charges
           : Array.isArray(card.selected_subcharges)
-          ? card.selected_subcharges
-          : [];
+            ? card.selected_subcharges
+            : [];
 
         if (chargesArr.length > 0) {
           for (const ch of chargesArr) {
@@ -2121,7 +2149,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
 
         insertedCount++;
       }
-      
+
 
       await client.query("COMMIT");
 
@@ -2324,7 +2352,7 @@ router.post("/:code/confirm", async (req, res) => {
           JSON.stringify(enquiry.line_items),
           JSON.stringify(
             enquiry.active_vendor.negotiated_charges ||
-              enquiry.active_vendor.charges
+            enquiry.active_vendor.charges
           ),
           enquiry.company_code,
           enquiry.branch_code,
@@ -2454,7 +2482,7 @@ router.post("/:code/line-Item", async (req, res) => {
     `,
       [code]
     );
-    const {} = await pool.query(
+    const { } = await pool.query(
       `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
       [
@@ -2526,8 +2554,8 @@ router.put("/:code/line-items/selection", async (req, res) => {
             index === 0
               ? `( s_no = $${index + 2}`
               : index === lineItemsList.length - 1
-              ? `  OR  s_no = $${index + 2} )`
-              : `  OR  s_no = $${index + 2} `;
+                ? `  OR  s_no = $${index + 2} )`
+                : `  OR  s_no = $${index + 2} `;
           params.push(lineItem.lineItemSno);
         }
       });
@@ -2604,8 +2632,8 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
             index === 0
               ? ` ( id = $${index + 4}`
               : index === selectedVendorCardList.length - 1
-              ? `  OR  id = $${index + 4} )`
-              : `  OR  id = $${index + 4} `;
+                ? `  OR  id = $${index + 4} )`
+                : `  OR  id = $${index + 4} `;
           params.push(vendorCard.vendorCardId);
         }
       });

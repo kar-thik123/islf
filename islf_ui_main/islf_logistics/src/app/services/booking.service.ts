@@ -8,6 +8,7 @@ import { ContextService } from './context.service';
 export interface BookingGeneral {
   booking_no?: string;
   booking_type: 'from_enquiry' | 'manual';
+  enquiry_type?: string;
   customer_id?: number;
   customer_name?: string;
   company_name?: string;
@@ -43,7 +44,7 @@ export class BookingService {
     private http: HttpClient,
     private contextPayload: ContextPayloadService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   getAll(page: number = 1, limit: number = 10, search: string = '', status: string = ''): Observable<any> {
     let params = new HttpParams().set('page', page.toString()).set('limit', limit.toString());
@@ -73,6 +74,14 @@ export class BookingService {
       this.contextService.getContext()
     );
     return this.http.post<BookingRecord>(`${this.baseUrl}`, payload);
+  }
+
+  updateBooking(id: number, record: BookingRecord): Observable<BookingRecord> {
+    const payload = this.contextPayload.withContext(
+      record,
+      this.contextService.getContext()
+    );
+    return this.http.put<BookingRecord>(`${this.baseUrl}/${id}`, payload);
   }
 
   getByNo(bookingNo: string): Observable<BookingRecord> {
