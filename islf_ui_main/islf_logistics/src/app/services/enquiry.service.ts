@@ -136,7 +136,7 @@ export interface SourcingOption {
   start_date: string;
   end_date: string;
   effective_date: string;
-  sub_charges?: any[];  
+  sub_charges?: any[];
 }
 
 export interface TariffOption {
@@ -166,7 +166,7 @@ export class EnquiryService {
     private contextPayload: ContextPayloadService,
     private contextService: ContextService,
     private basisService: BasisService
-  ) {}
+  ) { }
 
   /** Get all enquiries with pagination and filtering */
   getAll(
@@ -392,8 +392,8 @@ export class EnquiryService {
       charges: Array.isArray(vc.charges)
         ? vc.charges
         : Array.isArray(vc.selected_subcharges)
-        ? vc.selected_subcharges
-        : []
+          ? vc.selected_subcharges
+          : []
     });
 
     const normalizedVendorCards = Array.isArray(vendorCard)
@@ -459,6 +459,10 @@ export class EnquiryService {
     );
   }
 
+  deleteVendorCard(enquiryCode: string, cardId: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/${enquiryCode}/vendor-cards/${cardId}`);
+  }
+
   selectLineItemVendorCards(
     enquiryCode: string,
     lineItemId: number,
@@ -476,7 +480,7 @@ export class EnquiryService {
   }
 
   getTariffSubCharges(tariffId: number): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl.replace('/enquiry','')}/tariff/sub-charges/${tariffId}`);
+    return this.http.get<any[]>(`${this.baseUrl.replace('/enquiry', '')}/tariff/sub-charges/${tariffId}`);
   }
 
   /** Get all enquiries (alias for compatibility) */

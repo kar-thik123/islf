@@ -298,8 +298,8 @@ import { VendorService } from '@/services/vendor.service';
             <td>{{ enquiry.company_name }}</td>
             <td>{{ enquiry.department }}</td>
             <td>{{ enquiry.service_type }}</td>
-            <td>{{ enquiry.from_location }}</td>
-            <td>{{ enquiry.to_location }}</td>
+            <td>{{ locName(enquiry.from_location) }}</td>
+            <td>{{ locName(enquiry.to_location) }}</td>
             <td>
               <span [ngClass]="getStatusClass(enquiry.status)">
                 {{ enquiry.status }}
@@ -1532,7 +1532,7 @@ import { VendorService } from '@/services/vendor.service';
                             </td>
                             <td>{{ charge.basis }}</td>
                             <td>{{ charge.currency }}</td>
-                            <td>{{ charge.amount || charge.charges }}</td>
+                            <td>{{ charge.amount || charge.charges || charge.charge }}</td>
 
                             <td>
                               {{
@@ -1628,7 +1628,7 @@ import { VendorService } from '@/services/vendor.service';
                     <td>{{ getChargeNameLabel(charge) }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
-                    <td>{{ charge.amount || charge.charges }}</td>
+                    <td>{{ charge.amount || charge.charges || charge.charge }}</td>
                     <td>
                       {{
                         charge.gst_vat ||
@@ -1673,7 +1673,7 @@ import { VendorService } from '@/services/vendor.service';
                         type="number"
                         pInputText
                         [(ngModel)]="vendor.sell_rates[charge.id]"
-                        [value]="charge.amount || charge.charges"
+                        [value]="charge.amount || charge.charges || charge.charge"
                         style="width: 100px"
                       />
                       <span *ngIf="!charge.selected">--</span>
@@ -1908,7 +1908,7 @@ import { VendorService } from '@/services/vendor.service';
                           </td>
                           <td>{{ charge.basis }}</td>
                           <td>{{ charge.currency }}</td>
-                          <td>{{ charge.amount || charge.charges }}</td>
+                          <td>{{ charge.amount || charge.charges || charge.charge }}</td>
 
                           <td>
                             {{
@@ -1985,7 +1985,7 @@ import { VendorService } from '@/services/vendor.service';
                 ></button>
               </div>
 
-              <p-table [value]="vendor.sub_charges || []">
+              <p-table [value]="vendor.selected_subcharges || []">
                 <ng-template pTemplate="header">
                   <tr>
                     <th colspan="5" class="text-left">Buy Rate</th>
@@ -2007,7 +2007,7 @@ import { VendorService } from '@/services/vendor.service';
                     <td>{{ getChargeNameLabel(charge) }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
-                    <td>{{ charge.amount || charge.charges }}</td>
+                    <td>{{ charge.amount || charge.charges || charge.charge }}</td>
                     <td>
                       {{
                         charge.gst_vat ||
@@ -2048,7 +2048,7 @@ import { VendorService } from '@/services/vendor.service';
                         type="number"
                         pInputText
                         [(ngModel)]="vendor.sell_rates[charge.id]"
-                        [value]="charge.amount || charge.charges"
+                        [value]="charge.amount || charge.charges || charge.charge"
                         style="width: 100px"
                       />
                     </td>
@@ -2321,11 +2321,11 @@ import { VendorService } from '@/services/vendor.service';
               </p>
               <p>
                 <span class="font-semibold">From:</span>
-                {{ selectedEnquiryPreview?.from_location || '--' }}
+                {{ locName(selectedEnquiryPreview?.from_location) || '--' }}
               </p>
               <p>
                 <span class="font-semibold">To:</span>
-                {{ selectedEnquiryPreview?.to_location || '--' }}
+                {{ locName(selectedEnquiryPreview?.to_location) || '--' }}
               </p>
             </div>
             <div>
@@ -2767,6 +2767,7 @@ export class EnquiryComponent implements OnInit {
 
   vendorCards: EnquiryVendorCard[] = [];
   allLocations: any[] = [];
+  locationMap: { [key: string]: string } = {};
   allVendors: any[] = [];
   sourceSalesOptions: any[] = [];
   showSourceSalesDialog = false;
@@ -2812,7 +2813,7 @@ export class EnquiryComponent implements OnInit {
   serviceTypeOptions: any[] = [];
   allServiceTypes: any[] = [];
   serviceTypeFilterOptions: any[] = [];
-  
+
   departmentNameToCode: Map<string, string> = new Map();
 
   // Enquiry type options
@@ -3101,6 +3102,12 @@ export class EnquiryComponent implements OnInit {
         this.allLocations = locations.filter((l) => l.active);
         console.log('Loaded all locations:', this.allLocations.length);
 
+        // Populate locationMap for quick lookup
+        this.locationMap = {};
+        this.allLocations.forEach((l) => {
+          this.locationMap[l.code] = l.name;
+        });
+
         // Initialize location options formatted as CODE - NAME
         this.fromLocationOptions = this.allLocations.map((l) => ({
           label: `${l.code} - ${l.name}`,
@@ -3137,10 +3144,13 @@ export class EnquiryComponent implements OnInit {
     return v ? v.name2 || v.name || codeOrNo : codeOrNo;
   }
 
+  locName(code: any) {
+    const key = (code || '').toString();
+    return this.locationMap[key] || key;
+  }
+
   getLocationName(locationCode: string): string {
-    if (!locationCode || !this.allLocations) return locationCode || '';
-    const location = this.allLocations.find((l) => l.code === locationCode);
-    return location ? `${location.name}` : locationCode;
+    return this.locName(locationCode);
   }
 
   loadEnquiries() {
@@ -3448,9 +3458,9 @@ export class EnquiryComponent implements OnInit {
       exact.length > 0
         ? exact
         : this.allLocations.filter(
-            (l: any) =>
-              (l.type || '').toLowerCase() === (type || '').toLowerCase()
-          );
+          (l: any) =>
+            (l.type || '').toLowerCase() === (type || '').toLowerCase()
+        );
     return list.map((l: any) => ({
       label: `${l.code} - ${l.name}`,
       value: l.code,
@@ -3577,7 +3587,7 @@ export class EnquiryComponent implements OnInit {
       enquiry.service_type = '';
     }
   }
-  
+
   refreshServiceTypeFilterOptions() {
     let list = this.allServiceTypes;
     const deptName = this.tariffFilter?.department;
@@ -3599,7 +3609,7 @@ export class EnquiryComponent implements OnInit {
       value: st.code,
     }));
   }
-  
+
   onTariffDepartmentFilterChange() {
     this.refreshServiceTypeFilterOptions();
     const exists = this.serviceTypeFilterOptions.some(
@@ -4038,6 +4048,21 @@ export class EnquiryComponent implements OnInit {
           this.selectedSourcingVendors = this.selectedSourcingVendors.concat(src);
           this.selectedTariffVendors = this.selectedTariffVendors.concat(trf);
         });
+
+        // De-duplicate in case of legacy data with redundant records
+        const dedupe = (list: any[]) => {
+          const seen = new Set();
+          return list.filter((v) => {
+            const vendorName = (v.vendor_name || '').toString().trim().toLowerCase();
+            const lineItemId = v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0;
+            const key = `${lineItemId}-${vendorName}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        };
+        this.selectedSourcingVendors = dedupe(this.selectedSourcingVendors);
+        this.selectedTariffVendors = dedupe(this.selectedTariffVendors);
         // Default cache context to the first selected line item or first line item
         const defaultLineId = (this.selectedLineItems?.[0]?.s_no) ?? (this.lineItems?.[0]?.s_no) ?? 1;
         const sourcedLineId = this.selectedSourcingVendors[0]?.enquiry_line_item_id;
@@ -4141,16 +4166,16 @@ export class EnquiryComponent implements OnInit {
       type === 'tariff'
         ? null
         : this.enquiryService.getSourcingOptions(
-            this.currentEnquiry?.code || '',
-            criteria
-          );
+          this.currentEnquiry?.code || '',
+          criteria
+        );
     const tariff$ =
       type === 'sourcing'
         ? null
         : this.enquiryService.getTariffOptions(
-            this.currentEnquiry?.code || '',
-            criteria
-          );
+          this.currentEnquiry?.code || '',
+          criteria
+        );
 
     const calls = [];
     if (sourcing$) calls.push(sourcing$);
@@ -4304,7 +4329,7 @@ export class EnquiryComponent implements OnInit {
             detail: `${source.finalizedItems.length} vendor(s) finalized successfully`,
           });
         },
-        error: (error: any) => {},
+        error: (error: any) => { },
       });
 
     // Update the finalized vendors preview
@@ -4897,22 +4922,22 @@ export class EnquiryComponent implements OnInit {
         const index = this.lineItems.findIndex((li) => Number(li.s_no) === Number(lineItemId));
         const targetLineItem = this.lineItems[index];
         const targetLineItemId = targetLineItem?.id ?? lineItemId;
-          const doLocalCleanup = () => {
-            if (index >= 0) {
-              this.lineItems.splice(index, 1);
-              this.lineItems.forEach((item, i) => (item.s_no = i + 1));
-            }
-            this.selectedLineItems = (this.selectedLineItems || []).filter((li) => Number(li.s_no) !== Number(lineItemId));
-            this.selectedSourcingVendors = (this.selectedSourcingVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
-            this.selectedTariffVendors = (this.selectedTariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
-            this.sourcingVendors = (this.sourcingVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
-            this.tariffVendors = (this.tariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
-            this.filteredTariffVendors = (this.filteredTariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
-            this.selectedTariffSelection = [];
-            this.sourcingSelection = null;
-            if (this.selectedEnquiry) this.selectedEnquiry.line_items = [...this.lineItems];
-            this.refreshSelectedVendorCaches();
-          };
+        const doLocalCleanup = () => {
+          if (index >= 0) {
+            this.lineItems.splice(index, 1);
+            this.lineItems.forEach((item, i) => (item.s_no = i + 1));
+          }
+          this.selectedLineItems = (this.selectedLineItems || []).filter((li) => Number(li.s_no) !== Number(lineItemId));
+          this.selectedSourcingVendors = (this.selectedSourcingVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+          this.selectedTariffVendors = (this.selectedTariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+          this.sourcingVendors = (this.sourcingVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+          this.tariffVendors = (this.tariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+          this.filteredTariffVendors = (this.filteredTariffVendors || []).filter((v) => v.enquiry_line_item_id !== targetLineItemId);
+          this.selectedTariffSelection = [];
+          this.sourcingSelection = null;
+          if (this.selectedEnquiry) this.selectedEnquiry.line_items = [...this.lineItems];
+          this.refreshSelectedVendorCaches();
+        };
         const persistUpdate = () => {
           if (code) {
             const updatedEnquiry = { ...(this.selectedEnquiry || {}), line_items: this.lineItems };
@@ -4922,7 +4947,7 @@ export class EnquiryComponent implements OnInit {
                 // Persist selection mapping
                 this.enquiryService
                   .updateEnquiryLineItemSelection(code, { selectedLineItems: this.selectedLineItems })
-                  .subscribe({ next: () => {}, error: () => {} });
+                  .subscribe({ next: () => { }, error: () => { } });
                 // Reload to verify deletion from DB
                 this.loadEnquiry(code);
               },
@@ -5124,11 +5149,11 @@ export class EnquiryComponent implements OnInit {
         : null);
     const sourcingList = selectedVendor
       ? [
-          {
-            vendor_no: selectedVendor.vendor_name || selectedVendor.vendor_no || selectedVendor.code,
-            vendor_type: selectedVendor.vendor_type,
-          },
-        ]
+        {
+          vendor_no: selectedVendor.vendor_name || selectedVendor.vendor_no || selectedVendor.code,
+          vendor_type: selectedVendor.vendor_type,
+        },
+      ]
       : undefined;
     this.currentVendorCriteria = {
       line_item_type: li?.type,
@@ -5205,7 +5230,7 @@ export class EnquiryComponent implements OnInit {
       sourcing: [
         {
           vendor_type: vendor.vendor_type,
-          vendor_no: vendor.vendor_name || vendor.vendor_no || vendor.code,
+          vendor_no: vendor.vendor_name || vendor.vendor_no || vendor.vendor || vendor.code,
         },
       ],
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
@@ -5217,13 +5242,13 @@ export class EnquiryComponent implements OnInit {
       .getTariffOptions(this.currentEnquiry?.code!, criteria)
       .subscribe({
         next: (options) => {
-          this.tariffVendors = options.map((opt) => ({
+          this.tariffVendors = (options || []).map((opt) => ({
             ...opt,
             enquiry_line_item_id: lineItemId,
             selected_subcharges: [],
             sell_rates: {},
             remarks: '',
-            sub_charges: this.normalizeCharges(opt.charges),
+            sub_charges: this.normalizeCharges(opt.sub_charges || opt.charges),
           }));
           this.filteredTariffVendors = [...this.tariffVendors];
           const uniq = (arr: any[]) => Array.from(new Set(arr.filter((x) => x !== undefined && x !== null).map((x) => x.toString().trim())));
@@ -5231,6 +5256,17 @@ export class EnquiryComponent implements OnInit {
           const names = uniq(this.tariffVendors.map((v) => v.vendor_name || v.vendor_code || v.vendor));
           this.tariffVendorTypeOptions = types.map((t) => ({ label: t, value: t }));
           this.tariffVendorNameOptions = names.map((n) => ({ label: this.getVendorName(n), value: n }));
+
+          // Pre-set the filter to the vendor we came from, so the user sees what they expect
+          // but can clear it to see all vendors.
+          const currentVendorName = vendor.vendor_name || vendor.vendor_no || vendor.vendor;
+          if (currentVendorName) {
+            this.tariffFilter.vendor_name = currentVendorName;
+            this.applyManualTariffFilter();
+          } else {
+            this.filteredTariffVendors = [...this.tariffVendors];
+          }
+
           this.selectedTariffVendors = [];
           this.activeVendorTab = 2; // Get Tariff tab
           this.showVendorTabsDialog = true;
@@ -5288,78 +5324,78 @@ export class EnquiryComponent implements OnInit {
     const hadPrior = this.selectedSourcingVendors.some((v) => v.enquiry_line_item_id === lineItemId) ||
       this.selectedTariffVendors.some((v) => v.enquiry_line_item_id === lineItemId);
     const performDelete = hasCode && hasLineId && hadPrior;
-        const afterDeleteSuccess = () => {
-              // Clear UI selections for this line item
-              this.selectedSourcingVendors = this.selectedSourcingVendors.filter(
-                (v) => v.enquiry_line_item_id !== lineItemId
-              );
-              this.selectedTariffVendors = this.selectedTariffVendors.filter(
-                (v) => v.enquiry_line_item_id !== lineItemId
-              );
-              this.filteredTariffVendors = this.filteredTariffVendors.filter(
-                (v) => v.enquiry_line_item_id !== lineItemId
-              );
-              this.refreshSelectedVendorCaches();
+    const afterDeleteSuccess = () => {
+      // Clear UI selections for this line item
+      this.selectedSourcingVendors = this.selectedSourcingVendors.filter(
+        (v) => v.enquiry_line_item_id !== lineItemId
+      );
+      this.selectedTariffVendors = this.selectedTariffVendors.filter(
+        (v) => v.enquiry_line_item_id !== lineItemId
+      );
+      this.filteredTariffVendors = this.filteredTariffVendors.filter(
+        (v) => v.enquiry_line_item_id !== lineItemId
+      );
+      this.refreshSelectedVendorCaches();
 
-          // Add newly moved vendor
-          this.selectedSourcingVendors = [movedVendors].map((srcVendor) => ({
-            ...srcVendor,
-            sub_charges: srcVendor.sub_charges?.map((sc: any) => ({
-              ...sc,
-              sell_rate_gst_vat: sc.gst_vat,
-            })),
-          }));
-          this.refreshSelectedVendorCaches();
+      // Add newly moved vendor
+      this.selectedSourcingVendors = [movedVendors].map((srcVendor) => ({
+        ...srcVendor,
+        sub_charges: srcVendor.sub_charges?.map((sc: any) => ({
+          ...sc,
+          sell_rate_gst_vat: sc.gst_vat,
+        })),
+      }));
+      this.refreshSelectedVendorCaches();
 
-          // Persist the new sourcing vendor
-          const ctx = this.currentVendorCriteria || {};
-          const vendorToSave = {
-            enquiry_line_item_id: selectedVendor.enquiry_line_item_id ?? ctx.lineItemId,
-            master_type: 'sourcing',
-            department: ctx.department,
-            service_type: ctx.service_type,
-            type: ctx.line_item_type,
-            service_area: ctx.service_area,
-            vendor_type: selectedVendor.vendor_type,
-            vendor_name: selectedVendor.vendor_name,
-            basis: selectedVendor.basis ?? ctx.basis,
-            cargo: ctx.cargo_type,
-            location_type_from: ctx.from_location_type,
-            from_location: selectedVendor.from_location ?? ctx.from_location,
-            location_type_to: ctx.to_location_type,
-            to_location: selectedVendor.to_location ?? ctx.to_location,
-            period_start_date: selectedVendor.effective_date ?? ctx.effective_date_from,
-            period_end_date: selectedVendor.expiry_date ?? ctx.effective_date_to,
-            charges: selectedVendor.selected_subcharges,
-          };
+      // Persist the new sourcing vendor
+      const ctx = this.currentVendorCriteria || {};
+      const vendorToSave = {
+        enquiry_line_item_id: selectedVendor.enquiry_line_item_id ?? ctx.lineItemId,
+        master_type: 'sourcing',
+        department: ctx.department,
+        service_type: ctx.service_type,
+        type: ctx.line_item_type,
+        service_area: ctx.service_area,
+        vendor_type: selectedVendor.vendor_type,
+        vendor_name: selectedVendor.vendor_name,
+        basis: selectedVendor.basis ?? ctx.basis,
+        cargo: ctx.cargo_type,
+        location_type_from: ctx.from_location_type,
+        from_location: selectedVendor.from_location ?? ctx.from_location,
+        location_type_to: ctx.to_location_type,
+        to_location: selectedVendor.to_location ?? ctx.to_location,
+        period_start_date: selectedVendor.effective_date ?? ctx.effective_date_from,
+        period_end_date: selectedVendor.expiry_date ?? ctx.effective_date_to,
+        charges: selectedVendor.selected_subcharges,
+      };
 
-          this.enquiryService
-            .addVendorCards(this.currentEnquiry?.code!, [vendorToSave], {
-              masterType: 'sourcing',
-              lineItemId: ctx.lineItemId,
-            })
-            .subscribe({
-              next: (res) => {
-                try {
-                  const inserted = (res && res.inserted) ? res.inserted : [];
-                  const cardId = inserted.length ? inserted[0].id : undefined;
-                  if (cardId) {
-                    this.selectedSourcingVendors = this.selectedSourcingVendors.map((v) => ({ ...v, card_id: cardId }));
-                    this.enquiryService
-                      .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [cardId], 'sourcing')
-                      .subscribe({ next: () => {}, error: () => {} });
-                  }
-                } catch {}
-              },
-              error: (error) => {
-                console.error('Error saving sourcing vendors:', error);
-                this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save sourcing vendors' });
-              },
-            });
+      this.enquiryService
+        .addVendorCards(this.currentEnquiry?.code!, [vendorToSave], {
+          masterType: 'sourcing',
+          lineItemId: ctx.lineItemId,
+        })
+        .subscribe({
+          next: (res) => {
+            try {
+              const inserted = (res && res.inserted) ? res.inserted : [];
+              const cardId = inserted.length ? inserted[0].id : undefined;
+              if (cardId) {
+                this.selectedSourcingVendors = this.selectedSourcingVendors.map((v) => ({ ...v, card_id: cardId }));
+                this.enquiryService
+                  .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [cardId], 'sourcing')
+                  .subscribe({ next: () => { }, error: () => { } });
+              }
+            } catch { }
+          },
+          error: (error) => {
+            console.error('Error saving sourcing vendors:', error);
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save sourcing vendors' });
+          },
+        });
 
-          this.sourcingSelection = null;
-          this.activeVendorTab = 1;
-          this.messageService.add({ severity: 'success', summary: 'Success', detail: `${selectedVendor.vendor_name} vendor moved to Select Sourcing` });
+      this.sourcingSelection = null;
+      this.activeVendorTab = 1;
+      this.messageService.add({ severity: 'success', summary: 'Success', detail: `${selectedVendor.vendor_name} vendor moved to Select Sourcing` });
     };
 
     if (performDelete) {
@@ -5413,18 +5449,22 @@ export class EnquiryComponent implements OnInit {
     });
     this.refreshSelectedVendorCaches();
     this.selectedTariffVendors.forEach((vendor) => {
-      if (
-        !vendor.selected_subcharges ||
-        vendor.selected_subcharges.length === 0
-      ) {
+      // Initialize selected_subcharges if it doesn't exist yet
+      if (!vendor.selected_subcharges || vendor.selected_subcharges.length === 0) {
         vendor.selected_subcharges = [...(vendor.sub_charges || [])];
       }
+
+      // Ensure all objects in selected_subcharges have their 'selected' property set (for internal logic elsewhere)
+      (vendor.selected_subcharges || []).forEach((sc: any) => sc.selected = true);
+
+      // Sync the 'selected' property of all sub_charges based on the selection list
       (vendor.sub_charges || []).forEach((c: any) => {
-        c.selected = vendor.selected_subcharges?.some(
+        c.selected = (vendor.selected_subcharges || []).some(
           (sc: any) => sc.id === c.id
         );
       });
     });
+    this.cdr.detectChanges();
 
     // Persist tariff vendors immediately
     const ctxT = this.currentVendorCriteria || {};
@@ -5445,52 +5485,51 @@ export class EnquiryComponent implements OnInit {
       to_location: vendor.to_location ?? ctxT.to_location,
       period_start_date: vendor.effective_date ?? ctxT.effective_date_from,
       period_end_date: vendor.expiry_date ?? ctxT.effective_date_to,
-      charges: vendor.selected_subcharges?.length
+      charges: (vendor.selected_subcharges && vendor.selected_subcharges.length)
         ? vendor.selected_subcharges
-        : vendor.sub_charges || [],
+        : (vendor.sub_charges || []),
     }));
 
-    this.enquiryService
-      .addVendorCards(this.currentEnquiry?.code!, vendorsToSaveT, {
-        masterType: 'tariff',
-        lineItemId: ctxT.lineItemId,
-      })
-      .subscribe({
-        next: (res) => {
-          try {
+    this.enquiryService.deleteLineItemVendorData(this.currentEnquiry?.code!, Number(ctxT.lineItemId), 'tariff').subscribe({
+      next: () => {
+        this.enquiryService.addVendorCards(this.currentEnquiry?.code!, vendorsToSaveT, {
+          masterType: 'tariff',
+          lineItemId: ctxT.lineItemId,
+        }).subscribe({
+          next: (res) => {
             const inserted = (res && res.inserted) ? res.inserted : [];
-            // Attach returned card ids to the corresponding selectedTariffVendors
             inserted.forEach((row: any, idx: number) => {
               const target = this.selectedTariffVendors[idx];
               if (target) target.card_id = row.id;
             });
             const insertedIds = inserted.map((row: any) => Number(row.id)).filter((id: any) => !!id);
             if (insertedIds.length) {
-              this.enquiryService
-                .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), insertedIds, 'tariff')
-                .subscribe({ next: () => {}, error: () => {} });
+              this.enquiryService.selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), insertedIds, 'tariff')
+                .subscribe({ next: () => { }, error: () => { } });
             }
-          } catch {}
-        },
-        error: (error) => {
-          console.error('Error saving tariff vendors:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to save tariff vendors',
-          });
-        },
-      });
+          },
+          error: (error) => {
+            console.error('Error saving tariff vendors:', error);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to save tariff vendors',
+            });
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error clearing old vendor cards:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to clear old selections before moving',
+        });
+      },
+    });
 
-    // Remove from tariff vendors and filtered list
-    const selectedIds = new Set(selected.map((s: any) => s.id));
-    this.tariffVendors = this.tariffVendors.filter((v) => !selectedIds.has(v.id));
-    this.filteredTariffVendors = this.filteredTariffVendors.filter((v) => !selectedIds.has(v.id));
     this.selectedTariffSelection = [];
-
-    // Move to Select Tariff tab
     this.activeVendorTab = 3;
-
     this.messageService.add({
       severity: 'success',
       summary: 'Success',
@@ -5500,38 +5539,81 @@ export class EnquiryComponent implements OnInit {
 
   // Toggle subcharge selection for tariff
   toggleTariffSubcharge(vendor: any, subcharge: any) {
+    if (!vendor.selected_subcharges) {
+      vendor.selected_subcharges = [...(vendor.sub_charges || [])];
+    }
     const index = vendor.selected_subcharges.findIndex(
       (sc: any) => sc.id === subcharge.id
     );
     if (index > -1) {
-      vendor.selected_subcharges.splice(index, 1);
+      vendor.selected_subcharges = vendor.selected_subcharges.filter((sc: any) => sc.id !== subcharge.id);
       delete vendor.sell_rates[subcharge.id];
     } else {
-      vendor.selected_subcharges.push(subcharge);
-      vendor.sell_rates[subcharge.id] = subcharge.amount || 0;
+      vendor.selected_subcharges = [...vendor.selected_subcharges, subcharge];
+      vendor.sell_rates[subcharge.id] = subcharge.amount || subcharge.charges || subcharge.charge || 0;
     }
   }
 
   removeSelectedSourcingVendor(vendor: any) {
+    const code = this.currentEnquiry?.code!;
+    const cardId = vendor.card_id || vendor.master_id;
+
     this.selectedSourcingVendors = this.selectedSourcingVendors.filter(
       (v) => v.id !== vendor.id
     );
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Removed',
-      detail: `${vendor.vendor_name} removed from Select Sourcing`,
-    });
+    this.refreshSelectedVendorCaches();
+
+    if (cardId) {
+      this.enquiryService.deleteVendorCard(code, Number(cardId)).subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'info',
+            summary: 'Removed',
+            detail: `${vendor.vendor_name} removed from Select Sourcing and database`,
+          });
+        },
+        error: (err) => {
+          console.error('Error deleting sourcing card:', err);
+        }
+      });
+    } else {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Removed',
+        detail: `${vendor.vendor_name} removed from Select Sourcing`,
+      });
+    }
   }
 
   removeSelectedTariffVendor(vendor: any) {
+    const code = this.currentEnquiry?.code!;
+    const cardId = vendor.card_id || vendor.master_id;
+
     this.selectedTariffVendors = this.selectedTariffVendors.filter(
       (v) => v.id !== vendor.id
     );
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Removed',
-      detail: `${vendor.vendor_name} removed from Select Tariff`,
-    });
+    this.refreshSelectedVendorCaches();
+
+    if (cardId) {
+      this.enquiryService.deleteVendorCard(code, Number(cardId)).subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'info',
+            summary: 'Removed',
+            detail: `${vendor.vendor_name} removed from Select Tariff and database`,
+          });
+        },
+        error: (err) => {
+          console.error('Error deleting tariff card:', err);
+        }
+      });
+    } else {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Removed',
+        detail: `${vendor.vendor_name} removed from Select Tariff`,
+      });
+    }
   }
   saveTariffVendors() {
     const code = this.currentEnquiry?.code!;
@@ -5560,17 +5642,17 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-        forkJoin(requests).subscribe({
-          next: () => {
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Saved',
-              detail: 'Tariff sub-charges updated',
-            });
-            this.showVendorTabsDialog = false;
-            this.loadEnquiry(code);
-            this.refreshSelectedVendorCaches();
-          },
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: 'Tariff sub-charges updated',
+        });
+        this.showVendorTabsDialog = false;
+        this.loadEnquiry(code);
+        this.refreshSelectedVendorCaches();
+      },
       error: (error) => {
         console.error('Error updating tariff sub-charges:', error);
         this.messageService.add({
@@ -5750,7 +5832,7 @@ export class EnquiryComponent implements OnInit {
         if (!ok) matches = false;
       }
 
-      
+
 
       return matches;
     });
@@ -5795,7 +5877,7 @@ export class EnquiryComponent implements OnInit {
               (vendor.sub_charges || []).forEach((s: any) => {
                 if (typeof s.selected === 'undefined') s.selected = true;
                 if (vendor.sell_rates[s.id] === undefined)
-                  vendor.sell_rates[s.id] = s.amount || s.charges || 0;
+                  vendor.sell_rates[s.id] = s.amount || s.charges || s.charge || 0;
               });
               this.cdr.detectChanges();
             },
@@ -5822,7 +5904,7 @@ export class EnquiryComponent implements OnInit {
               (vendor.sub_charges || []).forEach((s: any) => {
                 if (typeof s.selected === 'undefined') s.selected = true;
                 if (vendor.sell_rates[s.id] === undefined)
-                  vendor.sell_rates[s.id] = s.amount || s.charges || 0;
+                  vendor.sell_rates[s.id] = s.amount || s.charges || s.charge || 0;
               });
               this.cdr.detectChanges();
             },
@@ -5852,7 +5934,7 @@ export class EnquiryComponent implements OnInit {
     }
   }
 
-  
+
 
   // Save sourcing vendors (PUT updates for sub-charges)
   saveSourcingVendors() {
@@ -5973,7 +6055,7 @@ export class EnquiryComponent implements OnInit {
           }
           if (!vendors[idx].sell_rates) vendors[idx].sell_rates = {};
           (vendors[idx].sub_charges || []).forEach((sc: any) => {
-            const amt = sc.amount ?? sc.charges ?? 0;
+            const amt = sc.amount ?? sc.charges ?? sc.charge ?? 0;
             const sell = sc.sell_rate ?? vendors[idx].sell_rates[sc.id] ?? amt;
             vendors[idx].sell_rates[sc.id] = sell;
             sc.sell_rate = sell;
@@ -6318,9 +6400,9 @@ export class EnquiryComponent implements OnInit {
 
     const saveOperation = this.selectedEnquiry.id
       ? this.enquiryService.updateEnquiry(
-          this.selectedEnquiry.code!,
-          enquiryData
-        )
+        this.selectedEnquiry.code!,
+        enquiryData
+      )
       : this.enquiryService.createEnquiry(enquiryData);
 
     saveOperation.subscribe({
@@ -6386,7 +6468,7 @@ export class EnquiryComponent implements OnInit {
                 response
               );
             },
-            error: (error: any) => {},
+            error: (error: any) => { },
           });
 
         this.loadEnquiries(); // Refresh the table
@@ -6710,8 +6792,7 @@ export class EnquiryComponent implements OnInit {
 
       const filteredLocations = this.allLocations.filter((l) => {
         console.log(
-          `Comparing location type '${l.type}' with selected '${
-            this.selectedEnquiry!.location_type_from
+          `Comparing location type '${l.type}' with selected '${this.selectedEnquiry!.location_type_from
           }'`
         );
         return l.type === this.selectedEnquiry!.location_type_from;
@@ -6764,8 +6845,7 @@ export class EnquiryComponent implements OnInit {
 
       const filteredLocations = this.allLocations.filter((l) => {
         console.log(
-          `Comparing location type '${l.type}' with selected '${
-            this.selectedEnquiry!.location_type_to
+          `Comparing location type '${l.type}' with selected '${this.selectedEnquiry!.location_type_to
           }'`
         );
         return l.type === this.selectedEnquiry!.location_type_to;

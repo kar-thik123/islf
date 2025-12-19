@@ -2,136 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { getUsernameFromToken } = require('../utils/context-helper');
-
-async function ensureBookingTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS booking (
-      id SERIAL PRIMARY KEY,
-      booking_no VARCHAR(50) UNIQUE NOT NULL,
-      booking_type VARCHAR(20),
-      enquiry_id INTEGER,
-      selected_enquiries JSONB,
-      customer_id INTEGER,
-      customer_name VARCHAR(255),
-      mail_id VARCHAR(255),
-      phone_no1 VARCHAR(50),
-      phone_no2 VARCHAR(50),
-      company_name VARCHAR(255),
-      from_location VARCHAR(255),
-      to_location VARCHAR(255),
-      effective_date_from DATE,
-      effective_date_to DATE,
-      department VARCHAR(100),
-      service_type VARCHAR(100),
-      status VARCHAR(50) DEFAULT 'Open',
-      remarks TEXT,
-      vendor_details JSONB,
-      line_items JSONB,
-      charges JSONB,
-      cargo JSONB,
-      carriage_map JSONB,
-      schedules JSONB,
-      company_code VARCHAR(10),
-      branch_code VARCHAR(10),
-      department_code VARCHAR(10),
-      service_type_code VARCHAR(10),
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW(),
-      created_by VARCHAR(100),
-      updated_by VARCHAR(100)
-    );
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_no ON booking(booking_no);`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_status ON booking(status);`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_context ON booking(company_code, branch_code, department_code, service_type_code);`);
-  await pool.query(`ALTER TABLE booking ADD COLUMN IF NOT EXISTS source_sales_person VARCHAR(255);`);
-  await pool.query(`ALTER TABLE booking ADD COLUMN IF NOT EXISTS enquiry_type VARCHAR(100);`);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS booking_line_items (
-      id SERIAL PRIMARY KEY,
-      booking_id INTEGER NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
-      s_no INTEGER,
-      quantity DECIMAL(10,2),
-      basis VARCHAR(100),
-      remarks TEXT,
-      status VARCHAR(50) DEFAULT 'Active',
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(booking_id, s_no)
-    );
-  `);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS booking_charges (
-      id SERIAL PRIMARY KEY,
-      booking_id INTEGER NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
-      charge_name VARCHAR(255),
-      currency VARCHAR(10),
-      basis VARCHAR(100),
-      amount DECIMAL(15,2),
-      sell_rate_currency VARCHAR(10),
-      sell_rate DECIMAL(15,2),
-      gst_vat DECIMAL(6,2),
-      remarks TEXT,
-      raw JSONB,
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_charges_booking ON booking_charges(booking_id);`);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS booking_cargo (
-      id SERIAL PRIMARY KEY,
-      booking_id INTEGER NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
-      cargo_type VARCHAR(100),
-      description TEXT,
-      quantity DECIMAL(12,3),
-      unit VARCHAR(50),
-      weight DECIMAL(12,3),
-      volume DECIMAL(12,3),
-      remarks TEXT,
-      raw JSONB,
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_cargo_booking ON booking_cargo(booking_id);`);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS booking_carriage_map (
-      id SERIAL PRIMARY KEY,
-      booking_id INTEGER NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
-      sequence_no INTEGER,
-      mode VARCHAR(50),
-      from_location VARCHAR(255),
-      to_location VARCHAR(255),
-      vendor_name VARCHAR(255),
-      vehicle_no VARCHAR(100),
-      transit_days INTEGER,
-      remarks TEXT,
-      raw JSONB,
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_carriage_booking ON booking_carriage_map(booking_id);`);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS booking_schedules (
-      id SERIAL PRIMARY KEY,
-      booking_id INTEGER NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
-      schedule_date DATE,
-      milestone VARCHAR(255),
-      location VARCHAR(255),
-      remarks TEXT,
-      raw JSONB,
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_booking_schedules_booking ON booking_schedules(booking_id);`);
-}
-
 router.get('/', async (req, res) => {
   try {
-    // await ensureBookingTable(); // Removed for performance
+
     const { page = 1, limit = 10, search = '', status = '', companyCode, branchCode, departmentCode } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
@@ -181,7 +54,8 @@ router.post('/search-enquiries', async (req, res) => {
     await ensureBookingTable();
     const { department, service_type, from_location, to_location } = req.body || {};
     let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status
-                 FROM enquiry WHERE (status IN ('Open','Pending','Quoted'))`;
+                 FROM enquiry WHERE (status IN ('Open','Pending','Quoted'))
+                 AND (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)`;
     const params = [];
     let idx = 1;
     const norm = (f, i) => `LOWER(REPLACE(${f}, ' ', '')) = LOWER(REPLACE($${i}, ' ', ''))`;
@@ -309,8 +183,8 @@ router.post('/', async (req, res) => {
           Array.isArray(vendorSnap) ? (vendorSnap[0]?.negotiated_charges || null) : (vendorSnap ? vendorSnap.negotiated_charges : null)
         );
         await client.query(
-          `INSERT INTO booking (booking_no, booking_type, enquiry_id, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, carriage_map, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+          `INSERT INTO booking (booking_no, booking_type, enquiry_id, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, carriage_map, cargo, schedules, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
           [
             bookingNo,
             'from_enquiry',
@@ -321,8 +195,8 @@ router.post('/', async (req, res) => {
             enq.company_name || company_name || null,
             enq.from_location || from_location || null,
             enq.to_location || to_location || null,
-            enq.effective_date_from || effective_date_from || null,
-            enq.effective_date_to || effective_date_to || null,
+            effective_date_from || enq.effective_date_from || null,
+            effective_date_to || enq.effective_date_to || null,
             enq.department || department || null,
             enq.service_type || service_type || null,
             status,
@@ -331,10 +205,12 @@ router.post('/', async (req, res) => {
             lineItemSnap ? JSON.stringify(lineItemSnap) : null,
             chargesSnap ? JSON.stringify(chargesSnap) : null,
             carriageMapSnap ? JSON.stringify(carriageMapSnap) : null,
-            enq.company_code || null,
-            enq.branch_code || null,
-            enq.department_code || null,
-            enq.service_type_code || null,
+            cargo ? JSON.stringify(cargo) : null,
+            schedules ? JSON.stringify(schedules) : null,
+            enq.company_code || companyCode || null,
+            enq.branch_code || branchCode || null,
+            enq.department_code || departmentCode || null,
+            enq.service_type_code || serviceTypeCode || null,
             username,
             enq.enquiry_type || enquiry_type || null
           ]
@@ -362,6 +238,20 @@ router.post('/', async (req, res) => {
             await client.query(
               `INSERT INTO booking_charges (booking_id, charge_name, currency, basis, amount, sell_rate_currency, sell_rate, gst_vat, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
               [bookingId, chargeName, currencyVal, basisVal, amountVal, sellRateCur, sellRateVal, gstVatVal, remarksVal, JSON.stringify(ch)]
+            );
+          }
+          const cargoArr = Array.isArray(cargo) ? cargo : [];
+          for (const cg of cargoArr) {
+            await client.query(
+              `INSERT INTO booking_cargo (booking_id, cargo_type, description, quantity, unit, weight, volume, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+              [bookingId, cg.cargo_type || cg.type || null, cg.description || null, cg.quantity || null, cg.unit || null, cg.weight || null, cg.volume || null, cg.remarks || null, JSON.stringify(cg)]
+            );
+          }
+          const schArr = Array.isArray(schedules) ? schedules : [];
+          for (const sc of schArr) {
+            await client.query(
+              `INSERT INTO booking_schedules (booking_id, schedule_date, milestone, location, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6)`,
+              [bookingId, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc)]
             );
           }
         }

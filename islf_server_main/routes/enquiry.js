@@ -2662,7 +2662,7 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
   }
 });
 
-module.exports = router;
+
 // DELETE all vendor cards and sub-charges for an enquiry line item (scope: all|sourcing|tariff)
 router.delete("/:code/line-item/:lineItemId/vendor-cards", async (req, res) => {
   try {
@@ -2700,3 +2700,40 @@ router.delete("/:code/line-item/:lineItemId/vendor-cards", async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// DELETE specific vendor card and its sub-charges
+router.delete("/:code/vendor-cards/:cardId", async (req, res) => {
+  try {
+    const { code, cardId } = req.params;
+    const { rows: enqRows } = await pool.query("SELECT id FROM enquiry WHERE code = $1", [code]);
+    if (enqRows.length === 0) return res.status(404).json({ error: "Enquiry not found" });
+    const enquiryId = enqRows[0].id;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Delete sub-charges first
+      await client.query(
+        "DELETE FROM enquiry_vendor_sub_charges WHERE enquiry_id = $1 AND master_id = $2",
+        [enquiryId, Number(cardId)]
+      );
+      // Delete the card
+      const result = await client.query(
+        "DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND id = $2",
+        [enquiryId, Number(cardId)]
+      );
+      await client.query('COMMIT');
+      res.json({ message: "Vendor card and sub-charges deleted", rowCount: result.rowCount });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error deleting vendor card:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+module.exports = router;

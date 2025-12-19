@@ -2,7 +2,8 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Observable, forkJoin } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
@@ -114,11 +115,15 @@ import { VendorService } from '../../services/vendor.service';
             <td>{{ row.service_type }}</td>
             <td>{{ locName(row.from_location) }}</td>
             <td>{{ locName(row.to_location) }}</td>
-            <td>{{ row.status }}</td>
+            <td>
+              <span [ngClass]="getStatusClass(row.status)">
+                {{ row.status }}
+              </span>
+            </td>
             
             <td>
               <button pButton label="Open" icon="pi pi-external-link" class="p-button-sm" (click)="openBooking(row.booking_no)"></button>
-              <button pButton icon="pi pi-link" class="p-button-secondary p-button-sm ml-1" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
+              <button pButton icon="pi pi-link" class="p-button-rounded p-button-outlined p-button-secondary p-button-sm ml-1" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
             </td>
           </tr>
         </ng-template>
@@ -126,38 +131,40 @@ import { VendorService } from '../../services/vendor.service';
     </div>
 
     <p-dialog header="Create Booking" [(visible)]="showCreateDialog" [modal]="true" [style]="{width: '95vw', maxWidth: '95vw'}" [contentStyle]="{height: '70vh'}">
-      <div class="grid grid-cols-12 gap-3">
-        <div class="col-span-6">
-          <label class="block mb-1">Department</label>
-          <p-dropdown [options]="departmentOptions" [(ngModel)]="dialog.department" (ngModelChange)="onDepartmentChange()" [filter]="true" filterBy="label" placeholder="Select Department"></p-dropdown>
-        </div>
-        <div class="col-span-6">
-          <label class="block mb-1">Service Type</label>
-          <p-dropdown [options]="serviceTypeOptions" [(ngModel)]="dialog.service_type" [filter]="true" filterBy="label" placeholder="Select Service Type"></p-dropdown>
-        </div>
-        <div class="col-span-6 flex gap-2">
-          <div class="w-1/3">
-            <label class="block mb-1">From Location Type</label>
-            <p-dropdown [options]="locationTypeOptions" [(ngModel)]="dialog.from_location_type" (onChange)="onLocationTypeChange('from')" placeholder="Type" [showClear]="true"></p-dropdown>
+      <div class="border-2 border-slate-200 rounded-lg p-4 bg-slate-50 mb-3">
+        <div class="grid grid-cols-12 gap-4">
+          <div class="col-span-12 md:col-span-6 lg:col-span-6">
+            <label class="block mb-1 font-medium text-slate-700">Department</label>
+            <p-dropdown [options]="departmentOptions" [(ngModel)]="dialog.department" (ngModelChange)="onDepartmentChange(); searchEnquiries()" [filter]="true" filterBy="label" placeholder="Select Department" [style]="{'width':'100%'}" appendTo="body"></p-dropdown>
           </div>
-          <div class="w-2/3">
-            <label class="block mb-1">From Location</label>
-            <p-dropdown [options]="fromLocationOptions" [(ngModel)]="dialog.from_location" [filter]="true" filterBy="label" placeholder="Select From"></p-dropdown>
+          <div class="col-span-12 md:col-span-6 lg:col-span-6">
+            <label class="block mb-1 font-medium text-slate-700">Service Type</label>
+            <p-dropdown [options]="serviceTypeOptions" [(ngModel)]="dialog.service_type" (ngModelChange)="searchEnquiries()" [filter]="true" filterBy="label" placeholder="Select Service Type" [style]="{'width':'100%'}" appendTo="body"></p-dropdown>
+          </div>
+          <div class="col-span-12 lg:col-span-6 flex gap-3">
+            <div class="w-1/3">
+              <label class="block mb-1 font-medium text-slate-700">From Location Type</label>
+              <p-dropdown [options]="locationTypeOptions" [(ngModel)]="dialog.from_location_type" (onChange)="onLocationTypeChange('from'); searchEnquiries()" placeholder="Type" [showClear]="true" [style]="{'width':'100%'}" appendTo="body"></p-dropdown>
+            </div>
+            <div class="w-2/3">
+              <label class="block mb-1 font-medium text-slate-700">From Location</label>
+              <p-dropdown [options]="fromLocationOptions" [(ngModel)]="dialog.from_location" (ngModelChange)="searchEnquiries()" [filter]="true" filterBy="label" placeholder="Select From" [style]="{'width':'100%'}" appendTo="body"></p-dropdown>
+            </div>
+          </div>
+          <div class="col-span-12 lg:col-span-6 flex gap-3">
+            <div class="w-1/3">
+               <label class="block mb-1 font-medium text-slate-700">To Location Type</label>
+               <p-dropdown [options]="locationTypeOptions" [(ngModel)]="dialog.to_location_type" (onChange)="onLocationTypeChange('to'); searchEnquiries()" placeholder="Type" [showClear]="true" [style]="{'width':'100%'}" appendTo="body"></p-dropdown>
+            </div>
+            <div class="w-2/3">
+              <label class="block mb-1 font-medium text-slate-700">To Location</label>
+              <p-dropdown [options]="toLocationOptions" [(ngModel)]="dialog.to_location" (ngModelChange)="searchEnquiries()" [filter]="true" filterBy="label" placeholder="Select To" [style]="{'width':'100%'}" appendTo="body"></p-dropdown>
+            </div>
           </div>
         </div>
-        <div class="col-span-6 flex gap-2">
-          <div class="w-1/3">
-             <label class="block mb-1">To Location Type</label>
-             <p-dropdown [options]="locationTypeOptions" [(ngModel)]="dialog.to_location_type" (onChange)="onLocationTypeChange('to')" placeholder="Type" [showClear]="true"></p-dropdown>
-          </div>
-          <div class="w-2/3">
-            <label class="block mb-1">To Location</label>
-            <p-dropdown [options]="toLocationOptions" [(ngModel)]="dialog.to_location" [filter]="true" filterBy="label" placeholder="Select To"></p-dropdown>
-          </div>
+        <div class="flex justify-end mt-3">
+          <button pButton label="Clear Filters" icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary p-button-sm" (click)="clearFilters()"></button>
         </div>
-      </div>
-      <div class="flex gap-2 mt-3">
-        <button pButton label="Search Enquiry" icon="pi pi-search" (click)="searchEnquiries()"></button>
       </div>
 
       <div class="mt-3" *ngIf="matchingEnquiries.length">
@@ -206,13 +213,13 @@ import { VendorService } from '../../services/vendor.service';
       <div class="grid grid-cols-12 gap-4 mb-6">
         <div class="col-span-3">
           <label class="block mb-1">Booking No</label>
-          <input pInputText class="bg-yellow-50" [readonly]="true" [(ngModel)]="currentBooking.booking_no"/>
+          <input pInputText class="bg-yellow-50 w-60" [readonly]="true" [(ngModel)]="currentBooking.booking_no"/>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Enquiry Type</label>
           <div class="flex gap-1">
             <ng-container *ngIf="currentBooking.booking_type === 'manual' || !currentBooking.booking_type">
-              <p-dropdown [options]="enquiryTypeOptions" [(ngModel)]="currentBooking.enquiry_type" placeholder="Select Type" class="w-60"></p-dropdown>
+              <p-dropdown [options]="enquiryTypeOptions" [(ngModel)]="currentBooking.enquiry_type" placeholder="Select Type" class="w-60" appendTo="body"></p-dropdown>
             </ng-container>
             <ng-container *ngIf="currentBooking.booking_type === 'from_enquiry'">
               <input pInputText class="bg-yellow-50" [readonly]="true" [(ngModel)]="currentBooking.enquiry_type"/>
@@ -246,15 +253,15 @@ import { VendorService } from '../../services/vendor.service';
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date From</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '220px' }"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date To</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '220px' }"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Status</label>
-          <p-dropdown [(ngModel)]="currentBooking.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" placeholder="Select Status" [style]="{'width': '20rem'}"></p-dropdown>
+          <p-dropdown [(ngModel)]="currentBooking.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" placeholder="Select Status" class="w-60" [style]="{'width': '200px'}" appendTo="body"></p-dropdown>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Remarks</label>
@@ -266,7 +273,7 @@ import { VendorService } from '../../services/vendor.service';
         </div>
       </div>
 
-      <div class="section-header">Carriage List</div>
+      <div class="section-header">Cargo List</div>
       <div class="mb-2">
         <button pButton label="+ Add Cargo" class="p-button-sm" (click)="addCargoRow()"></button>
       </div>
@@ -282,13 +289,13 @@ import { VendorService } from '../../services/vendor.service';
         <ng-template pTemplate="body" let-cg let-i="rowIndex">
           <tr>
             <td>
-              <p-dropdown [(ngModel)]="cg.cargo_type" [options]="cargoTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" (onChange)="onCargoTypeChange(cg)"></p-dropdown>
+              <p-dropdown [(ngModel)]="cg.cargo_type" [options]="cargoTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onCargoTypeChange(cg)"></p-dropdown>
             </td>
             <td>
-              <p-dropdown [(ngModel)]="cg.description" [options]="getCargoNamesByType(cg.cargo_type)" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" (onChange)="onCargoNameChange(cg)"></p-dropdown>
+              <p-dropdown [(ngModel)]="cg.description" [options]="cg._descriptionOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onCargoNameChange(cg)"></p-dropdown>
             </td>
             <td>
-              <p-dropdown [(ngModel)]="cg.hs_code" [options]="getHsCodesByTypeAndName(cg.cargo_type, cg.description)" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body"></p-dropdown>
+              <p-dropdown [(ngModel)]="cg.hs_code" [options]="cg._hsCodeOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"  appendTo="body" class="w-60"></p-dropdown>
             </td>
             <td><button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCargoRow(i)"></button></td>
           </tr>
@@ -342,14 +349,14 @@ import { VendorService } from '../../services/vendor.service';
             <td><input pInputText class="bg-orange-50" [(ngModel)]="li.basis_qty"/></td>
             <td><input pInputText class="bg-orange-50" [(ngModel)]="li.booking_ref"/></td>
             <td>
-              <p-calendar [(ngModel)]="li.valid_till" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-96" [inputStyle]="{ width: '260px' }" [style]="{ width: '260px' }"></p-calendar>
+              <p-calendar [(ngModel)]="li.valid_till" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-40" [inputStyle]="{ width: '200px' }" [style]="{ width: '250px' }"></p-calendar>
             </td>
             <td>
-              <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" class="w-full"></p-dropdown>
+              <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" class="w-60" appendTo="body"></p-dropdown>
             </td>
             <td><input pInputText class="bg-orange-50" [(ngModel)]="li.remarks"/></td>
             <td>
-              <p-dropdown [options]="yesNoOptions" [(ngModel)]="li.schedule" (onChange)="onLineItemScheduleChange(li)"></p-dropdown>
+              <p-dropdown [options]="yesNoOptions" [(ngModel)]="li.schedule" (onChange)="onLineItemScheduleChange(li)" appendTo="body"></p-dropdown>
             </td>
           </tr>
         </ng-template>
@@ -375,48 +382,48 @@ import { VendorService } from '../../services/vendor.service';
               <th>ETA</th>
             </tr>
           </ng-template>
-          <ng-template pTemplate="body" let-trn let_i="rowIndex">
+          <ng-template pTemplate="body" let-trn let-i="rowIndex">
             <tr>
               <td>{{ iToOneBased(trn.transit_count) }}</td>
               <td>
                 <div class="flex gap-2 items-center">
-                  <p-dropdown [(ngModel)]="trn.from_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-40"></p-dropdown>
+                  <p-dropdown [(ngModel)]="trn.from_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onTransitLocTypeChange(trn, 'from')"></p-dropdown>
                   <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMasterLocation()"></button>
                 </div>
               </td>
               <td>
-                <p-dropdown [(ngModel)]="trn.from_location" [options]="getLocationsByType(trn.from_location_type)" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-64"></p-dropdown>
+                <p-dropdown [(ngModel)]="trn.from_location" [options]="trn._fromLocationOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
               </td>
               <td>
                 <div class="flex gap-2 items-center">
-                  <p-dropdown [(ngModel)]="trn.to_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-40"></p-dropdown>
+                  <p-dropdown [(ngModel)]="trn.to_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onTransitLocTypeChange(trn, 'to')"></p-dropdown>
                   <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMasterLocation()"></button>
                 </div>
               </td>
               <td>
-                <p-dropdown [(ngModel)]="trn.to_location" [options]="getLocationsByType(trn.to_location_type)" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-64"></p-dropdown>
+                <p-dropdown [(ngModel)]="trn.to_location" [options]="trn._toLocationOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
               </td>
               <td><input pInputText class="bg-orange-50" [(ngModel)]="trn.vessel_airline"/></td>
               <td><input pInputText class="bg-orange-50" [(ngModel)]="trn.voyage_flight_no"/></td>
               <td>
-                <p-calendar [(ngModel)]="trn.etd" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-96" [inputStyle]="{ width: '260px' }" [style]="{ width: '260px' }"></p-calendar>
+                <p-calendar [(ngModel)]="trn.etd" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
               <td>
-                <p-calendar [(ngModel)]="trn.eta" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-96" [inputStyle]="{ width: '260px' }" [style]="{ width: '260px' }"></p-calendar>
+                <p-calendar [(ngModel)]="trn.eta" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
             </tr>
           </ng-template>
         </p-table>
       </div>
       <p-dialog header="Location" [(visible)]="showMasterLocationDialog" [modal]="true" [style]="{width: '85vw'}" [contentStyle]="{height: '70vh'}" [draggable]="false" [resizable]="false">
-        <master-location></master-location>
+        <master-location (onSave)="loadDropdowns()"></master-location>
         <ng-template pTemplate="footer">
           <button pButton label="Close" class="p-button-secondary" (click)="closeMasterLocation()"></button>
         </ng-template>
       </p-dialog>
       <div class="flex justify-end gap-2 mt-4">
         <button pButton label="Cancel" class="p-button-secondary" (click)="showBookingForm=false"></button>
-        <button pButton label="Save Draft" icon="pi pi-save" class="p-button-success" (click)="finalSave()"></button>
+        <button pButton label="Save" icon="pi pi-save" class="p-button-success" (click)="finalSave()"></button>
       </div>
       </div>
       </ng-template>
@@ -482,6 +489,22 @@ export class BookingComponent implements OnInit {
     private cdr: ChangeDetectorRef
   ) { }
 
+  getStatusClass(status: string): string {
+    switch (status) {
+      case 'Open':
+        return 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Closed':
+        return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Confirmed':
+      case 'Active':
+        return 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold';
+      default:
+        return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
+    }
+  }
+
   ngOnInit() {
     // Initial load happens via onLazyLoad
     this.loadDropdowns();
@@ -507,35 +530,74 @@ export class BookingComponent implements OnInit {
   }
 
   loadDropdowns() {
+    this.loading = true;
     const ctx = this.contextService.getContext();
-    this.enquiryService.getDepartmentsDropdown(ctx.companyCode).subscribe((rows) => {
-      this.departmentOptionsRaw = rows || [];
-      this.departmentOptions = this.departmentOptionsRaw.map((d: any) => ({ label: d.display_name || d.name, value: d.name }));
+
+    // 🚀 Parallelize core dropdown calls using forkJoin
+    forkJoin({
+      departments: this.enquiryService.getDepartmentsDropdown(ctx.companyCode).pipe(take(1)),
+      locations: this.masterLocationService.getAll().pipe(take(1)),
+      bookingStatuses: this.masterTypeService.getAllByType('BOOKING_STATUS').pipe(take(1)),
+      cargoItems: this.masterItemService.getAll().pipe(take(1)),
+      vendors: this.vendorService.getAll().pipe(take(1))
+    }).subscribe({
+      next: (res) => {
+        // 1. Departments
+        this.departmentOptionsRaw = res.departments || [];
+        this.departmentOptions = this.departmentOptionsRaw.map((d: any) => ({
+          label: d.display_name || d.name,
+          value: d.name
+        }));
+
+        // 2. Locations (Unified from masterLocationService)
+        this.allLocations = res.locations || [];
+        const locationOpts = this.allLocations.map((l: any) => ({ label: l.name, value: l.code }));
+
+        this.locationMap = {};
+        for (const l of this.allLocations) {
+          this.locationMap[l.code] = l.name || l.code;
+        }
+        this.fromLocationOptions = locationOpts;
+        this.toLocationOptions = locationOpts;
+
+        const locTypes = [...new Set(this.allLocations.map((l: any) => l.type))].filter(Boolean);
+        this.locationTypeOptions = locTypes.map(t => ({ label: t, value: t }));
+
+        // 3. Booking Statuses
+        const statusList = res.bookingStatuses || [];
+        this.bookingStatusOptions = statusList.map((r: any) => ({
+          label: r.display_name || r.name || r.value || r.code,
+          value: r.value || r.name || r.display_name || r.code
+        }));
+
+        // 4. Cargo Items
+        const cargoItems = (res.cargoItems || []).filter(it =>
+          ((it.item_type || '').toString().toUpperCase() === 'CARGO_TYPE')
+        );
+        this.allCargoItems = cargoItems;
+        const cargoTypes = [...new Set(cargoItems.map(ci =>
+          (ci.cargo_type || ci.charge_type || '').toString()
+        ).filter(Boolean))];
+        this.cargoTypeOptions = cargoTypes.map(t => ({ label: t, value: t }));
+
+        // 5. Vendors
+        this.allVendors = res.vendors || [];
+
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load dropdowns:', err);
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     });
-    this.enquiryService.getLocationsDropdown('').subscribe((rows) => {
-      const list = rows || [];
-      const opts = list.map((l: any) => ({ label: l.name, value: l.code }));
-      this.locationMap = {};
-      for (const l of list) this.locationMap[l.code] = l.name || l.code;
-      this.fromLocationOptions = opts; this.toLocationOptions = opts;
+
+    // Handle Service Type Options separately as it's a stream
+    this.contextService.serviceTypeOptions$.pipe(take(1)).subscribe(opts => {
+      this.serviceTypeOptions = opts || [];
+      this.cdr.detectChanges();
     });
-    this.masterLocationService.getAll().subscribe((rows) => {
-      this.allLocations = rows || [];
-      const types = [...new Set(this.allLocations.map((l: any) => l.type))].filter(Boolean);
-      this.locationTypeOptions = types.map(t => ({ label: t, value: t }));
-    });
-    this.contextService.serviceTypeOptions$.subscribe(opts => { this.serviceTypeOptions = opts || []; });
-    this.masterTypeService.getAllByType('BOOKING_STATUS').subscribe(rows => {
-      const list = rows || [];
-      this.bookingStatusOptions = list.map((r: any) => ({ label: r.display_name || r.name || r.value || r.code, value: r.value || r.name || r.display_name || r.code }));
-    });
-    this.masterItemService.getAll().subscribe(items => {
-      const cargoItems = (items || []).filter(it => ((it.item_type || '').toString().toUpperCase() === 'CARGO_TYPE'));
-      this.allCargoItems = cargoItems;
-      const types = [...new Set(cargoItems.map(ci => (ci.cargo_type || ci.charge_type || '').toString()).filter(Boolean))];
-      this.cargoTypeOptions = types.map(t => ({ label: t, value: t }));
-    });
-    this.vendorService.getAll().subscribe(rows => { this.allVendors = rows || []; });
   }
 
   openCreateDialog() {
@@ -545,6 +607,7 @@ export class BookingComponent implements OnInit {
     this.isSelectingForExisting = false;
     this.onLocationTypeChange('from');
     this.onLocationTypeChange('to');
+    this.searchEnquiries();
   }
 
   openEnquirySelection() {
@@ -554,6 +617,7 @@ export class BookingComponent implements OnInit {
     this.isSelectingForExisting = true;
     this.onLocationTypeChange('from');
     this.onLocationTypeChange('to');
+    this.searchEnquiries();
   }
 
   onLocationTypeChange(field: 'from' | 'to') {
@@ -577,6 +641,13 @@ export class BookingComponent implements OnInit {
     if (deptCode) {
       this.contextService.loadServiceTypesForDepartment(deptCode);
     }
+  }
+
+  clearFilters() {
+    this.dialog = { department: '', service_type: '', from_location_type: '', from_location: '', to_location_type: '', to_location: '' };
+    this.onLocationTypeChange('from');
+    this.onLocationTypeChange('to');
+    this.searchEnquiries();
   }
 
   searchEnquiries() {
@@ -649,8 +720,24 @@ export class BookingComponent implements OnInit {
   }
 
   finalSave() {
-    const payload = { ...this.currentBooking, cargo: this.cargoRows, carriage_map: this.carriageRows, line_items: this.lineItemsRows, schedules: this.flattenSchedules() } as BookingRecord;
-    if (this.isFrozen) { this.showBookingForm = false; return; }
+    const payload = {
+      ...this.currentBooking,
+      effective_date_from: this.formatDate(this.currentBooking.effective_date_from),
+      effective_date_to: this.formatDate(this.currentBooking.effective_date_to),
+      cargo: this.cargoRows,
+      carriage_map: this.carriageRows,
+      line_items: this.lineItemsRows.map(li => ({
+        ...li,
+        valid_till: this.formatDate(li.valid_till)
+      })),
+      schedules: this.flattenSchedules().map(s => ({
+        ...s,
+        etd: this.formatDate(s.etd),
+        eta: this.formatDate(s.eta)
+      }))
+    } as BookingRecord;
+
+    // if (this.isFrozen) { this.showBookingForm = false; return; }
 
     if (payload.id) {
       this.bookingService.updateBooking(payload.id, payload).subscribe({
@@ -671,164 +758,222 @@ export class BookingComponent implements OnInit {
     return type || '';
   }
   openBooking(bookingNo: string) {
+    this.loading = true;
+
+    // 🚀 Only load vendors if not already loaded to save an API call
+    const vendors$ = this.allVendors.length > 0 ? of(this.allVendors) : this.vendorService.getAll().pipe(take(1));
+
     forkJoin({
-      vendors: this.vendorService.getAll(),
-      booking: this.bookingService.getByNo(bookingNo)
-    }).subscribe(({ vendors, booking }) => {
-      this.allVendors = vendors || [];
-      console.log('DEBUG: All Vendors Loaded:', this.allVendors.length);
-      if (this.allVendors.length > 0) console.log('DEBUG: Sample Vendor:', this.allVendors[0]);
+      vendors: vendors$,
+      booking: this.bookingService.getByNo(bookingNo).pipe(take(1))
+    }).subscribe({
+      next: ({ vendors, booking }) => {
+        this.allVendors = vendors || [];
+        const b = booking;
+        this.currentBooking = b as any;
 
-      const b = booking;
-      this.currentBooking = b as any;
-      if (this.currentBooking.effective_date_from) this.currentBooking.effective_date_from = new Date(this.currentBooking.effective_date_from) as any;
-      if (this.currentBooking.effective_date_to) this.currentBooking.effective_date_to = new Date(this.currentBooking.effective_date_to) as any;
+        this.currentBooking.effective_date_from = this.parseDate(this.currentBooking.effective_date_from) as any;
+        this.currentBooking.effective_date_to = this.parseDate(this.currentBooking.effective_date_to) as any;
 
-      this.isFrozen = (b as any)?.booking_type === 'from_enquiry';
-      this.cargoRows = Array.isArray((b as any)?.cargo) ? (b as any).cargo : [];
-      this.carriageRows = Array.isArray((b as any)?.carriage_map) ? (b as any).carriage_map : [];
-      const rawItems = Array.isArray((b as any)?.line_items) ? (b as any).line_items : [];
-      const toLabel = (code: any) => this.locationMap[(code || '').toString()] || code || '';
-      // Map location codes to display names and sourced vendor
-      const vendorCards = Array.isArray((b as any)?.vendor_details) ? (b as any).vendor_details : ((b as any)?.vendor_details ? [(b as any).vendor_details] : []);
-      this.lineItemsRows = rawItems.map((li: any) => {
-        const svc = li.service_area || li.type || '';
-        const match = vendorCards.find((vc: any) => (vc.service_area || '').toString().trim().toLowerCase() === (svc || '').toString().trim().toLowerCase());
-        const validVendor = vendorCards.find((vc: any) => {
-          const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
-          return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
-            (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
-            (vc.code || '').toString().trim().toLowerCase() === lookup;
-        });
-        const vendorName = validVendor?.vendor_name || li.sourced_vendor || (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
-        return {
-          ...li,
-          from_location: toLabel(li.from_location || li.line_from_location || li.line_from_location_name || ''),
-          to_location: toLabel(li.to_location || li.line_to_location || li.line_to_location_name || ''),
-          sourced_vendor: vendorName
-        };
-      });
-      // Map carriage locations to names
-      this.carriageRows = (this.carriageRows || []).map((cr: any) => ({
-        ...cr,
-        location: toLabel(cr.location || '')
-      }));
-      this.currentBooking.from_location = toLabel((b as any)?.from_location || '');
-      this.currentBooking.to_location = toLabel((b as any)?.to_location || '');
-      const sched = Array.isArray((b as any)?.schedules) ? (b as any).schedules : [];
-      this.scheduleGroups = {};
-      const services = [...new Set(this.lineItemsRows.map(li => (li.service_area || li.type || 'SERVICE')))] as string[];
-      for (const s of sched) {
-        const key = s.service || services[0] || 'SERVICE';
-        if (!this.scheduleGroups[key]) this.scheduleGroups[key] = [];
-        this.scheduleGroups[key].push({ ...s });
-      }
-      for (const li of this.lineItemsRows) {
-        const key = li.service_area || li.type || 'SERVICE';
-        li.schedule = (this.scheduleGroups[key] && this.scheduleGroups[key].length > 0) ? 'YES' : 'NO';
-      }
+        this.isFrozen = (b as any)?.booking_type === 'from_enquiry';
 
+        // Init Cargo Rows and their pre-calculated options
+        this.cargoRows = (Array.isArray((b as any)?.cargo) ? (b as any).cargo : []).map((cg: any) => ({
+          ...cg,
+          _descriptionOptions: this.getCargoNamesByType(cg.cargo_type),
+          _hsCodeOptions: this.getHsCodesByTypeAndName(cg.cargo_type, cg.description)
+        }));
 
-      if (this.pendingLinkEnquiries.length > 0) {
-        // this.currentBooking.booking_type = 'from_enquiry'; // Removed to prevents creation of new booking
-        const selected = this.pendingLinkEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
-        this.currentBooking.selected_enquiries = selected;
-        // Map first enquiry details to booking
-        if (this.pendingLinkEnquiries.length === 1) {
-          const enq = this.pendingLinkEnquiries[0];
-          // Fetch full details since table row might be partial
-          this.enquiryService.getByCode(enq.code).subscribe((fullEnq: any) => {
-            this.currentBooking.company_name = fullEnq.customer_name;
-            this.currentBooking.department = fullEnq.department;
-            this.currentBooking.service_type = fullEnq.service_type;
-            this.currentBooking.from_location = this.locName(fullEnq.from_location);
-            this.currentBooking.to_location = this.locName(fullEnq.to_location);
-            this.currentBooking.enquiry_type = fullEnq.enquiry_type;
-            this.currentBooking.effective_date_from = fullEnq.effective_date_from ? new Date(fullEnq.effective_date_from) : undefined as any;
-            this.currentBooking.effective_date_to = fullEnq.effective_date_to ? new Date(fullEnq.effective_date_to) : undefined as any;
-            this.currentBooking.source_sales_person = fullEnq.sales_person;
+        this.carriageRows = Array.isArray((b as any)?.carriage_map) ? (b as any).carriage_map : [];
+        const rawItems = Array.isArray((b as any)?.line_items) ? (b as any).line_items : [];
 
-            // Map Line Items
-            if (Array.isArray(fullEnq.line_items)) {
-              const enqVendorCards = fullEnq.vendor_cards || [];
-              this.lineItemsRows = fullEnq.line_items.map((li: any) => {
-                const sourcingSummary = Array.isArray(li.enquiry_summary) ? li.enquiry_summary.find((s: any) => s.summary_type === 'sourcing') : null;
-
-                const validVendor = enqVendorCards.find((vc: any) => {
-                  const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
-                  return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
-                    (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
-                    (vc.code || '').toString().trim().toLowerCase() === lookup;
-                });
-
-                let vendorName = validVendor?.vendor_name || (sourcingSummary ? sourcingSummary.vendor_name : (li.sourced_vendor || ''));
-
-                // Attempt to resolve vendor name from master list if it's a code
-                if (vendorName && this.allVendors.length > 0) {
-                  const lookup = vendorName.toString().trim().toLowerCase();
-                  const masterVendor = this.allVendors.find((v: any) => (v.vendor_no || '').toString().trim().toLowerCase() === lookup || (v.code || '').toString().trim().toLowerCase() === lookup);
-                  if (masterVendor) vendorName = masterVendor.name || masterVendor.name2 || masterVendor.vendor_name || vendorName;
-                }
-
-                console.log('DEBUG Vendor Lookup:', {
-                  sourced: li.sourced_vendor,
-                  validVendor: validVendor,
-                  vendorName: vendorName
-                });
-
-                return {
-                  type: li.type,
-                  service_area: li.service_area,
-                  basis: li.basis,
-                  from_location: this.locName(li.line_from_location || li.from_location),
-                  to_location: this.locName(li.line_to_location || li.to_location),
-                  sourced_vendor: vendorName,
-                  basis_qty: li.basis_qty,
-                  booking_ref: '',
-                  valid_till: li.valid_till ? new Date(li.valid_till) : undefined,
-                  status: 'Active',
-                  remarks: li.remarks,
-                  schedule: 'NO'
-                };
-              });
-            }
-
-            // Map Cargo
-            if (Array.isArray(fullEnq.cargo)) {
-              this.cargoRows = fullEnq.cargo.map((cg: any) => ({
-                cargo_type: cg.cargo_type,
-                description: cg.description,
-                hs_code: cg.hs_code
-              }));
-            }
-
-            // Map Carriage List
-            if (Array.isArray(fullEnq.carriage_map)) {
-              this.carriageRows = fullEnq.carriage_map.map((cm: any) => ({
-                carriage: cm.carriage,
-                location_type: cm.location_type,
-                location: this.locName(cm.location)
-              }));
-            }
+        // Init Schedule Groups and their options
+        this.scheduleGroups = {};
+        const scheds = (b as any)?.schedules || [];
+        if (Array.isArray(scheds)) {
+          scheds.forEach((s: any) => {
+            const key = s.service || 'SERVICE';
+            if (!this.scheduleGroups[key]) this.scheduleGroups[key] = [];
+            this.scheduleGroups[key].push({
+              ...s,
+              etd: this.parseDate(s.etd),
+              eta: this.parseDate(s.eta),
+              _fromLocationOptions: this.getLocationsByType(s.from_location_type),
+              _toLocationOptions: this.getLocationsByType(s.to_location_type)
+            });
           });
         }
 
-        this.pendingLinkEnquiries = [];
-        this.messageService.add({ severity: 'info', summary: 'Enquiry Linked', detail: 'Please review and save changes' });
-      }
+        const toLabel = (code: any) => this.locationMap[(code || '').toString()] || code || '';
+        // Map location codes to display names and sourced vendor
+        const vendorCards = Array.isArray((b as any)?.vendor_details) ? (b as any).vendor_details : ((b as any)?.vendor_details ? [(b as any).vendor_details] : []);
+        this.lineItemsRows = rawItems.map((li: any) => {
+          const svc = li.service_area || li.type || '';
+          const match = vendorCards.find((vc: any) => (vc.service_area || '').toString().trim().toLowerCase() === (svc || '').toString().trim().toLowerCase());
+          const validVendor = vendorCards.find((vc: any) => {
+            const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
+            return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
+              (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
+              (vc.code || '').toString().trim().toLowerCase() === lookup;
+          });
+          const vendorName = validVendor?.vendor_name || li.sourced_vendor || (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
 
-      this.showBookingForm = true;
+          const key = li.service_area || li.type || 'SERVICE';
+          const hasSchedule = (this.scheduleGroups[key] && this.scheduleGroups[key].length > 0) ? 'YES' : 'NO';
+
+          return {
+            ...li,
+            from_location: toLabel(li.from_location || li.line_from_location || li.line_from_location_name || ''),
+            to_location: toLabel(li.to_location || li.line_to_location || li.line_to_location_name || ''),
+            sourced_vendor: vendorName,
+            valid_till: this.parseDate(li.valid_till),
+            schedule: hasSchedule
+          };
+        });
+
+        this.carriageRows = (this.carriageRows || []).map((cr: any) => ({
+          ...cr,
+          location: toLabel(cr.location || '')
+        }));
+
+        this.currentBooking.from_location = toLabel((b as any)?.from_location || '');
+        this.currentBooking.to_location = toLabel((b as any)?.to_location || '');
+
+
+        if (this.pendingLinkEnquiries.length > 0) {
+          // this.currentBooking.booking_type = 'from_enquiry'; // Removed to prevents creation of new booking
+          const selected = this.pendingLinkEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
+          this.currentBooking.selected_enquiries = selected;
+          // Map first enquiry details to booking
+          if (this.pendingLinkEnquiries.length === 1) {
+            const enq = this.pendingLinkEnquiries[0];
+            // Fetch full details since table row might be partial
+            this.enquiryService.getByCode(enq.code).subscribe((fullEnq: any) => {
+              this.currentBooking.company_name = fullEnq.customer_name;
+              this.currentBooking.department = fullEnq.department;
+              this.currentBooking.service_type = fullEnq.service_type;
+              this.currentBooking.from_location = this.locName(fullEnq.from_location);
+              this.currentBooking.to_location = this.locName(fullEnq.to_location);
+              this.currentBooking.enquiry_type = fullEnq.enquiry_type;
+              this.currentBooking.effective_date_from = this.parseDate(fullEnq.effective_date_from) as any;
+              this.currentBooking.effective_date_to = this.parseDate(fullEnq.effective_date_to) as any;
+              this.currentBooking.source_sales_person = fullEnq.sales_person;
+
+              // Map Line Items
+              if (Array.isArray(fullEnq.line_items)) {
+                const enqVendorCards = fullEnq.vendor_cards || [];
+                this.lineItemsRows = fullEnq.line_items.map((li: any) => {
+                  const sourcingSummary = Array.isArray(li.enquiry_summary) ? li.enquiry_summary.find((s: any) => s.summary_type === 'sourcing') : null;
+
+                  const validVendor = enqVendorCards.find((vc: any) => {
+                    const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
+                    return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
+                      (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
+                      (vc.code || '').toString().trim().toLowerCase() === lookup;
+                  });
+
+                  let vendorName = validVendor?.vendor_name || (sourcingSummary ? sourcingSummary.vendor_name : (li.sourced_vendor || ''));
+
+                  // Attempt to resolve vendor name from master list if it's a code
+                  if (vendorName && this.allVendors.length > 0) {
+                    const lookup = vendorName.toString().trim().toLowerCase();
+                    const masterVendor = this.allVendors.find((v: any) => (v.vendor_no || '').toString().trim().toLowerCase() === lookup || (v.code || '').toString().trim().toLowerCase() === lookup);
+                    if (masterVendor) vendorName = masterVendor.name || masterVendor.name2 || masterVendor.vendor_name || vendorName;
+                  }
+
+                  console.log('DEBUG Vendor Lookup:', {
+                    sourced: li.sourced_vendor,
+                    validVendor: validVendor,
+                    vendorName: vendorName
+                  });
+
+                  return {
+                    type: li.type,
+                    service_area: li.service_area,
+                    basis: li.basis,
+                    from_location: this.locName(li.line_from_location || li.from_location),
+                    to_location: this.locName(li.line_to_location || li.to_location),
+                    sourced_vendor: vendorName,
+                    basis_qty: li.basis_qty,
+                    booking_ref: '',
+                    valid_till: this.parseDate(li.valid_till),
+                    status: 'Active',
+                    remarks: li.remarks,
+                    schedule: 'NO'
+                  };
+                });
+              }
+
+              // Map Cargo
+              if (Array.isArray(fullEnq.cargo)) {
+                this.cargoRows = fullEnq.cargo.map((cg: any) => ({
+                  cargo_type: cg.cargo_type,
+                  description: cg.description,
+                  hs_code: cg.hs_code
+                }));
+              }
+
+              // Map Carriage List
+              if (Array.isArray(fullEnq.carriage_map)) {
+                this.carriageRows = fullEnq.carriage_map.map((cm: any) => ({
+                  carriage: cm.carriage,
+                  location_type: cm.location_type,
+                  location: this.locName(cm.location)
+                }));
+              }
+            });
+          }
+
+          this.pendingLinkEnquiries = [];
+          this.messageService.add({ severity: 'info', summary: 'Enquiry Linked', detail: 'Please review and save changes' });
+        }
+
+        this.loading = false;
+        this.showBookingForm = true;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load booking:', err);
+        this.loading = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load booking details' });
+      }
     });
   }
 
-  addCargoRow() { this.cargoRows = [...this.cargoRows, { cargo_type: '', description: '', hs_code: '' }]; }
-  removeCargoRow(i: number) { this.cargoRows.splice(i, 1); this.cargoRows = [...this.cargoRows]; }
+  addCargoRow() {
+    this.cargoRows = [...this.cargoRows, {
+      cargo_type: '',
+      description: '',
+      hs_code: '',
+      _descriptionOptions: [],
+      _hsCodeOptions: []
+    }];
+  }
+
+  removeCargoRow(i: number) {
+    this.cargoRows.splice(i, 1);
+    this.cargoRows = [...this.cargoRows];
+  }
 
   addTransit(service: string) {
     if (!this.scheduleGroups[service]) this.scheduleGroups[service] = [];
     const cnt = this.scheduleGroups[service].length;
-    this.scheduleGroups[service] = [...this.scheduleGroups[service], { service, transit_count: cnt, from_location_type: '', from_location: '', to_location_type: '', to_location: '', vessel_airline: '', voyage_flight_no: '', etd: '', eta: '' }];
+    this.scheduleGroups[service] = [...this.scheduleGroups[service], {
+      service,
+      transit_count: cnt,
+      from_location_type: '',
+      from_location: '',
+      to_location_type: '',
+      to_location: '',
+      vessel_airline: '',
+      voyage_flight_no: '',
+      etd: '',
+      eta: '',
+      _fromLocationOptions: [],
+      _toLocationOptions: []
+    }];
   }
+
   onLineItemScheduleChange(li: any) {
     const key = li.service_area || li.type || 'SERVICE';
     if ((li.schedule || '').toString().toUpperCase() === 'YES') {
@@ -839,6 +984,7 @@ export class BookingComponent implements OnInit {
       delete this.scheduleGroups[key];
     }
   }
+
   scheduleServiceKeys(): string[] {
     const yesServices = new Set(
       this.lineItemsRows
@@ -847,25 +993,43 @@ export class BookingComponent implements OnInit {
     );
     return Array.from(yesServices).filter(k => !!this.scheduleGroups[k]);
   }
+
   flattenSchedules(): any[] {
     const out: any[] = [];
     for (const k of Object.keys(this.scheduleGroups)) for (const t of this.scheduleGroups[k]) out.push({ ...t, service: k });
     return out;
   }
+
   iToOneBased(v: any) { const n = Number(v ?? 0); return isNaN(n) ? '' : (n + 1); }
-  locName(code: any) { const key = (code || '').toString(); return this.locationMap[key] || key; }
+
+  locName(code: any) {
+    const key = (code || '').toString();
+    return this.locationMap[key] || key;
+  }
+
   getLocationsByType(type: any) {
     const t = (type || '').toString();
+    if (!t) return [];
     return (this.allLocations || [])
       .filter((l: any) => (l.type || '').toString() === t)
       .map((l: any) => ({ label: l.name, value: l.code }));
   }
+
+  onTransitLocTypeChange(trn: any, field: 'from' | 'to') {
+    if (field === 'from') {
+      trn._fromLocationOptions = this.getLocationsByType(trn.from_location_type);
+    } else {
+      trn._toLocationOptions = this.getLocationsByType(trn.to_location_type);
+    }
+  }
+
   getCargoNamesByType(type: any) {
     const t = (type || '').toString();
     return (this.allCargoItems || [])
       .filter((ci: any) => ((ci.cargo_type || ci.charge_type || '').toString() === t))
       .map((ci: any) => ({ label: ci.name, value: ci.name }));
   }
+
   getHsCodesByTypeAndName(type: any, name: any) {
     const t = (type || '').toString();
     const n = (name || '').toString();
@@ -873,34 +1037,33 @@ export class BookingComponent implements OnInit {
       .filter((ci: any) => ((ci.cargo_type || ci.charge_type || '').toString() === t) && ((ci.name || '').toString() === n))
       .map((ci: any) => ({ label: ci.hs_code, value: ci.hs_code }));
   }
+
   onCargoTypeChange(cg: any) {
-    const names = this.getCargoNamesByType(cg.cargo_type);
-    if (names.length === 1) {
-      cg.description = names[0].value;
+    cg._descriptionOptions = this.getCargoNamesByType(cg.cargo_type);
+    if (cg._descriptionOptions.length === 1) {
+      cg.description = cg._descriptionOptions[0].value;
     } else {
       cg.description = '';
     }
-    const codes = this.getHsCodesByTypeAndName(cg.cargo_type, cg.description);
-    if (codes.length === 1) {
-      cg.hs_code = codes[0].value;
-    } else {
-      cg.hs_code = '';
-    }
-    this.cargoRows = [...this.cargoRows];
+    this.onCargoNameChange(cg);
   }
+
   onCargoNameChange(cg: any) {
-    const codes = this.getHsCodesByTypeAndName(cg.cargo_type, cg.description);
-    if (codes.length === 1) {
-      cg.hs_code = codes[0].value;
+    cg._hsCodeOptions = this.getHsCodesByTypeAndName(cg.cargo_type, cg.description);
+    if (cg._hsCodeOptions.length === 1) {
+      cg.hs_code = cg._hsCodeOptions[0].value;
     } else {
       cg.hs_code = '';
     }
     this.cargoRows = [...this.cargoRows];
   }
+
   openMasterLocation() { this.showMasterLocationDialog = true; }
+
   closeMasterLocation() {
     this.showMasterLocationDialog = false;
-    this.masterLocationService.getAll().subscribe(rows => { this.allLocations = rows || []; });
+    // 🚀 Use the optimized loadDropdowns instead of redundant calls
+    this.loadDropdowns();
   }
   openLinkEnquiryDialog(row: any) {
     this.linkTargetBooking = row;
@@ -935,4 +1098,20 @@ export class BookingComponent implements OnInit {
   }
 
   addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', basis_qty: '', booking_ref: '', valid_till: '', status: 'Active', remarks: '', schedule: 'NO' }]; }
+
+  private formatDate(date: any): string | null {
+    if (!date) return null;
+    let d = new Date(date);
+    if (isNaN(d.getTime())) return null;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private parseDate(d: any): Date | null {
+    if (!d) return null;
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? null : date;
+  }
 }

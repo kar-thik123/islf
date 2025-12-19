@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -363,7 +363,8 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
 
   isDialogVisible = false;
   selectedLocation: (MasterLocation & { isNew?: boolean }) | null = null;
-  
+  @Output() onSave = new EventEmitter<void>();
+
 
   constructor(
     private masterLocationService: MasterLocationService,
@@ -371,7 +372,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private contextService: ContextService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
@@ -391,14 +392,14 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
         console.log('Context changed in MasterLocationComponent, reloading data...');
         // Clear existing data first
         this.locations = [];
-        
+
         // Reload master type data for tabs
         this.masterTypeService.getAll().subscribe((types: any[]) => {
           this.locationTypeOptions = types.filter(t => t.key === 'LOCATION' && t.status === 'Active');
           console.log('Reloaded location type options from master type:', this.locationTypeOptions);
           this.updateLocationTypes();
         });
-        
+
         // Add small delay to ensure context propagation
         setTimeout(() => {
           this.refreshList();
@@ -417,11 +418,11 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
 
   refreshList() {
     console.log('Refreshing master locations list');
-    
+
     try {
       // Clear existing locations to ensure fresh data
       this.locations = [];
-      
+
       this.masterLocationService.getAll().subscribe({
         next: (locations) => {
           this.locations = (locations || []).map((l: any) => ({
@@ -445,206 +446,208 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     }
   }
 
- addRow() {
-  console.log('Add Master Location button clicked - starting addRow method');
-  
-  // Get the validation settings
-  const config = this.configService.getConfig();
-  const locationFilter = config?.validation?.locationFilter || '';
-  
-  console.log('Location filter:', locationFilter);
-  
-  // Check if we need to validate context
-  if (locationFilter) {
-    // Get the current context
-    const context = this.contextService.getContext();
-    
-    console.log('Current context:', context);
-    
-    // Check if the required context is set based on the filter
-    const missingContexts: string[] = [];
-    
-    if (locationFilter.includes('C') && !context.companyCode) {
-      missingContexts.push('Company');
+  addRow() {
+    console.log('Add Master Location button clicked - starting addRow method');
+
+    // Get the validation settings
+    const config = this.configService.getConfig();
+    const locationFilter = config?.validation?.locationFilter || '';
+
+    console.log('Location filter:', locationFilter);
+
+    // Check if we need to validate context
+    if (locationFilter) {
+      // Get the current context
+      const context = this.contextService.getContext();
+
+      console.log('Current context:', context);
+
+      // Check if the required context is set based on the filter
+      const missingContexts: string[] = [];
+
+      if (locationFilter.includes('C') && !context.companyCode) {
+        missingContexts.push('Company');
+      }
+      if (locationFilter.includes('B') && !context.branchCode) {
+        missingContexts.push('Branch');
+      }
+      if (locationFilter.includes('D') && !context.departmentCode) {
+        missingContexts.push('Department');
+      }
+
+      if (missingContexts.length > 0) {
+        console.log('Missing contexts:', missingContexts);
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: `Please select ${missingContexts.join(', ')} before adding master location`
+        });
+
+        // Trigger the context selector
+        this.contextService.showContextSelector();
+        return;
+      }
     }
-    if (locationFilter.includes('B') && !context.branchCode) {
-      missingContexts.push('Branch');
+
+    // Reset validation state
+    this.resetValidation();
+
+    // If validation passes or no validation required, proceed with adding row
+    // Set default type based on active tab index
+    const defaultType = this.locationTypes.length > 0 ? this.locationTypes[this.activeTabIndex]?.value : '';
+
+    console.log('Adding new location:');
+    console.log('Active tab index:', this.activeTabIndex);
+    console.log('Active tab value:', this.activeTabValue);
+    console.log('Location types:', this.locationTypes);
+    console.log('Default type:', defaultType);
+
+    this.selectedLocation = {
+      type: defaultType,
+      code: '',
+      name: '',
+      country: '',
+      state: '',
+      city: '',
+      gst_state_code: '',
+      pin_code: '',
+      active: true,
+      isNew: true,
+    };
+    this.isDialogVisible = true;
+
+    // Load country data for the new location
+    this.loadCountryData();
+  }
+
+  editRow(loc: MasterLocation) {
+    // Reset validation state
+    this.resetValidation();
+
+    this.selectedLocation = { ...loc, isNew: false };
+    this.isDialogVisible = true;
+
+    // Load state and city options for existing location
+    if (loc.country) {
+      this.onCountryChange();
+      if (loc.state) {
+        this.onStateChange();
+      }
     }
-    if (locationFilter.includes('D') && !context.departmentCode) {
-      missingContexts.push('Department');
-    }
-    
-    if (missingContexts.length > 0) {
-      console.log('Missing contexts:', missingContexts);
+  }
+  // Validation methods
+  onCodeBlur() {
+    this.isCodeTouched = true;
+  }
+
+  showCodeError(): boolean {
+    return (this.isFormSubmitted || this.isCodeTouched) && !this.selectedLocation?.code?.trim();
+  }
+
+  isFormValid(): boolean {
+    return !!this.selectedLocation?.code?.trim();
+  }
+
+  resetValidation() {
+    this.isFormSubmitted = false;
+    this.isCodeTouched = false;
+  }
+  saveRow() {
+    // Set form as submitted to trigger validation messages
+    this.isFormSubmitted = true;
+
+    // Validate code field
+    if (!this.isFormValid()) {
       this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: `Please select ${missingContexts.join(', ')} before adding master location`
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Code field is required'
       });
-      
-      // Trigger the context selector
-      this.contextService.showContextSelector();
       return;
     }
-  }
-  
-  // Reset validation state
-  this.resetValidation();
-  
-  // If validation passes or no validation required, proceed with adding row
-  // Set default type based on active tab index
-  const defaultType = this.locationTypes.length > 0 ? this.locationTypes[this.activeTabIndex]?.value : '';
-  
-  console.log('Adding new location:');
-  console.log('Active tab index:', this.activeTabIndex);
-  console.log('Active tab value:', this.activeTabValue);
-  console.log('Location types:', this.locationTypes);
-  console.log('Default type:', defaultType);
-  
-  this.selectedLocation = {
-    type: defaultType,
-    code: '',
-    name: '',
-    country: '',
-    state: '',
-    city: '',
-    gst_state_code: '',
-    pin_code: '',
-    active: true,
-    isNew: true,
-  };
-  this.isDialogVisible = true;
-  
-  // Load country data for the new location
-  this.loadCountryData();
-}
 
- editRow(loc: MasterLocation) {
-  // Reset validation state
-  this.resetValidation();
-  
-  this.selectedLocation = { ...loc, isNew: false };
-  this.isDialogVisible = true;
-  
-  // Load state and city options for existing location
-  if (loc.country) {
-    this.onCountryChange();
-    if (loc.state) {
-      this.onStateChange();
-    }
-  }
-}
-  // Validation methods
-    onCodeBlur() {
-      this.isCodeTouched = true;
+    if (!this.selectedLocation) {
+      return;
     }
 
-    showCodeError(): boolean {
-      return (this.isFormSubmitted || this.isCodeTouched) && !this.selectedLocation?.code?.trim();
+    // Add custom options if they don't exist in the dropdowns
+    if (this.selectedLocation.country) {
+      this.addCustomOption('country', this.selectedLocation.country);
+    }
+    if (this.selectedLocation.state) {
+      this.addCustomOption('state', this.selectedLocation.state);
+    }
+    if (this.selectedLocation.city) {
+      this.addCustomOption('city', this.selectedLocation.city);
     }
 
-    isFormValid(): boolean {
-      return !!this.selectedLocation?.code?.trim();
-    }
+    if (this.selectedLocation.isNew) {
+      this.masterLocationService.create(this.selectedLocation).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location created successfully' });
+          this.onSave.emit();
+          this.refreshList();
+          this.hideDialog();
+        },
+        error: (error) => {
+          console.error('Error creating location:', error);
+          let errorMessage = 'Failed to create location';
 
-    resetValidation() {
-      this.isFormSubmitted = false;
-      this.isCodeTouched = false;
-    }
-  saveRow() {
-  // Set form as submitted to trigger validation messages
-  this.isFormSubmitted = true;
-  
-  // Validate code field
-  if (!this.isFormValid()) {
-    this.messageService.add({ 
-      severity: 'error', 
-      summary: 'Validation Error', 
-      detail: 'Code field is required' 
-    });
-    return;
-  }
-
-  if (!this.selectedLocation) {
-    return;
-  }
-
-  // Add custom options if they don't exist in the dropdowns
-  if (this.selectedLocation.country) {
-    this.addCustomOption('country', this.selectedLocation.country);
-  }
-  if (this.selectedLocation.state) {
-    this.addCustomOption('state', this.selectedLocation.state);
-  }
-  if (this.selectedLocation.city) {
-    this.addCustomOption('city', this.selectedLocation.city);
-  }
-
-  if (this.selectedLocation.isNew) {
-    this.masterLocationService.create(this.selectedLocation).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location created successfully' });
-        this.refreshList();
-        this.hideDialog();
-      },
-      error: (error) => {
-        console.error('Error creating location:', error);
-        let errorMessage = 'Failed to create location';
-        
-        if (error?.error?.detail) {
-          // Use the specific error detail from backend
-          errorMessage = error.error.detail;
-        } else if (error?.error?.error) {
-          // Handle different error types
-          if (error.error.error === 'Duplicate code') {
-            errorMessage = error.error.detail || `Location code "${this.selectedLocation?.code || 'unknown'}" already exists. Please use a different code.`;
-          } else {
-            errorMessage = error.error.error;
+          if (error?.error?.detail) {
+            // Use the specific error detail from backend
+            errorMessage = error.error.detail;
+          } else if (error?.error?.error) {
+            // Handle different error types
+            if (error.error.error === 'Duplicate code') {
+              errorMessage = error.error.detail || `Location code "${this.selectedLocation?.code || 'unknown'}" already exists. Please use a different code.`;
+            } else {
+              errorMessage = error.error.error;
+            }
+          } else if (error?.message) {
+            errorMessage = error.message;
           }
-        } else if (error?.message) {
-          errorMessage = error.message;
+
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: errorMessage
+          });
         }
-        
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: errorMessage 
-        });
-      }
-    });
-  } else {
-    this.masterLocationService.update(this.selectedLocation.code, this.selectedLocation).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location updated successfully' });
-        this.refreshList();
-        this.hideDialog();
-      },
-      error: (error) => {
-        console.error('Error updating location:', error);
-        let errorMessage = 'Failed to update location';
-        
-        if (error?.error?.detail) {
-          errorMessage = error.error.detail;
-        } else if (error?.error?.error) {
-          errorMessage = error.error.error;
-        } else if (error?.message) {
-          errorMessage = error.message;
+      });
+    } else {
+      this.masterLocationService.update(this.selectedLocation.code, this.selectedLocation).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location updated successfully' });
+          this.onSave.emit();
+          this.refreshList();
+          this.hideDialog();
+        },
+        error: (error) => {
+          console.error('Error updating location:', error);
+          let errorMessage = 'Failed to update location';
+
+          if (error?.error?.detail) {
+            errorMessage = error.error.detail;
+          } else if (error?.error?.error) {
+            errorMessage = error.error.error;
+          } else if (error?.message) {
+            errorMessage = error.message;
+          }
+
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: errorMessage
+          });
         }
-        
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: errorMessage 
-        });
-      }
-    });
+      });
+    }
   }
-}
 
   hideDialog() {
     this.isDialogVisible = false;
     this.selectedLocation = null;
-    this.resetValidation(); 
+    this.resetValidation();
   }
 
   clear(table: any) {
@@ -695,9 +698,9 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
   // Method to add custom options if missing
   addCustomOption(type: 'country' | 'state' | 'city', value: string) {
     if (!value || value.trim() === '') return;
-    
+
     const customOption = { label: value.trim(), value: value.trim() };
-    
+
     switch (type) {
       case 'country':
         if (!this.countryOptions.find(opt => opt.value.toLowerCase() === value.toLowerCase())) {
@@ -772,7 +775,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
       // It's a manual entry, keep existing state options or clear them
       // Don't clear state options for manual country entries
     }
-    
+
     // Clear city options when country changes
     this.cityOptions = [];
     this.selectedLocation!.city = '';
@@ -792,7 +795,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     const country = Country.getAllCountries().find(c => c.name === this.selectedLocation!.country);
     if (country) {
       const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === this.selectedLocation!.state);
-      
+
       if (state) {
         // Both country and state are valid, load cities
         this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(city => ({
@@ -807,7 +810,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
       // Country is manual entry, keep existing city options or clear them
       // Don't clear city options for manual country entries
     }
-    
+
     // Clear city selection when state changes
     this.selectedLocation!.city = '';
   }
