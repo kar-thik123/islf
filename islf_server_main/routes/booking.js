@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { getUsernameFromToken } = require('../utils/context-helper');
+
+
 router.get('/', async (req, res) => {
   try {
 
@@ -51,7 +53,7 @@ router.get('/', async (req, res) => {
 
 router.post('/search-enquiries', async (req, res) => {
   try {
-    await ensureBookingTable();
+    // await ensureBookingTable();
     const { department, service_type, from_location, to_location } = req.body || {};
     let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status
                  FROM enquiry WHERE (status IN ('Open','Pending','Quoted'))
@@ -81,7 +83,7 @@ router.post('/search-enquiries', async (req, res) => {
 router.post('/', async (req, res) => {
   const username = getUsernameFromToken(req) || 'system';
   try {
-    await ensureBookingTable();
+    // await ensureBookingTable();
     const { booking_type, criteria, selected_enquiries = [], freeze, customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status = 'Open', remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
 
     const client = await pool.connect();
@@ -409,7 +411,7 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const username = getUsernameFromToken(req) || 'system';
   try {
-    await ensureBookingTable();
+    // await ensureBookingTable();
     const { booking_type, selected_enquiries = [], customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
 
     const client = await pool.connect();
@@ -543,7 +545,7 @@ router.put('/:id', async (req, res) => {
 
 router.get('/:bookingNo', async (req, res) => {
   try {
-    await ensureBookingTable();
+    // await ensureBookingTable();
     const { bookingNo } = req.params;
     const { rows } = await pool.query('SELECT * FROM booking WHERE booking_no = $1', [bookingNo]);
     if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
