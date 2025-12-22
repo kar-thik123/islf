@@ -123,7 +123,7 @@ import { VendorService } from '../../services/vendor.service';
             
             <td>
               <button pButton label="Open" icon="pi pi-external-link" class="p-button-sm" (click)="openBooking(row.booking_no)"></button>
-              <button pButton icon="pi pi-link" class="p-button-rounded p-button-outlined p-button-secondary p-button-sm ml-1" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
+              <button pButton icon="pi pi-link" class="p-button p-button-outlined p-button-secondary p-button-sm ml-4" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
             </td>
           </tr>
         </ng-template>

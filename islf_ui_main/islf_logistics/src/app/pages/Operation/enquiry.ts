@@ -5229,8 +5229,9 @@ export class EnquiryComponent implements OnInit {
     const criteria: any = {
       sourcing: [
         {
-          vendor_type: vendor.vendor_type,
-          vendor_no: vendor.vendor_name || vendor.vendor_no || vendor.vendor || vendor.code,
+          // vendor_type: vendor.vendor_type, // Removed to avoid mismatch with Master
+          // Prioritize vendor_no/code for backend lookup
+          vendor_no: vendor.vendor_no || vendor.vendor_code || vendor.vendor || vendor.vendor_name || vendor.code,
         },
       ],
       effective_date_from: this.formatDateForAPI(enq.effective_date_from),
@@ -5257,13 +5258,39 @@ export class EnquiryComponent implements OnInit {
           this.tariffVendorTypeOptions = types.map((t) => ({ label: t, value: t }));
           this.tariffVendorNameOptions = names.map((n) => ({ label: this.getVendorName(n), value: n }));
 
-          // Pre-set the filter to the vendor we came from, so the user sees what they expect
-          // but can clear it to see all vendors.
-          const currentVendorName = vendor.vendor_name || vendor.vendor_no || vendor.vendor;
-          if (currentVendorName) {
-            this.tariffFilter.vendor_name = currentVendorName;
+          // Pre-set the filter to the vendor we came from, but verify it exists in results first
+          const currentVendorKeys = [
+            vendor.vendor_name,
+            vendor.vendor_no,
+            vendor.vendor_code,
+            vendor.vendor
+          ].filter(Boolean);
+
+          let matchedFilterValue = null;
+
+          // Try to find a match in the available options
+          if (this.tariffVendorNameOptions.length > 0) {
+            // 1. Try exact value match
+            matchedFilterValue = this.tariffVendorNameOptions.find(opt => currentVendorKeys.includes(opt.value))?.value;
+
+            // 2. Try exact label match
+            if (!matchedFilterValue) {
+              matchedFilterValue = this.tariffVendorNameOptions.find(opt => currentVendorKeys.includes(opt.label))?.value;
+            }
+
+            // 3. Try loose match (includes)
+            if (!matchedFilterValue) {
+              matchedFilterValue = this.tariffVendorNameOptions.find(opt =>
+                currentVendorKeys.some(k => k && String(k).toLowerCase().includes(String(opt.value).toLowerCase()))
+              )?.value;
+            }
+          }
+
+          if (matchedFilterValue) {
+            this.tariffFilter.vendor_name = matchedFilterValue;
             this.applyManualTariffFilter();
           } else {
+            // If no match found, show all results to avoid "empty list" confusion
             this.filteredTariffVendors = [...this.tariffVendors];
           }
 
@@ -5688,7 +5715,9 @@ export class EnquiryComponent implements OnInit {
 
       if (criteria.department) {
         const vDept = vendor.mode || vendor.department || '';
-        if (norm(vDept) !== norm(criteria.department)) matches = false;
+        const d1 = norm(vDept);
+        const d2 = norm(criteria.department);
+        if (d1 !== d2 && !d1.includes(d2) && !d2.includes(d1)) matches = false;
       }
 
       if (criteria.cargo_type) {
@@ -5704,7 +5733,8 @@ export class EnquiryComponent implements OnInit {
       if (criteria.service_type) {
         const vSt = vendor.shipping_type || vendor.type || '';
         const stNorm = norm(vSt);
-        if (stNorm !== norm(criteria.service_type)) matches = false;
+        const crNorm = norm(criteria.service_type);
+        if (stNorm !== crNorm && !stNorm.includes(crNorm) && !crNorm.includes(stNorm)) matches = false;
       }
 
       if (criteria.basis) {
