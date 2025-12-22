@@ -695,10 +695,10 @@ router.post("/", async (req, res) => {
             customerNo,
             company_name || customer_name,
 
-            userContext.company_code || "",
-            userContext.branch_code || "",
-            userContext.department_code || "",
-            userContext.service_type_code || "",
+            userContext.company_code || null,
+            userContext.branch_code || null,
+            userContext.department_code || null,
+            userContext.service_type_code || null,
           ]
         );
         console.log("Added Customer company,", customerResult);
@@ -1079,10 +1079,10 @@ router.put("/:code", async (req, res) => {
             customerNo,
             company_name || customer_name,
 
-            userContext.company_code,
-            userContext.branch_code,
-            userContext.department_code,
-            userContext.service_type_code,
+            userContext.company_code || null,
+            userContext.branch_code || null,
+            userContext.department_code || null,
+            userContext.service_type_code || null,
           ]
         );
 
