@@ -238,9 +238,15 @@ router.get("/:code", async (req, res) => {
   try {
     const { code } = req.params;
 
-    // Get enquiry details
+    // Get enquiry details - Format dates as strings to prevent timezone conversion
     const enquiryResult = await pool.query(
-      "SELECT e.*, c.name as customer_display_name FROM enquiry e LEFT JOIN customer c ON e.customer_id = c.id WHERE e.code = $1",
+      `SELECT e.*, c.name as customer_display_name,
+             TO_CHAR(e.date, 'YYYY-MM-DD') as date,
+             TO_CHAR(e.effective_date_from, 'YYYY-MM-DD') as effective_date_from,
+             TO_CHAR(e.effective_date_to, 'YYYY-MM-DD') as effective_date_to
+       FROM enquiry e 
+       LEFT JOIN customer c ON e.customer_id = c.id 
+       WHERE e.code = $1`,
       [code]
     );
 

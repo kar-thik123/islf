@@ -570,6 +570,89 @@ import { VendorService } from '@/services/vendor.service';
               </div>
             </div>
             <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1"
+                >Source/Sales Person</label
+              >
+              <div class="flex gap-2">
+                <p-dropdown
+                  [options]="sourceSalesOptions"
+                  [(ngModel)]="selectedEnquiry.source_sales_code"
+                  (ngModelChange)="onSourceSalesChange()"
+                  [ngClass]="getFieldErrorClass('source_sales_code')"
+                  [ngStyle]="getFieldErrorStyle('source_sales_code')"
+                  placeholder="Select Source/Sales Person"
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  filterBy="label"
+                  class="flex-1"
+                >
+                </p-dropdown>
+                <button
+                  pButton
+                  [icon]="
+                    masterDialogLoading['sourceSales']
+                      ? 'pi pi-spin pi-spinner'
+                      : 'pi pi-ellipsis-h'
+                  "
+                  class="p-button-sm"
+                  [disabled]="masterDialogLoading['sourceSales']"
+                  (click)="openMaster('sourceSales')"
+                ></button>
+              </div>
+              <small *ngIf="fieldErrors['sourceSalesCode']" class="p-error">{{
+                fieldErrors['sourceSalesCode']
+              }}</small>
+            </div>
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Department</label>
+              <p-dropdown
+                [options]="departmentOptions"
+                [(ngModel)]="selectedEnquiry.department"
+                (ngModelChange)="
+                  onFieldChange('department', selectedEnquiry.department);
+                  filterServiceType()
+                "
+                [ngClass]="getFieldErrorClass('department')"
+                [ngStyle]="getFieldErrorStyle('department')"
+                placeholder="Select Department"
+                [filter]="true"
+                filterBy="label"
+                [showClear]="true"
+                class="w-full"
+              >
+              </p-dropdown>
+              <small
+                *ngIf="fieldErrors['department']"
+                class="p-error text-red-500 text-xs ml-2"
+                >{{ fieldErrors['department'] }}</small
+              >
+            </div>
+
+            <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Service Type</label>
+              <p-dropdown
+                [options]="serviceTypeOptions"
+                [(ngModel)]="selectedEnquiry.service_type"
+                (ngModelChange)="
+                  onFieldChange('service_type', selectedEnquiry.service_type)
+                "
+                [ngClass]="getFieldErrorClass('service_type')"
+                [ngStyle]="getFieldErrorStyle('service_type')"
+                placeholder="Select Service Type"
+                [filter]="true"
+                filterBy="label"
+                [showClear]="true"
+                class="w-full"
+              >
+              </p-dropdown>
+              <small
+                *ngIf="fieldErrors['service_type']"
+                class="p-error text-red-500 text-xs ml-2"
+                >{{ fieldErrors['service_type'] }}</small
+              >
+            </div>
+            <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Cargo Type</label>
               <div class="flex gap-2">
                 <p-dropdown
@@ -594,8 +677,22 @@ import { VendorService } from '@/services/vendor.service';
                   [disabled]="masterDialogLoading['cargoType']"
                   (click)="openMaster('cargoType')"
                 ></button>
-              </div>
+              </div> 
             </div>
+              <div class="col-span-12 md:col-span-3">
+              <label class="block font-semibold mb-1">Status</label>
+              <p-dropdown
+                id="status"
+                [(ngModel)]="selectedEnquiry.status"
+                [options]="statusOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select Status"
+                class="w-full"
+              >
+              </p-dropdown>
+            </div>
+            
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">From Location Type</label>
               <div class="flex gap-2">
@@ -623,6 +720,7 @@ import { VendorService } from '@/services/vendor.service';
                   (click)="openMaster('locationTypeFrom')"
                 ></button>
               </div>
+            
             </div>
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1"
@@ -734,56 +832,6 @@ import { VendorService } from '@/services/vendor.service';
                 >{{ fieldErrors['to_location'] }}</small
               >
             </div>
-
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Department</label>
-              <p-dropdown
-                [options]="departmentOptions"
-                [(ngModel)]="selectedEnquiry.department"
-                (ngModelChange)="
-                  onFieldChange('department', selectedEnquiry.department);
-                  filterServiceType()
-                "
-                [ngClass]="getFieldErrorClass('department')"
-                [ngStyle]="getFieldErrorStyle('department')"
-                placeholder="Select Department"
-                [filter]="true"
-                filterBy="label"
-                [showClear]="true"
-                class="w-full"
-              >
-              </p-dropdown>
-              <small
-                *ngIf="fieldErrors['department']"
-                class="p-error text-red-500 text-xs ml-2"
-                >{{ fieldErrors['department'] }}</small
-              >
-            </div>
-
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Service Type</label>
-              <p-dropdown
-                [options]="serviceTypeOptions"
-                [(ngModel)]="selectedEnquiry.service_type"
-                (ngModelChange)="
-                  onFieldChange('service_type', selectedEnquiry.service_type)
-                "
-                [ngClass]="getFieldErrorClass('service_type')"
-                [ngStyle]="getFieldErrorStyle('service_type')"
-                placeholder="Select Service Type"
-                [filter]="true"
-                filterBy="label"
-                [showClear]="true"
-                class="w-full"
-              >
-              </p-dropdown>
-              <small
-                *ngIf="fieldErrors['service_type']"
-                class="p-error text-red-500 text-xs ml-2"
-                >{{ fieldErrors['service_type'] }}</small
-              >
-            </div>
-
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1"
                 >Effective Date From</label
@@ -827,54 +875,8 @@ import { VendorService } from '@/services/vendor.service';
                 >{{ fieldErrors['effective_date_to'] }}</small
               >
             </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1"
-                >Source/Sales Person</label
-              >
-              <div class="flex gap-2">
-                <p-dropdown
-                  [options]="sourceSalesOptions"
-                  [(ngModel)]="selectedEnquiry.source_sales_code"
-                  (ngModelChange)="onSourceSalesChange()"
-                  [ngClass]="getFieldErrorClass('source_sales_code')"
-                  [ngStyle]="getFieldErrorStyle('source_sales_code')"
-                  placeholder="Select Source/Sales Person"
-                  optionLabel="label"
-                  optionValue="value"
-                  [filter]="true"
-                  filterBy="label"
-                  class="flex-1"
-                >
-                </p-dropdown>
-                <button
-                  pButton
-                  [icon]="
-                    masterDialogLoading['sourceSales']
-                      ? 'pi pi-spin pi-spinner'
-                      : 'pi pi-ellipsis-h'
-                  "
-                  class="p-button-sm"
-                  [disabled]="masterDialogLoading['sourceSales']"
-                  (click)="openMaster('sourceSales')"
-                ></button>
-              </div>
-              <small *ngIf="fieldErrors['sourceSalesCode']" class="p-error">{{
-                fieldErrors['sourceSalesCode']
-              }}</small>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Status</label>
-              <p-dropdown
-                id="status"
-                [(ngModel)]="selectedEnquiry.status"
-                [options]="statusOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select Status"
-                class="w-full"
-              >
-              </p-dropdown>
-            </div>
+            
+          
             <div class="col-span-12 md:col-span-6">
               <label class="block font-semibold mb-1">Remarks</label>
               <textarea
@@ -3874,6 +3876,9 @@ export class EnquiryComponent implements OnInit {
     this.selectedEffectiveDateFrom = today;
     this.selectedEffectiveDateTo = today;
 
+    // Reset carriage mappings to prevent persistence from previous enquiry
+    this.carriageMappings = [];
+
     this.isDialogVisible = true;
 
     this.loadCarriageDirectionOptions();
@@ -3944,17 +3949,14 @@ export class EnquiryComponent implements OnInit {
         this.selectedEnquiry = { ...enquiry };
         this.currentEnquiry = { ...enquiry };
 
-        // Set Date objects for calendar components
-        this.selectedDate = this.selectedEnquiry.date
-          ? new Date(this.selectedEnquiry.date)
-          : null;
-        this.selectedEffectiveDateFrom = this.selectedEnquiry
-          .effective_date_from
-          ? new Date(this.selectedEnquiry.effective_date_from)
-          : null;
-        this.selectedEffectiveDateTo = this.selectedEnquiry.effective_date_to
-          ? new Date(this.selectedEnquiry.effective_date_to)
-          : null;
+        // Set Date objects for calendar components (timezone-aware parsing)
+        this.selectedDate = this.parseDate(this.selectedEnquiry.date);
+        this.selectedEffectiveDateFrom = this.parseDate(
+          this.selectedEnquiry.effective_date_from
+        );
+        this.selectedEffectiveDateTo = this.parseDate(
+          this.selectedEnquiry.effective_date_to
+        );
 
         this.lineItems = enquiry.line_items || [];
         console.log(
@@ -4529,6 +4531,9 @@ export class EnquiryComponent implements OnInit {
     this.customerContacts = [];
     this.selectedContact = null;
     this.showContactDropdown = false;
+
+    // Reset carriage mappings to prevent persistence
+    this.carriageMappings = [];
   }
 
   getStatusClass(status: string): string {
@@ -4559,6 +4564,42 @@ export class EnquiryComponent implements OnInit {
     } catch {
       return '--';
     }
+  }
+
+  /**
+   * Parse date string without timezone conversion
+   * Prevents dates from shifting when server returns YYYY-MM-DD format
+   */
+  private parseDate(dateString: string | Date | null | undefined): Date | null {
+    if (!dateString) return null;
+
+    // If already a Date object, return it
+    if (dateString instanceof Date) {
+      return isNaN(dateString.getTime()) ? null : dateString;
+    }
+
+    // Parse string date without timezone conversion
+    const str = dateString.toString().trim();
+    if (!str) return null;
+
+    console.log('🔍 parseDate INPUT:', str);
+
+    // Handle ISO timestamp format (YYYY-MM-DDTHH:mm:ss.sssZ) - extract date only
+    // Backend returns 2025-12-22T18:30:00.000Z when DB has 2025-12-23
+    let dateMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const year = parseInt(dateMatch[1], 10);
+      const month = parseInt(dateMatch[2], 10) - 1; // JS months are 0-indexed
+      const day = parseInt(dateMatch[3], 10);
+      const date = new Date(year, month, day);
+      console.log('✅ parseDate OUTPUT (timezone-safe):', date, 'Display:', date.toLocaleDateString('en-GB'));
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Fallback for other formats
+    console.log('⚠️ parseDate FALLBACK to new Date()');
+    const date = new Date(str);
+    return isNaN(date.getTime()) ? null : date;
   }
 
   onDateChange(date: Date | null) {
@@ -4985,9 +5026,9 @@ export class EnquiryComponent implements OnInit {
   }
 
   /*
-  -----------------------------
-   Sourcing and Tariff methods
-  -----------------------------
+
+  Sourcing and Tariff methods
+  
 */
   canGetSourcing(): boolean {
     const firstBasis = this.lineItems[0]?.basis;
@@ -6664,6 +6705,8 @@ export class EnquiryComponent implements OnInit {
         this.lineItems = [];
         this.vendorCards = [];
         this.isNewCustomer = false;
+        // Reset carriage mappings to prevent persistence
+        this.carriageMappings = [];
         this.addLineItem();
 
         this.messageService.add({
@@ -6771,10 +6814,20 @@ export class EnquiryComponent implements OnInit {
     });
   }
 
+  /**
+   * Format date for API without timezone conversion
+   * Prevents dates from shifting when sending to backend
+   */
   private formatDateForAPI(date: Date | string): string {
     if (!date) return '';
-    const d = new Date(date);
-    return d.toISOString().split('T')[0];
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+
+    // Format as YYYY-MM-DD using local date components (no timezone shift)
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private resolveLocationName(value: any): string {

@@ -446,6 +446,7 @@ export class BookingComponent implements OnInit {
   departmentOptions: any[] = [];
   departmentOptionsRaw: any[] = [];
   serviceTypeOptions: any[] = [];
+  allServiceTypes: any[] = [];
   fromLocationOptions: any[] = [];
   toLocationOptions: any[] = [];
   locationMap: { [code: string]: string } = {};
@@ -539,7 +540,8 @@ export class BookingComponent implements OnInit {
       locations: this.masterLocationService.getAll().pipe(take(1)),
       bookingStatuses: this.masterTypeService.getAllByType('BOOKING_STATUS').pipe(take(1)),
       cargoItems: this.masterItemService.getAll().pipe(take(1)),
-      vendors: this.vendorService.getAll().pipe(take(1))
+      vendors: this.vendorService.getAll().pipe(take(1)),
+      serviceTypes: this.serviceTypeService.getAll().pipe(take(1))
     }).subscribe({
       next: (res) => {
         // 1. Departments
@@ -583,6 +585,13 @@ export class BookingComponent implements OnInit {
         // 5. Vendors
         this.allVendors = res.vendors || [];
 
+        // 6. Service Types
+        this.allServiceTypes = res.serviceTypes || [];
+        this.serviceTypeOptions = this.allServiceTypes.map((st: any) => ({
+          label: st.name,
+          value: st.name
+        }));
+
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -591,12 +600,6 @@ export class BookingComponent implements OnInit {
         this.loading = false;
         this.cdr.detectChanges();
       }
-    });
-
-    // Handle Service Type Options separately as it's a stream
-    this.contextService.serviceTypeOptions$.pipe(take(1)).subscribe(opts => {
-      this.serviceTypeOptions = opts || [];
-      this.cdr.detectChanges();
     });
   }
 
@@ -638,9 +641,25 @@ export class BookingComponent implements OnInit {
     const name = this.dialog.department || '';
     const found = (this.departmentOptionsRaw || []).find((d: any) => (d.name || '').toString().trim().toLowerCase() === name.toString().trim().toLowerCase());
     const deptCode = found ? found.code : '';
+
+    // Filter service types by department
     if (deptCode) {
-      this.contextService.loadServiceTypesForDepartment(deptCode);
+      const filteredServiceTypes = this.allServiceTypes.filter((st: any) =>
+        st.department_code === deptCode || !st.department_code
+      );
+      this.serviceTypeOptions = filteredServiceTypes.map((st: any) => ({
+        label: st.name,
+        value: st.name
+      }));
+    } else {
+      // Show all service types if no department selected
+      this.serviceTypeOptions = this.allServiceTypes.map((st: any) => ({
+        label: st.name,
+        value: st.name
+      }));
     }
+
+    this.searchEnquiries();
   }
 
   clearFilters() {

@@ -56,8 +56,7 @@ router.post('/search-enquiries', async (req, res) => {
     // await ensureBookingTable();
     const { department, service_type, from_location, to_location } = req.body || {};
     let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status
-                 FROM enquiry WHERE (status IN ('Open','Pending','Quoted'))
-                 AND (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)`;
+                 FROM enquiry WHERE (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)`;
     const params = [];
     let idx = 1;
     const norm = (f, i) => `LOWER(REPLACE(${f}, ' ', '')) = LOWER(REPLACE($${i}, ' ', ''))`;
