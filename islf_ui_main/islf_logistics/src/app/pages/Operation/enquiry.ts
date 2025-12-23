@@ -195,23 +195,12 @@ import { VendorService } from '@/services/vendor.service';
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Customer Name
-                <p-columnFilter
-                  type="text"
-                  field="customer_name"
-                  display="menu"
-                  placeholder="Search by customer"
-                ></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
-                Customer Name
+                Customer 
                 <p-columnFilter
                   type="text"
                   field="company_name"
                   display="menu"
-                  placeholder="Search by Customer Name"
+                  placeholder="Search by company name"
                 ></p-columnFilter>
               </div>
             </th>
@@ -294,7 +283,6 @@ import { VendorService } from '@/services/vendor.service';
           <tr>
             <td>{{ enquiry.code }}</td>
             <td>{{ formatDate(enquiry.date) }}</td>
-            <td>{{ enquiry.customer_name }}</td>
             <td>{{ enquiry.company_name }}</td>
             <td>{{ enquiry.department }}</td>
             <td>{{ enquiry.service_type }}</td>
@@ -1720,113 +1708,138 @@ import { VendorService } from '@/services/vendor.service';
         <p-tabPanel header="Get Tariff">
           <div class="p-fluid">
             <!-- Manual filtering controls for tariff only -->
-            <div class="grid grid-cols-12 gap-4 mb-4">
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1"
-                  >Filter by Service Area</label
-                >
-                <p-dropdown
-                  [(ngModel)]="tariffFilter.service_area"
-                  [options]="serviceAreaDropdownOptions"
-                  [showClear]="true"
-                  placeholder="All Service Areas"
-                  (onChange)="applyManualTariffFilter()"
-                ></p-dropdown>
+            <div class="border-2 border-slate-200 rounded-lg p-4 bg-slate-50 mb-3">
+              <div class="grid grid-cols-12 gap-4">
+                <!-- Row 1: General Filters -->
+                <div class="col-span-12 md:col-span-4 lg:col-span-2">
+                  <label class="block mb-1 font-medium text-slate-700">Department</label>
+                  <p-dropdown
+                    [(ngModel)]="tariffFilter.department"
+                    [options]="departmentOptions"
+                    [showClear]="true"
+                    placeholder="search by department "
+                    (onChange)="onTariffDepartmentFilterChange(); applyManualTariffFilter()"
+                    [style]="{'width':'100%'}"
+                    appendTo="body"
+                  ></p-dropdown>
+                </div>
+                <div class="col-span-12 md:col-span-4 lg:col-span-3">
+                  <label class="block mb-1 font-medium text-slate-700">Service Type</label>
+                  <p-dropdown
+                    [(ngModel)]="tariffFilter.service_type"
+                    [options]="serviceTypeFilterOptions"
+                    [filter]="true"
+                    filterBy="label"
+                    [showClear]="true"
+                    placeholder="search by service type"
+                    (onChange)="applyManualTariffFilter()"
+                    [style]="{'width':'100%'}"
+                    appendTo="body"
+                  ></p-dropdown>
+                </div>
+                <div class="col-span-12 md:col-span-4 lg:col-span-2">
+                  <label class="block mb-1 font-medium text-slate-700">Service Area</label>
+                  <p-dropdown
+                    [(ngModel)]="tariffFilter.service_area"
+                    [options]="serviceAreaDropdownOptions"
+                    [showClear]="true"
+                    placeholder="search by service area"
+                    (onChange)="applyManualTariffFilter()"
+                    [style]="{'width':'100%'}"
+                    appendTo="body"
+                  ></p-dropdown>
+                </div>
+                <div class="col-span-12 md:col-span-6 lg:col-span-2">
+                  <label class="block mb-1 font-medium text-slate-700">Vendor Type</label>
+                  <p-dropdown
+                    [(ngModel)]="tariffFilter.vendor_type"
+                    [options]="tariffVendorTypeOptions"
+                    [showClear]="true"
+                    placeholder="search by vendor type"
+                    (onChange)="applyManualTariffFilter()"
+                    [style]="{'width':'100%'}"
+                    appendTo="body"
+                  ></p-dropdown>
+                </div>
+                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+                  <label class="block mb-1 font-medium text-slate-700">Vendor Name</label>
+                  <p-dropdown
+                    [(ngModel)]="tariffFilter.vendor_name"
+                    [options]="tariffVendorNameOptions"
+                    [filter]="true"
+                    filterBy="label"
+                    [showClear]="true"
+                    placeholder="search by vendor name"
+                    (onChange)="applyManualTariffFilter()"
+                    [style]="{'width':'100%'}"
+                    appendTo="body"
+                  ></p-dropdown>
+                </div>
+
+                <!-- Row 2: Location Filters -->
+                <div class="col-span-12 lg:col-span-6 flex gap-3">
+                  <div class="w-1/3">
+                    <label class="block mb-1 font-medium text-slate-700">From Location Type</label>
+                    <p-dropdown
+                      [(ngModel)]="tariffFilter.from_location_type"
+                      [options]="locationTypeFromOptions"
+                      [showClear]="true"
+                      placeholder="search by from location type"
+                      (onChange)="applyManualTariffFilter()"
+                      [style]="{'width':'100%'}"
+                      appendTo="body"
+                    ></p-dropdown>
+                  </div>
+                  <div class="w-2/3">
+                    <label class="block mb-1 font-medium text-slate-700">From Location</label>
+                    <p-dropdown
+                      [(ngModel)]="tariffFilter.from_location"
+                      [options]="getLocationsForType(tariffFilter.from_location_type)"
+                      [filter]="true"
+                      filterBy="label"
+                      [showClear]="true"
+                      placeholder="search by from location"
+                      (onChange)="applyManualTariffFilter()"
+                      [style]="{'width':'100%'}"
+                      appendTo="body"
+                    ></p-dropdown>
+                  </div>
+                </div>
+                <div class="col-span-12 lg:col-span-6 flex gap-3">
+                  <div class="w-1/3">
+                    <label class="block mb-1 font-medium text-slate-700">To Location Type</label>
+                    <p-dropdown
+                      [(ngModel)]="tariffFilter.to_location_type"
+                      [options]="locationTypeToOptions"
+                      [showClear]="true"
+                      placeholder="search by to location type"
+                      (onChange)="applyManualTariffFilter()"
+                      [style]="{'width':'100%'}"
+                      appendTo="body"
+                    ></p-dropdown>
+                  </div>
+                  <div class="w-2/3">
+                    <label class="block mb-1 font-medium text-slate-700">To Location</label>
+                    <p-dropdown
+                      [(ngModel)]="tariffFilter.to_location"
+                      [options]="getLocationsForType(tariffFilter.to_location_type)"
+                      [filter]="true"
+                      filterBy="label"
+                      [showClear]="true"
+                      placeholder="search by to location"
+                      (onChange)="applyManualTariffFilter()"
+                      [style]="{'width':'100%'}"
+                      appendTo="body"
+                    ></p-dropdown>
+                  </div>
+                </div>
               </div>
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1"
-                  >Filter by From Location Type</label
-                >
-                <p-dropdown
-                  [(ngModel)]="tariffFilter.from_location_type"
-                  [options]="locationTypeFromOptions"
-                  [showClear]="true"
-                  placeholder="All From Locations Type"
-                  (onChange)="applyManualTariffFilter()"
-                ></p-dropdown>
+              <div class="flex justify-end mt-3">
+                <button pButton label="Clear Filters" icon="pi pi-filter-slash" class="p-button-outlined p-button-secondary p-button-sm" (click)="clearTariffFilters()"></button>
               </div>
-              <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1"
-                  >Filter by From Location</label
-                >
-                <p-dropdown
-                  [(ngModel)]="tariffFilter.from_location"
-                  [options]="getLocationsForType(tariffFilter.from_location_type)"
-                  [showClear]="true"
-                  placeholder="All From Locations"
-                  (onChange)="applyManualTariffFilter()"
-                ></p-dropdown>
-              </div>
-               <div class="col-span-12 md:col-span-3">
-                <label class="block font-semibold mb-1"
-                  >Filter by To Location Type</label
-                >
-                <p-dropdown
-                  [(ngModel)]="tariffFilter.to_location_type"
-                  [options]="locationTypeToOptions"
-                  [showClear]="true"
-                  placeholder="All To Locations Type"
-                  (onChange)="applyManualTariffFilter()"
-                ></p-dropdown>
-              </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1"
-              >Filter by To Location</label
-            >
-            <p-dropdown
-              [(ngModel)]="tariffFilter.to_location"
-              [options]="getLocationsForType(tariffFilter.to_location_type)"
-              [showClear]="true"
-              placeholder="All To Locations"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by Department</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.department"
-              [options]="departmentOptions"
-              [showClear]="true"
-              placeholder="All Departments"
-              (onChange)="onTariffDepartmentFilterChange(); applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by Service Type</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.service_type"
-              [options]="serviceTypeFilterOptions"
-              [filter]="true"
-              filterBy="label"
-              [showClear]="true"
-              placeholder="All Service Types"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by Vendor Type</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.vendor_type"
-              [options]="tariffVendorTypeOptions"
-              [showClear]="true"
-              placeholder="All Vendor Types"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          <div class="col-span-12 md:col-span-3">
-            <label class="block font-semibold mb-1">Filter by Vendor Name</label>
-            <p-dropdown
-              [(ngModel)]="tariffFilter.vendor_name"
-              [options]="tariffVendorNameOptions"
-              [filter]="true"
-              filterBy="label"
-              [showClear]="true"
-              placeholder="All Vendor Names"
-              (onChange)="applyManualTariffFilter()"
-            ></p-dropdown>
-          </div>
-          
-        </div>
+            </div>
+
+
             <p-table
               #tariffTable
               [value]="filteredTariffVendors"
@@ -5911,8 +5924,18 @@ export class EnquiryComponent implements OnInit {
 
   // Clear tariff filters
   clearTariffFilters() {
-    this.tariffFilter = {};
-    this.filteredTariffVendors = [...this.tariffVendors];
+    this.tariffFilter = {
+      service_area: '',
+      from_location_type: '',
+      from_location: '',
+      to_location_type: '',
+      to_location: '',
+      department: '',
+      service_type: '',
+      vendor_type: '',
+      vendor_name: ''
+    };
+    this.applyManualTariffFilter();
   }
   openChargesDialog(vendor: any) {
     this.toggleVendorChargesInline(vendor, 'sourcing');

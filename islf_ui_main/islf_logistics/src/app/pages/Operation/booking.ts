@@ -74,7 +74,7 @@ import { VendorService } from '../../services/vendor.service';
             </th>
             <th>
               <div class="flex justify-between items-center">Customer
-                <p-columnFilter field="customer_name" matchMode="contains" display="menu"></p-columnFilter>
+                <p-columnFilter field="company_name" matchMode="contains" display="menu"></p-columnFilter>
               </div>
             </th>
             <th>
@@ -110,7 +110,7 @@ import { VendorService } from '../../services/vendor.service';
           <tr>
             <td>{{ row.created_at | date:'dd/MM/yyyy' }}</td>
             <td>{{ row.booking_no }}</td>
-            <td>{{ row.customer_name }}</td>
+            <td>{{ row.company_name }}</td>
             <td>{{ row.department }}</td>
             <td>{{ row.service_type }}</td>
             <td>{{ locName(row.from_location) }}</td>
@@ -187,7 +187,7 @@ import { VendorService } from '../../services/vendor.service';
                 <p-tableCheckbox [value]="enq"></p-tableCheckbox>
               </td>
               <td>{{ enq.code }}</td>
-              <td>{{ enq.customer_name }}</td>
+              <td>{{ enq.company_name }}</td>
               <td>{{ enq.department }}</td>
               <td>{{ enq.service_type }}</td>
               <td>{{ locName(enq.from_location) }}</td>
