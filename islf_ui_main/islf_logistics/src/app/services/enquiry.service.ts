@@ -23,6 +23,8 @@ export interface EnquiryLineItem {
   enquiry_summary?: EnquirySummary[];
   serviceAreaOptions?: any[];
   is_selected?: boolean;
+  sourcing_vendors?: any[];
+  tariff_vendors?: any[];
 }
 
 export interface EnquiryVendorCard {
@@ -57,9 +59,15 @@ export interface EnquirySummary {
   sourced_time: string;
   sourced_list: SourcingOption[] | TariffOption[];
   selected_source_items?: any[];
+  selected_tariff_items?: any[];
   summary_type: string;
   items: any[];
   finalizedItems?: any[];
+}
+
+export interface EnquiryPreviewResponse {
+  enquiry: Enquiry;
+  line_items: EnquiryLineItem[];
 }
 
 export interface Enquiry {
@@ -207,8 +215,8 @@ export class EnquiryService {
     return this.http.get<Enquiry>(`${this.baseUrl}/${id}`);
   }
 
-  getEnquiryPreviewByCode(code: string): Observable<Enquiry> {
-    return this.http.get<Enquiry>(`${this.baseUrl}/${code}/preview`);
+  getEnquiryPreviewByCode(code: string): Observable<EnquiryPreviewResponse> {
+    return this.http.get<EnquiryPreviewResponse>(`${this.baseUrl}/${code}/preview`);
   }
 
   /** Aliases for backwards compatibility */

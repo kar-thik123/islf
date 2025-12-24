@@ -74,8 +74,8 @@ export class AppTopbar implements OnInit {
         this.userName = this.authService.getUserName();
         this.userAvatar = '/layout/images/avatar.png'; // Default avatar
         this.showContextDialog$ = this.contextService.showContextSelector$;
-        
-        if (this.userName) {
+
+        if (this.userName && /^[a-zA-Z0-9_-]+$/.test(this.userName)) {
             this.userService.getUserByUsername(this.userName).subscribe({
                 next: (res) => {
                     this.userAvatar = res.user.avatar_url || '/layout/images/avatar.png';
@@ -103,11 +103,11 @@ export class AppTopbar implements OnInit {
     onConfigButtonClick() {
         this.layoutService.showConfigSidebar();
     }
-    
+
     onContextButtonClick() {
         this.contextService.showContextSelector();
     }
-    
+
     onContextSet(context: any) {
         // Save the context to the ContextService
         this.contextService.setContext(context);
@@ -115,7 +115,7 @@ export class AppTopbar implements OnInit {
         this.contextService.hideContextSelector();
         console.log('Context set in topbar:', context);
     }
-    
+
     onContextDialogVisibilityChange(visible: boolean) {
         // Update the context service when the dialog visibility changes
         if (visible) {

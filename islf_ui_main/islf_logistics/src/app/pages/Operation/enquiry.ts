@@ -38,6 +38,7 @@ import { AccordionModule } from 'primeng/accordion';
 import {
   EnquiryService,
   Enquiry,
+  EnquiryPreviewResponse,
   EnquiryLineItem,
   EnquiryVendorCard,
   CustomerDropdown,
@@ -1003,13 +1004,6 @@ import { VendorService } from '@/services/vendor.service';
                 (click)="showEnquiryPreview()"
                 class=" p-button-sm"
               ></button>
-              <p-button
-                *ngIf="finalizedVendors && finalizedVendors.length > 0"
-                label="View Finalized Vendors ({{ finalizedVendors.length }})"
-                icon="pi pi-list"
-                (click)="showFinalizedVendorsDialog = true"
-                styleClass="p-button-info p-button-sm"
-              ></p-button>
             </div>
 
             <p-table
@@ -2022,7 +2016,7 @@ import { VendorService } from '@/services/vendor.service';
                     <td>{{ getChargeNameLabel(charge) }}</td>
                     <td>{{ charge.basis }}</td>
                     <td>{{ charge.currency }}</td>
-                    <td>{{ charge.amount || charge.charges || charge.charge }}</td>
+                    <td>{{ charge.amount ?? charge.charges ?? charge.charge }}</td>
                     <td>
                       {{
                         charge.gst_vat ||
@@ -2306,273 +2300,183 @@ import { VendorService } from '@/services/vendor.service';
         <app-source-sales *ngIf="showSourceSalesDialog"></app-source-sales>
       </ng-template>
     </p-dialog>
-    <!-- Enquiry Preview Dialog -->
+    <!-- Enhanced Enquiry Preview Dialog -->
     <p-dialog
       [(visible)]="showPreviewDialog"
-      header="Enquiry Preview "
+      header="Enquiry Preview"
       [modal]="true"
-      [style]="{ width: '95vw', maxHeight: '90vh' }"
+      [style]="{ width: '95vw', maxWidth: '1200px', maxHeight: '95vh' }"
       [draggable]="false"
       [resizable]="false"
+      class="professional-preview"
     >
-      <div class="p-4 preview-container">
-        <h3 class="text-xl font-bold mb-4">Enquiry Summary</h3>
+      <div class="p-8 preview-container border-2 border-gray-300 shadow-xl m-4 bg-white" id="printable-preview">
+        <!-- Logo and Header -->
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+          <div class="logo-section">
+            <img src="assets/layout/images/logo.png" alt="Company Logo" class="h-24 w-auto object-contain" />
+          </div>
+          <div class="text-right">
+            <h2 class="text-3xl font-bold text-gray-800">QUOTATION</h2>
+            <p class="text-gray-600">Enquiry No: <span class="font-bold">{{ selectedEnquiryPreview?.enquiry?.code || '--' }}</span></p>
+          </div>
+        </div>
 
-        <!-- General Enquiry Details -->
-        <div class="mb-6 p-4 border rounded bg-gray-50">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p>
-                <span class="font-semibold">Enquiry Code:</span>
-                {{ selectedEnquiryPreview?.code || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Customer:</span>
-                {{ selectedEnquiryPreview?.customer_name || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Company:</span>
-                {{ currentEnquiry?.company_name || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">From:</span>
-                {{ locName(selectedEnquiryPreview?.from_location) || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">To:</span>
-                {{ locName(selectedEnquiryPreview?.to_location) || '--' }}
-              </p>
+        <!-- Customer and Quote Info Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <!-- Customer Details -->
+          <div class="customer-info bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
+            <h4 class="text-blue-800 border-b-2 border-blue-200 pb-2 mb-4 font-bold text-lg">TO:</h4>
+            <div class="space-y-2">
+              <p class="text-xl font-bold text-gray-900">{{ selectedEnquiryPreview?.enquiry?.company_name || '--' }}</p>
+              <div class="flex items-center gap-2">
+                <i class="pi pi-user text-gray-500"></i>
+                <span class="text-gray-700 font-medium">{{ selectedEnquiryPreview?.enquiry?.customer_name || '--' }}</span>
+              </div>
+              <div class="flex items-center gap-2" *ngIf="selectedEnquiryPreview?.enquiry?.mobile">
+                <i class="pi pi-phone text-gray-500"></i>
+                <span class="text-gray-700">{{ selectedEnquiryPreview?.enquiry?.mobile }}</span>
+              </div>
+              <div class="flex items-center gap-2" *ngIf="selectedEnquiryPreview?.enquiry?.email">
+                <i class="pi pi-envelope text-gray-500"></i>
+                <span class="text-gray-700 text-sm font-medium">{{ selectedEnquiryPreview?.enquiry?.email }}</span>
+              </div>
             </div>
-            <div>
-              <p>
-                <span class="font-semibold">Service Type:</span>
-                {{ selectedEnquiryPreview?.service_type || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Cargo Type:</span>
-                {{ selectedEnquiryPreview?.cargo_type || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Department:</span>
-                {{ selectedEnquiryPreview?.department || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Status:</span>
-                {{ selectedEnquiryPreview?.status || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Date:</span>
-                {{ formatDate(selectedEnquiryPreview?.date) || '--' }}
-              </p>
-              <p>
-                <span class="font-semibold">Date:</span>
-                {{ formatDate(currentEnquiry?.date) || '--' }}
-              </p>
+          </div>
+
+          <!-- Quotation Information -->
+          <div class="quotation-info bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
+            <h4 class="text-blue-800 border-b-2 border-blue-200 pb-2 mb-4 font-bold text-lg">QUOTATION SUMMARY:</h4>
+            <div class="grid grid-cols-2 gap-y-3 gap-x-4">
+              <div class="font-semibold text-gray-600 uppercase text-xs">Quotation Date:</div>
+              <div class="text-gray-900 font-medium">{{ formatDate(selectedEnquiryPreview?.enquiry?.date) || '--' }}</div>
+              
+              <div class="font-semibold text-gray-600 uppercase text-xs">Department:</div>
+              <div class="text-gray-900 font-medium">{{ selectedEnquiryPreview?.enquiry?.department || '--' }}</div>
+
+              <div class="font-semibold text-gray-600 uppercase text-xs">Service Type:</div>
+              <div class="text-gray-900 font-medium">{{ selectedEnquiryPreview?.enquiry?.service_type || '--' }}</div>
+
+              <div class="font-semibold text-gray-600 uppercase text-xs">From Location:</div>
+              <div class="text-gray-900 font-medium">{{ locName(selectedEnquiryPreview?.enquiry?.from_location) }}</div>
+
+              <div class="font-semibold text-gray-600 uppercase text-xs">To Location:</div>
+              <div class="text-gray-900 font-medium">{{ locName(selectedEnquiryPreview?.enquiry?.to_location) }}</div>
+
+              <div class="font-semibold text-gray-600 uppercase text-xs">Validity To:</div>
+              <div class="text-gray-900">
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md text-sm font-bold">
+                  {{ formatDate(selectedEnquiryPreview?.enquiry?.effective_date_to) || '--' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Line Items Display with Finalized Vendors Only -->
-        <h4 class="text-lg font-bold mb-4">Line Items</h4>
-        <div class="mb-6">
-          <div class="grid grid-cols-1 gap-6">
-            <div
-              *ngFor="
-                let item of this.selectedEnquiryPreview?.line_items;
-                let i = index
-              "
-              class="line-item-card p-4 border rounded-lg bg-white shadow-sm"
-            >
-              <!-- Line Item Header -->
-              <div class="flex justify-between items-start mb-4 pb-3 border-b">
-                <div>
-                  <h5 class="font-bold text-lg">Line Item {{ i + 1 }}</h5>
-                  <p class="text-sm text-gray-600">
-                    {{ item.type || 'No type specified' }}
-                  </p>
-                </div>
-                <div class="text-right">
-                  <span
-                    class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                    [ngClass]="{
-                      'bg-green-100 text-green-800': item.status === 'Active',
-                      'bg-gray-100 text-gray-800': item.status === 'Inactive',
-                      'bg-yellow-100 text-yellow-800': item.status === 'Pending'
-                    }"
-                  >
-                    {{ item.status || 'Active' }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Line Item Details - Horizontal Layout -->
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div class="detail-item">
-                  <label class="font-semibold text-sm text-gray-600"
-                    >Service Area</label
-                  >
-                  <p class="mt-1">{{ item.service_area || '--' }}</p>
-                </div>
-                <div class="detail-item">
-                  <label class="font-semibold text-sm text-gray-600"
-                    >Basis</label
-                  >
-                  <p class="mt-1">{{ item.basis || '--' }}</p>
-                </div>
-                <div class="detail-item">
-                  <label class="font-semibold text-sm text-gray-600"
-                    >Quantity</label
-                  >
-                  <p class="mt-1">{{ item.quantity || 0 }}</p>
-                </div>
-                <div class="detail-item">
-                  <label class="font-semibold text-sm text-gray-600"
-                    >Remarks</label
-                  >
-                  <p class="mt-1">{{ item.remarks || '--' }}</p>
-                </div>
-              </div>
-
-              <!-- Finalized Sourcing/Tariff Lists -->
-              <div class="mt-4">
-                <div class="space-y-4">
-                  <div
-                    *ngFor="
-                      let summary of item?.enquiry_summary;
-                      let idx = index
-                    "
-                    class="source-section"
-                  >
-                    <h6 class="font-semibold mb-2 text-green-700 capitalize">
-                      {{ summary.summary_type }} Vendor's List
-                    </h6>
-                    <!-- Finalized Vendors List -->
-                    <div class="source-list-container">
-                      <p-table
-                        [value]="summary.selected_source_items || []"
-                        styleClass="p-datatable-sm w-full source-list-table"
-                      >
-                        <ng-template pTemplate="header">
-                          <tr>
-                            <th style="width: 120px">Source No</th>
-                            <th style="width: 200px">Vendor Name</th>
-                            <th style="width: 100px">Currency</th>
-                            <th style="width: 120px">Charge</th>
-                            <th style="width: 150px">Sourced Time</th>
-                            <th style="width: 250px">Remarks</th>
-                          </tr>
-                        </ng-template>
-                        <ng-template
-                          pTemplate="body"
-                          let-source
-                          let-i="rowIndex"
-                        >
-                          <tr>
-                            <!-- <td>{{ getSourceNumber(source, i) }}</td> -->
-                            <td>{{ source.sourced_no }}</td>
-                            <td class="font-medium">
-                              {{ source.vendor_name }}
-                            </td>
-                            <td>
-                              {{
-                                source.currency || source.currency_code || '--'
-                              }}
-                            </td>
-                            <td>
-                              <span class="font-semibold">
-                                {{ source.charge || source.charges || '--' }}
-                              </span>
-                            </td>
-                            <td>
-                              {{
-                                formatDateTime(source.created_at) ||
-                                  source.sourced_time ||
-                                  '--'
-                              }}
-                            </td>
-                            <td class="remarks-cell">
-                              {{
-                                source.remarks ||
-                                  source.negotiated_remarks ||
-                                  '--'
-                              }}
-                            </td>
-                          </tr>
-                        </ng-template>
-                        <ng-template pTemplate="emptymessage">
-                          <tr>
-                            <td
-                              colspan="6"
-                              class="text-center p-4 text-gray-500"
-                            >
-                              No finalized {{ summary.summary_type }} items
-                              available
-                            </td>
-                          </tr>
-                        </ng-template>
-                      </p-table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- No Finalized Sources Message -->
-              <!-- <div
-                *ngIf="item?.enquiry_summary?.[0]?.selected_source_items?.length ===0 ||
-                item?.enquiry_summary?.[0]?.selected_source_items"
-                class="mt-4 p-4 text-center border rounded bg-gray-50"
-              >
-                <p class="text-gray-500">
-                  No vendors available for this line item.
-                </p>
-              </div> -->
+        <!-- Line Items Section (Grouped by Service Area) -->
+        <div class="line-items-wrapper">
+          <div *ngFor="let group of groupedPreviewData; let i = index" class="mb-10 line-item-group">
+            <div class="bg-blue-900 text-white px-6 py-3 rounded-t-lg flex justify-between items-center shadow-md">
+              <span class="text-lg font-bold tracking-wide uppercase">Service Area: {{ group.name }}</span>
             </div>
+
+            <div class="border border-blue-900 border-t-0 rounded-b-lg overflow-hidden shadow-sm">
+              <table class="w-full text-sm text-left custom-preview-table">
+                <thead class="bg-blue-100 text-blue-900 uppercase font-bold text-xs">
+                  <tr>
+                    <th class="px-6 py-4 border-r border-blue-200" style="width: 40%;">Charge Name</th>
+                    <th class="px-6 py-4 border-r border-blue-200" style="width: 20%;">Basis</th>
+                    <th class="px-6 py-4 border-r border-blue-200" style="width: 15%;">Currency</th>
+                    <th class="px-6 py-4 text-right" style="width: 25%;">Rate</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                  <ng-container *ngFor="let charge of group.charges">
+                    <tr class="hover:bg-blue-50 transition-colors">
+                      <td class="px-6 py-4 font-medium text-gray-800 border-r border-gray-100">
+                        {{ getChargeNameLabel(charge) }}
+                      </td>
+                      <td class="px-6 py-4 text-gray-600 border-r border-gray-100">
+                        {{ charge.basis || '--' }}
+                      </td>
+                      <td class="px-6 py-4 font-bold text-gray-700 border-r border-gray-100 uppercase">
+                        {{ charge.sell_rate_currency || charge.currency || '--' }}
+                      </td>
+                      <td class="px-6 py-4 font-black text-blue-700 text-right text-lg">
+                        {{ (charge.sell_rate || charge.amount || charge.charges || charge.charge || 0) | number:'1.2-2' }}
+                      </td>
+                    </tr>
+                    <!-- Remarks per Charge -->
+                    <tr class="bg-gray-50/50" *ngIf="charge.remarks">
+                      <td colspan="4" class="px-6 py-2 text-gray-500 italic text-xs border-b border-gray-100">
+                        <strong>Charge Remarks:</strong> {{ charge.remarks }}
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+              
+              <!-- Service Area Level Remarks (Vendor & Line Item) -->
+              <div class="p-4 bg-gray-50 border-t border-gray-200" *ngIf="group.charges[0]?.vendor_remarks || group.charges[0]?.line_item_remarks">
+                <div *ngIf="group.charges[0]?.vendor_remarks" class="text-sm text-gray-600 mb-1">
+                  <i class="pi pi-info-circle mr-1 text-blue-500"></i>
+                  <strong>Internal Remarks:</strong> {{ group.charges[0].vendor_remarks }}
+                </div>
+                <div *ngIf="group.charges[0]?.line_item_remarks" class="text-sm text-gray-600">
+                  <i class="pi pi-info-circle mr-1 text-blue-500"></i>
+                  <strong>Service Remarks:</strong> {{ group.charges[0].line_item_remarks }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="groupedPreviewData.length === 0" class="p-10 text-center text-gray-400 italic bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+            <i class="pi pi-info-circle mr-2 text-xl"></i> No service areas or charges finalized for this quotation.
           </div>
         </div>
 
-        <!-- No Line Items with Finalized Vendors Message -->
-        <div
-          *ngIf="
-            !this.selectedEnquiryPreview?.line_items ||
-            this.selectedEnquiryPreview?.line_items?.length === 0
-          "
-          class="p-8 text-center border rounded bg-gray-50"
-        >
-          <p class="text-gray-500 text-lg">
-            No line items with vendors available for preview.
-          </p>
+        <!-- Enquiry Level Remarks -->
+        <div class="mt-8 bg-amber-50 p-6 rounded-lg border border-amber-200" *ngIf="selectedEnquiryPreview?.enquiry?.remarks">
+          <h4 class="text-amber-800 font-bold mb-2 flex items-center gap-2">
+            <i class="pi pi-info-circle"></i> REMARKS:
+          </h4>
+          <p class="text-gray-700 whitespace-pre-wrap font-medium">{{ selectedEnquiryPreview?.enquiry?.remarks }}</p>
         </div>
 
-        <!-- Finalized Vendors Summary -->
-        <div
-          *ngIf="finalizedVendors && finalizedVendors.length > 0"
-          class="mt-6"
-        >
-          <h4 class="text-lg font-bold mb-3">Finalized Vendors Summary</h4>
-          <div class="p-4 border rounded bg-blue-50">
-            <p class="font-semibold">
-              Total Vendors: {{ finalizedVendors.length }}
-            </p>
-            <button
-              pButton
-              label="View Detailed List"
-              icon="pi pi-list"
-              (click)="showFinalizedVendorsDialog = true"
-              class="p-button-sm p-button-info mt-2"
-            ></button>
+        <!-- Signature Space -->
+        <div class="mt-16 flex justify-between items-center px-4">
+          <div class="text-center w-56">
+            <div class="border-t border-gray-400 pt-2 text-sm font-semibold text-gray-600">Customer Signature</div>
+          </div>
+          <div class="text-center w-56">
+            <p class="mb-8 font-bold text-blue-900 tracking-wide">ISLF LOGISTICS</p>
+            <div class="border-t border-gray-400 pt-2 text-sm font-semibold text-gray-600">Authorized Signatory</div>
           </div>
         </div>
       </div>
 
       <ng-template pTemplate="footer">
-        <div class="flex justify-between items-center">
-          <div>
+        <div class="flex justify-between items-center w-full px-4">
+          <div class="status-badge" *ngIf="selectedEnquiry?.status">
+            <span class="text-sm font-semibold text-gray-500">Status: </span>
+            <span [ngClass]="getStatusClass(selectedEnquiry?.status || '')" class="uppercase px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+              {{ selectedEnquiry?.status }}
+            </span>
+          </div>
+          <div class="flex gap-3">
+            <button
+              pButton
+              label="Print / PDF"
+              icon="pi pi-print"
+              (click)="printPreview()"
+              class="p-button-outlined p-button-info"
+            ></button>
             <button
               pButton
               label="Close"
               icon="pi pi-times"
               (click)="showPreviewDialog = false"
-              class="p-button-sm"
+              class="p-button-secondary"
             ></button>
           </div>
         </div>
@@ -2581,45 +2485,42 @@ import { VendorService } from '@/services/vendor.service';
   `,
   styles: [
     `
-      /* Preview Dialog Styles */
+      /* Enhanced Preview Dialog Styles */
+      .professional-preview .p-dialog-content {
+        padding: 0 !important;
+      }
+
       .preview-container {
-        max-height: calc(90vh - 100px);
+        max-height: calc(95vh - 120px);
         overflow-y: auto;
+        font-family: 'Inter', sans-serif;
+        color: #1a202c;
+        border: 2px solid #e2e8f0;
       }
 
-      .line-item-card {
-        transition: all 0.3s ease;
+      .custom-preview-table th {
+        border-bottom: 2px solid #bfdbfe;
+        letter-spacing: 0.05em;
       }
 
-      .line-item-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      .custom-preview-table td {
+        border-bottom: 1px solid #edf2f7;
       }
 
-      .detail-item {
-        padding: 8px 0;
+      .line-item-group {
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
 
-      .source-section {
-        border-left: 3px solid #3b82f6;
-        padding-left: 12px;
-      }
-
-      .source-list-container {
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        overflow: hidden;
-      }
-
-      .source-list-table .p-datatable-wrapper {
-        border-radius: 6px;
-      }
-
-      .source-list-table .p-datatable-thead > tr > th {
-        background-color: #f8fafc;
-        color: #374151;
-        font-weight: 600;
-        padding: 12px;
-        border-bottom: 2px solid #e5e7eb;
+      @media print {
+        .professional-preview p-dialog-header,
+        .professional-preview p-dialog-footer {
+          display: none !important;
+        }
+        .preview-container {
+          overflow: visible !important;
+          max-height: none !important;
+        }
       }
 
       .source-list-table .p-datatable-tbody > tr > td {
@@ -2647,6 +2548,7 @@ import { VendorService } from '@/services/vendor.service';
           border-bottom: none;
         }
       }
+
       .vendor-card {
         border: 2px solid #e9ecef;
         transition: all 0.3s ease;
@@ -2674,7 +2576,7 @@ import { VendorService } from '@/services/vendor.service';
         max-width: 200px;
       }
 
-      .charges-display .text-sm {
+      .charges-display.text-sm {
         margin-bottom: 2px;
       }
 
@@ -2753,9 +2655,6 @@ export class EnquiryComponent implements OnInit {
   selectedTreeKeysByLine: { [index: number]: { [key: string]: boolean } } = {};
   vendorNodeMapByLine: { [index: number]: { [key: string]: any } } = {};
 
-  // Finalized vendors preview
-  finalizedVendors: any[] = [];
-  showFinalizedVendorsDialog: boolean = false;
   showPreviewDialog: boolean = false;
 
   selectedServiceArea: string = '';
@@ -2789,7 +2688,43 @@ export class EnquiryComponent implements OnInit {
   // Table data
   enquiries: Enquiry[] = [];
   selectedEnquiry: Enquiry | null = null;
-  selectedEnquiryPreview: Enquiry | null = null;
+  selectedEnquiryPreview: EnquiryPreviewResponse | null = null;
+
+  get groupedPreviewData() {
+    if (!this.selectedEnquiryPreview?.line_items) return [];
+
+    const groups = new Map<string, any[]>();
+
+    this.selectedEnquiryPreview.line_items.forEach((item: any) => {
+      const allVendors = [
+        ...(item.sourcing_vendors || []),
+        ...(item.tariff_vendors || []),
+      ];
+
+      allVendors.forEach((vendor: any) => {
+        // Requirement: Line Item -> Service Area, and Selected Vendor -> Service Area (for local tariffs)
+        const sa = vendor.service_area || item.service_area || 'Other';
+
+        if (!groups.has(sa)) {
+          groups.set(sa, []);
+        }
+
+        const subCharges = vendor.sub_charges || [];
+        subCharges.forEach((sc: any) => {
+          groups.get(sa)?.push({
+            ...sc,
+            vendor_remarks: vendor.remarks,
+            line_item_remarks: item.remarks,
+          });
+        });
+      });
+    });
+
+    return Array.from(groups.entries()).map(([name, charges]) => ({
+      name,
+      charges,
+    }));
+  }
 
   isDialogVisible = false;
   fieldErrors: { [key: string]: string } = {};
@@ -3055,7 +2990,6 @@ export class EnquiryComponent implements OnInit {
     this.loadMappedEnquirySeriesCode();
     this.loadMasterTypeOptions();
     this.loadCarriageDirectionOptions();
-    this.updateFinalizedVendorsPreview(); // Initialize finalized vendors preview
     this.loadChargeTypeNames().subscribe();
   }
 
@@ -3125,11 +3059,11 @@ export class EnquiryComponent implements OnInit {
 
         // Initialize location options formatted as CODE - NAME
         this.fromLocationOptions = this.allLocations.map((l) => ({
-          label: `${l.code} - ${l.name}`,
+          label: `${l.code} - ${l.name} `,
           value: l.code,
         }));
         this.toLocationOptions = this.allLocations.map((l) => ({
-          label: `${l.code} - ${l.name}`,
+          label: `${l.code} - ${l.name} `,
           value: l.code,
         }));
 
@@ -3259,7 +3193,7 @@ export class EnquiryComponent implements OnInit {
         this.basisOptions = (basis || [])
           .filter((b) => b.status === 'Active')
           .map((b) => ({
-            label: `${b.code} - ${b.description}`,
+            label: `${b.code} - ${b.description} `,
             value: b.code,
           }));
 
@@ -3275,7 +3209,7 @@ export class EnquiryComponent implements OnInit {
     //         (cargoType) =>
     //           cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
     //       )
-    //       .map((CT) => ({ label: `${CT.code}-${CT.name}`, value: CT.name }));
+    //       .map((CT) => ({ label: `${ CT.code } -${ CT.name } `, value: CT.name }));
     //     console.log('Cargo Type options,', this.cargoTypeOptions);
     //   }),
     return this.masterTypeService.getAll().pipe(
@@ -3287,7 +3221,7 @@ export class EnquiryComponent implements OnInit {
               cargoMaster.key.toLowerCase() === 'cargo_type'
           )
           .map((cargoMaster) => ({
-            label: `${cargoMaster.value}-${cargoMaster.description}`,
+            label: `${cargoMaster.value} -${cargoMaster.description} `,
             value: cargoMaster.value,
           }));
         console.log('cargoType Options,', this.cargoTypeOptions);
@@ -3377,7 +3311,7 @@ export class EnquiryComponent implements OnInit {
       tap((sourceSales: any[]) => {
         this.sourceSalesOptions = (sourceSales || [])
           .filter((s) => s.status === 'active' || s.status === 'Active')
-          .map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }));
+          .map((s) => ({ label: `${s.code} - ${s.name} `, value: s.code }));
         console.log('Source sales options loaded:', this.sourceSalesOptions);
       }),
       catchError((error) => {
@@ -3477,7 +3411,7 @@ export class EnquiryComponent implements OnInit {
             (l.type || '').toLowerCase() === (type || '').toLowerCase()
         );
     return list.map((l: any) => ({
-      label: `${l.code} - ${l.name}`,
+      label: `${l.code} - ${l.name} `,
       value: l.code,
     }));
   }
@@ -3587,7 +3521,7 @@ export class EnquiryComponent implements OnInit {
       this.serviceTypeOptions = [];
     } else {
       this.serviceTypeOptions = filteredTypes.map((st) => ({
-        label: `${st.code} - ${st.name}`,
+        label: `${st.code} - ${st.name} `,
         value: st.code,
       }));
     }
@@ -3620,7 +3554,7 @@ export class EnquiryComponent implements OnInit {
       list = filtered.length ? filtered : list;
     }
     this.serviceTypeFilterOptions = (list || []).map((st: any) => ({
-      label: `${st.code} - ${st.name}`,
+      label: `${st.code} - ${st.name} `,
       value: st.code,
     }));
   }
@@ -3740,7 +3674,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   closeMasterDialog(type: string) {
-    console.log(`Closing master dialog: ${type}`);
+    console.log(`Closing master dialog: ${type} `);
 
     // Reset the appropriate dialog visibility
     switch (type) {
@@ -3817,7 +3751,7 @@ export class EnquiryComponent implements OnInit {
         this.masterTypeFilter = '';
         break;
       default:
-        console.warn(`Unknown master dialog type: ${type}`);
+        console.warn(`Unknown master dialog type: ${type} `);
     }
 
     // Reset loading state if it exists
@@ -4070,7 +4004,8 @@ export class EnquiryComponent implements OnInit {
           return list.filter((v) => {
             const vendorName = (v.vendor_name || '').toString().trim().toLowerCase();
             const lineItemId = v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0;
-            const key = `${lineItemId}-${vendorName}`;
+            const vendorId = v.card_id || v.id || v.master_id || 'new';
+            const key = `${lineItemId}-${vendorName}-${vendorId}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -4285,122 +4220,6 @@ export class EnquiryComponent implements OnInit {
     }, 0);
   }
 
-  // Finalize the vendor selection
-  finalizeVendorSelection(source: any) {
-    if (
-      !source.selected_source_items ||
-      source.selected_source_items.length === 0
-    ) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Warning',
-        detail: 'Please select at least one vendor to finalize',
-      });
-      return;
-    }
-    console.log('finalize vendor selection argument value,', source);
-    {
-      /* // Mark the selected vendors as finalized
-    source.finalizedItems = [...source.selectedItems];
-
-    // Update the summary with finalized status
-    if (source.finalizedItems.length === 1) {
-      const finalized = source.finalizedItems[0];
-      source.sourced_no =
-        finalized.sourced_no || 'SRC-' + source.sourced_list.indexOf(finalized);
-      source.vendor_name = finalized.vendor_name;
-      source.currency_code = finalized.currency;
-      source.charge = finalized.charges;
-      source.sourced_time = finalized.created_at;
-      source.remarks = finalized.negotiated_remarks;
-      source.status = 'Finalized';
-    } else {
-      source.sourced_no = `${source.finalizedItems.length} finalized`;
-      source.vendor_name = 'Multiple vendors';
-      source.currency_code = 'Multiple';
-      source.charge = this.calculateTotalCharge(source.finalizedItems);
-      source.sourced_time = new Date().toISOString();
-      source.remarks = `${source.finalizedItems.length} vendors finalized`;
-      source.status = 'Finalized';
-    } */
-    }
-
-    const selectedVendorCardList = source.selected_source_items;
-
-    // api Call
-    this.enquiryService
-      .updateVendorCardSelection(
-        this.selectedEnquiry?.code || '',
-        selectedVendorCardList[0].enquiry_line_item_id,
-        selectedVendorCardList[0].source_type,
-        selectedVendorCardList
-      )
-      .subscribe({
-        next: (response: any) => {
-          console.log('response of finalized vendor card,', response);
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: `${source.finalizedItems.length} vendor(s) finalized successfully`,
-          });
-        },
-        error: (error: any) => { },
-      });
-
-    // Update the finalized vendors preview
-    this.updateFinalizedVendorsPreview();
-
-    // Force change detection to update the UI
-    this.cdr.detectChanges();
-  }
-
-  // Get all finalized vendors across all line items
-  getAllFinalizedVendors(): any[] {
-    const finalizedVendors: any[] = [];
-
-    if (this.lineItems) {
-      this.lineItems.forEach((item, lineIndex) => {
-        // Check sourcing
-        // if (item.sourcing) {
-        //   item.sourcing.forEach(source => {
-        //     if (source.finalizedItems && source.finalizedItems.length > 0) {
-        //       source.finalizedItems.forEach((vendor: any) => {
-        //         finalizedVendors.push({
-        //           lineItemNo: lineIndex + 1,
-        //           type: 'Sourcing',
-        //           vendorName: vendor.vendor_name,
-        //           sourceNo: vendor.sourced_no || ('SRC-' + source.sourced_list.indexOf(vendor)),
-        //           charge: vendor.charges,
-        //           currency: vendor.currency,
-        //           remarks: vendor.negotiated_remarks
-        //         });
-        //       });
-        //     }
-        //   });
-        // }
-        // Check tariff
-        // if (item.tariff) {
-        //   item.tariff.forEach(source => {
-        //     if (source.finalizedItems && source.finalizedItems.length > 0) {
-        //       source.finalizedItems.forEach((vendor: any) => {
-        //         finalizedVendors.push({
-        //           lineItemNo: lineIndex + 1,
-        //           type: 'Tariff',
-        //           vendorName: vendor.vendor_name,
-        //           sourceNo: vendor.sourced_no || ('SRC-' + source.sourced_list.indexOf(vendor)),
-        //           charge: vendor.charges,
-        //           currency: vendor.currency,
-        //           remarks: vendor.negotiated_remarks
-        //         });
-        //       });
-        //     }
-        //   });
-        // }
-      });
-    }
-
-    return finalizedVendors;
-  }
   formatDateTime(date: string | Date | undefined | null): string {
     if (!date) return '';
 
@@ -4419,37 +4238,11 @@ export class EnquiryComponent implements OnInit {
       const hours = dateObj.getHours().toString().padStart(2, '0');
       const minutes = dateObj.getMinutes().toString().padStart(2, '0');
 
-      return `${day}/${month}/${year} ${hours}:${minutes}`;
+      return `${day} /${month}/${year} ${hours}:${minutes} `;
     } catch {
       return '';
     }
   }
-  // Update the finalized vendors preview
-  updateFinalizedVendorsPreview() {
-    this.finalizedVendors = this.getAllFinalizedVendors();
-  }
-
-  // Initialize selectedItems for all sources
-  // private initializeSelectedItems() {
-  //   if (this.lineItems) {
-  //     this.lineItems.forEach(item => {
-  //       if (item.sourcing) {
-  //         item.sourcing.forEach(source => {
-  //           if (!source.selectedItems) {
-  //             source.selectedItems = [];
-  //           }
-  //         });
-  //       }
-  //       if (item.tariff) {
-  //         item.tariff.forEach(source => {
-  //           if (!source.selectedItems) {
-  //             source.selectedItems = [];
-  //           }
-  //         });
-  //       }
-  //     });
-  //   }
-  // }
 
   private buildVendorTreeForLine(
     lineIndex: number,
@@ -4463,7 +4256,7 @@ export class EnquiryComponent implements OnInit {
 
     if (mode !== 'tariff') {
       const sourcingChildren = (sourcing || []).map((v: any, i: number) => {
-        const key = `sourcing-${i}`;
+        const key = `sourcing - ${i} `;
         this.vendorNodeMapByLine[lineIndex][key] = v;
         return {
           key,
@@ -4487,7 +4280,7 @@ export class EnquiryComponent implements OnInit {
 
     if (mode !== 'sourcing') {
       const tariffChildren = (tariff || []).map((v: any, i: number) => {
-        const key = `tariff-${i}`;
+        const key = `tariff - ${i} `;
         this.vendorNodeMapByLine[lineIndex][key] = v;
         return {
           key,
@@ -4550,17 +4343,22 @@ export class EnquiryComponent implements OnInit {
   }
 
   getStatusClass(status: string): string {
-    switch (status) {
-      case 'Open':
-        return 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold';
-      case 'Closed':
-        return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
-      case 'Confirmed':
-        return 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold';
+    const s = (status || '').toLowerCase();
+    switch (s) {
+      case 'open':
+      case 'active':
+        return 'bg-blue-100 text-blue-800 border border-blue-200 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'closed':
+        return 'bg-gray-100 text-gray-800 border border-gray-200 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'confirmed':
+        return 'bg-green-100 text-green-800 border border-green-200 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'cancelled':
+      case 'rejected':
+        return 'bg-red-100 text-red-800 border border-red-200 px-2 py-1 rounded-full text-xs font-semibold';
       default:
-        return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold';
+        return 'bg-gray-100 text-gray-800 border border-gray-200 px-2 py-1 rounded-full text-xs font-semibold';
     }
   }
   formatDate(date: string | Date | undefined | null): string {
@@ -5152,7 +4950,11 @@ export class EnquiryComponent implements OnInit {
             }));
           })();
           if (existingSelected && existingSelected.length) {
-            this.selectedSourcingVendors = existingSelected;
+            // Keep vendors for other line items, replace for current line item (Single-Select/Replace)
+            this.selectedSourcingVendors = [
+              ...this.selectedSourcingVendors.filter(v => v.enquiry_line_item_id !== lineItemId),
+              ...existingSelected
+            ];
             this.hydrateSubCharges(this.selectedSourcingVendors);
           }
           this.refreshSelectedVendorCaches();
@@ -5247,13 +5049,18 @@ export class EnquiryComponent implements OnInit {
           const li = this.selectedEnquiry?.line_items?.[lineItemIndex];
           const tariffSummary = li?.enquiry_summary?.[1];
           const prevTariff = tariffSummary?.selected_source_items || [];
-          this.selectedTariffVendors = (prevTariff || []).map((v: any) => ({
+          const mappedPrev = (prevTariff || []).map((v: any) => ({
             ...v,
             enquiry_line_item_id: lineItemId,
             selected_subcharges: v.selected_subcharges || [],
             sell_rates: v.sell_rates || {},
             remarks: v.remarks || '',
           }));
+          // Merge with existing but replace current line items records to avoid duplicates when reloading
+          this.selectedTariffVendors = [
+            ...this.selectedTariffVendors.filter(v => v.enquiry_line_item_id !== lineItemId),
+            ...mappedPrev
+          ];
           this.activeVendorTab = 2; // Get Tariff tab
           this.showVendorTabsDialog = true;
           if (this.selectedTariffVendors.length) {
@@ -5418,14 +5225,15 @@ export class EnquiryComponent implements OnInit {
       );
       this.refreshSelectedVendorCaches();
 
-      // Add newly moved vendor
-      this.selectedSourcingVendors = [movedVendors].map((srcVendor) => ({
+      // Filter out existing sourcing for this line item (Single-Select/Replace)
+      const others = this.selectedSourcingVendors.filter(v => v.enquiry_line_item_id !== lineItemId);
+      this.selectedSourcingVendors = [...others, ...[movedVendors].map((srcVendor) => ({
         ...srcVendor,
         sub_charges: srcVendor.sub_charges?.map((sc: any) => ({
           ...sc,
           sell_rate_gst_vat: sc.gst_vat,
         })),
-      }));
+      }))];
       this.refreshSelectedVendorCaches();
 
       // Persist the new sourcing vendor
@@ -5515,7 +5323,18 @@ export class EnquiryComponent implements OnInit {
       return;
     }
 
-    this.selectedTariffVendors = [...this.selectedTariffVendors, ...selected].map((vendor) => {
+    // Merge and De-duplicate (Multi-Select/Append)
+    const combined = [...this.selectedTariffVendors, ...selected];
+    const seen = new Set();
+    this.selectedTariffVendors = combined.filter((v) => {
+      const vendorName = (v.vendor_name || v.vendor || '').toString().trim().toLowerCase();
+      const lineId = v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0;
+      const vendorId = v.card_id || v.id || v.master_id || 'new';
+      const key = `${lineId}-${vendorName}-${vendorId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((vendor) => {
       if (!vendor.sell_rates) vendor.sell_rates = {};
       (vendor.sub_charges || []).forEach((sc: any) => {
         const amt = sc.amount ?? sc.charges ?? 0;
@@ -5566,9 +5385,13 @@ export class EnquiryComponent implements OnInit {
       to_location: vendor.to_location ?? ctxT.to_location,
       period_start_date: vendor.effective_date ?? ctxT.effective_date_from,
       period_end_date: vendor.expiry_date ?? ctxT.effective_date_to,
-      charges: (vendor.selected_subcharges && vendor.selected_subcharges.length)
+      charges: ((vendor.selected_subcharges && vendor.selected_subcharges.length)
         ? vendor.selected_subcharges
-        : (vendor.sub_charges || []),
+        : (vendor.sub_charges || [])).map((sc: any) => ({
+          ...sc,
+          amount: sc.amount ?? sc.charges ?? sc.charge ?? 0,
+          charges: sc.amount ?? sc.charges ?? sc.charge ?? 0
+        })),
     }));
 
     this.enquiryService.deleteLineItemVendorData(this.currentEnquiry?.code!, Number(ctxT.lineItemId), 'tariff').subscribe({
@@ -6171,47 +5994,6 @@ export class EnquiryComponent implements OnInit {
   }
   //11/15/2025
 
-  // Get only finalized sources for a line item
-  getFinalizedSourcesForLineItem(item: EnquiryLineItem): any[] {
-    if (!item.enquiry_summary || item.enquiry_summary.length === 0) {
-      return [];
-    }
-
-    return item.enquiry_summary.filter((summary) => {
-      // Check if summary has finalized items
-      return summary.finalizedItems && summary.finalizedItems.length > 0;
-    });
-  }
-
-  // Get finalized vendors for a specific summary
-  getFinalizedVendorsForSummary(summary: any): any[] {
-    if (!summary.finalizedItems || summary.finalizedItems.length === 0) {
-      return [];
-    }
-
-    return summary.finalizedItems.map((vendor: any, index: number) => {
-      return {
-        ...vendor,
-        sourced_no: vendor.sourced_no || `${index + 1}`,
-        charge: vendor.charges || vendor.charge,
-        currency: vendor.currency || vendor.currency_code,
-        sourced_time: vendor.created_at || vendor.sourced_time,
-        remarks: vendor.negotiated_remarks || vendor.remarks,
-      };
-    });
-  }
-
-  // Filter line items to only show those with finalized vendors
-  getLineItemsWithFinalizedSources(): EnquiryLineItem[] {
-    if (!this.lineItems || this.lineItems.length === 0) {
-      return [];
-    }
-
-    return this.lineItems.filter((item) => {
-      const finalizedSources = this.getFinalizedSourcesForLineItem(item);
-      return finalizedSources && finalizedSources.length > 0;
-    });
-  }
 
   addSelectedVendors() {
     console.log(
@@ -6396,7 +6178,7 @@ export class EnquiryComponent implements OnInit {
     // Use the stored from_location and to_location from sourcing selection
     const from = card.from_location || 'N/A';
     const to = card.to_location || 'N/A';
-    return `${from} → ${to}`;
+    return `${from} - ${to}`;
   }
 
   getVendorBasis(card: EnquiryVendorCard): string {
@@ -6535,7 +6317,7 @@ export class EnquiryComponent implements OnInit {
           this.messageService.add({
             severity: 'info',
             summary: 'Enquiry Number Generated',
-            detail: `Enquiry Number: ${response.enquiry_no}`,
+            detail: `Enquiry Number: ${response.enquiry_no} `,
             life: 5000,
           });
 
@@ -6625,7 +6407,7 @@ export class EnquiryComponent implements OnInit {
               this.messageService.add({
                 severity: 'success',
                 summary: 'Success',
-                detail: `Enquiry confirmed successfully. Booking ${response.booking_no} created.`,
+                detail: `Enquiry confirmed successfully.Booking ${response.booking_no} created.`,
               });
               this.enquiryForm.patchValue({ status: 'Confirmed' });
             },
@@ -6988,5 +6770,57 @@ export class EnquiryComponent implements OnInit {
       }));
     }
     console.log('To location options:', this.toLocationOptions.length);
+  }
+
+  calculateVendorTotal(vendor: any): number {
+    if (!vendor || !vendor.sub_charges) return 0;
+    return vendor.sub_charges.reduce((total: number, sc: any) => {
+      return total + (sc.sell_rate || sc.charges || 0);
+    }, 0);
+  }
+
+
+  printPreview() {
+    const printContent = document.getElementById('printable-preview');
+    if (!printContent) return;
+
+    const windowUrl = '';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const printWindow = window.open(windowUrl, windowName, 'left=0,top=0,width=900,height=900,toolbar=0,scrollbars=0,status=0');
+
+    if (printWindow && printWindow.document) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Quote Preview - ${this.selectedEnquiryPreview?.enquiry?.code || ''}</title>
+            <link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+              body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; }
+              .custom-preview-table th { background-color: #dbeafe !important; color: #1e3a8a !important; }
+              .bg-blue-900 { background-color: #1e3a8a !important; }
+              @media print {
+                .no-print { display: none; }
+                body { padding: 20px; }
+              }
+            </style>
+          </head>
+          <body>
+            ${printContent.innerHTML || ''}
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   }
 }

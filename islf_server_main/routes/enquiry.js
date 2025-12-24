@@ -319,15 +319,42 @@ router.get("/:code", async (req, res) => {
       // Determine selected lists by presence of sub-charges mapped to vendor card id
       const cardIds = vendorCardsResult.map((vc) => vc.id);
       let selectedCardIdSet = new Set();
+      let subChargesByCardId = {};
+
       if (cardIds.length > 0) {
-        const { rows: subMapRows } = await pool.query(
-          `SELECT DISTINCT master_id, master_type FROM enquiry_vendor_sub_charges 
-           WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_id = ANY($3)`,
+        // Fetch ALL sub-charges for these cards, not just IDs
+        const { rows: subChargesResult } = await pool.query(
+          `SELECT sc.*, mi.name 
+           FROM enquiry_vendor_sub_charges sc
+           LEFT JOIN master_item mi ON sc.charge_name = mi.code AND mi.item_type = 'CHARGE_TYPE'
+           WHERE sc.enquiry_id = $1 AND sc.enquiry_line_item_id = $2 AND sc.master_id = ANY($3)
+           ORDER BY sc.id`,
           [enquiry_id, line_item_id, cardIds]
         );
-        selectedCardIdSet = new Set(subMapRows.map((r) => r.master_id));
+
+        // Group by master_id (card_id)
+        subChargesByCardId = subChargesResult.reduce((acc, sc) => {
+          if (!acc[sc.master_id]) acc[sc.master_id] = [];
+          acc[sc.master_id].push(sc);
+          return acc;
+        }, {});
+
+        // Build set of selected cards (if they have sub-charges, we consider them potentially selected, 
+        // though strictly 'selected' might be defined by user action. 
+        // Preserving existing logic: presence in sub-charges table implies selection was saved ?)
+        // Actually, previous logic used DISTINCT master_id to set 'selected'. 
+        // We can still derive that key set.
+        selectedCardIdSet = new Set(Object.keys(subChargesByCardId).map(Number));
       }
       vendorCardsResult.forEach((vendorCard) => {
+        // Attach sub-charges
+        vendorCard.sub_charges = subChargesByCardId[vendorCard.id] || [];
+        // Also ensure selected_subcharges is populated if the card is selected
+        // This mirrors frontend logic where selected_subcharges is a subset or copy
+        if (selectedCardIdSet.has(vendorCard.id)) {
+          vendorCard.selected_subcharges = vendorCard.sub_charges;
+        }
+
         const typeVal = (vendorCard.master_type || "").toLowerCase();
         const isSelected = selectedCardIdSet.has(vendorCard.id);
         if (typeVal === "tariff") {
@@ -437,7 +464,7 @@ router.get("/:code/preview", async (req, res) => {
   try {
     const { code } = req.params;
 
-    // Get enquiry details
+    // 1. Get enquiry details
     const enquiryResult = await pool.query(
       "SELECT e.*, c.name as customer_display_name FROM enquiry e LEFT JOIN customer c ON e.customer_id = c.id WHERE e.code = $1",
       [code]
@@ -448,151 +475,60 @@ router.get("/:code/preview", async (req, res) => {
     }
 
     const enquiry = enquiryResult.rows[0];
-    const enquiry_id = enquiry.id;
-    let line_items = [];
+    const enquiryId = enquiry.id;
 
-    // Get line items
-    const { rows: lineItemsResult } = await pool.query(
-      "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 AND is_selected = true ORDER BY s_no",
-      [enquiry_id]
+    // 2. Get all line items
+    const { rows: lineItems } = await pool.query(
+      "SELECT * FROM enquiry_line_items WHERE enquiry_id = $1 ORDER BY s_no",
+      [enquiryId]
     );
-    console.log("enquiry line Item Result,", lineItemsResult);
-    // Get vendor cards
-    // const vendorCardsResult = await pool.query(
-    //   "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id = $1 ORDER BY created_at",
-    //   [enquiry_id]
-    // );
 
-    // let nested_line_item = lineItemsResult.rows.forEach(lineItem => {
-    for (let lineItem of lineItemsResult) {
-      let line_item_id = lineItem.s_no;
-      let enquiry_summary = [
-        {
-          id: "1",
-          summary_type: "sourcing",
-          sourced_no: "--",
-          vendor_name: "--",
-          currency_code: "--",
-          charge: "--",
-          sourced_time: "--",
-          remarks: "--",
-          selected_source_items: [],
-          sourced_list: [],
-        },
-        {
-          id: 2,
-          summary_type: "tariff",
-          sourced_no: "--",
-          vendor_name: "--",
-          currency_code: "--",
-          charge: "--",
-          sourced_time: "--",
-          remarks: "--",
-          selected_source_items: [],
-          sourced_list: [],
-        },
-      ];
-      const { rows: vendorCardsResult } = await pool.query(
-        "SELECT * FROM enquiry_vendor_cards WHERE enquiry_id=$1 AND enquiry_line_item_id=$2 ORDER BY id DESC;",
-        [enquiry_id, line_item_id]
-      );
-      // console.log("list of vendor cards,", vendorCardsResult);
-      let selected_source_list = [];
-      let selected_tariff_list = [];
-      vendorCardsResult.forEach((vendorCard) => {
-        const typeVal = (vendorCard.master_type || vendorCard.source_type || "").toLowerCase();
-        if (typeVal === "tariff" && vendorCard.is_selected) {
-          selected_tariff_list.push(vendorCard);
-        } else if (typeVal === "sourcing" && vendorCard.is_selected) {
-          selected_source_list.push(vendorCard);
-        }
-      });
-      // console.log(
-      //   "vendor card source list:",
-      //   source_list,
-      //   "tariff list",
-      //   tariff_list
-      // );
-
-      if (selected_source_list.length != 0) {
-        // removes the first element in enquiry summary list
-        enquiry_summary.splice(0, 1);
-        let selected_sourcing = selected_source_list[0] || {};
-        // eliminating null value with
-        selected_sourcing["charges"] =
-          selected_sourcing.charges == null ? 0 : selected_sourcing.charges;
-        selected_sourcing["negotiated_amount"] =
-          selected_sourcing.negotiated_amount == null
-            ? 0
-            : selected_sourcing.negotiated_amount;
-        console.log(
-          "Selected sourcing at line item id",
-          line_item_id,
-          "is:",
-          selected_sourcing
+    // 3. For each line item, fetch selected vendors and their sub-charges
+    const detailedLineItems = await Promise.all(
+      lineItems.map(async (item) => {
+        // Fetch all selected vendor cards for this line item
+        const { rows: selectedVendors } = await pool.query(
+          `SELECT * FROM enquiry_vendor_cards 
+           WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 
+           ORDER BY master_type, id`,
+          [enquiryId, item.s_no]
         );
 
-        let source_summary = {
-          id: 1,
-          summary_type: "sourcing",
-          sourced_no: selected_sourcing.sourced_no || "--",
-          vendor_name: selected_sourcing.vendor_name || "--",
-          currency_code: selected_sourcing.currency_code || "--",
-          charge:
-            Math.max(
-              selected_sourcing.charges,
-              selected_sourcing.negotiated_amount
-            ) || "--",
-          sourced_time: selected_sourcing.created_at,
-          remarks: selected_sourcing.remarks || "--",
-          selected_source_items: selected_source_list,
-        };
-        // enquiry_summary.push(source_summary);
-        enquiry_summary.splice(0, 0, source_summary);
-      }
-
-      if (selected_tariff_list.length != 0) {
-        // removing the last element in the enquiry summary
-        enquiry_summary.splice(1, 1);
-        let selected_tariff = selected_tariff_list[0] || {};
-        console.log(
-          "Selected tariff at line item id",
-          line_item_id,
-          "is:",
-          selected_tariff
+        // Fetch sub-charges for each selected vendor
+        const vendorsWithCharges = await Promise.all(
+          selectedVendors.map(async (vendor) => {
+            const { rows: subCharges } = await pool.query(
+              `SELECT sc.*, mi.name 
+               FROM enquiry_vendor_sub_charges sc
+               LEFT JOIN master_item mi ON sc.charge_name = mi.code AND mi.item_type = 'CHARGE_TYPE'
+               WHERE sc.master_id = $1 
+               ORDER BY sc.id`,
+              [vendor.id]
+            );
+            return {
+              ...vendor,
+              sub_charges: subCharges || []
+            };
+          })
         );
-        let tariff_summary = {
-          id: 2,
-          summary_type: "tariff",
-          sourced_no: selected_tariff.sourced_no || "--",
-          vendor_name: selected_tariff.vendor_name || "--",
-          currency_code: selected_tariff.currency_code || "--",
-          charge:
-            Math.max(
-              selected_tariff.charges,
-              selected_tariff.negotiated_amount
-            ) || "--",
-          sourced_time: selected_tariff.created_at,
-          remarks: selected_tariff.remarks || "--",
-          selected_source_items: selected_tariff_list,
-        };
-        // enquiry_summary.push(tariff_summary);
-        enquiry_summary.splice(1, 0, tariff_summary);
-      }
 
-      let nested_line_item = { ...lineItem, enquiry_summary: enquiry_summary };
-      console.log("enquiry summary,", enquiry_summary);
-      line_items.push(nested_line_item);
-    }
+        // Split into sourcing and tariff for easier frontend consumption
+        return {
+          ...item,
+          sourcing_vendors: vendorsWithCharges.filter(v => v.master_type === 'sourcing'),
+          tariff_vendors: vendorsWithCharges.filter(v => v.master_type === 'tariff')
+        };
+      })
+    );
 
     res.json({
-      ...enquiry,
-      line_items: line_items,
-      // vendor_cards: vendorCardsResult.rows,
+      enquiry: enquiry,
+      line_items: detailedLineItems
     });
+
   } catch (error) {
-    console.error("Error fetching enquiry:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error in enquiry preview route:", error);
+    res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
 });
 // POST /enquiry - Create new enquiry
@@ -2111,7 +2047,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
             const chargeName = ch.charge_name || ch.name || null;
             const currencyVal = ch.currency || card.currency || null;
             const basisVal = ch.basis || card.basis || null;
-            const amountVal = ch.amount ?? ch.charges ?? null;
+            const amountVal = ch.amount ?? ch.charges ?? ch.charge ?? null;
             const sellRateCur = ch.sell_rate_currency || null;
             const sellRateVal = ch.sell_rate || null;
             const gstVatVal = ch.gst_vat || ch.gst_rate || null;
@@ -2603,58 +2539,10 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
     }
     const enquiryId = enquiryResult.rows[0].id;
 
-    // Unselect all selected vendor cards (if schema supports is_selected)
-    try {
-      await pool.query(
-        `UPDATE enquiry_vendor_cards SET is_selected=false 
-          WHERE enquiry_id = $1 AND enquiry_line_item_id = $2
-          AND master_type = $3; `,
-        [enquiryId, lineItemId, sourcingType]
-      );
-    } catch (e) {
-      console.warn('Selection flag update skipped (schema may not have is_selected):', e.message);
-    }
-
-    let selectedVendorCardList = vendorCardList.map((vendorCard) => ({
-      vendorCardId: vendorCard.id,
-      enquiryId: vendorCard.enquiry_id,
-    }));
-    if (selectedVendorCardList.length > 0) {
-      query = ` UPDATE enquiry_vendor_cards SET is_selected = true WHERE enquiry_id = $1 AND enquiry_line_item_id = $2 AND master_type = $3 AND`;
-      params = [enquiryId, lineItemId, sourcingType];
-      console.log("mapped Line Item Result,", selectedVendorCardList);
-      selectedVendorCardList.forEach((vendorCard, index) => {
-        console.log(
-          "index,",
-          index,
-          "line item result,",
-          selectedVendorCardList.length
-        );
-        if (selectedVendorCardList.length === 1) {
-          query += ` ( id = $${index + 4})`;
-          params.push(vendorCard.vendorCardId);
-        } else {
-          query +=
-            index === 0
-              ? ` ( id = $${index + 4}`
-              : index === selectedVendorCardList.length - 1
-                ? `  OR  id = $${index + 4} )`
-                : `  OR  id = $${index + 4} `;
-          params.push(vendorCard.vendorCardId);
-        }
-      });
-      console.log("line item selection query,", query, "params list,", params);
-      try {
-        const { rows: vendorCardSelectionResult } = await pool.query(
-          query,
-          params
-        );
-        console.log('Vendor Card Selection Result:', vendorCardSelectionResult);
-      } catch (e) {
-        console.warn('Selection flag set skipped (schema may not have is_selected):', e.message);
-      }
-      console.log("Vendor Card Selection Result,", vendorCardSelectionResult);
-    }
+    // Column is_selected does not exist in the schema, and we're moving to "Live Snapshot"
+    // where any vendor added to an enquiry is considered selected.
+    // Thus, we skip the selection flag update.
+    console.log("Selection update skipped - Live Snapshot model active (no is_selected column)");
     // const lineItemSelectionResult = await pool.query(
     //   ` UPDATE enquiry_line_items SET is_selected = true `
     // );
