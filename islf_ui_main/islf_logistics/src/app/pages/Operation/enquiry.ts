@@ -1983,7 +1983,12 @@ import { VendorService } from '@/services/vendor.service';
               class="mb-6 p-4 border-round border-1"
             >
               <div class="flex justify-between items-center">
-                <h4>{{ getVendorName(vendor.vendor_name) }} - Charges</h4>
+                <h4>
+                    <strong>Vendor Name:</strong> {{ getVendorName(vendor.vendor_name) }}
+                    <span *ngIf="vendor.from_location || vendor.to_location" class="ml-4">
+                       <strong>Route:</strong> {{ getLocationName(vendor.from_location) }} <strong>&rarr;</strong> {{ getLocationName(vendor.to_location)  }}
+                    </span>
+                </h4>
                 <button
                   pButton
                   type="button"
@@ -1997,8 +2002,8 @@ import { VendorService } from '@/services/vendor.service';
               <p-table [value]="vendor.selected_subcharges || []">
                 <ng-template pTemplate="header">
                   <tr>
-                    <th colspan="5" class="text-left">Buy Rate</th>
-                    <th colspan="3" class="text-left">Sell Rate</th>
+                    <th colspan="4" class="text-left">Buy Rate</th>
+                    <th colspan="4" class="text-left">Sell Rate</th>
                   </tr>
                   <tr>
                     <th>Charge Name</th>
@@ -2066,6 +2071,7 @@ import { VendorService } from '@/services/vendor.service';
                         [(ngModel)]="charge.sell_rate_gst_vat"
                         inputId="percent"
                         suffix="%"
+                        [minFractionDigits]="2"
                       />
                     </td>
                   </tr>
@@ -2381,50 +2387,59 @@ import { VendorService } from '@/services/vendor.service';
             </div>
 
             <div class="border border-blue-900 border-t-0 rounded-b-lg overflow-hidden shadow-sm">
-              <table class="w-full text-sm text-left custom-preview-table">
-                <thead class="bg-blue-100 text-blue-900 uppercase font-bold text-xs">
-                  <tr>
-                    <th class="px-6 py-4 border-r border-blue-200" style="width: 40%;">Charge Name</th>
-                    <th class="px-6 py-4 border-r border-blue-200" style="width: 20%;">Basis</th>
-                    <th class="px-6 py-4 border-r border-blue-200" style="width: 15%;">Currency</th>
-                    <th class="px-6 py-4 text-right" style="width: 25%;">Rate</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
-                  <ng-container *ngFor="let charge of group.charges">
-                    <tr class="hover:bg-blue-50 transition-colors">
-                      <td class="px-6 py-4 font-medium text-gray-800 border-r border-gray-100">
-                        {{ getChargeNameLabel(charge) }}
-                      </td>
-                      <td class="px-6 py-4 text-gray-600 border-r border-gray-100">
-                        {{ charge.basis || '--' }}
-                      </td>
-                      <td class="px-6 py-4 font-bold text-gray-700 border-r border-gray-100 uppercase">
-                        {{ charge.sell_rate_currency || charge.currency || '--' }}
-                      </td>
-                      <td class="px-6 py-4 font-black text-blue-700 text-right text-lg">
-                        {{ (charge.sell_rate || charge.amount || charge.charges || charge.charge || 0) | number:'1.2-2' }}
-                      </td>
+              <ng-container *ngFor="let vg of group.vendorGroups; let first = first">
+                <!-- Vendor/Route Sub-header -->
+                <div [class.border-t]="!first" class="bg-gray-100 px-6 py-2 border-blue-200">
+                     <span class="text-sm font-bold text-blue-900" *ngIf="vg.fromLoc || vg.toLoc">
+                      Location: {{ vg.fromLoc}} &rarr; {{ vg.toLoc}}
+                     </span>
+                </div>
+
+                <table class="w-full text-sm text-left custom-preview-table">
+                  <thead class="bg-blue-50 text-blue-800 uppercase font-bold text-[10px]">
+                    <tr>
+                      <th class="px-6 py-2 border-r border-blue-100" style="width: 40%;">Charge Name</th>
+                      <th class="px-6 py-2 border-r border-blue-100" style="width: 20%;">Basis</th>
+                      <th class="px-6 py-2 border-r border-blue-100" style="width: 15%;">Currency</th>
+                      <th class="px-6 py-2 text-right" style="width: 25%;">Rate</th>
                     </tr>
-                    <!-- Remarks per Charge -->
-                    <tr class="bg-gray-50/50" *ngIf="charge.remarks">
-                      <td colspan="4" class="px-6 py-2 text-gray-500 italic text-xs border-b border-gray-100">
-                        <strong>Charge Remarks:</strong> {{ charge.remarks }}
-                      </td>
-                    </tr>
-                  </ng-container>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 bg-white">
+                    <ng-container *ngFor="let charge of vg.charges">
+                      <tr class="hover:bg-blue-50 transition-colors">
+                        <td class="px-6 py-4 font-medium text-gray-800 border-r border-gray-100">
+                          {{ getChargeNameLabel(charge) }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 border-r border-gray-100">
+                          {{ charge.basis || '--' }}
+                        </td>
+                        <td class="px-6 py-4 font-bold text-gray-700 border-r border-gray-100 uppercase">
+                          {{ charge.sell_rate_currency || charge.currency || '--' }}
+                        </td>
+                        <td class="px-6 py-4 font-black text-blue-700 text-right text-lg">
+                          {{ (charge.sell_rate || charge.amount || charge.charges || charge.charge || 0) | number:'1.2-2' }}
+                        </td>
+                      </tr>
+                      <!-- Remarks per Charge -->
+                      <tr class="bg-gray-50/50" *ngIf="charge.remarks">
+                        <td colspan="4" class="px-6 py-2 text-gray-500 italic text-xs border-b border-gray-100">
+                          <strong>Charge Remarks:</strong> {{ charge.remarks }}
+                        </td>
+                      </tr>
+                    </ng-container>
+                  </tbody>
+                </table>
+              </ng-container>
               
               <!-- Service Area Level Remarks (Vendor & Line Item) -->
-              <div class="p-4 bg-gray-50 border-t border-gray-200" *ngIf="group.charges[0]?.vendor_remarks || group.charges[0]?.line_item_remarks">
-                <div *ngIf="group.charges[0]?.vendor_remarks" class="text-sm text-gray-600 mb-1">
+              <div class="p-4 bg-gray-50 border-t border-gray-200" *ngIf="group.vendorGroups[0]?.charges[0]?.vendor_remarks || group.vendorGroups[0]?.charges[0]?.line_item_remarks">
+                <div *ngIf="group.vendorGroups[0]?.charges[0]?.vendor_remarks" class="text-sm text-gray-600 mb-1">
                   <i class="pi pi-info-circle mr-1 text-blue-500"></i>
-                  <strong>Internal Remarks:</strong> {{ group.charges[0].vendor_remarks }}
+                  <strong>Internal Remarks:</strong> {{ group.vendorGroups[0].charges[0].vendor_remarks }}
                 </div>
-                <div *ngIf="group.charges[0]?.line_item_remarks" class="text-sm text-gray-600">
+                <div *ngIf="group.vendorGroups[0]?.charges[0]?.line_item_remarks" class="text-sm text-gray-600">
                   <i class="pi pi-info-circle mr-1 text-blue-500"></i>
-                  <strong>Service Remarks:</strong> {{ group.charges[0].line_item_remarks }}
+                  <strong>Service Remarks:</strong> {{ group.vendorGroups[0].charges[0].line_item_remarks }}
                 </div>
               </div>
             </div>
@@ -2693,7 +2708,7 @@ export class EnquiryComponent implements OnInit {
   get groupedPreviewData() {
     if (!this.selectedEnquiryPreview?.line_items) return [];
 
-    const groups = new Map<string, any[]>();
+    const serviceAreaGroups = new Map<string, Map<string, any>>();
 
     this.selectedEnquiryPreview.line_items.forEach((item: any) => {
       const allVendors = [
@@ -2702,16 +2717,29 @@ export class EnquiryComponent implements OnInit {
       ];
 
       allVendors.forEach((vendor: any) => {
-        // Requirement: Line Item -> Service Area, and Selected Vendor -> Service Area (for local tariffs)
         const sa = vendor.service_area || item.service_area || 'Other';
+        const vendorName = this.getVendorName(vendor.vendor_name);
+        const fromLoc = this.getLocationName(vendor.from_location);
+        const toLoc = this.getLocationName(vendor.to_location);
+        const routeKey = `${vendorName}|${fromLoc}|${toLoc}`;
 
-        if (!groups.has(sa)) {
-          groups.set(sa, []);
+        if (!serviceAreaGroups.has(sa)) {
+          serviceAreaGroups.set(sa, new Map());
+        }
+
+        const vendorGroups = serviceAreaGroups.get(sa)!;
+        if (!vendorGroups.has(routeKey)) {
+          vendorGroups.set(routeKey, {
+            vendorName,
+            fromLoc,
+            toLoc,
+            charges: []
+          });
         }
 
         const subCharges = vendor.sub_charges || [];
         subCharges.forEach((sc: any) => {
-          groups.get(sa)?.push({
+          vendorGroups.get(routeKey).charges.push({
             ...sc,
             vendor_remarks: vendor.remarks,
             line_item_remarks: item.remarks,
@@ -2720,9 +2748,9 @@ export class EnquiryComponent implements OnInit {
       });
     });
 
-    return Array.from(groups.entries()).map(([name, charges]) => ({
-      name,
-      charges,
+    return Array.from(serviceAreaGroups.entries()).map(([saName, vendorMap]) => ({
+      name: saName,
+      vendorGroups: Array.from(vendorMap.values())
     }));
   }
 
@@ -5229,10 +5257,16 @@ export class EnquiryComponent implements OnInit {
       const others = this.selectedSourcingVendors.filter(v => v.enquiry_line_item_id !== lineItemId);
       this.selectedSourcingVendors = [...others, ...[movedVendors].map((srcVendor) => ({
         ...srcVendor,
-        sub_charges: srcVendor.sub_charges?.map((sc: any) => ({
-          ...sc,
-          sell_rate_gst_vat: sc.gst_vat,
-        })),
+        sub_charges: srcVendor.sub_charges?.map((sc: any) => {
+          const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+          sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;
+          return sc;
+        }),
+        selected_subcharges: srcVendor.selected_subcharges?.map((sc: any) => {
+          const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+          sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;
+          return sc;
+        }),
       }))];
       this.refreshSelectedVendorCaches();
 
@@ -5336,14 +5370,17 @@ export class EnquiryComponent implements OnInit {
       return true;
     }).map((vendor) => {
       if (!vendor.sell_rates) vendor.sell_rates = {};
-      (vendor.sub_charges || []).forEach((sc: any) => {
+      const allCharges = [...(vendor.sub_charges || []), ...(vendor.selected_subcharges || [])];
+      allCharges.forEach((sc: any) => {
         const amt = sc.amount ?? sc.charges ?? 0;
         const sell = vendor.sell_rates[sc.id] ?? sc.sell_rate ?? amt;
         vendor.sell_rates[sc.id] = sell;
         sc.sell_rate = sell;
         if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
-        if (sc.sell_rate_gst_vat === undefined)
-          sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+        if (sc.sell_rate_gst_vat === undefined || sc.sell_rate_gst_vat === null) {
+          const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+          sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;
+        }
       });
       return vendor;
     });
@@ -5366,33 +5403,36 @@ export class EnquiryComponent implements OnInit {
     });
     this.cdr.detectChanges();
 
-    // Persist tariff vendors immediately
+    // Persist ALL tariff vendors for this line item (to prevent losing previous ones after the hard delete)
     const ctxT = this.currentVendorCriteria || {};
-    const vendorsToSaveT = selected.map((vendor) => ({
-      enquiry_line_item_id: vendor.enquiry_line_item_id ?? ctxT.lineItemId,
-      master_type: 'tariff',
-      department: ctxT.department,
-      service_type: ctxT.service_type,
-      type: ctxT.line_item_type,
-      service_area: ctxT.service_area,
-      vendor_type: vendor.vendor_type,
-      vendor_name: vendor.vendor_name,
-      basis: vendor.basis ?? ctxT.basis,
-      cargo: ctxT.cargo_type,
-      location_type_from: ctxT.from_location_type,
-      from_location: vendor.from_location ?? ctxT.from_location,
-      location_type_to: ctxT.to_location_type,
-      to_location: vendor.to_location ?? ctxT.to_location,
-      period_start_date: vendor.effective_date ?? ctxT.effective_date_from,
-      period_end_date: vendor.expiry_date ?? ctxT.effective_date_to,
-      charges: ((vendor.selected_subcharges && vendor.selected_subcharges.length)
-        ? vendor.selected_subcharges
-        : (vendor.sub_charges || [])).map((sc: any) => ({
-          ...sc,
-          amount: sc.amount ?? sc.charges ?? sc.charge ?? 0,
-          charges: sc.amount ?? sc.charges ?? sc.charge ?? 0
-        })),
-    }));
+    const lineIdT = Number(ctxT.lineItemId);
+    const vendorsToSaveT = this.selectedTariffVendors
+      .filter(v => (v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0) === lineIdT)
+      .map((vendor) => ({
+        enquiry_line_item_id: vendor.enquiry_line_item_id ?? ctxT.lineItemId,
+        master_type: 'tariff',
+        department: ctxT.department,
+        service_type: ctxT.service_type,
+        type: ctxT.line_item_type,
+        service_area: ctxT.service_area,
+        vendor_type: vendor.vendor_type,
+        vendor_name: vendor.vendor_name,
+        basis: vendor.basis ?? ctxT.basis,
+        cargo: ctxT.cargo_type,
+        location_type_from: ctxT.from_location_type,
+        from_location: vendor.from_location,
+        location_type_to: ctxT.to_location_type,
+        to_location: vendor.to_location,
+        period_start_date: vendor.effective_date ?? ctxT.effective_date_from,
+        period_end_date: vendor.expiry_date ?? ctxT.effective_date_to,
+        charges: ((vendor.selected_subcharges && vendor.selected_subcharges.length)
+          ? vendor.selected_subcharges
+          : (vendor.sub_charges || [])).map((sc: any) => ({
+            ...sc,
+            amount: sc.amount ?? sc.charges ?? sc.charge ?? 0,
+            charges: sc.amount ?? sc.charges ?? sc.charge ?? 0
+          })),
+      }));
 
     this.enquiryService.deleteLineItemVendorData(this.currentEnquiry?.code!, Number(ctxT.lineItemId), 'tariff').subscribe({
       next: () => {
@@ -5532,6 +5572,7 @@ export class EnquiryComponent implements OnInit {
           sell_rate_currency: sc.sell_rate_currency || sc.currency,
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
           gst_vat: sc.gst_vat ?? sc.gst_rate,
+          sell_rate_gst_vat: sc.sell_rate_gst_vat,
           remarks: sc.remarks,
         }));
         return this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates);
@@ -5868,6 +5909,7 @@ export class EnquiryComponent implements OnInit {
           sell_rate_currency: sc.sell_rate_currency || sc.currency,
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
           gst_vat: sc.gst_vat ?? sc.gst_rate,
+          sell_rate_gst_vat: sc.sell_rate_gst_vat,
           remarks: sc.remarks,
         }));
         return this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates);
@@ -5971,14 +6013,17 @@ export class EnquiryComponent implements OnInit {
             vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
           }
           if (!vendors[idx].sell_rates) vendors[idx].sell_rates = {};
-          (vendors[idx].sub_charges || []).forEach((sc: any) => {
+          const combined = [...(vendors[idx].sub_charges || []), ...(vendors[idx].selected_subcharges || [])];
+          combined.forEach((sc: any) => {
             const amt = sc.amount ?? sc.charges ?? sc.charge ?? 0;
             const sell = sc.sell_rate ?? vendors[idx].sell_rates[sc.id] ?? amt;
             vendors[idx].sell_rates[sc.id] = sell;
             sc.sell_rate = sell;
             if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
-            if (sc.sell_rate_gst_vat === undefined)
-              sc.sell_rate_gst_vat = sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+            if (sc.sell_rate_gst_vat === undefined || sc.sell_rate_gst_vat === null) {
+              const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
+              sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;
+            }
             if (typeof sc.selected === 'undefined') sc.selected = true;
           });
         });
@@ -6793,6 +6838,7 @@ export class EnquiryComponent implements OnInit {
       printWindow.document.write(`
         <html>
           <head>
+            <base href="/">
             <title>Quote Preview - ${this.selectedEnquiryPreview?.enquiry?.code || ''}</title>
             <link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
             <script src="https://cdn.tailwindcss.com"></script>

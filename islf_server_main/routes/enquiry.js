@@ -2066,8 +2066,8 @@ router.post("/:code/vendor-cards", async (req, res) => {
             const subChargeQuery = `
               INSERT INTO enquiry_vendor_sub_charges 
                 (enquiry_id, enquiry_line_item_id, master_id, master_type, charge_name, 
-                 currency, basis, charges, sell_rate_currency, sell_rate, gst_vat, remarks)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                 currency, basis, charges, sell_rate_currency, sell_rate, sell_rate_gst, gst_vat, remarks)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             `;
 
             const subChargeParams = [
@@ -2081,9 +2081,11 @@ router.post("/:code/vendor-cards", async (req, res) => {
               amountVal,
               sellRateCur,
               sellRateVal,
+              ch.sell_rate_gst || ch.sell_rate_gst_vat || 0,
               gstVatVal,
               remarksVal,
             ];
+
 
             await client.query(subChargeQuery, subChargeParams);
           }
@@ -2160,24 +2162,25 @@ router.put("/:code/vendor-cards/:cardId/sub-charges", async (req, res) => {
           u.sell_rate ?? u.amount ?? null,
           u.gst_vat ?? u.gst_rate ?? null,
           u.remarks || null,
+          u.sell_rate_gst || u.sell_rate_gst_vat || 0,
           Number(cardId),
           u.id || null,
           u.charge_name || null,
         ];
 
         const qById = `UPDATE enquiry_vendor_sub_charges 
-          SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4 
-          WHERE master_id=$5 AND id=$6`;
+          SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4, sell_rate_gst=$5 
+          WHERE master_id=$6 AND id=$7`;
         let r;
         if (u.id) {
-          r = await client.query(qById, params.slice(0, 6));
+          r = await client.query(qById, params.slice(0, 7));
         }
         if (!u.id || r.rowCount === 0) {
           const qByName = `UPDATE enquiry_vendor_sub_charges 
-            SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4 
-            WHERE master_id=$5 AND charge_name=$6`;
+            SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4, sell_rate_gst=$5 
+            WHERE master_id=$6 AND charge_name=$7`;
           r = await client.query(qByName, [
-            params[0], params[1], params[2], params[3], params[4], params[6]
+            params[0], params[1], params[2], params[3], params[4], params[5], params[7]
           ]);
         }
         updated += r.rowCount || 0;
@@ -2201,7 +2204,7 @@ router.get("/:code/vendor-cards/:cardId/sub-charges", async (req, res) => {
     const { cardId } = req.params;
     if (!cardId) return res.status(400).json({ error: "cardId is required" });
     const { rows } = await pool.query(
-      `SELECT id, master_id, charge_name, currency, basis, charges, sell_rate_currency, sell_rate, gst_vat, remarks
+      `SELECT id, master_id, charge_name, currency, basis, charges, sell_rate_currency, sell_rate, gst_vat, sell_rate_gst, remarks
        FROM enquiry_vendor_sub_charges WHERE master_id = $1 ORDER BY id`,
       [Number(cardId)]
     );
