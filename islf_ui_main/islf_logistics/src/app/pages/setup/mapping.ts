@@ -273,6 +273,7 @@ export class mappingComponent implements OnInit, OnDestroy {
     { label: 'Customer Code No Series', value: 'customerCode' },
     { label: 'Vendor Code No Series', value: 'vendorCode' },
     { label: 'Vessel Code No Series', value: 'vesselCode' },
+    { label: 'Airline Code No Series', value: 'AIRLINE_MASTER' },
     { label: 'Employee Code No Series', value: 'employeeCode' },
     { label: 'Customer Quote No Series', value: 'customerQuote' },
     { label: 'Invoice No Series', value: 'invoiceNo' },

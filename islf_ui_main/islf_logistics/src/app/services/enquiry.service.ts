@@ -434,6 +434,8 @@ export class EnquiryService {
     );
   }
 
+
+
   updateVendorSubCharges(
     enquiryCode: string,
     cardId: number,

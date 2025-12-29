@@ -68,11 +68,14 @@ app.use('/api/master_location', masterLocationRouter);
 const masterUOMRoutes = require('./routes/master_uom');
 app.use('/api/master_uom', masterUOMRoutes);
 
-const masteItemRouter =require('./routes/master_item');
+const masteItemRouter = require('./routes/master_item');
 app.use('/api/master_item', masteItemRouter);
 
 const masterVesselRouter = require('./routes/master_vessel');
 app.use('/api/master_vessel', masterVesselRouter);
+
+const masterAirlineRouter = require('./routes/master_airline');
+app.use('/api/master_airline', masterAirlineRouter);
 
 const mappingRouter = require('./routes/mapping');
 app.use('/api/mapping', mappingRouter);
@@ -152,6 +155,6 @@ pool.connect()
   });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-}); 
-    console.log(`Server accessible via Hamachi at: http://25.5.93.125:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+});
+console.log(`Server accessible via Hamachi at: http://25.5.93.125:${PORT}`);

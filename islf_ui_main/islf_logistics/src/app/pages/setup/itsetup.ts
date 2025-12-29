@@ -32,10 +32,10 @@ interface DocumentPaths {
   selector: 'app-it-setup',
   standalone: true,
   imports: [
-    CommonModule, 
-    FormsModule, 
-    ButtonModule, 
-    InputTextModule, 
+    CommonModule,
+    FormsModule,
+    ButtonModule,
+    InputTextModule,
     InputNumberModule,
     DropdownModule,
     CalendarModule,
@@ -848,13 +848,24 @@ interface DocumentPaths {
                   <div>
                    <label class="block mb-2 font-medium">Sales/Source person:</label>
                   <p-dropdown
-                    [(ngModel)]="validationSettings.sourceFilter"
+                    [(ngModel)]="validationSettings.sourceSalesFilter"
                     [options]="sourceFilterOptions"
                     optionLabel="label"
                     optionValue="value"
                     placeholder="Select Sales/Source person filter"
                     class="w-full">
                   </p-dropdown> 
+                  </div>
+                  <div>
+                    <label class="block mb-2 font-medium">Airline:</label>
+                    <p-dropdown
+                      [(ngModel)]="validationSettings.airlineFilter"
+                      [options]="vesselFilterOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Select airline filter"
+                      class="w-full">
+                    </p-dropdown>
                   </div>
                   </div>
                
@@ -1010,20 +1021,21 @@ export class ITSetupComponent implements OnInit {
     uomFilter: '',
     itemFilter: '',
     tariffFilter: '',
-    masterCodeFilter:'',
-    masterTypeFilter:'',
-    locationFilter:'',
-    currencyFilter:'',
-    containerFilter:'',
-    gstsetupFilter:'',
-    numberSeriesFilter:'',
-    numberSeriesRelationFilter:'',
-    userListFilter:'',
-    mappingFilter:'',
-    basisFilter:'',
+    masterCodeFilter: '',
+    masterTypeFilter: '',
+    locationFilter: '',
+    currencyFilter: '',
+    containerFilter: '',
+    gstsetupFilter: '',
+    numberSeriesFilter: '',
+    numberSeriesRelationFilter: '',
+    userListFilter: '',
+    mappingFilter: '',
+    basisFilter: '',
     sourceFilter: '',
     serviceAreaFilter: '',
     sourceSalesFilter: '',
+    airlineFilter: '',
     manualCustomerFilter: ''
   };
 
@@ -1148,7 +1160,7 @@ export class ITSetupComponent implements OnInit {
   ];
 
   customerFilterOptions = [
- { label: 'C ', value: 'C' },
+    { label: 'C ', value: 'C' },
     { label: 'CB ', value: 'CB' },
     { label: 'CBD ', value: 'CBD' },
     { label: 'CBDST', value: 'CBDST' }
@@ -1160,7 +1172,7 @@ export class ITSetupComponent implements OnInit {
     { label: 'CBDST', value: 'CBDST' }
   ];
   vesselFilterOptions = [
-  { label: 'C ', value: 'C' },
+    { label: 'C ', value: 'C' },
     { label: 'CB ', value: 'CB' },
     { label: 'CBD ', value: 'CBD' },
     { label: 'CBDST', value: 'CBDST' }
@@ -1183,7 +1195,7 @@ export class ITSetupComponent implements OnInit {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadAllSettings();
@@ -1236,7 +1248,7 @@ export class ITSetupComponent implements OnInit {
         if (config.validation) {
           this.validationSettings = config.validation;
         }
-        
+
         this.loading.set(false);
         this.message.set('Settings loaded successfully!');
       },
@@ -1314,13 +1326,13 @@ export class ITSetupComponent implements OnInit {
       header: 'Confirm Reset',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-    this.loading.set(true);
+        this.loading.set(true);
         this.error.set('');
         this.message.set('');
 
         // Use the config service to reset to defaults
         this.configService.resetToDefaults();
-        
+
         // Update local settings to match the reset defaults
         const defaultConfig = this.configService.getConfig();
         if (defaultConfig) {
@@ -1331,7 +1343,7 @@ export class ITSetupComponent implements OnInit {
           this.maintenanceSettings = { ...defaultConfig.maintenance };
           this.brandingSettings = { ...defaultConfig.branding };
           this.logisticsSettings = { ...defaultConfig.logistics };
-          this.documentUploadPaths = { 
+          this.documentUploadPaths = {
             ...defaultConfig.documentPaths,
             branch: (defaultConfig.documentPaths as any)?.branch || '/uploads/documents/branch',
             department: (defaultConfig.documentPaths as any)?.department || '/uploads/documents/department'
@@ -1350,19 +1362,19 @@ export class ITSetupComponent implements OnInit {
           detail: 'All settings have been reset to defaults and applied globally'
         });
       }
-      });
- }
+    });
+  }
 
- onManualCustomerFilterChange(event: any) {
-   const value = event.target.value.toUpperCase();
-   // Validate that the input only contains allowed characters (C, B, D, ST)
-   if (value && !/^[CBDST]+$/.test(value)) {
-     // If invalid characters are found, we could show an error message
-     // For now, we'll just not update the customerFilter value
-     return;
-   }
-   
-   // Update the customerFilter value to match the manual entry
-   this.validationSettings.customerFilter = value;
- }
+  onManualCustomerFilterChange(event: any) {
+    const value = event.target.value.toUpperCase();
+    // Validate that the input only contains allowed characters (C, B, D, ST)
+    if (value && !/^[CBDST]+$/.test(value)) {
+      // If invalid characters are found, we could show an error message
+      // For now, we'll just not update the customerFilter value
+      return;
+    }
+
+    // Update the customerFilter value to match the manual entry
+    this.validationSettings.customerFilter = value;
+  }
 }

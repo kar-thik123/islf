@@ -23,6 +23,8 @@ import { MasterLocationComponent } from '../../pages/masters/masterlocation';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { MasterItemService, MasterItem } from '../../services/master-item.service';
 import { VendorService } from '../../services/vendor.service';
+import { MasterAirlineService } from '../../services/master-airline.service';
+import { MasterVesselService } from '../../services/master-vessel.service';
 
 @Component({
   selector: 'app-booking',
@@ -403,8 +405,46 @@ import { VendorService } from '../../services/vendor.service';
               <td>
                 <p-dropdown [(ngModel)]="trn.to_location" [options]="trn._toLocationOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
               </td>
-              <td><input pInputText class="bg-orange-50" [(ngModel)]="trn.vessel_airline"/></td>
-              <td><input pInputText class="bg-orange-50" [(ngModel)]="trn.voyage_flight_no"/></td>
+              <td>
+                <p-dropdown 
+                  *ngIf="getScheduleType() === 'Airline'"
+                  [(ngModel)]="trn.vessel_airline" 
+                  [options]="airlineOptions" 
+                  optionLabel="label" 
+                  optionValue="value" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  appendTo="body" 
+                  class="w-60"
+                  (onChange)="onAirlineChange(trn)"
+                ></p-dropdown>
+                <p-dropdown 
+                  *ngIf="getScheduleType() === 'Vessel'"
+                  [(ngModel)]="trn.vessel_airline" 
+                  [options]="vesselOptions" 
+                  optionLabel="label" 
+                  optionValue="value" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  appendTo="body" 
+                  class="w-60"
+                ></p-dropdown>
+                <input *ngIf="getScheduleType() !== 'Airline' && getScheduleType() !== 'Vessel'" pInputText class="bg-orange-50" [(ngModel)]="trn.vessel_airline"/>
+              </td>
+              <td>
+                <p-dropdown 
+                  *ngIf="getScheduleType() === 'Airline'"
+                  [(ngModel)]="trn.voyage_flight_no" 
+                  [options]="trn._flightNoOptions || []" 
+                  optionLabel="label" 
+                  optionValue="value" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  appendTo="body" 
+                  class="w-60"
+                ></p-dropdown>
+                <input *ngIf="getScheduleType() !== 'Airline'" pInputText class="bg-orange-50" [(ngModel)]="trn.voyage_flight_no"/>
+              </td>
               <td>
                 <p-calendar [(ngModel)]="trn.etd" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
@@ -477,6 +517,11 @@ export class BookingComponent implements OnInit {
   allVendors: any[] = [];
   isSelectingForExisting = false;
 
+  allAirlines: any[] = [];
+  airlineOptions: any[] = [];
+  allVessels: any[] = [];
+  vesselOptions: any[] = [];
+
   constructor(
     private bookingService: BookingService,
     private enquiryService: EnquiryService,
@@ -486,6 +531,8 @@ export class BookingComponent implements OnInit {
     private masterTypeService: MasterTypeService,
     private masterItemService: MasterItemService,
     private vendorService: VendorService,
+    private masterAirlineService: MasterAirlineService,
+    private masterVesselService: MasterVesselService,
     private messageService: MessageService,
     private cdr: ChangeDetectorRef
   ) { }
@@ -541,7 +588,9 @@ export class BookingComponent implements OnInit {
       bookingStatuses: this.masterTypeService.getAllByType('BOOKING_STATUS').pipe(take(1)),
       cargoItems: this.masterItemService.getAll().pipe(take(1)),
       vendors: this.vendorService.getAll().pipe(take(1)),
-      serviceTypes: this.serviceTypeService.getAll().pipe(take(1))
+      serviceTypes: this.serviceTypeService.getAll().pipe(take(1)),
+      airlines: this.masterAirlineService.getAll().pipe(take(1)),
+      vessels: this.masterVesselService.getAll().pipe(take(1))
     }).subscribe({
       next: (res) => {
         // 1. Departments
@@ -591,6 +640,14 @@ export class BookingComponent implements OnInit {
           label: st.name,
           value: st.name
         }));
+
+        // 7. Airlines
+        this.allAirlines = res.airlines || [];
+        this.airlineOptions = this.allAirlines.map(a => ({ label: a.airline_name, value: a.airline_name }));
+
+        // 8. Vessels
+        this.allVessels = res.vessels || [];
+        this.vesselOptions = this.allVessels.map(v => ({ label: v.vessel_name, value: v.vessel_name }));
 
         this.loading = false;
         this.cdr.detectChanges();
@@ -1117,6 +1174,26 @@ export class BookingComponent implements OnInit {
   }
 
   addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', basis_qty: '', booking_ref: '', valid_till: '', status: 'Active', remarks: '', schedule: 'NO' }]; }
+
+  getScheduleType(): string {
+    if (!this.currentBooking?.service_type) return 'Vessel';
+    const stValue = this.currentBooking.service_type;
+    const found = this.allServiceTypes.find((st: any) => st.name === stValue || st.code === stValue);
+    return found?.schedule_type || 'Vessel';
+  }
+
+  onAirlineChange(trn: any) {
+    if (!trn.vessel_airline) return;
+    const airline = this.allAirlines.find(a => a.airline_name === trn.vessel_airline);
+    if (airline && airline.airline_no) {
+      trn._flightNoOptions = [{ label: airline.airline_no, value: airline.airline_no }];
+      if (!trn.voyage_flight_no) {
+        trn.voyage_flight_no = airline.airline_no;
+      }
+    } else {
+      trn._flightNoOptions = [];
+    }
+  }
 
   private formatDate(date: any): string | null {
     if (!date) return null;

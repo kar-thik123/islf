@@ -124,6 +124,7 @@ export interface ValidationConfig {
   sourceFilter: string; // Add this line
   serviceAreaFilter: string; // Add this line
   sourceSalesFilter: string; // Add this line
+  airlineFilter: string;
 }
 
 export interface AppConfig {
@@ -255,13 +256,14 @@ export class ConfigService {
       basisFilter: '',
       sourceFilter: '', // Add this line
       serviceAreaFilter: '', // Add this line
-      sourceSalesFilter: '' // Add this line
+      sourceSalesFilter: '', // Add this line
+      airlineFilter: ''
     }
   };
 
   constructor(private http: HttpClient, private injector: Injector) {
     this.loadConfig();
-    
+
     // Subscribe to context changes and reload config when context changes
     // Use setTimeout to avoid circular dependency during initialization
     setTimeout(() => {
@@ -283,7 +285,7 @@ export class ConfigService {
   // Load configuration from backend
   loadConfig(): Observable<AppConfig> {
     let contextParams = '';
-    
+
     try {
       const contextService = this.injector.get(ContextService, null);
       if (contextService) {
@@ -306,7 +308,7 @@ export class ConfigService {
       // ContextService might not be available, continue without context
       console.log('Could not get context for config loading:', error);
     }
-    
+
     return this.http.get<AppConfig>(`${environment.apiUrl}/api/settings/config${contextParams}`).pipe(
       tap(config => {
         this.configSubject.next(config);
@@ -448,16 +450,16 @@ export class ConfigService {
   private applyConfig(config: AppConfig): void {
     // Apply date format
     this.applyDateFormat(config.system.dateFormat);
-    
+
     // Apply timezone
     this.applyTimezone(config.system.timezone);
-    
+
     // Apply branding
     this.applyBranding(config.branding);
-    
+
     // Apply system settings
     this.applySystemSettings(config.system);
-    
+
     // Store in localStorage for persistence
     localStorage.setItem('appConfig', JSON.stringify(config));
   }
@@ -465,7 +467,7 @@ export class ConfigService {
   private applyDateFormat(dateFormat: string): void {
     // Set CSS custom property for date format
     document.documentElement.style.setProperty('--date-format', dateFormat);
-    
+
     // Update moment.js locale if available
     if (typeof (window as any).moment !== 'undefined') {
       const moment = (window as any).moment;
@@ -485,7 +487,7 @@ export class ConfigService {
   private applyTimezone(timezone: string): void {
     // Set timezone for the application
     localStorage.setItem('appTimezone', timezone);
-    
+
     // Update moment.js timezone if available
     if (typeof (window as any).moment !== 'undefined') {
       const moment = (window as any).moment;
@@ -494,10 +496,10 @@ export class ConfigService {
   }
 
   private applyBranding(branding: BrandingConfig): void {
- 
+
     // Update document title
     document.title = branding.appName;
-    
+
     // Update favicon if logo is available
     if (branding.defaultLogo) {
       const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
@@ -510,16 +512,16 @@ export class ConfigService {
   private applySystemSettings(system: SystemConfig): void {
     // Apply decimal places
     document.documentElement.style.setProperty('--decimal-places', system.decimalPlaces.toString());
-    
+
     // Apply max records per page
     localStorage.setItem('maxRecordsPerPage', system.maxRecordsPerPage.toString());
-    
+
     // Apply session timeout
     localStorage.setItem('sessionTimeout', system.sessionTimeout.toString());
-    
+
     // Apply language
     localStorage.setItem('appLanguage', system.defaultLanguage);
-    
+
     // Apply currency
     localStorage.setItem('appCurrency', system.defaultCurrency);
   }
@@ -528,12 +530,12 @@ export class ConfigService {
   formatDate(date: Date | string, format?: string): string {
     const config = this.getSystemConfig();
     const dateFormat = format || config.dateFormat;
-    
+
     if (typeof (window as any).moment !== 'undefined') {
       const moment = (window as any).moment;
       return moment(date).format(dateFormat);
     }
-    
+
     // Fallback to native Date formatting
     const d = new Date(date);
     return d.toLocaleDateString();
@@ -542,12 +544,12 @@ export class ConfigService {
   formatTime(date: Date | string): string {
     const config = this.getSystemConfig();
     const timeFormat = config.timeFormat;
-    
+
     if (typeof (window as any).moment !== 'undefined') {
       const moment = (window as any).moment;
       return moment(date).format(timeFormat === '24' ? 'HH:mm' : 'hh:mm A');
     }
-    
+
     // Fallback to native Date formatting
     const d = new Date(date);
     return d.toLocaleTimeString();
@@ -557,7 +559,7 @@ export class ConfigService {
     const config = this.getSystemConfig();
     const currencyCode = currency || config.defaultCurrency;
     const decimalPlaces = config.decimalPlaces;
-    
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
@@ -569,7 +571,7 @@ export class ConfigService {
   formatNumber(number: number): string {
     const config = this.getSystemConfig();
     const decimalPlaces = config.decimalPlaces;
-    
+
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimalPlaces,
       maximumFractionDigits: decimalPlaces

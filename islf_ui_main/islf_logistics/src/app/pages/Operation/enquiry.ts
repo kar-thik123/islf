@@ -62,7 +62,7 @@ import { AuthService } from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
 import { MasterTypeComponent } from '../masters/mastertype';
-import { forkJoin, from } from 'rxjs';
+import { forkJoin, from, Observable } from 'rxjs';
 import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   ServiceAreaService,
@@ -2420,28 +2420,29 @@ import { VendorService } from '@/services/vendor.service';
                           {{ (charge.sell_rate || charge.amount || charge.charges || charge.charge || 0) | number:'1.2-2' }}
                         </td>
                       </tr>
-                      <!-- Remarks per Charge -->
-                      <tr class="bg-gray-50/50" *ngIf="charge.remarks">
+                      <!-- Remarks per Charge (Removed as per user request to show only at group level) -->
+                      <!-- <tr class="bg-gray-50/50" *ngIf="charge.remarks">
                         <td colspan="4" class="px-6 py-2 text-gray-500 italic text-xs border-b border-gray-100">
                           <strong>Charge Remarks:</strong> {{ charge.remarks }}
                         </td>
-                      </tr>
+                      </tr> -->
                     </ng-container>
                   </tbody>
                 </table>
+                
+                <!-- Service Area Level Remarks (Vendor & Line Item) -->
+                <div class="p-4 bg-gray-50 border-t border-gray-200" *ngIf="vg.vendorRemarks || vg.lineItemRemarks">
+                  <div *ngIf="vg.vendorRemarks" class="text-sm text-gray-600 mb-1">
+                    <i class="pi pi-info-circle mr-1 text-blue-500"></i>
+                    <strong>Remarks:</strong> {{ vg.vendorRemarks }}
+                  </div>
+                  <div *ngIf="vg.lineItemRemarks" class="text-sm text-gray-600">
+                    <i class="pi pi-info-circle mr-1 text-blue-500"></i>
+                    <strong>Service Remarks:</strong> {{ vg.lineItemRemarks }}
+                  </div>
+                </div>
+
               </ng-container>
-              
-              <!-- Service Area Level Remarks (Vendor & Line Item) -->
-              <div class="p-4 bg-gray-50 border-t border-gray-200" *ngIf="group.vendorGroups[0]?.charges[0]?.vendor_remarks || group.vendorGroups[0]?.charges[0]?.line_item_remarks">
-                <div *ngIf="group.vendorGroups[0]?.charges[0]?.vendor_remarks" class="text-sm text-gray-600 mb-1">
-                  <i class="pi pi-info-circle mr-1 text-blue-500"></i>
-                  <strong>Internal Remarks:</strong> {{ group.vendorGroups[0].charges[0].vendor_remarks }}
-                </div>
-                <div *ngIf="group.vendorGroups[0]?.charges[0]?.line_item_remarks" class="text-sm text-gray-600">
-                  <i class="pi pi-info-circle mr-1 text-blue-500"></i>
-                  <strong>Service Remarks:</strong> {{ group.vendorGroups[0].charges[0].line_item_remarks }}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -2459,7 +2460,7 @@ import { VendorService } from '@/services/vendor.service';
         </div>
 
         <!-- Signature Space -->
-        <div class="mt-16 flex justify-between items-center px-4">
+        <div class="mt-16 flex justify-between items-center px-4 break-inside-avoid">
           <div class="text-center w-56">
             <div class="border-t border-gray-400 pt-2 text-sm font-semibold text-gray-600">Customer Signature</div>
           </div>
@@ -2733,9 +2734,19 @@ export class EnquiryComponent implements OnInit {
             vendorName,
             fromLoc,
             toLoc,
-            charges: []
+            charges: [],
+            vendorRemarks: vendor.remarks,
+            lineItemRemarks: item.remarks
           });
         }
+
+        // Update remarks if they exist (handling case where first occurrence might be empty but subsequent ones have remarks)
+        const currentGroup = vendorGroups.get(routeKey);
+        if (vendor.remarks) currentGroup.vendorRemarks = vendor.remarks;
+        else if (!currentGroup.vendorRemarks && vendor.sub_charges && vendor.sub_charges.length > 0) {
+          currentGroup.vendorRemarks = vendor.sub_charges[0].remarks;
+        }
+        if (item.remarks) currentGroup.lineItemRemarks = item.remarks;
 
         const subCharges = vendor.sub_charges || [];
         subCharges.forEach((sc: any) => {
@@ -4012,7 +4023,7 @@ export class EnquiryComponent implements OnInit {
             enquiry_line_item_id: lineId,
             selected_subcharges: v.selected_subcharges || [],
             sell_rates: v.sell_rates || {},
-            remarks: v.remarks || '',
+            remarks: v.remarks || v.selected_subcharges?.[0]?.remarks || '',
           }));
           const trf = (summary[1]?.selected_source_items || []).map((v: any) => ({
             ...v,
@@ -4020,7 +4031,7 @@ export class EnquiryComponent implements OnInit {
             enquiry_line_item_id: lineId,
             selected_subcharges: v.selected_subcharges || [],
             sell_rates: v.sell_rates || {},
-            remarks: v.remarks || '',
+            remarks: v.remarks || v.selected_subcharges?.[0]?.remarks || '',
           }));
           this.selectedSourcingVendors = this.selectedSourcingVendors.concat(src);
           this.selectedTariffVendors = this.selectedTariffVendors.concat(trf);
@@ -5303,7 +5314,12 @@ export class EnquiryComponent implements OnInit {
               const inserted = (res && res.inserted) ? res.inserted : [];
               const cardId = inserted.length ? inserted[0].id : undefined;
               if (cardId) {
-                this.selectedSourcingVendors = this.selectedSourcingVendors.map((v) => ({ ...v, card_id: cardId }));
+                this.selectedSourcingVendors = this.selectedSourcingVendors.map((v) => {
+                  if ((v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0) === Number(lineItemId)) {
+                    return { ...v, card_id: cardId };
+                  }
+                  return v;
+                });
                 this.enquiryService
                   .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [cardId], 'sourcing')
                   .subscribe({ next: () => { }, error: () => { } });
@@ -5442,8 +5458,9 @@ export class EnquiryComponent implements OnInit {
         }).subscribe({
           next: (res) => {
             const inserted = (res && res.inserted) ? res.inserted : [];
+            const subset = this.selectedTariffVendors.filter(v => (v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0) === lineIdT);
             inserted.forEach((row: any, idx: number) => {
-              const target = this.selectedTariffVendors[idx];
+              const target = subset[idx];
               if (target) target.card_id = row.id;
             });
             const insertedIds = inserted.map((row: any) => Number(row.id)).filter((id: any) => !!id);
@@ -5559,12 +5576,16 @@ export class EnquiryComponent implements OnInit {
       });
     }
   }
-  saveTariffVendors() {
+
+  saveSourcingVendors() {
     const code = this.currentEnquiry?.code!;
     const lineItemId = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
-    const requests = this.selectedTariffVendors
-      .filter((v) => v.card_id && v.enquiry_line_item_id === lineItemId)
-      .map((vendor) => {
+    const requests: Observable<any>[] = [];
+
+    this.selectedSourcingVendors
+      .filter((v) => (v.card_id || v.id) && (v.enquiry_line_item_id || lineItemId) == lineItemId)
+      .forEach((vendor) => {
+        const vendorId = vendor.card_id || vendor.id;
         const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
           id: sc.id,
           charge_name: sc.charge_name || sc.name,
@@ -5573,9 +5594,60 @@ export class EnquiryComponent implements OnInit {
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
           gst_vat: sc.gst_vat ?? sc.gst_rate,
           sell_rate_gst_vat: sc.sell_rate_gst_vat,
-          remarks: sc.remarks,
+          remarks: vendor.remarks || sc.remarks,
         }));
-        return this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates);
+
+        requests.push(this.enquiryService.updateVendorSubCharges(code, vendorId, updates));
+      });
+
+    if (requests.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: 'No saved sourcing vendors to update',
+      });
+      return;
+    }
+
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: 'Sourcing vendors updated',
+        });
+        this.loadEnquiry(code);
+        this.refreshSelectedVendorCaches();
+      },
+      error: (error) => {
+        console.error('Error updating sourcing vendors:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to update sourcing vendors',
+        });
+      },
+    });
+  }
+
+  saveTariffVendors() {
+    const code = this.currentEnquiry?.code!;
+    const lineItemId = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
+    const requests: Observable<any>[] = [];
+    this.selectedTariffVendors
+      .filter((v) => v.card_id && v.enquiry_line_item_id === lineItemId)
+      .forEach((vendor) => {
+        const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
+          id: sc.id,
+          charge_name: sc.charge_name || sc.name,
+          currency: sc.currency,
+          sell_rate_currency: sc.sell_rate_currency || sc.currency,
+          sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
+          gst_vat: sc.gst_vat ?? sc.gst_rate,
+          sell_rate_gst_vat: sc.sell_rate_gst_vat,
+          remarks: vendor.remarks || sc.remarks,
+        }));
+        requests.push(this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates));
       });
 
     if (requests.length === 0) {
@@ -5894,56 +5966,7 @@ export class EnquiryComponent implements OnInit {
 
 
 
-  // Save sourcing vendors (PUT updates for sub-charges)
-  saveSourcingVendors() {
-    const code = this.currentEnquiry?.code!;
-    const lineItemId = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
 
-    const requests = this.selectedSourcingVendors
-      .filter((v) => v.card_id && v.enquiry_line_item_id === lineItemId)
-      .map((vendor) => {
-        const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
-          id: sc.id,
-          charge_name: sc.charge_name || sc.name,
-          currency: sc.currency,
-          sell_rate_currency: sc.sell_rate_currency || sc.currency,
-          sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
-          gst_vat: sc.gst_vat ?? sc.gst_rate,
-          sell_rate_gst_vat: sc.sell_rate_gst_vat,
-          remarks: sc.remarks,
-        }));
-        return this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates);
-      });
-
-    if (requests.length === 0) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Warning',
-        detail: 'No saved vendor cards to update',
-      });
-      return;
-    }
-
-    forkJoin(requests).subscribe({
-      next: () => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Saved',
-          detail: 'Sourcing sub-charges updated',
-        });
-        this.showVendorTabsDialog = false;
-        this.loadEnquiry(code);
-      },
-      error: (error) => {
-        console.error('Error updating sourcing sub-charges:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to update sourcing sub-charges',
-        });
-      },
-    });
-  }
   private normalizeCharges(charges: any): any[] {
     if (!charges) return [];
     if (Array.isArray(charges)) return charges;
@@ -6843,15 +6866,43 @@ export class EnquiryComponent implements OnInit {
             <link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
             <script src="https://cdn.tailwindcss.com"></script>
             <style>
-              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-              body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; }
-              .custom-preview-table th { background-color: #dbeafe !important; color: #1e3a8a !important; }
-              .bg-blue-900 { background-color: #1e3a8a !important; }
-              @media print {
-                .no-print { display: none; }
-                body { padding: 20px; }
-              }
-            </style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+            body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; }
+            .custom-preview-table th { background-color: #dbeafe !important; color: #1e3a8a !important; }
+            .bg-blue-900 { background-color: #1e3a8a !important; }
+            @media print {
+              @page { margin: 10mm; size: A4; }
+              body { padding: 0; font-size: 11px; }
+              .p-8 { padding: 1.5rem !important; } 
+              .p-6 { padding: 1rem !important; }
+              .gap-8 { gap: 1rem !important; }
+              .mb-6, .mb-8, .mb-10 { margin-bottom: 1rem !important; }
+              .text-3xl { font-size: 18px !important; }
+              .text-2xl { font-size: 16px !important; }
+              .text-xl { font-size: 14px !important; }
+              .text-lg { font-size: 12px !important; }
+              h2 { font-size: 18px !important; }
+              h4 { font-size: 13px !important; }
+              p, span, div { font-size: 11px; }
+              .font-bold { font-weight: 700 !important; }
+              .no-print { display: none; }
+              
+              /* Table Compactness */
+              table th, table td { padding: 4px 8px !important; font-size: 10px !important; }
+              .px-6 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+              .py-3, .py-4 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+              
+              /* Fix Valid Date Circle Alignment */
+              .rounded-md { padding: 2px 6px !important; display: inline-block; white-space: nowrap; }
+
+              /* Signature Section Avoid Break */
+              .mt-16 { margin-top: 2rem !important; }
+              .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+              
+              /* Logo Sizing */
+              .h-24 { height: 3rem !important; width: auto; }
+            }
+          </style>
           </head>
           <body>
             ${printContent.innerHTML || ''}

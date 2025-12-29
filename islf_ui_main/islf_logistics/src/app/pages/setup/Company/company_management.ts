@@ -443,6 +443,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   placeholder="Select {{ field.label }}"
                   optionLabel="label" 
                   optionValue="value"
+                  appendTo="body"
                   class="w-full"
                   [class.border-red-500]="getFieldError(field.key)"
                   (ngModelChange)="onFieldChange(field.key, $event)"
@@ -1272,7 +1273,7 @@ export class CompanyManagementComponent implements OnInit {
   tabIndex = 0;
   companies: Company[] = [];
   branches: Branch[] = [];
-  
+
   // Add expand/collapse state tracking
   expandedBranches: { [key: string]: boolean } = {};
   expandedDepartments: { [key: string]: boolean } = {};
@@ -1322,7 +1323,7 @@ export class CompanyManagementComponent implements OnInit {
   isServiceTypeExpanded(serviceTypeCode: string): boolean {
     return this.expandedServiceTypes[serviceTypeCode] || false;
   }
-    getInchargeFieldValue(fieldKey: string): any {
+  getInchargeFieldValue(fieldKey: string): any {
     return (this.selectedIncharge as any)[fieldKey];
   }
 
@@ -1383,7 +1384,7 @@ export class CompanyManagementComponent implements OnInit {
   displayBranchDialog = false;
   displayDepartmentDialog = false;
   displayServiceTypeDialog = false;
-  
+
   // Document dialog visibility
   displayCompanyDocumentDialog = false;
   displayBranchDocumentDialog = false;
@@ -1450,11 +1451,21 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'name', label: 'Service Type Name', type: 'text', required: true },
     { key: 'description', label: 'Description', type: 'text', required: false },
     { key: 'incharge_name', label: 'Incharge Name & Contact No.', type: 'text', required: true },
-  
+
     { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'start_date', label: 'Start Date', type: 'date', required: false },
     { key: 'close_date', label: 'Close Date', type: 'date', required: false },
     { key: 'remarks', label: 'Remarks', type: 'text', required: false },
+    {
+      key: 'schedule_type',
+      label: 'Schedule Type',
+      type: 'dropdown',
+      required: false,
+      options: [
+        { label: 'Vessel', value: 'Vessel' },
+        { label: 'Airline', value: 'Airline' }
+      ]
+    },
   ];
 
   maxCompanies = 1;
@@ -1463,7 +1474,7 @@ export class CompanyManagementComponent implements OnInit {
   branchFormError = '';
   departmentFormError = '';
   serviceTypeFormError = '';
-  
+
   // Field-level error tracking
   fieldErrors: { [key: string]: string } = {};
   touchedFields: { [key: string]: boolean } = {};
@@ -1475,7 +1486,7 @@ export class CompanyManagementComponent implements OnInit {
   companyDocumentTypeOptions: any[] = [];
   branchDocumentTypeOptions: any[] = [];
   departmentDocumentTypeOptions: any[] = [];
-  
+
   // Document viewer properties
   isDocumentViewerVisible = false;
   selectedDocument: EntityDocument | null = null;
@@ -1513,7 +1524,7 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'incharge_name', label: 'Incharge Name', type: 'text', required: true },
     { key: 'phone_number', label: 'Phone Number', type: 'text', required: false },
     { key: 'email', label: 'Email', type: 'email', required: false },
-   { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
+    { key: 'status', label: 'Status', type: 'dropdown', required: false, options: this.statusOptions },
     { key: 'from_date', label: 'From Date', type: 'date', required: true },
     { key: 'to_date', label: 'To Date', type: 'date', required: false }
   ];
@@ -1536,7 +1547,7 @@ export class CompanyManagementComponent implements OnInit {
     { key: 'rtgs_neft_code', label: 'RTGS/NEFT Code', type: 'text' },
     { key: 'account_type', label: 'Account Type', type: 'text' },
     { key: 'swift_code', label: 'Swift Code', type: 'text' },
-  
+
   ];
 
   constructor(
@@ -1554,7 +1565,7 @@ export class CompanyManagementComponent implements OnInit {
     private sanitizer: DomSanitizer,
     private accountDetailsService: AccountDetailsService,
     private inchargeService: InchargeService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.fetchMaxCompanies();
@@ -1565,10 +1576,10 @@ export class CompanyManagementComponent implements OnInit {
   fetchMaxCompanies() {
     console.log('DEBUG: Fetching max companies setting...');
     this.http.get<{ value: number }>('/api/settings/max_companies').subscribe({
-      next: (res) =>{
-     this.maxCompanies = Number(res.value) || 1;
-     this.loadCompanies();
-     },
+      next: (res) => {
+        this.maxCompanies = Number(res.value) || 1;
+        this.loadCompanies();
+      },
       error: () => {
         this.maxCompanies = 1;
         this.loadCompanies();
@@ -1710,7 +1721,7 @@ export class CompanyManagementComponent implements OnInit {
             });
           }
         });
-        
+
         serviceTypes.forEach(serviceType => {
           const department = this.branches
             .flatMap(b => b.departments || [])
@@ -1722,7 +1733,7 @@ export class CompanyManagementComponent implements OnInit {
             department.serviceTypes.push(serviceType);
           }
         });
-        
+
         // Initialize expanded state for sections with data
         this.initializeExpandedState();
       },
@@ -1739,7 +1750,7 @@ export class CompanyManagementComponent implements OnInit {
       const firstBranch = this.branches[0];
       if (firstBranch.departments && firstBranch.departments.length > 0) {
         this.expandedBranches[firstBranch.code] = true;
-        
+
         // Expand first department by default if it has service types
         const firstDepartment = firstBranch.departments[0];
         if (firstDepartment.serviceTypes && firstDepartment.serviceTypes.length > 0) {
@@ -1768,13 +1779,13 @@ export class CompanyManagementComponent implements OnInit {
       console.log('DEBUG: Error message set to:', this.errorMessage);
       return;
     }
-    
+
     this.selectedCompany = data ? { ...data } : {} as Company;
     // Store original data for change detection
     this.originalCompanyData = data ? { ...data } : null;
     this.hasUnsavedChanges = false;
     this.displayCompanyDialog = true;
-    
+
     // Load existing documents if editing
     if (data?.code) {
       this.loadCompanyDocuments(data.code);
@@ -1845,7 +1856,7 @@ export class CompanyManagementComponent implements OnInit {
 
   openBranchDialog(branch: Branch | null = null) {
     this.selectedBranch = branch ? { ...branch } : { company_code: this.companies[0]?.code || '' } as Branch;
-    
+
     // Populate PAN number from company data
     if (this.selectedBranch.company_code) {
       const company = this.companies.find(c => c.code === this.selectedBranch.company_code);
@@ -1853,16 +1864,16 @@ export class CompanyManagementComponent implements OnInit {
         this.selectedBranch['pan_number'] = company.pan_number;
       }
     }
-    
+
     // Format date fields for HTML date inputs
     if (branch) {
       this.formatDateFields(this.selectedBranch, this.branchFields);
     }
-    
+
     this.displayBranchDialog = true;
     this.branchFormError = '';
     this.clearFieldErrors();
-    
+
     // Load existing documents if editing
     if (branch?.code) {
       this.loadBranchDocuments(branch.code);
@@ -1893,9 +1904,9 @@ export class CompanyManagementComponent implements OnInit {
     console.log('Saving branch:', this.selectedBranch);
 
     // Create a copy of selectedBranch without the PAN number field for saving
-     const branchToSave = { ...this.selectedBranch };
+    const branchToSave = { ...this.selectedBranch };
     delete branchToSave['pan_number'];
-    
+
 
     // Check if the code exists in the loaded branches
     const codeExists = this.branches.some(b => b.code === branchToSave.code);
@@ -1935,7 +1946,7 @@ export class CompanyManagementComponent implements OnInit {
     this.selectedDepartment = department
       ? { ...department }
       : { company_code: branch.company_code, branch_code: branch.code, status: 'active' } as Department;
-    
+
     // Populate PAN number from company data (same as branch)
     if (branch.company_code) {
       const company = this.companies.find(c => c.code === branch.company_code);
@@ -1943,16 +1954,16 @@ export class CompanyManagementComponent implements OnInit {
         this.selectedDepartment['pan_number'] = company.pan_number;
       }
     }
-    
+
     // Format date fields for HTML date inputs
     if (department) {
       this.formatDateFields(this.selectedDepartment, this.departmentFields);
     }
-    
+
     this.displayDepartmentDialog = true;
     this.departmentFormError = '';
     this.clearFieldErrors();
-    
+
     // Load existing documents if editing
     if (department?.code) {
       this.loadDepartmentDocuments(department.code);
@@ -2029,12 +2040,12 @@ export class CompanyManagementComponent implements OnInit {
     this.selectedServiceType = serviceType
       ? { ...serviceType }
       : { company_code: department.company_code, branch_code: department.branch_code, department_code: department.code, status: 'active' } as ServiceType;
-    
+
     // Format date fields for HTML date inputs
     if (serviceType) {
       this.formatDateFields(this.selectedServiceType, this.serviceTypeFields);
     }
-    
+
     this.displayServiceTypeDialog = true;
     this.serviceTypeFormError = '';
     this.clearFieldErrors();
@@ -2061,7 +2072,7 @@ export class CompanyManagementComponent implements OnInit {
     }
     console.log('Saving service type:', this.selectedServiceType);
 
-    console.log('Saving Service type Branch:',this.branches);
+    console.log('Saving Service type Branch:', this.branches);
 
     // Ensure required fields are included for updates
     const serviceTypeData = {
@@ -2117,10 +2128,10 @@ export class CompanyManagementComponent implements OnInit {
       close_date: '',
       remarks: ''
     } as Branch;
-    
+
     // Set PAN number from company
     this.selectedBranch['pan_number'] = company.pan_number;
-    
+
     this.displayBranchDialog = true;
     this.clearFieldErrors();
   }
@@ -2222,7 +2233,7 @@ export class CompanyManagementComponent implements OnInit {
   onFieldChange(field: string, value: any) {
     // Mark field as touched when user starts typing
     this.touchedFields[field] = true;
-    
+
     const error = this.validateField(field, value);
     if (error) {
       this.fieldErrors[field] = error;
@@ -2234,7 +2245,7 @@ export class CompanyManagementComponent implements OnInit {
   onFieldBlur(field: string) {
     // Mark field as touched when user leaves it (blur event)
     this.touchedFields[field] = true;
-    
+
     let value: any;
     if (this.displayCompanyDialog && this.selectedCompany) {
       value = this.selectedCompany[field as keyof Company];
@@ -2245,7 +2256,7 @@ export class CompanyManagementComponent implements OnInit {
     } else if (this.displayServiceTypeDialog && this.selectedServiceType) {
       value = this.selectedServiceType[field as keyof ServiceType];
     }
-    
+
     const error = this.validateField(field, value);
     if (error) {
       this.fieldErrors[field] = error;
@@ -2289,17 +2300,17 @@ export class CompanyManagementComponent implements OnInit {
         this.companyDocumentTypeOptions = (types || [])
           .filter(t => t.key === 'COM_DOC_TYPE' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
-        
+
         // Load branch document types
         this.branchDocumentTypeOptions = (types || [])
           .filter(t => t.key === 'BRANCH_DOC_TYPE' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
-        
+
         // Load department document types
         this.departmentDocumentTypeOptions = (types || [])
           .filter(t => t.key === 'DEPT_DOC_TYPE' && t.status === 'Active')
           .map(t => ({ label: t.value, value: t.value }));
-        
+
         console.log('Document type options loaded:', {
           company: this.companyDocumentTypeOptions,
           branch: this.branchDocumentTypeOptions,
@@ -2510,17 +2521,17 @@ export class CompanyManagementComponent implements OnInit {
   // Document viewer methods
   viewDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
+
     this.selectedDocument = doc;
     this.isDocumentViewerVisible = true;
     this.pdfLoaded = false;
     this.pdfError = false;
-    
+
     this.entityDocumentService.view(doc.id).subscribe({
       next: (blob: any) => {
         this.documentViewerUrl = window.URL.createObjectURL(blob);
         this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
-        
+
         if (doc.mime_type === 'application/pdf') {
           this.pdfLoaded = true;
         } else {
@@ -2539,7 +2550,7 @@ export class CompanyManagementComponent implements OnInit {
 
   downloadDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
+
     this.entityDocumentService.download(doc.id).subscribe({
       next: (blob: any) => {
         const url = window.URL.createObjectURL(blob);
@@ -2570,11 +2581,11 @@ export class CompanyManagementComponent implements OnInit {
 
   getOfficeViewerUrl(): string {
     if (!this.documentViewerUrl || !this.selectedDocument) return '';
-    
+
     if (this.documentViewerUrl.startsWith('blob:')) {
       return '';
     }
-    
+
     const encodedUrl = encodeURIComponent(this.documentViewerUrl);
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
   }
@@ -2617,13 +2628,13 @@ export class CompanyManagementComponent implements OnInit {
         this.selectedAccountDetail.is_primary = Boolean(this.selectedAccountDetail.is_primary);
       }
     } else {
-      this.selectedAccountDetail = { 
-        entity_type: entityType, 
+      this.selectedAccountDetail = {
+        entity_type: entityType,
         entity_code: entityCode,
         is_primary: false // Set default value
       } as AccountDetail;
     }
-    
+
     this.displayAccountDetailFormDialog = true;
     this.accountDetailFormError = '';
     this.clearFieldErrors();
@@ -2663,27 +2674,27 @@ export class CompanyManagementComponent implements OnInit {
 
   saveAccountDetail() {
     this.clearFieldErrors();
-    
+
     // Validate required fields
     const requiredFields = this.accountDetailFields.filter(f => f.required);
     let hasErrors = false;
-    
+
     for (const field of requiredFields) {
       if (!this.selectedAccountDetail[field.key as keyof AccountDetail]) {
         this.setFieldError(field.key, `${field.label} is required`);
         hasErrors = true;
       }
     }
-    
+
     if (hasErrors) {
       this.accountDetailFormError = 'Please fill in all required fields';
       return;
     }
-    
+
     const operation = this.selectedAccountDetail.id
       ? this.accountDetailsService.update(this.selectedAccountDetail.id, this.selectedAccountDetail)
       : this.accountDetailsService.create(this.selectedAccountDetail);
-    
+
     operation.subscribe({
       next: () => {
         this.messageService.add({
@@ -2722,7 +2733,7 @@ export class CompanyManagementComponent implements OnInit {
   onPrimaryChange(selectedAccount: AccountDetail) {
     // Toggle the selected account's primary status
     selectedAccount.is_primary = !selectedAccount.is_primary;
-    
+
     if (selectedAccount.is_primary) {
       // If this account is now primary, uncheck all other accounts
       this.accountDetails.forEach(account => {
@@ -2731,7 +2742,7 @@ export class CompanyManagementComponent implements OnInit {
         }
       });
     }
-    
+
     // Update all accounts in the backend
     this.accountDetails.forEach(account => {
       if (account.id) {
@@ -2741,10 +2752,10 @@ export class CompanyManagementComponent implements OnInit {
           },
           error: (error) => {
             console.error('Error updating account primary status:', error);
-            this.messageService.add({ 
-              severity: 'error', 
-              summary: 'Error', 
-              detail: 'Failed to update primary account status' 
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'Failed to update primary account status'
             });
           }
         });
@@ -2758,12 +2769,12 @@ export class CompanyManagementComponent implements OnInit {
 
     const documentsToUpload = this.companyDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
     const documentsWithoutDocType = this.companyDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
-    
+
     if (documentsWithoutDocType.length > 0) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Please select document type for all documents before saving' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Please select document type for all documents before saving'
       });
       return;
     }
@@ -2791,12 +2802,12 @@ export class CompanyManagementComponent implements OnInit {
 
     const documentsToUpload = this.branchDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
     const documentsWithoutDocType = this.branchDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
-    
+
     if (documentsWithoutDocType.length > 0) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Please select document type for all documents before saving' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Please select document type for all documents before saving'
       });
       return;
     }
@@ -2824,12 +2835,12 @@ export class CompanyManagementComponent implements OnInit {
 
     const documentsToUpload = this.departmentDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
     const documentsWithoutDocType = this.departmentDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
-    
+
     if (documentsWithoutDocType.length > 0) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Please select document type for all documents before saving' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Please select document type for all documents before saving'
       });
       return;
     }
@@ -2891,7 +2902,7 @@ export class CompanyManagementComponent implements OnInit {
 
   saveIncharge() {
     this.inchargeFormError = '';
-    
+
     // Validate required fields
     const requiredFields = this.inchargeFields.filter(f => f.required);
     const missing = requiredFields.filter(f => !this.selectedIncharge[f.key as keyof Incharge]);
@@ -2900,16 +2911,16 @@ export class CompanyManagementComponent implements OnInit {
       return;
     }
 
-    const operation = this.selectedIncharge.id ? 
+    const operation = this.selectedIncharge.id ?
       this.inchargeService.update(this.selectedIncharge.id, this.selectedIncharge) :
       this.inchargeService.create(this.selectedIncharge);
 
     operation.subscribe({
       next: (result) => {
-        this.messageService.add({ 
-          severity: 'success', 
-          summary: 'Success', 
-          detail: `Incharge ${this.selectedIncharge.id ? 'updated' : 'created'} successfully` 
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `Incharge ${this.selectedIncharge.id ? 'updated' : 'created'} successfully`
         });
         this.displayInchargeFormDialog = false;
         this.loadInchargeRecords();
@@ -2945,7 +2956,7 @@ export class CompanyManagementComponent implements OnInit {
   updateInchargeNameField(activeIncharge: Incharge) {
     if (activeIncharge.status === 'active') {
       const inchargeDisplay = `${activeIncharge.incharge_name}${activeIncharge.phone_number ? ' - ' + activeIncharge.phone_number : ''}`;
-      
+
       switch (this.currentInchargeEntityType) {
         case 'company':
           // Company doesn't have incharge_name field in the current structure
@@ -3096,13 +3107,13 @@ export class CompanyManagementComponent implements OnInit {
   loadDirectorsPartners(): void {
     const companyCode = this.selectedCompany?.code;
     console.log('Loading directors/partners for company:', companyCode);
-    
+
     // Fix: Use 'directors_partners' as entity_type instead of 'company'
     this.inchargeService.getByEntity('directors_partners', companyCode).subscribe({
       next: (records) => {
         console.log('Raw API response:', records);
         console.log('Number of records received:', records.length);
-        
+
         // No need to filter since API already returns directors_partners records
         this.directorsPartners = records;
       },

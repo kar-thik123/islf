@@ -137,6 +137,11 @@ export class AppMenu {
                 routerLink: ['/master/vessel'],
               },
               {
+                label:'Airline',
+                icon:'fa-solid fa-plane',
+                routerLink: ['/master/airline'],
+              },
+              {
                 label: 'Unit of Measure',
                 icon: 'fa-solid fa-scale-unbalanced',
                 routerLink: ['/master/uom'],
