@@ -6,7 +6,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
-import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { MasterAirlineService, MasterAirline } from '../../services/master-airline.service';
 import { NumberSeriesService } from '@/services/number-series.service';
@@ -16,21 +15,27 @@ import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
+interface ExtendedMasterAirline extends MasterAirline {
+  isEditing?: boolean;
+  isNew?: boolean;
+  originalData?: any;
+  status?: string;
+}
+
 @Component({
-    selector: 'master-airline',
-    standalone: true,
-    providers: [MessageService],
-    imports: [
-        CommonModule,
-        FormsModule,
-        TableModule,
-        InputTextModule,
-        ButtonModule,
-        DropdownModule,
-        ToastModule,
-        DialogModule
-    ],
-    template: `
+  selector: 'master-airline',
+  standalone: true,
+  providers: [MessageService],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TableModule,
+    InputTextModule,
+    ButtonModule,
+    DropdownModule,
+    ToastModule
+  ],
+  template: `
     <p-toast></p-toast>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Airline Master</div>
@@ -58,206 +63,329 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         </ng-template>
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="code">Code <p-sortIcon field="code"></p-sortIcon></th>
-            <th pSortableColumn="airline_name">Airline Name <p-sortIcon field="airline_name"></p-sortIcon></th>
-            <th pSortableColumn="airline_no">Airline No. <p-sortIcon field="airline_no"></p-sortIcon></th>
-            <th>Status</th>
-            <th style="min-width: 80px;">Action</th>
+            <th>
+              <div class="flex justify-between items-center">
+                Code
+                <p-columnFilter type="text" field="code" display="menu" placeholder="Search by code"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Airline Name
+                <p-columnFilter type="text" field="airline_name" display="menu" placeholder="Search by name"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Airline No.
+                <p-columnFilter type="text" field="airline_no" display="menu" placeholder="Search by number"></p-columnFilter>
+              </div>
+            </th>
+            <th>
+              <div class="flex justify-between items-center">
+                Status
+                <p-columnFilter field="status" matchMode="equals" display="menu">
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-dropdown
+                      [ngModel]="value"
+                      [options]="filterStatusOptions"
+                      (onChange)="filter($event.value)"
+                      placeholder="Any"
+                      styleClass="w-full"
+                      optionLabel="label"
+                      optionValue="value"
+                    ></p-dropdown>
+                  </ng-template>
+                </p-columnFilter>
+              </div>
+            </th>
+            <th style="min-width: 120px;">Action</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-airline>
           <tr>
-            <td>{{ airline.code }}</td>
-            <td>{{ airline.airline_name }}</td>
-            <td>{{ airline.airline_no }}</td>
             <td>
-              <span
-                class="text-sm font-semibold px-3 py-1 rounded-full"
-                [ngClass]="{
-                  'text-green-700 bg-green-100': airline.active,
-                  'text-red-700 bg-red-100': !airline.active
-                }"
-              >
-                {{ airline.active ? 'Active' : 'Inactive' }}
-              </span>
+              <ng-container *ngIf="airline.isNew && isManualSeries; else codeText">
+                  <div class="flex flex-col">
+                    <input pInputText [(ngModel)]="airline.code" (ngModelChange)="onFieldChange(airline, 'code', airline.code)" [ngClass]="{'ng-invalid ng-dirty': getFieldError(airline, 'code')}" />
+                    <small *ngIf="getFieldError(airline, 'code')" class="p-error">{{getFieldError(airline, 'code')}}</small>
+                  </div>
+              </ng-container>
+              <ng-template #codeText>{{ airline.code }}</ng-template>
             </td>
             <td>
-              <button pButton icon="pi pi-pencil" (click)="editRow(airline)" class="p-button-sm"></button>
+              <ng-container *ngIf="airline.isEditing || airline.isNew; else nameText">
+                  <div class="flex flex-col">
+                    <input pInputText [(ngModel)]="airline.airline_name" (ngModelChange)="onFieldChange(airline, 'airline_name', airline.airline_name)" [ngClass]="{'ng-invalid ng-dirty': getFieldError(airline, 'airline_name')}" />
+                    <small *ngIf="getFieldError(airline, 'airline_name')" class="p-error">{{getFieldError(airline, 'airline_name')}}</small>
+                  </div>
+              </ng-container>
+              <ng-template #nameText>{{ airline.airline_name }}</ng-template>
+            </td>
+            <td>
+                <ng-container *ngIf="airline.isEditing || airline.isNew; else noText">
+                   <input pInputText [(ngModel)]="airline.airline_no" />
+               </ng-container>
+               <ng-template #noText>{{ airline.airline_no }}</ng-template>
+            </td>
+            <td>
+              <ng-container *ngIf="airline.isEditing || airline.isNew; else statusText">
+                <p-dropdown [options]="activeOptions" [(ngModel)]="airline.active" optionLabel="label" optionValue="value" appendTo="body"></p-dropdown>
+              </ng-container>
+              <ng-template #statusText>
+                <span
+                  class="text-sm font-semibold px-3 py-1 rounded-full"
+                  [ngClass]="{
+                    'text-green-700 bg-green-100': airline.active,
+                    'text-red-700 bg-red-100': !airline.active
+                  }"
+                >
+                  {{ airline.status }}
+                </span>
+              </ng-template>
+            </td>
+            <td>
+              <div class="flex gap-2">
+                <button *ngIf="!airline.isEditing && !airline.isNew" pButton icon="pi pi-pencil" (click)="editRow(airline)" class="p-button-sm" title="Edit"></button>
+                <button *ngIf="airline.isEditing || airline.isNew" pButton icon="pi pi-check" (click)="saveRow(airline)" class="p-button-sm" title="Save"></button>
+                <button *ngIf="airline.isEditing && !airline.isNew" pButton icon="pi pi-times" (click)="cancelEdit(airline)" class="p-button-sm p-button-secondary" title="Cancel"></button>
+                <button *ngIf="airline.isNew" pButton icon="pi pi-trash" (click)="deleteRow(airline)" class="p-button-sm p-button-danger" title="Delete"></button>
+              </div>
             </td>
           </tr>
         </ng-template>
       </p-table>
     </div>
-
-    <p-dialog
-      header="{{ selectedAirline?.isNew ? 'Add' : 'Edit' }} Airline"
-      [(visible)]="isDialogVisible"
-      [modal]="true"
-      [style]="{ width: '500px' }"
-      [closable]="false"
-    >
-      <ng-template pTemplate="content">
-        <div *ngIf="selectedAirline" class="p-fluid grid gap-4 mt-2">
-          <div class="field">
-            <label for="code">Code</label>
-            <input id="code" pInputText [(ngModel)]="selectedAirline.code" [disabled]="!isManualSeries || !selectedAirline.isNew" />
-          </div>
-          <div class="field">
-            <label for="airline_name">Airline Name</label>
-            <input id="airline_name" pInputText [(ngModel)]="selectedAirline.airline_name" placeholder="Enter Airline Name" />
-          </div>
-          <div class="field">
-            <label for="airline_no">Airline No. (Flight No)</label>
-            <input id="airline_no" pInputText [(ngModel)]="selectedAirline.airline_no" placeholder="Enter Flight Number / ID" />
-          </div>
-          <div class="field">
-            <label for="active">Status</label>
-            <p-dropdown id="active" [options]="activeOptions" [(ngModel)]="selectedAirline.active" optionLabel="label" optionValue="value" appendTo="body"></p-dropdown>
-          </div>
-        </div>
-      </ng-template>
-      <ng-template pTemplate="footer">
-        <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-        <button pButton label="{{ selectedAirline?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
-      </ng-template>
-    </p-dialog>
   `
 })
 export class MasterAirlineComponent implements OnInit, OnDestroy {
-    airlines: MasterAirline[] = [];
-    activeOptions = [
-        { label: 'Active', value: true },
-        { label: 'Inactive', value: false }
-    ];
-    isDialogVisible = false;
-    selectedAirline: (MasterAirline & { isNew?: boolean }) | null = null;
-    private contextSubscription: Subscription | undefined;
-    mappedAirlineSeriesCode: string | null = null;
-    isManualSeries: boolean = false;
+  airlines: ExtendedMasterAirline[] = [];
 
-    constructor(
-        private masterAirlineService: MasterAirlineService,
-        private contextService: ContextService,
-        private messageService: MessageService,
-        private mappingService: MappingService,
-        private numberSeriesService: NumberSeriesService,
-        private configService: ConfigService
-    ) { }
+  activeOptions = [
+    { label: 'Active', value: true },
+    { label: 'Inactive', value: false }
+  ];
 
-    ngOnInit() {
-        this.refreshList();
-        this.contextSubscription = this.contextService.context$.pipe(
-            debounceTime(300),
-            distinctUntilChanged()
-        ).subscribe(() => { this.refreshList(); });
+  filterStatusOptions = [
+    { label: 'Active', value: 'Active' },
+    { label: 'Inactive', value: 'Inactive' }
+  ];
+
+  private contextSubscription: Subscription | undefined;
+  mappedAirlineSeriesCode: string | null = null;
+  isManualSeries: boolean = false;
+
+  // Field validation states
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+
+  constructor(
+    private masterAirlineService: MasterAirlineService,
+    private contextService: ContextService,
+    private messageService: MessageService,
+    private mappingService: MappingService,
+    private numberSeriesService: NumberSeriesService,
+    private configService: ConfigService
+  ) { }
+
+  ngOnInit() {
+    this.refreshList();
+    this.contextSubscription = this.contextService.context$.pipe(
+      debounceTime(300),
+      distinctUntilChanged()
+    ).subscribe(() => { this.refreshList(); });
+  }
+
+  ngOnDestroy() {
+    if (this.contextSubscription) this.contextSubscription.unsubscribe();
+  }
+
+  refreshList() {
+    this.masterAirlineService.getAll().subscribe({
+      next: (data) => {
+        this.airlines = data.map(airline => ({
+          ...airline,
+          status: airline.active ? 'Active' : 'Inactive',
+          isEditing: false,
+          isNew: false
+        }));
+      },
+      error: (err) => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load airlines' })
+    });
+  }
+
+  onGlobalFilter(event: Event, table: any) {
+    table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  }
+
+  addRow() {
+    const config = this.configService.getConfig();
+    const airlineFilter = (config?.validation as any)?.airlineFilter || '';
+    const ctx = this.contextService.getContext();
+    if (airlineFilter) {
+      const missing = [] as string[];
+      if (airlineFilter.includes('C') && !ctx.companyCode) missing.push('Company');
+      if (airlineFilter.includes('B') && !ctx.branchCode) missing.push('Branch');
+      if (airlineFilter.includes('D') && !ctx.departmentCode) missing.push('Department');
+      if (airlineFilter.includes('ST') && !ctx.serviceType) missing.push('Service Type');
+      if (missing.length) { this.contextService.showContextSelector(); return; }
     }
 
-    ngOnDestroy() {
-        if (this.contextSubscription) this.contextSubscription.unsubscribe();
-    }
+    this.loadMappedAirlineSeriesCode().then(() => {
+      const newAirline: ExtendedMasterAirline = {
+        code: '',
+        airline_name: '',
+        airline_no: '',
+        active: true, // Default to true (Active)
+        status: 'Active',
+        isNew: true,
+        isEditing: false // Actually it IS editing implicitly if it's new, but template uses isEditing || isNew
+      };
+      this.airlines = [newAirline, ...this.airlines];
+    }).catch(() => {
+      const newAirline: ExtendedMasterAirline = {
+        code: '',
+        airline_name: '',
+        airline_no: '',
+        active: true,
+        status: 'Active',
+        isNew: true
+      };
+      this.airlines = [newAirline, ...this.airlines];
+    });
+  }
 
-    refreshList() {
-        this.masterAirlineService.getAll().subscribe({
-            next: (data) => this.airlines = data,
-            error: (err) => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load airlines' })
-        });
-    }
+  editRow(airline: ExtendedMasterAirline) {
+    airline.isEditing = true;
+    airline.originalData = { ...airline };
+  }
 
-    onGlobalFilter(event: Event, table: any) {
-        table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+  cancelEdit(airline: ExtendedMasterAirline) {
+    if (airline.originalData) {
+      Object.assign(airline, airline.originalData);
+      delete airline.originalData;
     }
+    airline.isEditing = false;
+    // Re-map status string because originalData might have it or not, safe to re-compute or it was copied
+    airline.status = airline.active ? 'Active' : 'Inactive';
+  }
 
-    addRow() {
-        const config = this.configService.getConfig();
-        const airlineFilter = (config?.validation as any)?.airlineFilter || '';
-        const ctx = this.contextService.getContext();
-        if (airlineFilter) {
-            const missing = [] as string[];
-            if (airlineFilter.includes('C') && !ctx.companyCode) missing.push('Company');
-            if (airlineFilter.includes('B') && !ctx.branchCode) missing.push('Branch');
-            if (airlineFilter.includes('D') && !ctx.departmentCode) missing.push('Department');
-            if (airlineFilter.includes('ST') && !ctx.serviceType) missing.push('Service Type');
-            if (missing.length) { this.contextService.showContextSelector(); return; }
+  deleteRow(airline: ExtendedMasterAirline) {
+    if (airline.isNew) {
+      this.airlines = this.airlines.filter(a => a !== airline);
+    }
+  }
+
+  // Validation
+  onFieldChange(airline: ExtendedMasterAirline, field: string, value: any) {
+    this.validateField(airline, field, value);
+  }
+
+  validateField(airline: ExtendedMasterAirline, field: string, value: any) {
+    const key = airline.code || 'new'; // Simplistic key generation
+    if (!this.fieldErrors[key]) this.fieldErrors[key] = {};
+
+    delete this.fieldErrors[key][field];
+
+    switch (field) {
+      case 'code':
+        if (this.isManualSeries && airline.isNew && (!value || !value.trim())) {
+          this.fieldErrors[key][field] = 'Code is required';
         }
-        this.loadMappedAirlineSeriesCode().then(() => {
-            this.selectedAirline = { code: '', airline_name: '', airline_no: '', active: true, isNew: true };
-            this.isDialogVisible = true;
-        }).catch(() => {
-            this.selectedAirline = { code: '', airline_name: '', airline_no: '', active: true, isNew: true };
-            this.isDialogVisible = true;
-        });
-    }
-
-    editRow(airline: MasterAirline) {
-        this.selectedAirline = { ...airline, isNew: false };
-        this.isDialogVisible = true;
-    }
-
-    saveRow() {
-        if (!this.selectedAirline?.airline_name) {
-            this.messageService.add({ severity: 'warn', summary: 'Validation', detail: 'Airline Name is required' });
-            return;
+        break;
+      case 'airline_name':
+        if (!value || !value.trim()) {
+          this.fieldErrors[key][field] = 'Name is required';
         }
+        break;
+    }
+  }
 
-        const ctx = this.contextService.getContext();
-        const payload: any = {
-            airline_name: this.selectedAirline.airline_name,
-            airline_no: this.selectedAirline.airline_no,
-            active: this.selectedAirline.active,
-            seriesCode: this.mappedAirlineSeriesCode,
-            company_code: ctx.companyCode,
-            branch_code: ctx.branchCode,
-            department_code: ctx.departmentCode,
-            Service_type_code: ctx.serviceType
-        };
-        if (this.selectedAirline.code) payload.code = this.selectedAirline.code;
+  getFieldError(airline: ExtendedMasterAirline, field: string): string {
+    const key = airline.code || 'new';
+    return this.fieldErrors[key] ? this.fieldErrors[key][field] : '';
+  }
 
-        const req = this.selectedAirline.isNew
-            ? this.masterAirlineService.create(payload)
-            : this.masterAirlineService.update(this.selectedAirline.id!, payload);
+  saveRow(airline: ExtendedMasterAirline) {
+    // Trigger validation
+    this.validateField(airline, 'airline_name', airline.airline_name);
+    if (this.isManualSeries && airline.isNew) {
+      this.validateField(airline, 'code', airline.code);
+    }
 
-        req.subscribe({
-            next: () => {
-                this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Airline saved' });
-                this.refreshList();
-                this.hideDialog();
+    // Check errors
+    const key = airline.code || 'new';
+    if (this.fieldErrors[key] && Object.keys(this.fieldErrors[key]).length > 0) {
+      this.messageService.add({ severity: 'warn', summary: 'Validation', detail: 'Please fix validation errors' });
+      return;
+    }
+
+    const ctx = this.contextService.getContext();
+    const payload: any = {
+      airline_name: airline.airline_name,
+      airline_no: airline.airline_no,
+      active: airline.active,
+      seriesCode: airline.isNew ? this.mappedAirlineSeriesCode : undefined, // Only send series code on creation if needed? usually backend handles
+      company_code: ctx.companyCode,
+      branch_code: ctx.branchCode,
+      department_code: ctx.departmentCode,
+      Service_type_code: ctx.serviceType
+    };
+
+    // Adjust payload for Series Code usage
+    if (airline.isNew) {
+      payload.seriesCode = this.mappedAirlineSeriesCode;
+      if (this.isManualSeries && airline.code) {
+        payload.code = airline.code;
+      }
+    }
+
+    const req = airline.isNew
+      ? this.masterAirlineService.create(payload)
+      : this.masterAirlineService.update(airline.id!, payload);
+
+    req.subscribe({
+      next: (saved: MasterAirline) => {
+        this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Airline saved' });
+        // Update local object
+        Object.assign(airline, saved);
+        airline.status = airline.active ? 'Active' : 'Inactive';
+        airline.isNew = false;
+        airline.isEditing = false;
+        delete airline.originalData;
+        // Optional: reduce full refresh to just updating logic, but refreshList is safer
+        // this.refreshList(); 
+      },
+      error: (err) => this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.error || 'Failed to save' })
+    });
+  }
+
+  clear(table: any) {
+    table.clear();
+  }
+
+  private loadMappedAirlineSeriesCode(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const ctx = this.contextService.getContext();
+      this.mappingService.findMappingByContext(
+        'AIRLINE_MASTER',
+        ctx.companyCode || '',
+        ctx.branchCode || '',
+        ctx.departmentCode || '',
+        ctx.serviceType || ''
+      ).subscribe({
+        next: (map) => {
+          this.mappedAirlineSeriesCode = map?.mapping || null;
+          this.numberSeriesService.getAll().subscribe({
+            next: (list) => {
+              const found = list.find((s: any) => s.code === this.mappedAirlineSeriesCode);
+              this.isManualSeries = !!(found && found.is_manual);
+              resolve();
             },
-            error: (err) => this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.error || 'Failed to save' })
-        });
-    }
-
-    hideDialog() {
-        this.isDialogVisible = false;
-        this.selectedAirline = null;
-    }
-
-    clear(table: any) {
-        table.clear();
-    }
-
-    private loadMappedAirlineSeriesCode(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const ctx = this.contextService.getContext();
-            this.mappingService.findMappingByContext(
-                'AIRLINE_MASTER',
-                ctx.companyCode || '',
-                ctx.branchCode || '',
-                ctx.departmentCode || '',
-                ctx.serviceType || ''
-            ).subscribe({
-                next: (map) => {
-                    this.mappedAirlineSeriesCode = map?.mapping || null;
-                    this.numberSeriesService.getAll().subscribe({
-                        next: (list) => {
-                            const found = list.find((s: any) => s.code === this.mappedAirlineSeriesCode);
-                            this.isManualSeries = !!(found && found.is_manual);
-                            resolve();
-                        },
-                        error: (e) => { this.isManualSeries = false; reject(e); }
-                    });
-                },
-                error: (e) => { this.mappedAirlineSeriesCode = null; this.isManualSeries = false; resolve(); }
-            });
-        });
-    }
+            error: (e) => { this.isManualSeries = false; reject(e); }
+          });
+        },
+        error: (e) => { this.mappedAirlineSeriesCode = null; this.isManualSeries = false; resolve(); }
+      });
+    });
+  }
 }
