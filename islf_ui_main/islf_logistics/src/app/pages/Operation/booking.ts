@@ -25,6 +25,8 @@ import { MasterItemService, MasterItem } from '../../services/master-item.servic
 import { VendorService } from '../../services/vendor.service';
 import { MasterAirlineService } from '../../services/master-airline.service';
 import { MasterVesselService } from '../../services/master-vessel.service';
+import { ConfigService } from '../../services/config.service';
+import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 
 @Component({
   selector: 'app-booking',
@@ -43,6 +45,7 @@ import { MasterVesselService } from '../../services/master-vessel.service';
     CalendarModule,
     TooltipModule,
     MasterLocationComponent,
+    ConfigDatePipe,
   ],
   providers: [MessageService],
   template: `
@@ -110,7 +113,7 @@ import { MasterVesselService } from '../../services/master-vessel.service';
         </ng-template>
         <ng-template pTemplate="body" let-row>
           <tr>
-            <td>{{ row.created_at | date:'dd/MM/yyyy' }}</td>
+            <td>{{ row.created_at | configDate }}</td>
             <td>{{ row.booking_no }}</td>
             <td>{{ row.company_name }}</td>
             <td>{{ row.department }}</td>
@@ -194,7 +197,7 @@ import { MasterVesselService } from '../../services/master-vessel.service';
               <td>{{ enq.service_type }}</td>
               <td>{{ locName(enq.from_location) }}</td>
               <td>{{ locName(enq.to_location) }}</td>
-              <td>{{ enq.effective_date_from | date:'dd/MM/yyyy' }} → {{ enq.effective_date_to | date:'dd/MM/yyyy' }}</td>
+              <td>{{ enq.effective_date_from | configDate }} → {{ enq.effective_date_to | configDate }}</td>
             </tr>
           </ng-template>
         </p-table>
@@ -255,11 +258,11 @@ import { MasterVesselService } from '../../services/master-vessel.service';
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date From</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date To</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Status</label>
@@ -271,7 +274,7 @@ import { MasterVesselService } from '../../services/master-vessel.service';
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Date</label>
-          <input pInputText [value]="currentBooking.created_at | date:'dd/MM/yyyy'" readonly class="bg-gray-100 w-60" />
+          <input pInputText [value]="currentBooking.created_at | configDate" readonly class="bg-gray-100 w-60" />
         </div>
       </div>
 
@@ -351,7 +354,7 @@ import { MasterVesselService } from '../../services/master-vessel.service';
             <td><input pInputText class="bg-orange-50" [(ngModel)]="li.basis_qty"/></td>
             <td><input pInputText class="bg-orange-50" [(ngModel)]="li.booking_ref"/></td>
             <td>
-              <p-calendar [(ngModel)]="li.valid_till" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-40" [inputStyle]="{ width: '200px' }" [style]="{ width: '250px' }"></p-calendar>
+              <p-calendar [(ngModel)]="li.valid_till" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-40" [inputStyle]="{ width: '200px' }" [style]="{ width: '250px' }"></p-calendar>
             </td>
             <td>
               <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" class="w-60" appendTo="body"></p-dropdown>
@@ -446,10 +449,10 @@ import { MasterVesselService } from '../../services/master-vessel.service';
                 <input *ngIf="getScheduleType() !== 'Airline'" pInputText class="bg-orange-50" [(ngModel)]="trn.voyage_flight_no"/>
               </td>
               <td>
-                <p-calendar [(ngModel)]="trn.etd" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
+                <p-calendar [(ngModel)]="trn.etd" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
               <td>
-                <p-calendar [(ngModel)]="trn.eta" [showIcon]="true" dateFormat="dd/mm/yy" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
+                <p-calendar [(ngModel)]="trn.eta" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
             </tr>
           </ng-template>
@@ -534,7 +537,8 @@ export class BookingComponent implements OnInit {
     private masterAirlineService: MasterAirlineService,
     private masterVesselService: MasterVesselService,
     private messageService: MessageService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public configService: ConfigService
   ) { }
 
   getStatusClass(status: string): string {

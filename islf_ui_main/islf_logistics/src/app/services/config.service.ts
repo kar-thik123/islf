@@ -376,6 +376,32 @@ export class ConfigService {
     this.applyConfig(updatedConfig);
   }
 
+  /**
+   * Returns the current date format converted to PrimeNG compatible format
+   * PrimeNG format: dd/mm/yy corresponds to Moment: DD/MM/YYYY
+   */
+  get calendarDateFormat(): string {
+    const format = this.getSystemConfig().dateFormat;
+    return this.mapMomentToPrimeNG(format);
+  }
+
+  private mapMomentToPrimeNG(momentFormat: string): string {
+    if (!momentFormat) return 'dd/mm/yy'; // Default fallback
+
+    // Mappings from Moment.js format to PrimeNG (jQuery UI datepicker) format
+    const mapping: { [key: string]: string } = {
+      'DD/MM/YYYY': 'dd/mm/yy',
+      'MM/DD/YYYY': 'mm/dd/yy',
+      'YYYY-MM-DD': 'yy-mm-dd',
+      'DD-MM-YYYY': 'dd-mm-yy',
+      'MM-DD-YYYY': 'mm-dd-yy',
+      'DD.MM.YYYY': 'dd.mm.yy',
+      'MM.DD.YYYY': 'mm.dd.yy'
+    };
+
+    return mapping[momentFormat] || 'dd/mm/yy';
+  }
+
   updateEmailConfig(emailConfig: Partial<EmailConfig>): void {
     const currentConfig = this.configSubject.value || this.defaultConfig;
     const updatedConfig = {
@@ -576,6 +602,37 @@ export class ConfigService {
       minimumFractionDigits: decimalPlaces,
       maximumFractionDigits: decimalPlaces
     }).format(number);
+  }
+
+  /**
+   * Parse date string without timezone conversion
+   * Prevents dates from shifting when server returns YYYY-MM-DD format
+   */
+  parseDate(dateString: string | Date | null | undefined): Date | null {
+    if (!dateString) return null;
+
+    // If already a Date object, return it
+    if (dateString instanceof Date) {
+      return isNaN(dateString.getTime()) ? null : dateString;
+    }
+
+    // Parse string date without timezone conversion
+    const str = dateString.toString().trim();
+    if (!str) return null;
+
+    // Handle ISO timestamp format (YYYY-MM-DDTHH:mm:ss.sssZ) - extract date only
+    let dateMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const year = parseInt(dateMatch[1], 10);
+      const month = parseInt(dateMatch[2], 10) - 1; // JS months are 0-indexed
+      const day = parseInt(dateMatch[3], 10);
+      const date = new Date(year, month, day);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Fallback for other formats
+    const date = new Date(str);
+    return isNaN(date.getTime()) ? null : date;
   }
 
   // Reset to defaults

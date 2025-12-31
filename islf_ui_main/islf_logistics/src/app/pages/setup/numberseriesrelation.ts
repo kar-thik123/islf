@@ -226,7 +226,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
               appendTo="body"
               id="startingDate"
               [(ngModel)]="selectedRow.startingDate"
-              dateFormat="yy-mm-dd"
+              [dateFormat]="configService.calendarDateFormat"
               showIcon="true"
             ></p-calendar>
           </div>
@@ -253,7 +253,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
               appendTo="body"
               id="endingDate"
               [(ngModel)]="selectedRow.endingDate"
-              dateFormat="yy-mm-dd"
+              [dateFormat]="configService.calendarDateFormat"
               showIcon="true"
               [keepInvalid]="false"
               (onInput)="onEndingDateInput($event)"
@@ -319,18 +319,18 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
   numberSeriesCodes: { label: string, value: string }[] = [];
   filterFields: string[] = ['numberSeries', 'prefix'];
   @ViewChild('dt') dt!: Table;
-  
+
   private contextSubscription?: Subscription;
 
   // Helper method to parse dates safely without timezone issues
   parseDate(dateValue: any): Date | null {
     if (!dateValue) return null;
-    
+
     // If it's already a Date object, return it
     if (dateValue instanceof Date) {
       return dateValue;
     }
-    
+
     // If it's a string, parse it carefully
     if (typeof dateValue === 'string') {
       // Handle different date formats
@@ -351,35 +351,35 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
           }
         }
       }
-      
+
       // Try parsing as regular date string
       const parsed = new Date(dateValue);
       return isNaN(parsed.getTime()) ? null : parsed;
     }
-    
+
     return null;
   }
 
   // Computed property to check if a relation is stopped due to end date
   isExpired = (relation: NumberSeriesRelation): boolean => {
-  if (!relation.endingDate) return false;
+    if (!relation.endingDate) return false;
 
-  const nowUtc = new Date();
-  const endingDate = this.parseDate(relation.endingDate);
-  if (!endingDate) return false;
+    const nowUtc = new Date();
+    const endingDate = this.parseDate(relation.endingDate);
+    if (!endingDate) return false;
 
-  // Set end date to end of day in UTC (23:59:59.999)
-  const endDateUtc = new Date(
-    Date.UTC(
-      endingDate.getFullYear(),
-      endingDate.getMonth(),
-      endingDate.getDate(),
-      23, 59, 59, 999
-    )
-  );
+    // Set end date to end of day in UTC (23:59:59.999)
+    const endDateUtc = new Date(
+      Date.UTC(
+        endingDate.getFullYear(),
+        endingDate.getMonth(),
+        endingDate.getDate(),
+        23, 59, 59, 999
+      )
+    );
 
-  return nowUtc.getTime() > endDateUtc.getTime();
-};
+    return nowUtc.getTime() > endDateUtc.getTime();
+  };
 
 
   // Get status text - shows if relation is stopped due to end date or end number
@@ -427,16 +427,16 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
     private confirmationService: ConfirmationService,
     private location: Location,
     private numberSeriesRelationService: NumberSeriesRelationService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
     this.numberSeriesRelationService.getNumberSeriesCodes().subscribe(codes => {
       this.numberSeriesCodes = codes;
     });
-    
+
     // Subscribe to context changes
     this.contextSubscription = this.contextService.context$
       .pipe(
@@ -467,10 +467,10 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
     const config = this.configService.getConfig();
     const filter = config?.validation?.numberSeriesRelationFilter || '';
     const context = this.contextService.getContext();
-    
+
     if (filter) {
       const missingContext = [];
-      
+
       if (filter.includes('C') && !context.companyCode) {
         missingContext.push('Company');
       }
@@ -480,20 +480,20 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
       if (filter.includes('D') && !context.departmentCode) {
         missingContext.push('Department');
       }
-      
+
       if (missingContext.length > 0) {
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
           detail: `Please select ${missingContext.join(', ')} before adding a number series relation.`
         });
-        
+
         // Show context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     this.selectedRow = {
       id: 0,
       numberSeries: '',
@@ -510,18 +510,18 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
 
   editRow(row: NumberSeriesRelation) {
     console.log('Editing row:', row);
-    
+
     // Check if relation is stopped
     if (this.isRelationStopped(row)) {
       const status = this.getExpirationStatus(row);
-      this.messageService.add({ 
-        severity: 'warn', 
-        summary: 'Relation Stopped', 
-        detail: `This relation has been ${status.toLowerCase()} and cannot be modified.` 
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Relation Stopped',
+        detail: `This relation has been ${status.toLowerCase()} and cannot be modified.`
       });
       return;
     }
-    
+
     this.selectedRow = { ...row };
     this.displayDialog = true;
   }
@@ -535,7 +535,7 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
       const localDate = new Date(this.selectedRow.endingDate);
       const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
       this.selectedRow.endingDate = utcDate;
-      
+
       // Debug logging
       console.log('Original selected time:', localDate.toLocaleString());
       console.log('UTC time for storage:', utcDate.toISOString());
@@ -557,14 +557,14 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
       // Check if relation is stopped
       if (this.isRelationStopped(row)) {
         const status = this.getExpirationStatus(row);
-        this.messageService.add({ 
-          severity: 'warn', 
-          summary: 'Relation Stopped', 
-          detail: `This relation has been ${status.toLowerCase()} and cannot be deleted.` 
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Relation Stopped',
+          detail: `This relation has been ${status.toLowerCase()} and cannot be deleted.`
         });
         return;
       }
-      
+
       this.confirmationService.confirm({
         message: 'Are you sure you want to delete this number series relation?',
         header: 'Confirm Deletion',
@@ -589,10 +589,10 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
 
     // Validate ending number is greater than starting number
     if (this.selectedRow.endingNo && this.selectedRow.endingNo <= this.selectedRow.startingNo) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Ending Number must be greater than Starting Number.' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Ending Number must be greater than Starting Number.'
       });
       return;
     }
@@ -602,10 +602,10 @@ export class NumberSeriesRelationComponent implements OnInit, OnDestroy {
       const now = new Date();
       const endingDate = new Date(this.selectedRow.endingDate);
       if (endingDate <= now) {
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Validation Error', 
-          detail: 'Ending Date cannot be in the past or present. Please set a future date and time.' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Validation Error',
+          detail: 'Ending Date cannot be in the past or present. Please set a future date and time.'
         });
         return;
       }

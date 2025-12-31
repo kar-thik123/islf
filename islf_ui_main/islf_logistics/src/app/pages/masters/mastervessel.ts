@@ -331,7 +331,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     private numberSeriesService: NumberSeriesService,
     private masterLocationService: MasterLocationService,
     private messageService: MessageService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService
   ) {}
 

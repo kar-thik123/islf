@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
+import { CalendarModule } from 'primeng/calendar';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
@@ -28,7 +29,7 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
 @Component({
   selector: 'app-company-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TableModule, DropdownModule, ToastModule, TabsModule, ConfirmDialogModule, ConfigDatePipe],
+  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TableModule, DropdownModule, ToastModule, TabsModule, ConfirmDialogModule, ConfigDatePipe, CalendarModule],
   providers: [ConfirmationService, MessageService],
   template: `
     <div class="md:w-full">
@@ -326,9 +327,23 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   (onBlur)="onFieldBlur(field.key)">
                 </p-dropdown>
                 
-                <!-- Regular input for non-dropdown fields -->
+                <!-- PrimeNG Calendar for date fields -->
+                <p-calendar
+                  *ngIf="field.type === 'date'"
+                  [(ngModel)]="selectedBranch[field.key]"
+                  [name]="field.key"
+                  [dateFormat]="configService.calendarDateFormat"
+                  showIcon="true"
+                  appendTo="body"
+                  class="w-full"
+                  [class.border-red-500]="getFieldError(field.key)"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (onBlur)="onFieldBlur(field.key)"
+                ></p-calendar>
+
+                <!-- Regular input for non-dropdown and non-date fields -->
                 <input 
-                  *ngIf="field.type !== 'dropdown'"
+                  *ngIf="field.type !== 'dropdown' && field.type !== 'date'"
                   [type]="field.type" 
                   pInputText 
                   class="w-full" 
@@ -388,9 +403,23 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   (onBlur)="onFieldBlur(field.key)">
                 </p-dropdown>
                 
-                <!-- Regular input for non-dropdown fields -->
+                <!-- PrimeNG Calendar for date fields -->
+                <p-calendar
+                  *ngIf="field.type === 'date'"
+                  [(ngModel)]="selectedDepartment[field.key]"
+                  [name]="field.key"
+                  [dateFormat]="configService.calendarDateFormat"
+                  showIcon="true"
+                  appendTo="body"
+                  class="w-full"
+                  [class.border-red-500]="getFieldError(field.key)"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (onBlur)="onFieldBlur(field.key)"
+                ></p-calendar>
+
+                <!-- Regular input for non-dropdown and non-date fields -->
                 <input 
-                  *ngIf="field.type !== 'dropdown'"
+                  *ngIf="field.type !== 'dropdown' && field.type !== 'date'"
                   [type]="field.type" 
                   pInputText 
                   class="w-full" 
@@ -450,9 +479,23 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   (onBlur)="onFieldBlur(field.key)">
                 </p-dropdown>
                 
-                <!-- Regular input for non-dropdown fields -->
+                <!-- PrimeNG Calendar for date fields -->
+                <p-calendar
+                  *ngIf="field.type === 'date'"
+                  [(ngModel)]="selectedServiceType[field.key]"
+                  [name]="field.key"
+                  [dateFormat]="configService.calendarDateFormat"
+                  showIcon="true"
+                  appendTo="body"
+                  class="w-full"
+                  [class.border-red-500]="getFieldError(field.key)"
+                  (ngModelChange)="onFieldChange(field.key, $event)"
+                  (onBlur)="onFieldBlur(field.key)"
+                ></p-calendar>
+
+                <!-- Regular input for non-dropdown and non-date fields -->
                 <input 
-                  *ngIf="field.type !== 'dropdown'"
+                  *ngIf="field.type !== 'dropdown' && field.type !== 'date'"
                   [type]="field.type" 
                   pInputText 
                   class="w-full" 
@@ -508,10 +551,10 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
                 </td>
                 <td>
-                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                  <p-calendar [(ngModel)]="document.valid_from" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
                 </td>
                 <td>
-                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                  <p-calendar [(ngModel)]="document.valid_till" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
                 </td>
                 <td>
                   <input type="file" (change)="onCompanyFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
@@ -576,10 +619,10 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
                 </td>
                 <td>
-                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                  <p-calendar [(ngModel)]="document.valid_from" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
                 </td>
                 <td>
-                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                  <p-calendar [(ngModel)]="document.valid_till" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
                 </td>
                 <td>
                   <input type="file" (change)="onBranchFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
@@ -644,10 +687,10 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                   <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
                 </td>
                 <td>
-                  <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                  <p-calendar [(ngModel)]="document.valid_from" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
                 </td>
                 <td>
-                  <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                  <p-calendar [(ngModel)]="document.valid_till" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
                 </td>
                 <td>
                   <input type="file" (change)="onDepartmentFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
@@ -1078,8 +1121,8 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                     {{ incharge.status | titlecase }}
                   </span>
                 </td>
-                <td>{{ incharge.from_date | date:'shortDate' }}</td>
-                <td>{{ incharge.to_date | date:'shortDate' }}</td>
+                <td>{{ incharge.from_date | configDate }}</td>
+                <td>{{ incharge.to_date | configDate }}</td>
                 <td>
                   <div class="flex gap-1">
                     <button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openInchargeFormDialog(incharge)" pTooltip="Edit"></button>
@@ -1132,9 +1175,21 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 placeholder="Select {{ field.label }}">
               </p-dropdown>
               
-              <!-- Regular input for non-dropdown fields -->
+              <!-- PrimeNG Calendar for date fields -->
+              <p-calendar
+                *ngIf="field.type === 'date'"
+                [ngModel]="getInchargeFieldValue(field.key)"
+                (ngModelChange)="setInchargeFieldValue(field.key, $event)"
+                [name]="field.key"
+                [dateFormat]="configService.calendarDateFormat"
+                showIcon="true"
+                appendTo="body"
+                class="w-full"
+              ></p-calendar>
+
+              <!-- Regular input for non-dropdown and non-date fields -->
               <input 
-                *ngIf="field.type !== 'dropdown'"
+                *ngIf="field.type !== 'dropdown' && field.type !== 'date'"
                 [type]="field.type" 
                 pInputText 
                 class="w-full" 
@@ -1183,8 +1238,8 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>{{ director.din_pan }}</td>
                 <td>{{ director.incharge_name }}</td>
                 <td>{{ director.designation }}</td>
-                <td>{{ director.appointment_date | date:'shortDate' }}</td>
-                <td>{{ director.cessation_date ? (director.cessation_date | date:'shortDate') : '-' }}</td>
+                <td>{{ director.appointment_date | configDate }}</td>
+                <td>{{ director.cessation_date ? (director.cessation_date | configDate) : '-' }}</td>
                 <td>
                   <span [class]="director.signatory ? 'text-green-600 font-semibold' : 'text-gray-600'">
                     {{ director.signatory ? 'Yes' : 'No' }}
@@ -1243,9 +1298,21 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 placeholder="Select {{ field.label }}">
               </p-dropdown>
               
-              <!-- Regular input for non-dropdown fields -->
+              <!-- PrimeNG Calendar for date fields -->
+              <p-calendar
+                *ngIf="field.type === 'date'"
+                [ngModel]="getDirectorPartnerFieldValue(field.key)"
+                (ngModelChange)="setDirectorPartnerFieldValue(field.key, $event)"
+                [name]="field.key"
+                [dateFormat]="configService.calendarDateFormat"
+                showIcon="true"
+                appendTo="body"
+                class="w-full"
+              ></p-calendar>
+
+              <!-- Regular input for non-dropdown and non-date fields -->
               <input 
-                *ngIf="field.type !== 'dropdown'"
+                *ngIf="field.type !== 'dropdown' && field.type !== 'date'"
                 [type]="field.type" 
                 pInputText 
                 class="w-full" 
@@ -1558,7 +1625,7 @@ export class CompanyManagementComponent implements OnInit {
     private http: HttpClient,
     private router: Router,
     private confirmationService: ConfirmationService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private entityDocumentService: EntityDocumentService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
@@ -2283,11 +2350,7 @@ export class CompanyManagementComponent implements OnInit {
   formatDateFields(entity: any, fields: any[]) {
     fields.forEach(field => {
       if (field.type === 'date' && entity[field.key]) {
-        const date = new Date(entity[field.key]);
-        if (!isNaN(date.getTime())) {
-          // Format as YYYY-MM-DD for HTML date input
-          entity[field.key] = date.toISOString().split('T')[0];
-        }
+        entity[field.key] = this.configService.parseDate(entity[field.key]);
       }
     });
   }

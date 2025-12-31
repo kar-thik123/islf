@@ -77,7 +77,7 @@ interface ExtendedMasterAirline extends MasterAirline {
             </th>
             <th>
               <div class="flex justify-between items-center">
-                Airline No.
+                Flight No.
                 <p-columnFilter type="text" field="airline_no" display="menu" placeholder="Search by number"></p-columnFilter>
               </div>
             </th>

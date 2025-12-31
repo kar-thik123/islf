@@ -78,6 +78,8 @@ import { CargoTypeMasterComponent } from '../masters/cargotype';
 import { CurrencyCodeComponent } from '../masters/currencycode';
 import { TabViewModule } from 'primeng/tabview';
 import { VendorService } from '@/services/vendor.service';
+import { ConfigService } from '../../services/config.service';
+import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 @Component({
   selector: 'app-enquiry',
   standalone: true,
@@ -115,6 +117,7 @@ import { VendorService } from '@/services/vendor.service';
     MenuModule,
     TreeTableModule,
     TabViewModule,
+    ConfigDatePipe,
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -283,7 +286,7 @@ import { VendorService } from '@/services/vendor.service';
         <ng-template pTemplate="body" let-enquiry>
           <tr>
             <td>{{ enquiry.code }}</td>
-            <td>{{ formatDate(enquiry.date) }}</td>
+            <td>{{ enquiry.date | configDate }}</td>
             <td>{{ enquiry.company_name }}</td>
             <td>{{ enquiry.department }}</td>
             <td>{{ enquiry.service_type }}</td>
@@ -830,7 +833,7 @@ import { VendorService } from '@/services/vendor.service';
                 [(ngModel)]="selectedEffectiveDateFrom"
                 (ngModelChange)="onEffectiveDateFromChange($event)"
                 [showIcon]="true"
-                dateFormat="dd-mm-yy"
+                [dateFormat]="configService.calendarDateFormat"
                 appendTo="body"
                 placeholder="Select Effective Date From"
                 [showTime]="false"
@@ -851,7 +854,7 @@ import { VendorService } from '@/services/vendor.service';
                 [(ngModel)]="selectedEffectiveDateTo"
                 (ngModelChange)="onEffectiveDateToChange($event)"
                 [showIcon]="true"
-                dateFormat="dd-mm-yy"
+                [dateFormat]="configService.calendarDateFormat"
                 appendTo="body"
                 placeholder="Select Effective Date To"
                 [showTime]="false"
@@ -884,7 +887,7 @@ import { VendorService } from '@/services/vendor.service';
                 [(ngModel)]="selectedDate"
                 (ngModelChange)="onDateChange($event)"
                 [showIcon]="true"
-                dateFormat="dd-mm-yy"
+                [dateFormat]="configService.calendarDateFormat"
                 appendTo="body"
                 placeholder="Select Date"
                 [showTime]="false"
@@ -2355,7 +2358,7 @@ import { VendorService } from '@/services/vendor.service';
             <h4 class="text-blue-800 border-b-2 border-blue-200 pb-2 mb-4 font-bold text-lg">QUOTATION SUMMARY:</h4>
             <div class="grid grid-cols-2 gap-y-3 gap-x-4">
               <div class="font-semibold text-gray-600 uppercase text-xs">Quotation Date:</div>
-              <div class="text-gray-900 font-medium">{{ formatDate(selectedEnquiryPreview?.enquiry?.date) || '--' }}</div>
+              <div class="text-gray-900 font-medium">{{ (selectedEnquiryPreview?.enquiry?.date | configDate) || '--' }}</div>
               
               <div class="font-semibold text-gray-600 uppercase text-xs">Department:</div>
               <div class="text-gray-900 font-medium">{{ selectedEnquiryPreview?.enquiry?.department || '--' }}</div>
@@ -2372,7 +2375,7 @@ import { VendorService } from '@/services/vendor.service';
               <div class="font-semibold text-gray-600 uppercase text-xs">Validity To:</div>
               <div class="text-gray-900">
                 <span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md text-sm font-bold">
-                  {{ formatDate(selectedEnquiryPreview?.enquiry?.effective_date_to) || '--' }}
+                  {{ (selectedEnquiryPreview?.enquiry?.effective_date_to | configDate) || '--' }}
                 </span>
               </div>
             </div>
@@ -3017,7 +3020,8 @@ export class EnquiryComponent implements OnInit {
     private authService: AuthService,
     private sourceSalesService: SourceSalesService,
     private sourceService: SourceService,
-    private masterItemService: MasterItemService
+    private masterItemService: MasterItemService,
+    public configService: ConfigService
   ) {
     this.initializeForm();
   }
@@ -4401,19 +4405,7 @@ export class EnquiryComponent implements OnInit {
     }
   }
   formatDate(date: string | Date | undefined | null): string {
-    if (!date) return '--';
-
-    try {
-      const dateObj = typeof date === 'string' ? new Date(date) : date;
-
-      // Check if date is valid
-      if (isNaN(dateObj.getTime())) return '--';
-
-      // Format the date as needed
-      return dateObj.toLocaleDateString('en-GB'); // Using en-GB for dd/mm/yyyy format
-    } catch {
-      return '--';
-    }
+    return this.configService.formatDate(date || '');
   }
 
   /**

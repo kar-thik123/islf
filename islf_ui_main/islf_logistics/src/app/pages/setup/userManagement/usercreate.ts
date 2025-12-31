@@ -39,6 +39,8 @@ import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../../masters/sourceSales';
 import { of } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
+import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
+import { ConfigService } from '../../../services/config.service';
 
 @Component({
   selector: 'user-create',
@@ -62,7 +64,7 @@ import { tap, catchError } from 'rxjs/operators';
     TableModule,
     DialogModule,
     ToastModule,
-    SourceSalesComponent,
+    SourceSalesComponent, ConfigDatePipe,
   ],
   providers: [ConfirmationService],
   template: `
@@ -186,7 +188,7 @@ import { tap, catchError } from 'rxjs/operators';
             <label class="block font-semibold mb-1">Date of Birth</label>
             <p-calendar
               class="w-full"
-              dateFormat="yy-mm-dd"
+              [dateFormat]="configService.calendarDateFormat"
               [(ngModel)]="user.dateOfBirth"
               name="dateOfBirth"
             ></p-calendar>
@@ -366,7 +368,7 @@ import { tap, catchError } from 'rxjs/operators';
         <div class="col-span-12 md:col-span-6">
           <label class="block font-semibold mb-1">Joining Date</label>
           <p-calendar
-            dateFormat="yy-mm-dd"
+            [dateFormat]="configService.calendarDateFormat"
             class="w-full"
             [(ngModel)]="user.joiningDate"
             name="joiningDate"
@@ -461,18 +463,10 @@ import { tap, catchError } from 'rxjs/operators';
                 />
               </td>
               <td>
-                <input
-                  pInputText
-                  type="date"
-                  [(ngModel)]="document.valid_from"
-                />
+                <p-calendar [(ngModel)]="document.valid_from" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
               </td>
               <td>
-                <input
-                  pInputText
-                  type="date"
-                  [(ngModel)]="document.valid_till"
-                />
+                <p-calendar [(ngModel)]="document.valid_till" [dateFormat]="configService.calendarDateFormat" showIcon="true" appendTo="body" class="w-full"></p-calendar>
               </td>
               <td>
                 <input
@@ -986,8 +980,8 @@ export class UserCreateComponent implements OnInit {
     private mappingService: MappingService,
     private contextService: ContextService,
     private numberSeriesRelationService: NumberSeriesRelationService,
-    private sourceSalesService: SourceSalesService
-  ) {}
+    private sourceSalesService: SourceSalesService, public configService: ConfigService
+  ) { }
 
   // Load source sales options for dropdown
   loadSourceSalesOptions() {
@@ -1072,13 +1066,13 @@ export class UserCreateComponent implements OnInit {
                 const branchCodes =
                   typeof res.user.branch === 'string'
                     ? res.user.branch
-                        .split(',')
-                        .filter((b: string) => !!b && b !== '[object Object]')
+                      .split(',')
+                      .filter((b: string) => !!b && b !== '[object Object]')
                     : Array.isArray(res.user.branch)
-                    ? res.user.branch.map((b: any) =>
+                      ? res.user.branch.map((b: any) =>
                         typeof b === 'string' ? b : b.code
                       )
-                    : [];
+                      : [];
                 // Set user fields except department and permissions
                 this.user = {
                   ...this.user,
@@ -1128,13 +1122,13 @@ export class UserCreateComponent implements OnInit {
                 const departmentCodes =
                   typeof res.user.department === 'string'
                     ? res.user.department
-                        .split(',')
-                        .filter((d: string) => !!d && d !== '[object Object]')
+                      .split(',')
+                      .filter((d: string) => !!d && d !== '[object Object]')
                     : Array.isArray(res.user.department)
-                    ? res.user.department.map((d: any) =>
+                      ? res.user.department.map((d: any) =>
                         typeof d === 'string' ? d : d.code
                       )
-                    : [];
+                      : [];
                 this.user.department = this.mapCodesToOptions(
                   departmentCodes,
                   this.departmentOptions
@@ -1264,7 +1258,7 @@ export class UserCreateComponent implements OnInit {
             (t: any) =>
               t.key &&
               t.key.trim().toLowerCase() ===
-                activeDesignationCode.code.trim().toLowerCase() &&
+              activeDesignationCode.code.trim().toLowerCase() &&
               t.status &&
               t.status.trim().toLowerCase() === 'active'
           );
@@ -1283,7 +1277,7 @@ export class UserCreateComponent implements OnInit {
             (t: any) =>
               t.key &&
               t.key.trim().toLowerCase() ===
-                activeStatusCode.code.trim().toLowerCase()
+              activeStatusCode.code.trim().toLowerCase()
           );
           console.log(
             'DEBUG: All types matching USER_STATUS key:',
@@ -1294,7 +1288,7 @@ export class UserCreateComponent implements OnInit {
             (t: any) =>
               t.key &&
               t.key.trim().toLowerCase() ===
-                activeStatusCode.code.trim().toLowerCase() &&
+              activeStatusCode.code.trim().toLowerCase() &&
               t.status &&
               t.status.trim().toLowerCase() === 'active'
           );
@@ -1313,7 +1307,7 @@ export class UserCreateComponent implements OnInit {
             (t: any) =>
               t.key &&
               t.key.trim().toLowerCase() ===
-                activeRoleCode.code.trim().toLowerCase() &&
+              activeRoleCode.code.trim().toLowerCase() &&
               t.status &&
               t.status.trim().toLowerCase() === 'active'
           );
@@ -1345,32 +1339,32 @@ export class UserCreateComponent implements OnInit {
       ...this.user,
       branch: Array.isArray(this.user.branch)
         ? this.user.branch
-            .map((b: any) =>
-              b && typeof b === 'object' && typeof b.code === 'string'
-                ? b.code
-                : typeof b === 'string'
+          .map((b: any) =>
+            b && typeof b === 'object' && typeof b.code === 'string'
+              ? b.code
+              : typeof b === 'string'
                 ? b
                 : ''
-            )
-            .filter((b: string) => !!b)
-            .join(',')
+          )
+          .filter((b: string) => !!b)
+          .join(',')
         : '',
       department: Array.isArray(this.user.department)
         ? this.user.department
-            .map((d: any) =>
-              d && typeof d === 'object' && typeof d.code === 'string'
-                ? d.code
-                : typeof d === 'string'
+          .map((d: any) =>
+            d && typeof d === 'object' && typeof d.code === 'string'
+              ? d.code
+              : typeof d === 'string'
                 ? d
                 : ''
-            )
-            .filter((d: string) => !!d)
-            .join(',')
+          )
+          .filter((d: string) => !!d)
+          .join(',')
         : '',
       employmentType:
         this.user.employmentType &&
-        typeof this.user.employmentType === 'object' &&
-        (this.user.employmentType as any).label
+          typeof this.user.employmentType === 'object' &&
+          (this.user.employmentType as any).label
           ? (this.user.employmentType as any).label
           : this.user.employmentType,
       permission: this.selectedPermissions.join(','),
@@ -1429,32 +1423,32 @@ export class UserCreateComponent implements OnInit {
       ...this.user,
       branch: Array.isArray(this.user.branch)
         ? this.user.branch
-            .map((b: any) =>
-              b && typeof b === 'object' && typeof b.code === 'string'
-                ? b.code
-                : typeof b === 'string'
+          .map((b: any) =>
+            b && typeof b === 'object' && typeof b.code === 'string'
+              ? b.code
+              : typeof b === 'string'
                 ? b
                 : ''
-            )
-            .filter((b: string) => !!b)
-            .join(',')
+          )
+          .filter((b: string) => !!b)
+          .join(',')
         : '',
       department: Array.isArray(this.user.department)
         ? this.user.department
-            .map((d: any) =>
-              d && typeof d === 'object' && typeof d.code === 'string'
-                ? d.code
-                : typeof d === 'string'
+          .map((d: any) =>
+            d && typeof d === 'object' && typeof d.code === 'string'
+              ? d.code
+              : typeof d === 'string'
                 ? d
                 : ''
-            )
-            .filter((d: string) => !!d)
-            .join(',')
+          )
+          .filter((d: string) => !!d)
+          .join(',')
         : '',
       employmentType:
         this.user.employmentType &&
-        typeof this.user.employmentType === 'object' &&
-        (this.user.employmentType as any).label
+          typeof this.user.employmentType === 'object' &&
+          (this.user.employmentType as any).label
           ? (this.user.employmentType as any).label
           : this.user.employmentType,
       permission: this.selectedPermissions.join(','), // <-- send as comma-separated string
@@ -1909,3 +1903,4 @@ export class UserCreateComponent implements OnInit {
     this.loadUserDocuments(user.employeeId);
   }
 }
+

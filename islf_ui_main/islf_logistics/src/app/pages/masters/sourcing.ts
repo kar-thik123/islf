@@ -63,6 +63,7 @@ import { ServiceAreaComponent } from './servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from './sourceSales';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 
 @Component({
   selector: 'app-sourcing',
@@ -90,7 +91,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
     InputSwitchModule,
     ChargeTypeMasterComponent,
     ServiceAreaComponent,
-    SourceSalesComponent,
+    SourceSalesComponent, ConfigDatePipe,
   ],
   template: `
     <p-toast></p-toast>
@@ -381,8 +382,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
             <!-- <td>{{ source.itemName }}</td> -->
             <td>{{ getLocationName(source.fromLocation) }}</td>
             <td>{{ getLocationName(source.toLocation) }}</td>
-            <td>{{ source.periodStartDate | date : 'dd/MM/yyyy' }}</td>
-            <td>{{ source.periodEndDate | date : 'dd/MM/yyyy' }}</td>
+            <td>{{ source.periodStartDate | configDate }}</td>
+            <td>{{ source.periodEndDate | configDate }}</td>
             <!-- <td>{{ source.currency }}</td>-->
             <!--<td>{{ source.charges || source.amount || '-' }}</td>-->
             <td>
@@ -806,7 +807,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
               <label class="block font-semibold mb-1">Period Start Date</label>
               <p-calendar
                 [(ngModel)]="selectedTariff.periodStartDate"
-                dateFormat="dd-mm-yy"
+                [dateFormat]="configService.calendarDateFormat"
                 showIcon="true"
                 appendTo="body"
                 class="w-full"
@@ -818,7 +819,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
               <label class="block font-semibold mb-1">Period End Date</label>
               <p-calendar
                 [(ngModel)]="selectedTariff.periodEndDate"
-                dateFormat="dd-mm-yy"
+                [dateFormat]="configService.calendarDateFormat"
                 showIcon="true"
                 appendTo="body"
                 class="w-full"
@@ -1608,7 +1609,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     private masterItemService: MasterItemService,
     private currencyCodeService: CurrencyCodeService,
     private vendorService: VendorService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService,
     private basisService: BasisService,
     private departmentService: DepartmentService,
@@ -1620,7 +1621,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     private sourceSalesService: SourceSalesService,
     private cdr: ChangeDetectorRef,
     private router: Router
-  ) {}
+  ) { }
 
   // Validation methods
   validateField(fieldName: string, value: any): string {
@@ -1728,8 +1729,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
       );
       console.log('service Type mode code:', dept);
       const filteredServiceTypes = this.allShippingType.filter((st) => {
-        // console.log(`Comparing shipping type '${st.type}' with selected '${this.selectedTariff.}'`);
-        return st.department_code === dept.code;
+        return st.department_code === dept?.code;
       });
       console.log(
         'Filtered service Types for the Mode:',
@@ -1740,29 +1740,12 @@ export class SourcingComponent implements OnInit, OnDestroy {
         filteredServiceTypes
       );
 
-      // If no exact match, try case-insensitive comparison
-      if (filteredServiceTypes.length === 0) {
-        const caseInsensitiveFiltered = this.allDepartments.filter(
-          (dept) =>
-            dept.name?.toLowerCase() === this.selectedTariff.mode?.toLowerCase()
-        );
-        console.log(
-          'Case-insensitive filtered locations:',
-          caseInsensitiveFiltered.length
-        );
-
-        this.shippingTypeOptions = caseInsensitiveFiltered.map((st) => ({
-          label: `${st.name}`,
-          value: st.code,
-        }));
-      } else {
-        this.shippingTypeOptions = filteredServiceTypes.map((st) => ({
-          label: st.name,
-          value: st.name,
-        }));
-      }
+      this.shippingTypeOptions = filteredServiceTypes.map((st) => ({
+        label: st.name,
+        value: st.name,
+      }));
     } else {
-      // If no location type selected, show all locations formatted as CODE - NAME
+      // If no department selected, show all service types
       this.shippingTypeOptions = this.allShippingType.map((st) => ({
         label: `${st.name}`,
         value: st.name,
@@ -2677,7 +2660,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
             sub_charge_id: this.generateUniqueId(),
             id: null,
             charge_name: '',
-            basis:'',
+            basis: '',
             currency: '',
             charges: null,
             gst_vat: '',
@@ -2704,7 +2687,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         sub_charge_id: this.generateUniqueId(),
         id: null,
         charge_name: '',
-        basis:'',
+        basis: '',
         currency: '',
         charges: null,
         gst_vat: '',
@@ -2716,13 +2699,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
   removeSubCharge(index: number) {
     const subCharge = this.selectedTariff.sub_charges[index];
-    
+
     // If it's a new sub-charge (not saved to database yet), just remove it from the array
     if (!subCharge.id) {
       this.selectedTariff.sub_charges.splice(index, 1);
       return;
     }
-    
+
     // For existing sub-charges, show confirmation dialog and delete from database
     this.confirmationService.confirm({
       message: 'Are you sure you want to delete this sub-charge?',
@@ -2808,7 +2791,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     // Step 3: Prepare the sub-charge payload
     const subChargePayload = {
       ...subCharge,
-    
+
       source_id: this.selectedTariff.id, // Link to the main tariff
     };
 
@@ -3181,7 +3164,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
       this.showMasterLocationDialog = true;
     } else if (type === 'serviceArea') {
       this.showServiceAreaDialog = true;
-    }else if (type === 'serviceAreaType') {
+    } else if (type === 'serviceAreaType') {
       this.masterTypeFilter = 'SERVICE_AREA';
       this.showMasterTypeDialog = true;
     } else if (type === 'sourceSales') {
@@ -3256,7 +3239,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
             next: () => this.cdr.detectChanges(),
             error: () => this.cdr.detectChanges(),
           });
-        }else if (editedType === 'SERVICE_AREA') {
+        } else if (editedType === 'SERVICE_AREA') {
           this.loadServiceAreaTypeOptions().subscribe({
             next: () => this.cdr.detectChanges(),
             error: () => this.cdr.detectChanges(),
@@ -3566,8 +3549,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
       const detailMessage =
         successCount > 0
           ? `Imported ${successCount} tariff(s). Failed: ${errorDetails.join(
-              ', '
-            )}`
+            ', '
+          )}`
           : `Import failed: ${errorDetails.join(', ')}`;
 
       this.messageService.add({
@@ -3663,3 +3646,4 @@ export class SourcingComponent implements OnInit, OnDestroy {
     return '_' + Math.random().toString(36).substr(2, 9);
   }
 }
+

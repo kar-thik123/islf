@@ -61,6 +61,7 @@ import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from './sourceSales';
 import { InputNumber } from 'primeng/inputnumber';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 
 @Component({
   selector: 'app-tariff',
@@ -89,6 +90,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     ServiceAreaComponent,
     SourceSalesComponent,
     ConfirmDialogModule,
+    ConfigDatePipe,
   ],
   template: `
     <p-toast></p-toast>
@@ -369,8 +371,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
             <!-- <td>{{ tariff.itemName }}</td> -->
             <td>{{ getLocationName(tariff.fromLocation) }}</td>
             <td>{{ getLocationName(tariff.toLocation) }}</td>
-            <td>{{ tariff.periodStartDate | date : 'dd/MM/yyyy' }}</td>
-            <td>{{ tariff.periodEndDate | date : 'dd/MM/yyyy' }}</td>
+            <td>{{ tariff.periodStartDate | configDate }}</td>
+            <td>{{ tariff.periodEndDate | configDate }}</td>
             <!-- <td>{{ tariff.currency }}</td>
             <td>{{ tariff.charges || tariff.amount || '-' }}</td> -->
             <td>
@@ -722,7 +724,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
               <label class="block font-semibold mb-1">Period Start Date</label>
               <p-calendar
                 [(ngModel)]="selectedTariff.periodStartDate"
-                dateFormat="dd/mm/yy"
+                [dateFormat]="configService.calendarDateFormat"
                 showIcon="true"
                 appendTo="body"
                 class="w-full"
@@ -734,7 +736,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
               <label class="block font-semibold mb-1">Period End Date</label>
               <p-calendar
                 [(ngModel)]="selectedTariff.periodEndDate"
-                dateFormat="dd/mm/yy"
+                [dateFormat]="configService.calendarDateFormat"
                 showIcon="true"
                 appendTo="body"
                 class="w-full"
@@ -1575,15 +1577,9 @@ export class TariffComponent implements OnInit, OnDestroy {
     return `${year}-${month}-${day}`;
   }
 
-  // Helper method to format dates for display and filtering (dd/MM/yyyy format)
+  // Helper method to format dates for display and filtering (using configured format)
   formatDateForDisplay(date: Date): string {
-    if (!date || !(date instanceof Date)) return '';
-
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
+    return this.configService.formatDate(date);
   }
 
   modeOptions: any[] = [];
@@ -1666,7 +1662,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     private masterItemService: MasterItemService,
     private currencyCodeService: CurrencyCodeService,
     private vendorService: VendorService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService,
     private basisService: BasisService,
     private departmentService: DepartmentService,
@@ -1679,7 +1675,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private confirmationService: ConfirmationService,
     private router: Router
-  ) {}
+  ) { }
 
   // Validation methods
   validateField(fieldName: string, value: any): string {
@@ -1783,8 +1779,7 @@ export class TariffComponent implements OnInit, OnDestroy {
       );
       console.log('service Type mode code:', dept);
       const filteredServiceTypes = this.allShippingType.filter((st) => {
-        // console.log(`Comparing shipping type '${st.type}' with selected '${this.selectedTariff.}'`);
-        return st.department_code === dept.code;
+        return st.department_code === dept?.code;
       });
       console.log(
         'Filtered service Types for the Mode:',
@@ -1795,29 +1790,12 @@ export class TariffComponent implements OnInit, OnDestroy {
         filteredServiceTypes
       );
 
-      // If no exact match, try case-insensitive comparison
-      if (filteredServiceTypes.length === 0) {
-        const caseInsensitiveFiltered = this.allDepartments.filter(
-          (dept) =>
-            dept.name?.toLowerCase() === this.selectedTariff.mode?.toLowerCase()
-        );
-        console.log(
-          'Case-insensitive filtered locations:',
-          caseInsensitiveFiltered.length
-        );
-
-        this.shippingTypeOptions = caseInsensitiveFiltered.map((st) => ({
-          label: `${st.name}`,
-          value: st.code,
-        }));
-      } else {
-        this.shippingTypeOptions = filteredServiceTypes.map((st) => ({
-          label: st.name,
-          value: st.name,
-        }));
-      }
+      this.shippingTypeOptions = filteredServiceTypes.map((st) => ({
+        label: st.name,
+        value: st.name,
+      }));
     } else {
-      // If no location type selected, show all locations formatted as CODE - NAME
+      // If no department selected, show all service types
       this.shippingTypeOptions = this.allShippingType.map((st) => ({
         label: `${st.name}`,
         value: st.name,
@@ -2794,13 +2772,13 @@ export class TariffComponent implements OnInit, OnDestroy {
                   periodStartDate: sc.periodStartDate
                     ? this.parseDate(sc.periodStartDate)
                     : sc.period_start_date
-                    ? this.parseDate(sc.period_start_date)
-                    : null,
+                      ? this.parseDate(sc.period_start_date)
+                      : null,
                   periodEndDate: sc.periodEndDate
                     ? this.parseDate(sc.periodEndDate)
                     : sc.period_end_date
-                    ? this.parseDate(sc.period_end_date)
-                    : null,
+                      ? this.parseDate(sc.period_end_date)
+                      : null,
                 }));
                 this.recalculateGeneralPeriodFromCharges();
                 this.cdr.detectChanges();
@@ -2839,13 +2817,13 @@ export class TariffComponent implements OnInit, OnDestroy {
                   periodStartDate: sc.periodStartDate
                     ? this.parseDate(sc.periodStartDate)
                     : sc.period_start_date
-                    ? this.parseDate(sc.period_start_date)
-                    : null,
+                      ? this.parseDate(sc.period_start_date)
+                      : null,
                   periodEndDate: sc.periodEndDate
                     ? this.parseDate(sc.periodEndDate)
                     : sc.period_end_date
-                    ? this.parseDate(sc.period_end_date)
-                    : null,
+                      ? this.parseDate(sc.period_end_date)
+                      : null,
                 }));
                 this.recalculateGeneralPeriodFromCharges();
                 this.cdr.detectChanges();
@@ -3019,8 +2997,8 @@ export class TariffComponent implements OnInit, OnDestroy {
             subCharge.date_time = subCharge?.created_at
               ? new Date(subCharge.created_at)
               : subCharge?.date_time
-              ? this.formatDateTime(subCharge.date_time)
-              : null;
+                ? this.formatDateTime(subCharge.date_time)
+                : null;
           });
           // Map backend snake_case period dates to UI camelCase and parse to Date
           this.selectedTariff.sub_charges.forEach((subCharge: any) => {
@@ -3260,20 +3238,20 @@ export class TariffComponent implements OnInit, OnDestroy {
       };
 
       for (const sc of subCharges) {
-         const start = toDate(sc?.periodStartDate ?? sc?.period_start_date ?? null);
-         const end = toDate(sc?.periodEndDate ?? sc?.period_end_date ?? null);
- 
-         if (start) {
-           if (!earliest || start.getTime() < earliest.getTime()) {
-             earliest = start;
-           }
-         }
-         if (end) {
-           if (!latest || end.getTime() > latest.getTime()) {
-             latest = end;
-           }
-         }
-       }
+        const start = toDate(sc?.periodStartDate ?? sc?.period_start_date ?? null);
+        const end = toDate(sc?.periodEndDate ?? sc?.period_end_date ?? null);
+
+        if (start) {
+          if (!earliest || start.getTime() < earliest.getTime()) {
+            earliest = start;
+          }
+        }
+        if (end) {
+          if (!latest || end.getTime() > latest.getTime()) {
+            latest = end;
+          }
+        }
+      }
 
       this.selectedTariff.periodStartDate = earliest || null;
       this.selectedTariff.periodEndDate = latest || null;
@@ -3742,8 +3720,8 @@ export class TariffComponent implements OnInit, OnDestroy {
       const detailMessage =
         successCount > 0
           ? `Imported ${successCount} tariff(s). Failed: ${errorDetails.join(
-              ', '
-            )}`
+            ', '
+          )}`
           : `Import failed: ${errorDetails.join(', ')}`;
 
       this.messageService.add({
