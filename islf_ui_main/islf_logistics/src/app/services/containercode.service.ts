@@ -8,7 +8,7 @@ export class ContainerCodeService extends BaseMasterService<any> {
 
   // Backward compatibility methods
   getContainers() {
-    return this.getAll();
+    return this.getAll('containerFilter');
   }
 
   createContainer(data: any) {

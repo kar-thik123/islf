@@ -8,21 +8,29 @@ export const AuthInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const router = inject(Router);
   const token = authService.getToken();
-  
-  if (token) {
+
+  // Skip token injection for public routes
+  const isPublicRoute = req.url.includes('/api/public/');
+
+  if (token && !isPublicRoute) {
     req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
       }
     });
   }
-  
+
   return next(req).pipe(
     catchError((error: any) => {
       if (error && (error.status === 401 || error.status === 403)) {
-        // Preserve username for lockscreen and clear token
-        authService.logout(true);
-        router.navigate(['/auth/lockscreen']);
+        const hasToken = !!authService.getToken();
+        authService.logout(true); // Clear credentials but keep username for lockscreen
+
+        if (hasToken) {
+          router.navigate(['/auth/lockscreen']);
+        } else {
+          router.navigate(['/auth/login']);
+        }
       }
       return throwError(() => error);
     })

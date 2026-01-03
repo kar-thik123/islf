@@ -40,7 +40,7 @@ import { MasterCodeComponent } from './mastercode';
         [value]="types"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -263,9 +263,9 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   // Validation methods
   validateField(type: any, fieldName: string, value: any): string {
@@ -306,8 +306,8 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     if (!type.isNew) return false;
     const keyValue = key.trim().toLowerCase();
     const valueValue = value.trim().toLowerCase();
-    return this.types.some(t => 
-      t !== type && 
+    return this.types.some(t =>
+      t !== type &&
       (t.key || '').trim().toLowerCase() === keyValue &&
       (t.value || '').trim().toLowerCase() === valueValue
     );
@@ -334,24 +334,24 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       const errors = this.fieldErrors[type.id || 'new'];
       if (!errors) {
         // No validation errors recorded, check basic field requirements
-        return type.key.toString().trim() !== '' && 
-               type.value.toString().trim() !== '';
+        return type.key.toString().trim() !== '' &&
+          type.value.toString().trim() !== '';
       }
       // If errors exist, check them
       const hasKeyError = errors['key'];
       const hasValueError = errors['value'];
       return !hasKeyError && !hasValueError;
     }
-    
+
     const errors = this.fieldErrors[type.id || 'new'];
     if (!errors) return false;
-    
+
     const hasKeyError = errors['key'];
     const hasValueError = errors['value'];
-    
-    return !hasKeyError && !hasValueError && 
-           type.key && type.key.toString().trim() !== '' &&
-           type.value && type.value.toString().trim() !== '';
+
+    return !hasKeyError && !hasValueError &&
+      type.key && type.key.toString().trim() !== '' &&
+      type.value && type.value.toString().trim() !== '';
   }
 
   ngOnInit() {
@@ -359,7 +359,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     this.masterCodeService.getMasters().subscribe((codes: any[]) => {
       this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
     });
-    
+
     // 🔄 Updated context subscription to match UOM pattern
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -368,7 +368,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       console.log('Context changed in MasterTypeComponent, reloading data...');
       this.refreshList();
     });
-    
+
     this.refreshList();
   }
 
@@ -380,21 +380,21 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
 
   refreshList() {
     console.log('Refreshing master types list');
-    
+
     try {
       // ❌ Remove this entire context validation block
       // The backend service should handle context filtering automatically
-      
+
       this.masterTypeService.getAll().subscribe({
         next: (types) => {
           let filteredTypes = types || [];
-          
+
           // Filter by key if filterByKey is provided
           if (this.filterByKey && this.filterByKey.trim() !== '') {
             filteredTypes = filteredTypes.filter((t: any) => t.key === this.filterByKey);
             console.log(`Filtered master types by key '${this.filterByKey}':`, filteredTypes.length);
           }
-          
+
           this.types = filteredTypes.map((t: any) => ({
             ...t,
             isEditing: false,
@@ -419,23 +419,23 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
 
   addRow() {
     console.log('Add Master Type button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const masterTypeFilter = config?.validation?.masterTypeFilter || '';
-    
+
     console.log('Master Type filter:', masterTypeFilter);
-    
+
     // Check if we need to validate context
     if (masterTypeFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (masterTypeFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -445,7 +445,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       if (masterTypeFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       if (missingContexts.length > 0) {
         console.log('Missing contexts:', missingContexts);
         this.messageService.add({
@@ -453,13 +453,13 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} before adding master type`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
@@ -470,25 +470,25 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       isEditing: true,
       isNew: true
     };
-    
+
     // Add the new row to both types and activeTypes arrays
     this.types = [newRow, ...this.types];
     this.activeTypes = [newRow, ...this.activeTypes];
-    
+
     // Clear field errors for new row
     this.fieldErrors['new'] = {};
-    
+
     // Force change detection to update the UI
     setTimeout(() => {
       this.cdr.detectChanges();
     }, 0);
-    
+
     console.log('New master type row added successfully');
   }
 
   saveRow(type: any) {
     if (!this.isTypeValid(type)) return;
-    
+
     if (type.isNew) {
       this.masterTypeService.create(type).subscribe({
         next: (created) => {
@@ -582,10 +582,10 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading master code options:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to refresh master code options' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to refresh master code options'
         });
       }
     });

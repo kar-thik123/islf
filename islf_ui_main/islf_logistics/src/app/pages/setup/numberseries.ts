@@ -78,7 +78,7 @@ interface NumberSeries {
         [value]="seriesList()"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -268,7 +268,7 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
   searchTerm = '';
   filterFields: string[] = ['code', 'description', 'basecode'];
   @ViewChild('dt') dt!: Table;
-  
+
   // Add context subscription property
   private contextSubscription?: Subscription;
 
@@ -279,12 +279,12 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
     private numberSeriesService: NumberSeriesService,
     // Add these new services
     private contextService: ContextService,
-    private configService: ConfigService
-  ) {}
+    public configService: ConfigService
+  ) { }
 
   ngOnInit() {
     this.refreshList();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -323,23 +323,23 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
 
   addRow() {
     console.log('Add Number Series button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const numberSeriesFilter = config?.validation?.numberSeriesFilter || '';
-    
+
     console.log('Number Series filter:', numberSeriesFilter);
-    
+
     // Check if we need to validate context
     if (numberSeriesFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (numberSeriesFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -349,7 +349,7 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
       if (numberSeriesFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       if (missingContexts.length > 0) {
         console.log('Missing contexts:', missingContexts);
         this.messageService.add({
@@ -361,7 +361,7 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    
+
     // Proceed with adding new row if context validation passes
     const newRow: NumberSeries = {
       code: '',
@@ -379,10 +379,10 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
   saveRow(row: NumberSeries) {
     // Validate that either Default or Manual must be selected
     if (!row.isDefault && !row.isManual) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Either "Default" or "Manual" must be selected before saving.' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Either "Default" or "Manual" must be selected before saving.'
       });
       return;
     }
@@ -454,7 +454,7 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
     });
     this.seriesList.set(updatedList);
   }
-  
+
 
   deleteRow(row: NumberSeries) {
     console.log('Deleting row:', row);

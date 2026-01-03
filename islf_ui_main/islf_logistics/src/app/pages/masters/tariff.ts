@@ -103,8 +103,8 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         [value]="tariffs"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
-        [rowsPerPageOptions]="[5, 10, 20, 50]"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
+        [rowsPerPageOptions]="[5, 10, 20, 50, 100]"
         [showGridlines]="true"
         [rowHover]="true"
         [globalFilterFields]="[
@@ -1765,43 +1765,31 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
   filterServiceType() {
     console.log('Filtering service/shipping Type:', this.selectedTariff?.mode);
-    console.log('All Service types:', this.allShippingType);
-    console.log('All Departments:', this.allDepartments);
     if (this.selectedTariff?.mode) {
-      // Debug: Log all location types to see what's available
-      const availableTypes = [
-        ...new Set(this.allShippingType.map((st) => st.name)),
-      ];
-      console.log('Available shipping types in data:', availableTypes);
-      console.log('department Name:');
-      const [dept] = this.allDepartments.filter(
-        (dept) => dept?.name === this.selectedTariff?.mode
+      const selectedMode = this.selectedTariff.mode.trim().toLowerCase();
+
+      const dept = this.allDepartments.find(
+        (d) => d?.name?.trim().toLowerCase() === selectedMode ||
+          d?.code?.trim().toLowerCase() === selectedMode
       );
-      console.log('service Type mode code:', dept);
+
+      console.log('Matched department object:', dept);
+
       const filteredServiceTypes = this.allShippingType.filter((st) => {
-        return st.department_code === dept?.code;
+        return st.department_code?.trim().toLowerCase() === dept?.code?.trim().toLowerCase();
       });
-      console.log(
-        'Filtered service Types for the Mode:',
-        this.selectedTariff?.mode,
-        'service type length',
-        filteredServiceTypes.length,
-        'filtered Service type',
-        filteredServiceTypes
-      );
 
       this.shippingTypeOptions = filteredServiceTypes.map((st) => ({
         label: st.name,
         value: st.name,
       }));
     } else {
-      // If no department selected, show all service types
       this.shippingTypeOptions = this.allShippingType.map((st) => ({
         label: `${st.name}`,
         value: st.name,
       }));
     }
-    console.log('From Shipping Type options:', this.shippingTypeOptions.length);
+    console.log('Final shipping type options count:', this.shippingTypeOptions.length);
   }
 
   filterFromLocations() {

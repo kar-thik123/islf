@@ -24,7 +24,7 @@ import { ContextService } from '../../services/context.service';
 import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import {Country, State, City} from 'country-state-city';
+import { Country, State, City } from 'country-state-city';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -70,7 +70,7 @@ function toTitleCase(str: string): string {
         [value]="customers"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -710,9 +710,9 @@ export class CustomerComponent implements OnInit, OnDestroy {
     { label: 'Ship', value: 'Ship' },
     { label: 'All', value: 'All' }
   ];
-  countryOptions: {label: string, value: string}[] = [];
-  stateOptions: {label: string, value: string}[] = [];
-  cityOptions: {label: string, value: string}[] = [];
+  countryOptions: { label: string, value: string }[] = [];
+  stateOptions: { label: string, value: string }[] = [];
+  cityOptions: { label: string, value: string }[] = [];
   billToCustomerOptions: any[] = [];
   placeOfSupplyOptions: any[] = [];
   mappedCustomerSeriesCode: string | null = null;
@@ -726,8 +726,8 @@ export class CustomerComponent implements OnInit, OnDestroy {
   documentUploadPath: string = '/uploads/documents/customer';
   documentTypeOptions: any[] = [];
   departmentOptions: any[] = [];
-  
-  
+
+
   // Document viewer dialog
   isDocumentViewerVisible = false;
   selectedDocument: EntityDocument | null = null;
@@ -764,7 +764,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
     { key: 'swift_code', label: 'Swift Code', required: false },
     { key: 'bank_address', label: 'Bank Address', required: false }
   ];
-  
+
 
 
   constructor(
@@ -777,18 +777,18 @@ export class CustomerComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
     private departmentService: DepartmentService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService,
     private accountDetailsService: AccountDetailsService,
     private sanitizer: DomSanitizer
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadOptions();
     this.loadMappedCustomerSeriesCode();
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -821,10 +821,10 @@ export class CustomerComponent implements OnInit, OnDestroy {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customer types' });
       }
     });
-    
+
     // Load existing customers for bill-to customer dropdown
     this.refreshList();
-    
+
     // Load locations for country, state, city dropdowns
     this.loadLocations();
   }
@@ -885,43 +885,43 @@ export class CustomerComponent implements OnInit, OnDestroy {
     // Get the validation settings
     const config = this.configService.getConfig();
     const customerFilter = config?.validation?.customerFilter || '';
-    
+
     console.log('Customer filter:', customerFilter);
-    
+
     // Check if we need to validate context
     if (customerFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       let contextValid = true;
       let missingContexts = [];
-      
+
       if (customerFilter.includes('C') && !context.companyCode) {
         contextValid = false;
         missingContexts.push('Company');
       }
-      
+
       if (customerFilter.includes('B') && !context.branchCode) {
         contextValid = false;
         missingContexts.push('Branch');
       }
-      
+
       if (customerFilter.includes('D') && !context.departmentCode) {
         contextValid = false;
         missingContexts.push('Department');
       }
-      
+
       if (customerFilter.includes('ST') && !context.serviceType) {
         contextValid = false;
         missingContexts.push('Service Type');
       }
-      
+
       console.log('Context valid:', contextValid);
       console.log('Missing contexts:', missingContexts);
-      
+
       // If context is not valid, show an error message and trigger the context selector
       if (!contextValid) {
         this.messageService.add({
@@ -929,15 +929,15 @@ export class CustomerComponent implements OnInit, OnDestroy {
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector.`
         });
-        
+
         // Show the context selector dialog
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     console.log('Validation passed, proceeding with adding customer');
-    
+
     // If validation passes, proceed with adding the customer
     this.selectedCustomer = {
       customer_no: '',
@@ -961,13 +961,13 @@ export class CustomerComponent implements OnInit, OnDestroy {
       isNew: true
     };
     this.customerAccountDetails = [];
-    
+
     // Load the mapped customer series code to determine if manual series is enabled
     // Wait for the mapping to load before showing the dialog
     // Get current context and find mapping relation
     const context = this.contextService.getContext();
     console.log('Current context for mapping:', context);
-    
+
     // Find mapping relation based on context
     this.mappingService.findMappingByContext(
       'customerCode',
@@ -985,7 +985,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
               const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
               this.isManualSeries = !!(found && found.is_manual);
               console.log('Customer series code mapped:', this.mappedCustomerSeriesCode, 'Manual:', this.isManualSeries);
-              
+
               // Now show the dialog after the series mapping is loaded
               this.isDialogVisible = true;
               this.updateBillToCustomerNameDefault();
@@ -1048,8 +1048,8 @@ export class CustomerComponent implements OnInit, OnDestroy {
       }
     });
   }
-    // ... existing code ...
-  
+  // ... existing code ...
+
   // Account Details methods
   loadAccountDetails(entityType: string, entityCode: string) {
     this.accountDetailsService.getByEntity(entityType, entityCode).subscribe({
@@ -1096,7 +1096,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const operation = this.selectedAccountDetail.id 
+    const operation = this.selectedAccountDetail.id
       ? this.accountDetailsService.update(this.selectedAccountDetail.id, this.selectedAccountDetail)
       : this.accountDetailsService.create(this.selectedAccountDetail);
 
@@ -1173,7 +1173,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
       this.selectedCustomer.bill_to_customer_name = `${this.selectedCustomer.customer_no} - ${this.selectedCustomer.name}`;
     }
     this.isDialogVisible = true;
-    
+
     // Populate state and city options based on existing values
     if (this.selectedCustomer.country) {
       this.populateStateOptions(this.selectedCustomer.country);
@@ -1181,7 +1181,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
         this.populateCityOptions(this.selectedCustomer.country, this.selectedCustomer.state);
       }
     }
-    
+
     // Load customer documents
     if (customer.id) {
       this.loadCustomerDocuments(customer.customer_no);
@@ -1195,15 +1195,15 @@ export class CustomerComponent implements OnInit, OnDestroy {
       this.stateOptions = [];
       return;
     }
-    
-    const matchingLocations = this.allLocations.filter(l => 
+
+    const matchingLocations = this.allLocations.filter(l =>
       l.country && l.country.toLowerCase() === country.toLowerCase()
     );
-    
+
     const states = matchingLocations
       .map(l => l.state)
       .filter(Boolean);
-    
+
     this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
   }
 
@@ -1212,15 +1212,15 @@ export class CustomerComponent implements OnInit, OnDestroy {
       this.cityOptions = [];
       return;
     }
-    
+
     const cities = this.allLocations
-      .filter(l => 
+      .filter(l =>
         l.country && l.country.toLowerCase() === country.toLowerCase() &&
         l.state && l.state.toLowerCase() === state.toLowerCase()
       )
       .map(l => l.city)
       .filter(Boolean);
-      
+
     this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
   }
 
@@ -1228,10 +1228,10 @@ export class CustomerComponent implements OnInit, OnDestroy {
     if (!this.selectedCustomer) return;
 
     if (!this.validateForm()) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Please fix the validation errors before saving' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Please fix the validation errors before saving'
       });
       return;
     }
@@ -1256,7 +1256,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
       if (savedCustomer && savedCustomer.customer_no && savedCustomer.name) {
         this.selectedCustomer!.bill_to_customer_name = `${savedCustomer.customer_no} - ${savedCustomer.name}`;
       }
-      
+
       const msg = this.selectedCustomer?.isNew ? 'Customer created' : 'Customer updated';
       this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
 
@@ -1271,7 +1271,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
         // Give a small delay to ensure the refresh completes
         setTimeout(() => resolve(), 100);
       });
-      
+
       this.hideDialog();
     } catch (error) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Operation failed' });
@@ -1311,16 +1311,16 @@ export class CustomerComponent implements OnInit, OnDestroy {
   }
 
   loadLocations() {
-    this.countryOptions = Country.getAllCountries().map(country=>({
+    this.countryOptions = Country.getAllCountries().map(country => ({
       label: country.name,
       value: country.name
     }));
-    this.stateOptions=[];
-    this.cityOptions=[];
+    this.stateOptions = [];
+    this.cityOptions = [];
     this.masterLocationService.getAll().subscribe({
       next: (locations) => {
         this.allLocations = locations.filter(l => l.active);
-        
+
         {/* // Unique countries - show ALL active locations regardless of type
         this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
           .map(c => ({ label: toTitleCase(c), value: c }));
@@ -1352,16 +1352,16 @@ export class CustomerComponent implements OnInit, OnDestroy {
       }
       return;
     }
-    
+
     console.log('Selected country:', this.selectedCustomer.country);
     console.log('All locations for debugging:', this.allLocations);
 
     // getting the country object for retrieving state of corresponding country 
     let country = Country.getAllCountries().find(
-        c=>c.name===this.selectedCustomer?.country);
-    
-    if(country){
-      this.stateOptions= State.getStatesOfCountry(country.isoCode).map(
+      c => c.name === this.selectedCustomer?.country);
+
+    if (country) {
+      this.stateOptions = State.getStatesOfCountry(country.isoCode).map(
         state => ({
           label: state.name,
           value: state.name
@@ -1387,7 +1387,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
     
     this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
     console.log('Final state options:', this.stateOptions);*/}
-    
+
 
   }
 
@@ -1411,29 +1411,29 @@ export class CustomerComponent implements OnInit, OnDestroy {
       .filter(Boolean);
     this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
     this.selectedCustomer.city = ''; */}
-        // Check if both country and state are from the database
+    // Check if both country and state are from the database
     const country = Country.getAllCountries().find(c => c.name === this.selectedCustomer!.country);
     if (country) {
       const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === this.selectedCustomer!.state);
-          
-        if (state) {
-          // Both country and state are valid, load cities
-           this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(city => ({
-            label: city.name,
-            value: city.name
-          }));
-        } else {
-            // State is manual entry, keep existing city options or clear them
-            // Don't clear city options for manual state entries
-          }
-        } else {
-          // Country is manual entry, keep existing city options or clear them
-          // Don't clear city options for manual country entries
-        }
-        
-        // Clear city selection when state changes
-        this.selectedCustomer!.city = '';
-    
+
+      if (state) {
+        // Both country and state are valid, load cities
+        this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(city => ({
+          label: city.name,
+          value: city.name
+        }));
+      } else {
+        // State is manual entry, keep existing city options or clear them
+        // Don't clear city options for manual state entries
+      }
+    } else {
+      // Country is manual entry, keep existing city options or clear them
+      // Don't clear city options for manual country entries
+    }
+
+    // Clear city selection when state changes
+    this.selectedCustomer!.city = '';
+
   }
 
   // Validation methods
@@ -1467,7 +1467,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
   onFieldChange(field: string, value: any) {
     // Mark field as touched when user starts typing
     this.touchedFields[field] = true;
-    
+
     const error = this.validateField(field, value);
     if (error) {
       this.fieldErrors[field] = error;
@@ -1479,9 +1479,9 @@ export class CustomerComponent implements OnInit, OnDestroy {
   onFieldBlur(field: string) {
     // Mark field as touched when user leaves it (blur event)
     this.touchedFields[field] = true;
-    
+
     if (!this.selectedCustomer) return;
-    
+
     const value = this.selectedCustomer[field as keyof Customer];
     const error = this.validateField(field, value);
     if (error) {
@@ -1503,8 +1503,8 @@ export class CustomerComponent implements OnInit, OnDestroy {
 
   validateForm(): boolean {
     if (!this.selectedCustomer) return false;
-    
-    const requiredFields = [ 'type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
+
+    const requiredFields = ['type', 'name', 'country', 'state', 'city', 'vat_gst_no'];
     for (const field of requiredFields) {
       const error = this.validateField(field, this.selectedCustomer[field as keyof Customer]);
       if (error) {
@@ -1513,7 +1513,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
         this.touchedFields[field] = true;
       }
     }
-    
+
     return Object.keys(this.fieldErrors).length === 0;
   }
 
@@ -1603,23 +1603,23 @@ export class CustomerComponent implements OnInit, OnDestroy {
 
   downloadDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
+
     console.log('=== FRONTEND DOWNLOAD REQUEST ===');
     console.log('Document ID:', doc.id);
     console.log('Document:', doc);
-    
+
     this.entityDocumentService.download(doc.id).subscribe({
       next: (blob: any) => {
         console.log('Download successful, blob size:', blob.size);
         console.log('Blob type:', blob.type);
-        
+
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = doc.file_name;
         link.click();
         window.URL.revokeObjectURL(url);
-        
+
         console.log('Download link clicked');
       },
       error: (error: any) => {
@@ -1637,27 +1637,27 @@ export class CustomerComponent implements OnInit, OnDestroy {
 
   viewDocument(doc: EntityDocument) {
     if (!doc.id) return;
-    
+
     console.log('=== FRONTEND VIEW REQUEST ===');
     console.log('Document ID:', doc.id);
     console.log('Document:', doc);
-    
+
     this.selectedDocument = doc;
     this.isDocumentViewerVisible = true;
     this.pdfLoaded = false;
     this.pdfError = false;
-    
+
     // Always load fresh from server - no caching for blob URLs
     this.entityDocumentService.view(doc.id).subscribe({
       next: (blob: any) => {
         console.log('View successful, blob size:', blob.size);
         console.log('Blob type:', blob.type);
-        
+
         this.documentViewerUrl = window.URL.createObjectURL(blob);
         this.safeDocumentViewerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.documentViewerUrl);
-        
+
         console.log('Document viewer URL created:', this.documentViewerUrl);
-        
+
         // Immediate load for PDFs
         if (doc.mime_type === 'application/pdf') {
           this.pdfLoaded = true;
@@ -1696,14 +1696,14 @@ export class CustomerComponent implements OnInit, OnDestroy {
 
   getOfficeViewerUrl(): string {
     if (!this.documentViewerUrl || !this.selectedDocument) return '';
-    
+
     // Check if it's a blob URL
     if (this.documentViewerUrl.startsWith('blob:')) {
       // For blob URLs, we can't use online viewers directly
       // We'll return empty to show the fallback
       return '';
     }
-    
+
     // For regular URLs, try Microsoft Office Online Viewer
     const encodedUrl = encodeURIComponent(this.documentViewerUrl);
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
@@ -1755,12 +1755,12 @@ export class CustomerComponent implements OnInit, OnDestroy {
     // Filter out documents without doc_type selected
     const documentsToUpload = this.customerDocuments.filter(doc => doc.file && !doc.id && doc.doc_type);
     const documentsWithoutDocType = this.customerDocuments.filter(doc => doc.file && !doc.id && !doc.doc_type);
-    
+
     if (documentsWithoutDocType.length > 0) {
-      this.messageService.add({ 
-        severity: 'error', 
-        summary: 'Validation Error', 
-        detail: 'Please select document type for all documents before saving' 
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Validation Error',
+        detail: 'Please select document type for all documents before saving'
       });
       return;
     }

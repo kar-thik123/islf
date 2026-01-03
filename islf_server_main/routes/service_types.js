@@ -152,7 +152,7 @@ router.put('/:code', async (req, res) => {
       : 'No actual changes detected.';
 
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'UPDATE',
       setupType: 'ServiceType',
       entityCode: req.params.code,
@@ -177,7 +177,7 @@ router.delete('/:code', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'DELETE',
       setupType: 'ServiceType',
       entityCode: req.params.code,

@@ -32,7 +32,6 @@ export class MasterAirlineService {
     getAll(): Observable<MasterAirline[]> {
         const context = this.contextService.getContext();
         const config = this.configService.getConfig();
-        // Assuming validation reuse or similar filter logic
         const airlineFilter = config?.validation?.airlineFilter || '';
 
         let params: any = {};
@@ -41,6 +40,9 @@ export class MasterAirlineService {
         }
         if (airlineFilter.includes('B') && context.branchCode) {
             params.branch_code = context.branchCode;
+        }
+        if (airlineFilter.includes('D') && context.departmentCode) {
+            params.department_code = context.departmentCode;
         }
 
         return this.http.get<MasterAirline[]>(this.apiUrl, { params });

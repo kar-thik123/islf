@@ -3,13 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 import { environment } from '../../environments/environment';
 
 export interface SourcingSubCharge {
   id?: number;
   sourcing_id?: number;
   charge_name: string;
-  basis:string;
+  basis: string;
   currency: string;
   charges: number;
   gst_vat: string;
@@ -40,9 +41,9 @@ export interface Source {
   sourceSalesCode: string;
   remarks: string;
   gstVat: string;
-  type:string;
+  type: string;
   sub_charges?: SourcingSubCharge[];
-    // New field for accounting purposes
+  // New field for accounting purposes
 }
 
 
@@ -51,26 +52,30 @@ export class SourceService {
   private baseUrl = `${environment.apiUrl}/api/source`;
 
   constructor(
-    private http: HttpClient, 
-    private contextPayload: ContextPayloadService, 
-    private contextService: ContextService
-  ) {}
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) { }
 
-  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
+  // 🔄 Updated getAll method to respect IT Setup validation/filter settings
   getAll(): Observable<Source[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.sourceFilter || '';
+
     const params: any = {};
-    
-    if (context.companyCode) {
+
+    if (filter.includes('C') && context.companyCode) {
       params.companyCode = context.companyCode;
     }
-    if (context.branchCode) {
+    if (filter.includes('B') && context.branchCode) {
       params.branchCode = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (filter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
-    
+
     return this.http.get<Source[]>(this.baseUrl, { params });
   }
 
@@ -86,7 +91,7 @@ export class SourceService {
     return this.http.get<SourcingSubCharge[]>(`${this.baseUrl}/sub-charges/${sourcingId}`);
   }
 
-  deleteSubCharge(id:number, sourcingId:number): Observable<any> {
+  deleteSubCharge(id: number, sourcingId: number): Observable<any> {
     return this.http.delete(`${this.baseUrl}/${sourcingId}/sub-charges/${id}`);
   }
   saveSubCharge(subCharge: SourcingSubCharge): Observable<SourcingSubCharge> {

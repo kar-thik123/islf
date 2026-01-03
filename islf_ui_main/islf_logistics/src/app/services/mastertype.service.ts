@@ -4,51 +4,59 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 @Injectable({ providedIn: 'root' })
 export class MasterTypeService {
   private apiUrl = `${environment.apiUrl}/api/master_type`;
 
   constructor(
-    private http: HttpClient, 
-    private contextPayload: ContextPayloadService, 
-    private contextService: ContextService
-  ) {}
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) { }
 
-  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
+  // 🔄 Updated getAll method to respect IT Setup validation/filter settings
   getAll(): Observable<any[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.masterTypeFilter || '';
+
     const params: any = {};
-    
-    if (context.companyCode) {
+
+    if (filter.includes('C') && context.companyCode) {
       params.companyCode = context.companyCode;
     }
-    if (context.branchCode) {
+    if (filter.includes('B') && context.branchCode) {
       params.branchCode = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (filter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
-    
+
     return this.http.get<any[]>(this.apiUrl, { params });
   }
 
-  getAllByType(type: string): Observable<any[]>{
+  getAllByType(type: string): Observable<any[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.masterTypeFilter || '';
+
     const params: any = {};
-    
-    if (context.companyCode) {
+
+    if (filter.includes('C') && context.companyCode) {
       params.companyCode = context.companyCode;
     }
-    if (context.branchCode) {
+    if (filter.includes('B') && context.branchCode) {
       params.branchCode = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (filter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
-    
+
     console.log("Fetching Master Types for type:", type);
-    return this.http.get<any[]>(`${this.apiUrl}/type/${type}`, {params});
+    return this.http.get<any[]>(`${this.apiUrl}/type/${type}`, { params });
   }
 
   create(type: any): Observable<any> {

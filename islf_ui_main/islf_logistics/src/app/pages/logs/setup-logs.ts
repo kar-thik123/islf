@@ -8,6 +8,7 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { ButtonModule } from 'primeng/button';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import * as XLSX from 'xlsx';
+import { ConfigService } from '../../services/config.service';
 
 interface SetupLogEntry {
   timestamp: Date;
@@ -40,7 +41,7 @@ interface SetupLogEntry {
         #dt
         [value]="logs()"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[10, 50, 100]"
         [globalFilterFields]="filterFields"
         [showGridlines]="true"
@@ -135,7 +136,7 @@ export class SetupLogsComponent implements OnInit {
 
   @ViewChild('dt') dt!: Table;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, public configService: ConfigService) { }
 
   ngOnInit() {
     this.http.get<any[]>('/api/logs/setup').subscribe({

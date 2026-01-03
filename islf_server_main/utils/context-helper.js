@@ -89,21 +89,24 @@ async function buildUpdateQuery(tableName, data, whereClause, whereParams) {
  */
 function getUsernameFromToken(req) {
   if (!req.user) {
-    console.log("⚠️ No req.user found → using 'system'");
-    return "system";
+    console.error("❌ Critical: No req.user found in protected context");
+    return null;
   }
 
   console.log("👤 JWT Payload:", req.user);
 
-  // Priority: username > name > email > system
+  // Priority: username > name > email
   const username =
     req.user.username ||
     req.user.name ||
-    req.user.email ||
-    "system";
+    req.user.email;
+
+  if (!username) {
+    console.error("❌ Critical: No username found in JWT payload", req.user);
+    return null;
+  }
 
   console.log("➡️ Extracted Username:", username);
-
   return username;
 }
 

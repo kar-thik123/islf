@@ -288,7 +288,7 @@ router.post("/", async (req, res) => {
 
       // Log the master event
       await logMasterEvent({
-        username: getUsernameFromToken(req) || "system",
+        username: getUsernameFromToken(req),
         action: "CREATE",
         masterType: "Vendor",
         recordId: vendor_no,
@@ -697,7 +697,7 @@ router.put("/:id", async (req, res) => {
 
     // Log the master event
     await logMasterEvent({
-      username: getUsernameFromToken(req) || "system",
+      username: getUsernameFromToken(req),
       action: "UPDATE",
       masterType: "Vendor",
       recordId: vendor_no,
@@ -756,7 +756,7 @@ router.delete("/:id", async (req, res) => {
 
     // Log the master event
     await logMasterEvent({
-      username: getUsernameFromToken(req) || "system",
+      username: getUsernameFromToken(req),
       action: "DELETE",
       masterType: "Vendor",
       recordId: result.rows[0].vendor_no,

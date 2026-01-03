@@ -1,16 +1,19 @@
 // spinner.interceptor.ts
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { NgxSpinnerService } from 'ngx-spinner';
+import { LoadingService } from '../services/loading.service';
 import { finalize } from 'rxjs';
 
 export const spinnerInterceptor: HttpInterceptorFn = (req, next) => {
-  const spinner = inject(NgxSpinnerService);
-  spinner.show();
-console.log("HTTP module is being intercepted and spinner is displaying",spinner);
+  const loadingService = inject(LoadingService);
+
+  // Start tracking this request
+  loadingService.show();
+
   return next(req).pipe(
-    finalize(() =>{ spinner.hide()
-        console.log("HTTP module is being intercepted and displayed spinner is hidden");
+    finalize(() => {
+      // Decrease counter when request finishes (Success or Error)
+      loadingService.hide();
     })
   );
 };

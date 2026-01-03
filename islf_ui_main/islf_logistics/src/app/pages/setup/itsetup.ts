@@ -1036,6 +1036,7 @@ export class ITSetupComponent implements OnInit {
     serviceAreaFilter: '',
     sourceSalesFilter: '',
     airlineFilter: '',
+
     manualCustomerFilter: ''
   };
 

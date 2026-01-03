@@ -45,7 +45,7 @@ interface ExtendedMasterAirline extends MasterAirline {
         [value]="airlines"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -184,7 +184,7 @@ export class MasterAirlineComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
-    private configService: ConfigService
+    public configService: ConfigService
   ) { }
 
   ngOnInit() {

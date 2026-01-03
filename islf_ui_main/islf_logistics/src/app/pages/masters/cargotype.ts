@@ -62,7 +62,7 @@ interface CargoType {
         [value]="cargoTypes"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -425,9 +425,9 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
     private numberSeriesService: NumberSeriesService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   loadMappedCargoSeriesCode() {
     const context = this.contextService.getContext();
@@ -549,7 +549,7 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
           .filter((item) => item.item_type === 'CARGO_TYPE')
           .map((item) => ({
             id: item.id,
-            cargo_type: item.charge_type ||'',
+            cargo_type: item.charge_type || '',
             code: item.code,
             name: item.name,
             hs_code: item.hs_code || '',
@@ -710,9 +710,9 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
     const req = this.selectedCargoType.isNew
       ? this.masterItemService.create(masterItemData)
       : this.masterItemService.update(
-          this.selectedCargoType.id!,
-          masterItemData
-        );
+        this.selectedCargoType.id!,
+        masterItemData
+      );
     req.subscribe({
       next: () => {
         const msg = this.selectedCargoType?.isNew

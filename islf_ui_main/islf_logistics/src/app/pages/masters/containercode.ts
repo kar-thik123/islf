@@ -11,7 +11,7 @@ import { ContainerCodeService } from '../../services/containercode.service';
 import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
-import {debounceTime,distinctUntilChanged} from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 @Component({
   selector: 'container-code',
   standalone: true,
@@ -34,7 +34,7 @@ import {debounceTime,distinctUntilChanged} from 'rxjs/operators';
         [value]="containers"
         dataKey="code"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -200,13 +200,13 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
   constructor(
     private containerService: ContainerCodeService,
     private messageService: MessageService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -227,15 +227,15 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
     // Get the Validation settings
     const config = this.configService.getConfig();
     const containerFilter = config?.validation?.containerFilter || '';
-    
+
     // Determine if we should filter by context based on validation settings
-    const filterByContext = containerFilter.includes('Company') || 
-                           containerFilter.includes('Branch') || 
-                           containerFilter.includes('Department');
-    
+    const filterByContext = containerFilter.includes('Company') ||
+      containerFilter.includes('Branch') ||
+      containerFilter.includes('Department');
+
     console.log('Container filter:', containerFilter);
     console.log('Filter by context:', filterByContext);
-    
+
     // The BaseMasterService automatically handles context filtering
     // so we don't need to pass any parameters to getContainers()
     this.containerService.getContainers().subscribe({
@@ -245,10 +245,10 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading containers:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load container codes' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load container codes'
         });
         this.containers = [];
       }
@@ -298,8 +298,8 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
   isCodeDuplicate(container: any, code: string): boolean {
     if (!container.isNew) return false;
     const codeValue = code.trim().toLowerCase();
-    return this.containers.some(c => 
-      c !== container && 
+    return this.containers.some(c =>
+      c !== container &&
       (c.code || '').trim().toLowerCase() === codeValue
     );
   }
@@ -325,47 +325,47 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
       const errors = this.fieldErrors[container.code || 'new'];
       if (!errors) {
         // No validation errors recorded, check basic field requirements
-        return container.code.toString().trim() !== '' && 
-               container.description.toString().trim() !== '';
+        return container.code.toString().trim() !== '' &&
+          container.description.toString().trim() !== '';
       }
       // If errors exist, check them
       const hasCodeError = errors['code'];
       const hasDescriptionError = errors['description'];
       return !hasCodeError && !hasDescriptionError;
     }
-    
+
     // For new containers, require validation to have been run
     const errors = this.fieldErrors[container.code || 'new'];
     if (!errors) return false;
-    
+
     const hasCodeError = errors['code'];
     const hasDescriptionError = errors['description'];
-    
-    return !hasCodeError && !hasDescriptionError && 
-           container.code && container.code.toString().trim() !== '' &&
-           container.description && container.description.toString().trim() !== '';
+
+    return !hasCodeError && !hasDescriptionError &&
+      container.code && container.code.toString().trim() !== '' &&
+      container.description && container.description.toString().trim() !== '';
   }
 
   addRow() {
     console.log('=== CONTAINER ADD ROW CLICKED ===');
     console.log('Add Container button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const containerFilter = config?.validation?.containerFilter || '';
-    
+
     console.log('Container filter:', containerFilter);
-    
+
     // Check if we need to validate context
     if (containerFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (containerFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -375,24 +375,24 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
       if (containerFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       const contextValid = missingContexts.length === 0;
-      
+
       console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
-      
+
       if (!contextValid) {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Container.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
@@ -408,7 +408,7 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
 
   saveRow(container: any) {
     if (!this.isContainerValid(container)) return;
-    
+
     if (container.isNew) {
       this.containerService.createContainer({
         code: container.code,

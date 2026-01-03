@@ -119,11 +119,11 @@ router.get('/config', async (req, res) => {
   try {
     const result = await pool.query("SELECT key, value FROM settings");
     const config = {};
-    
+
     result.rows.forEach(row => {
       config[row.key] = row.value;
     });
-    
+
     // Transform the flat structure to nested config object
     const appConfig = {
       system: {
@@ -241,9 +241,10 @@ router.get('/config', async (req, res) => {
         sourceFilter: config.validation_source_filter || '',
         serviceAreaFilter: config.validation_service_area_filter || '',
         sourceSalesFilter: config.validation_source_sales_filter || '',
+        airlineFilter: config.validation_airline_filter || ''
       }
     };
-    
+
     res.json(appConfig);
   } catch (err) {
     console.error('Error fetching configuration:', err);
@@ -255,17 +256,17 @@ router.get('/config', async (req, res) => {
 router.post('/config', async (req, res) => {
   try {
     const config = req.body;
-    
+
     // Debug: Log the backup time to see what we're receiving
     console.log('Received backup time:', config.backup?.backupTime, 'Type:', typeof config.backup?.backupTime);
-    
+
     // Validate that config object exists and has required properties
-    if (!config || !config.system || !config.email || !config.security || 
-        !config.backup || !config.maintenance || !config.branding || 
-        !config.logistics || !config.documentPaths) {
+    if (!config || !config.system || !config.email || !config.security ||
+      !config.backup || !config.maintenance || !config.branding ||
+      !config.logistics || !config.documentPaths) {
       return res.status(400).json({ error: 'Invalid configuration object' });
     }
-    
+
     // Flatten the nested config object for database storage
     const settings = [
       { key: 'max_companies', value: config.system.maxCompanies.toString() },
@@ -284,7 +285,7 @@ router.post('/config', async (req, res) => {
       { key: 'max_records_per_page', value: config.system.maxRecordsPerPage.toString() },
       { key: 'enable_auto_save', value: config.system.enableAutoSave.toString() },
       { key: 'auto_save_interval', value: config.system.autoSaveInterval.toString() },
-      
+
       // Email settings
       { key: 'smtp_host', value: config.email.smtpHost },
       { key: 'smtp_port', value: config.email.smtpPort.toString() },
@@ -295,7 +296,7 @@ router.post('/config', async (req, res) => {
       { key: 'password_reset_subject', value: config.email.passwordResetSubject },
       { key: 'welcome_subject', value: config.email.welcomeSubject },
       { key: 'notification_subject', value: config.email.notificationSubject },
-      
+
       // Security settings
       { key: 'min_password_length', value: config.security.minPasswordLength.toString() },
       { key: 'password_expiry_days', value: config.security.passwordExpiryDays.toString() },
@@ -307,28 +308,30 @@ router.post('/config', async (req, res) => {
       { key: 'lockout_duration', value: config.security.lockoutDuration.toString() },
       { key: 'enable_two_factor', value: config.security.enableTwoFactor.toString() },
       { key: 'enable_login_notifications', value: config.security.enableLoginNotifications.toString() },
-      
+
       // Backup settings
       { key: 'enable_auto_backup', value: config.backup.enableAutoBackup.toString() },
       { key: 'backup_frequency', value: config.backup.frequency },
-      { key: 'backup_time', value: (() => {
-        try {
-          return new Date(config.backup.backupTime).toISOString();
-        } catch (error) {
-          console.warn('Invalid backup time, using current date:', error);
-          return new Date().toISOString();
-        }
-      })() },
+      {
+        key: 'backup_time', value: (() => {
+          try {
+            return new Date(config.backup.backupTime).toISOString();
+          } catch (error) {
+            console.warn('Invalid backup time, using current date:', error);
+            return new Date().toISOString();
+          }
+        })()
+      },
       { key: 'backup_retention_days', value: config.backup.retentionDays.toString() },
       { key: 'backup_path', value: config.backup.backupPath },
-      
+
       // Maintenance settings
       { key: 'enable_log_rotation', value: config.maintenance.enableLogRotation.toString() },
       { key: 'log_retention_days', value: config.maintenance.logRetentionDays.toString() },
       { key: 'enable_system_monitoring', value: config.maintenance.enableSystemMonitoring.toString() },
       { key: 'disk_space_threshold', value: config.maintenance.diskSpaceThreshold.toString() },
       { key: 'db_cleanup_interval', value: config.maintenance.dbCleanupInterval.toString() },
-      
+
       // Branding settings
       { key: 'app_name', value: config.branding.appName },
       { key: 'company_name', value: config.branding.companyName },
@@ -339,7 +342,7 @@ router.post('/config', async (req, res) => {
       { key: 'website_url', value: config.branding.websiteUrl },
       { key: 'address', value: config.branding.address },
       { key: 'default_logo', value: config.branding.defaultLogo || '' },
-      
+
       // Logistics settings
       { key: 'default_shipping_method', value: config.logistics.defaultShippingMethod },
       { key: 'default_container_type', value: config.logistics.defaultContainerType },
@@ -358,7 +361,7 @@ router.post('/config', async (req, res) => {
       { key: 'api_base_url', value: config.logistics.apiBaseUrl },
       { key: 'api_key', value: config.logistics.apiKey },
       { key: 'api_secret', value: config.logistics.apiSecret },
-      
+
       // Document paths
       { key: 'document_upload_path_customer', value: config.documentPaths.customer },
       { key: 'document_upload_path_vendor', value: config.documentPaths.vendor },
@@ -366,7 +369,7 @@ router.post('/config', async (req, res) => {
       { key: 'document_upload_path_branch', value: config.documentPaths.branch },
       { key: 'document_upload_path_department', value: config.documentPaths.department },
       { key: 'document_upload_path_user', value: config.documentPaths.user },
-      
+
       // Validation settings - ADD ALL MISSING FILTERS
       { key: 'validation_customer_filter', value: config.validation?.customerFilter || '' },
       { key: 'validation_manual_customer_filter', value: config.validation?.manualCustomerFilter || '' },
@@ -385,13 +388,14 @@ router.post('/config', async (req, res) => {
       { key: 'validation_number_series_filter', value: config.validation?.numberSeriesFilter || '' },
       { key: 'validation_number_series_relation_filter', value: config.validation?.numberSeriesRelationFilter || '' },
       { key: 'validation_user_list_filter', value: config.validation?.userListFilter || '' },
-      { key: 'validation_mapping_filter', value: config.validation?.mappingFilter || '' }, 
+      { key: 'validation_mapping_filter', value: config.validation?.mappingFilter || '' },
       { key: 'validation_basis_filter', value: config.validation?.basisFilter || '' },
       { key: 'validation_source_filter', value: config.validation?.sourceFilter || '' },
       { key: 'validation_service_area_filter', value: config.validation?.serviceAreaFilter || '' },
       { key: 'validation_source_sales_filter', value: config.validation?.sourceSalesFilter || '' },
+      { key: 'validation_airline_filter', value: config.validation?.airlineFilter || '' },
     ];
-    
+
     // Save all settings
     for (const setting of settings) {
       await pool.query(
@@ -400,7 +404,7 @@ router.post('/config', async (req, res) => {
         [setting.key, setting.value]
       );
     }
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error('Error saving configuration:', err);

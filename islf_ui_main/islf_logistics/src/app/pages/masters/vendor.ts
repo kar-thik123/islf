@@ -90,7 +90,7 @@ function toTitleCase(str: string): string {
         [value]="vendors"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -1439,19 +1439,19 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.selectedAccountDetail = accountDetail
       ? { ...accountDetail }
       : {
-          id: undefined,
-          entity_type: entityType,
-          entity_code: entityCode,
-          beneficiary: '',
-          bank_name: '',
-          account_number: '',
-          account_type: '',
-          bank_branch_code: '',
-          rtgs_neft_code: '',
-          swift_code: '',
-          bank_address: '',
-          is_primary: false,
-        };
+        id: undefined,
+        entity_type: entityType,
+        entity_code: entityCode,
+        beneficiary: '',
+        bank_name: '',
+        account_number: '',
+        account_type: '',
+        bank_branch_code: '',
+        rtgs_neft_code: '',
+        swift_code: '',
+        bank_address: '',
+        is_primary: false,
+      };
     this.displayAccountDetailFormDialog = true;
   }
 
@@ -1476,9 +1476,9 @@ export class VendorComponent implements OnInit, OnDestroy {
 
     const operation = this.selectedAccountDetail.id
       ? this.accountDetailsService.update(
-          this.selectedAccountDetail.id,
-          this.selectedAccountDetail
-        )
+        this.selectedAccountDetail.id,
+        this.selectedAccountDetail
+      )
       : this.accountDetailsService.create(this.selectedAccountDetail);
 
     operation.subscribe({
@@ -1576,11 +1576,11 @@ export class VendorComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
     private departmentService: DepartmentService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService,
     private sanitizer: DomSanitizer,
     private accountDetailsService: AccountDetailsService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadOptions();
@@ -1896,7 +1896,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.selectedVendorRecords = this.vendors.filter(
       //since vendor no are always unique will use vendor name
       // (v) => v.vendor_no === this.selectedVendor?.vendor_no
-      (v) => v.name === this.selectedVendor?.name 
+      (v) => v.name === this.selectedVendor?.name
     );
     console.log(
       'selected vendor records matching the vendor,',
@@ -1907,7 +1907,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.selectedVendorType = this.selectedVendor.type!;
     this.duplicationVendorTypeOptions = this.vendorTypeOptions.map((option) => {
       const isAsigned = this.selectedVendorRecords.some(
-        (selectedVendorRecord) => selectedVendorRecord.type === option.value 
+        (selectedVendorRecord) => selectedVendorRecord.type === option.value
       );
 
       return isAsigned ? { ...option, disabled: true } : option;
@@ -1937,9 +1937,8 @@ export class VendorComponent implements OnInit, OnDestroy {
       if (!this.isManualSeries) {
         no = '(auto)';
       }
-      const liveValue = `${no || ''} - ${
-        this.selectedVendor.name || ''
-      }`.trim();
+      const liveValue = `${no || ''} - ${this.selectedVendor.name || ''
+        }`.trim();
       if (
         !this.selectedVendor.bill_to_vendor_name ||
         (Array.isArray(this.billToVendorOptions) &&
@@ -2060,7 +2059,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   async saveRow() {
     if (!this.selectedVendor) return;
     // let dupVendorPayload: Vendor[] = [];
-    let dupVendorPayload  ={};
+    let dupVendorPayload = {};
     if (this.isDuplicate) {
       if (this.selectedVendorTypes.length === 0) {
         this.messageService.add({
@@ -2084,7 +2083,7 @@ export class VendorComponent implements OnInit, OnDestroy {
       dupVendorPayload = {
         vendors: dupVendorList
       }
-      console.log('Duplicate vendor payload:', dupVendorPayload,'vendors list,',this.vendors);
+      console.log('Duplicate vendor payload:', dupVendorPayload, 'vendors list,', this.vendors);
     }
 
     console.log(
@@ -2133,8 +2132,8 @@ export class VendorComponent implements OnInit, OnDestroy {
       const msg = this.isDuplicate
         ? 'Vendor Duplicated'
         : this.selectedVendor?.isNew
-        ? 'Vendor created'
-        : 'Vendor updated';
+          ? 'Vendor created'
+          : 'Vendor updated';
       this.messageService.add({
         severity: 'success',
         summary: 'Success',

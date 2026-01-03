@@ -53,7 +53,7 @@ import { Country, State, City } from 'country-state-city/lib';
               [value]="getLocationsByType(locationType.value)"
               dataKey="code"
               [paginator]="true"
-              [rows]="10"
+              [rows]="configService.getSystemConfig().maxRecordsPerPage"
               [rowsPerPageOptions]="[5, 10, 20, 50]"
               [showGridlines]="true"
               [rowHover]="true"
@@ -371,7 +371,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService
+    public configService: ConfigService
   ) { }
 
   ngOnInit() {

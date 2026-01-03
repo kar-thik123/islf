@@ -10,14 +10,14 @@ router.get('/', async (req, res) => {
     const { company_code } = req.query;
     let query = 'SELECT * FROM branches';
     let params = [];
-    
+
     if (company_code) {
       query += ' WHERE company_code = $1';
       params.push(company_code);
     }
-    
+
     query += ' ORDER BY code DESC';
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -47,27 +47,27 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Branch code is required' });
     }
     const created_by = getUsernameFromToken(req);
-    
+
     // Check if branch code already exists
     const existingBranch = await pool.query('SELECT code FROM branches WHERE code = $1', [code]);
     if (existingBranch.rows.length > 0) {
       return res.status(400).json({ error: 'Branch code already exists' });
     }
-    
+
     const result = await pool.query(
       'INSERT INTO branches (code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,$13) RETURNING *',
-      [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date ||null, close_date||null, remarks,created_by]
+      [code, company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date || null, close_date || null, remarks, created_by]
     );
-    
+
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'CREATE',
       setupType: 'Branch',
       entityCode: code,
       details: `Branch created: ${name} (${code}) for company ${company_code}`
     });
-    
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating branch:', err);
@@ -84,16 +84,16 @@ router.put('/:code', async (req, res) => {
       [company_code, name, description, address, gst, incharge_name, incharge_from, status, start_date, close_date, remarks, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    
+
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'UPDATE',
       setupType: 'Branch',
       entityCode: req.params.code,
       details: `Branch updated: ${name} (${req.params.code}) for company ${company_code}`
     });
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating branch:', err);
@@ -106,16 +106,16 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM branches WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    
+
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'DELETE',
       setupType: 'Branch',
       entityCode: req.params.code,
       details: `Branch deleted: ${result.rows[0]?.name || 'Unknown'} (${req.params.code})`
     });
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting branch:', err);

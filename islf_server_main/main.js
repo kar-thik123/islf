@@ -14,20 +14,23 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-// Apply authentication middleware to all routes
-app.use(authenticateToken);
-
-// Debug middleware to log all requests
+// Debug middleware to log all requests (must be above auth for troubleshooting)
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
+// Apply authentication middleware to all routes after body parsers
+app.use(authenticateToken);
+
 //  auth and password    routers
 
 const authRouter = require('./routes/auth');
-app.use('/api/auth', authRouter);
+const publicRouter = require('./routes/public');
 const passwordRouter = require('./routes/password');
+
+app.use('/api/auth', authRouter);
+app.use('/api/public', publicRouter);
 app.use('/api/password', passwordRouter);
 
 // logs routes

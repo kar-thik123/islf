@@ -1,4 +1,4 @@
-import { Component, OnInit ,OnDestroy} from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -49,7 +49,7 @@ interface PageFieldOption {
         [value]="masters"
         dataKey="code"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -230,17 +230,17 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
     { label: 'Inactive', value: 'Inactive' }
   ];
 
-  referenceOptions= [
-    {label: 'User / Status', value: 'User / Status'},
-    {label: 'User / Role', value: 'User / Role'},
-    {label: 'User / Designation', value: 'User / Designation'},
-    {label:'master/vendor', value: 'master/vendor'},
-    {label:'master/customer', value: 'master/customer'},
-    {label:'master/carrier', value: 'master/carrier'},
-    {label:'master/container', value: 'master/container'},
-    {label:'master/currency', value: 'master/currency'}, 
-    {label:'master/basis', value: 'master/basis'},
-    {label:'master/itemName', value: 'master/itemName'},
+  referenceOptions = [
+    { label: 'User / Status', value: 'User / Status' },
+    { label: 'User / Role', value: 'User / Role' },
+    { label: 'User / Designation', value: 'User / Designation' },
+    { label: 'master/vendor', value: 'master/vendor' },
+    { label: 'master/customer', value: 'master/customer' },
+    { label: 'master/carrier', value: 'master/carrier' },
+    { label: 'master/container', value: 'master/container' },
+    { label: 'master/currency', value: 'master/currency' },
+    { label: 'master/basis', value: 'master/basis' },
+    { label: 'master/itemName', value: 'master/itemName' },
   ];
 
   // Field validation states
@@ -250,13 +250,13 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
     private router: Router,
     private masterService: MasterCodeService,
     private messageService: MessageService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -275,7 +275,7 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
 
   refreshList() {
     console.log('Refreshing master codes list...');
-    
+
     // The service now handles context filtering automatically
     this.masterService.getMasters().subscribe({
       next: (res: any) => {
@@ -290,10 +290,10 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading master codes:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load master codes' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load master codes'
         });
         this.masters = [];
       }
@@ -327,11 +327,11 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
   onFieldChange(master: any, fieldName: string, value: any) {
     const error = this.validateField(master, fieldName, value);
     const masterKey = master.isNew ? 'new' : master.code;
-    
+
     if (!this.fieldErrors[masterKey]) {
       this.fieldErrors[masterKey] = {};
     }
-    
+
     if (error) {
       this.fieldErrors[masterKey][fieldName] = error;
     } else {
@@ -341,7 +341,7 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
 
   isCodeDuplicate(code: string): boolean {
     const codeValue = code.trim().toLowerCase();
-    return this.masters.some(m => 
+    return this.masters.some(m =>
       (m.code || '').trim().toLowerCase() === codeValue && !m.isNew
     );
   }
@@ -364,36 +364,36 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
   isMasterValid(master: any): boolean {
     const masterKey = master.isNew ? 'new' : master.code;
     const errors = this.fieldErrors[masterKey] || {};
-    
+
     // Check if there are any validation errors
     if (Object.keys(errors).length > 0) {
       return false;
     }
-    
+
     // Check required fields
     return master.code && master.code.trim() !== '' &&
-           master.description && master.description.trim() !== '';
+      master.description && master.description.trim() !== '';
   }
 
   addRow() {
     console.log('Add Master Code button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const masterCodeFilter = config?.validation?.masterCodeFilter || '';
-    
+
     console.log('Master code filter:', masterCodeFilter);
-    
+
     // Check if we need to validate context
     if (masterCodeFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (masterCodeFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -403,24 +403,24 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
       if (masterCodeFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       const contextValid = missingContexts.length === 0;
-      
+
       console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
-      
+
       if (!contextValid) {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Master Code.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
@@ -438,12 +438,12 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
 
   saveRow(master: any) {
     if (!this.isMasterValid(master)) return;
-    
+
     if (master.isNew) {
       const referenceValue = Array.isArray(master.reference)
         ? master.reference.join(',')
         : master.reference;
-      console.log("DEV: master code value:", master.code,"Upper cased:",master.code.toUpperCase());
+      console.log("DEV: master code value:", master.code, "Upper cased:", master.code.toUpperCase());
       this.masterService.createMaster({
         code: master.code.toUpperCase(),
         description: master.description,

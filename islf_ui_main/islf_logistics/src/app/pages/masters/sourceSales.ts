@@ -52,7 +52,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
         [value]="sourceSales"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -432,11 +432,11 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService
-  ) {}
+  ) { }
 
   ngOnInit() {
     // 1) Immediately load using the current context if already selected

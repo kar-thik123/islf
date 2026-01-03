@@ -52,7 +52,7 @@ interface FlagOption {
         dataKey="id"
         [paginator]="true"
 
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -314,7 +314,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   isManualSeries: boolean = false;
   isDialogVisible = false;
   selectedVessel: (MasterVessel & { isNew?: boolean }) | null = null;
-  
+
   // Field validation states
   fieldErrors: { [key: string]: string } = {};
   touchedFields: { [key: string]: boolean } = {};
@@ -333,12 +333,12 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     public configService: ConfigService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadFlagOptions();
     this.reloadData(); // Use the optimized reload method
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -355,38 +355,38 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     }
   }
 
-loadFlagOptions() {
-  this.masterLocationService.getAll().subscribe({
-    next: (locations) => {
-      // Step 1: Filter valid country values
-      const countries = locations
-        .map(loc => loc.country?.trim())
-        .filter(country => !!country); // remove null/empty
+  loadFlagOptions() {
+    this.masterLocationService.getAll().subscribe({
+      next: (locations) => {
+        // Step 1: Filter valid country values
+        const countries = locations
+          .map(loc => loc.country?.trim())
+          .filter(country => !!country); // remove null/empty
 
-      // Step 2: Deduplicate case-insensitively
-      const uniqueCountries = Array.from(
-        new Map(
-          countries.map(c => [c.toLowerCase(), c]) // key = lowercase, value = original
-        ).values()
-      );
+        // Step 2: Deduplicate case-insensitively
+        const uniqueCountries = Array.from(
+          new Map(
+            countries.map(c => [c.toLowerCase(), c]) // key = lowercase, value = original
+          ).values()
+        );
 
-      // Step 3: Sort case-insensitively
-      uniqueCountries.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        // Step 3: Sort case-insensitively
+        uniqueCountries.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
-      // Step 4: Format options (title case or original)
-      this.flagOptions = uniqueCountries.map(country => ({
-        label: country.charAt(0).toUpperCase() + country.slice(1).toLowerCase(),
-        value: country
-      }));
+        // Step 4: Format options (title case or original)
+        this.flagOptions = uniqueCountries.map(country => ({
+          label: country.charAt(0).toUpperCase() + country.slice(1).toLowerCase(),
+          value: country
+        }));
 
-      console.log('Flag options loaded:', this.flagOptions.length, 'countries found');
-    },
-    error: (error) => {
-      console.error('Error loading flag options:', error);
-      this.flagOptions = [];
-    }
-  });
-}
+        console.log('Flag options loaded:', this.flagOptions.length, 'countries found');
+      },
+      error: (error) => {
+        console.error('Error loading flag options:', error);
+        this.flagOptions = [];
+      }
+    });
+  }
 
 
 
@@ -394,7 +394,7 @@ loadFlagOptions() {
     return new Promise((resolve, reject) => {
       // Get current context for context-based mapping
       const context = this.contextService.getContext();
-      
+
       // Try context-based mapping first
       this.mappingService.findMappingByContext(
         'vesselCode',
@@ -476,7 +476,7 @@ loadFlagOptions() {
 
   reloadData() {
     console.log('Starting data reload...');
-    
+
     // Load both vessel data and mapping in parallel
     Promise.all([
       this.refreshList(),
@@ -508,47 +508,47 @@ loadFlagOptions() {
 
   addRow() {
     console.log('Add Vessel button clicked - starting addRow method');
-    
+
     // Get the Validation settings
     const config = this.configService.getConfig();
     const vesselFilter = config?.validation?.vesselFilter || '';
-    
+
     console.log('Vessel filter:', vesselFilter);
-    
+
     // Check if we need to validate context
     if (vesselFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       let contextValid = true;
       let missingContexts = [];
-      
+
       if (vesselFilter.includes('C') && !context.companyCode) {
         contextValid = false;
         missingContexts.push('Company');
       }
-      
+
       if (vesselFilter.includes('B') && !context.branchCode) {
         contextValid = false;
         missingContexts.push('Branch');
       }
-      
+
       if (vesselFilter.includes('D') && !context.departmentCode) {
         contextValid = false;
         missingContexts.push('Department');
       }
-      
+
       if (vesselFilter.includes('ST') && !context.serviceType) {
         contextValid = false;
         missingContexts.push('Service Type');
       }
-      
+
       console.log('Context valid:', contextValid);
       console.log('Missing contexts:', missingContexts);
-      
+
       // If context is not valid, show an error message and trigger the context selector
       if (!contextValid) {
         this.messageService.add({
@@ -556,17 +556,17 @@ loadFlagOptions() {
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a vessel.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // Reset validation state
     this.fieldErrors = {};
     this.touchedFields = {};
-    
+
     // Load mapping to determine if series is manual before showing dialog
     this.loadMappedVesselSeriesCode().then(() => {
       this.selectedVessel = {
@@ -612,7 +612,7 @@ loadFlagOptions() {
       case 'vessel_name':
         if (!value || (typeof value === 'string' && value.trim() === '')) return 'Vessel Name is required';
         break;
-     
+
       case 'year_build':
         if (!value) return 'Year Build is required';
         break;
@@ -636,12 +636,12 @@ loadFlagOptions() {
 
   validateForm(): boolean {
     if (!this.selectedVessel) return false;
-    
+
     // For code, only require it if it's a manual series
     const requiredFields = this.isManualSeries ?
       ['code', 'vessel_name', 'flag', 'year_build'] :
-      ['vessel_name','year_build'];
-      
+      ['vessel_name', 'year_build'];
+
     for (const field of requiredFields) {
       const error = this.validateField(field, this.selectedVessel[field as keyof MasterVessel]);
       if (error) {
@@ -650,13 +650,13 @@ loadFlagOptions() {
         this.touchedFields[field] = true;
       }
     }
-    
+
     return Object.keys(this.fieldErrors).length === 0;
   }
 
   saveRow() {
     if (!this.selectedVessel) return;
-    
+
     // Validate the form
     if (!this.validateForm()) {
       this.messageService.add({
@@ -666,7 +666,7 @@ loadFlagOptions() {
       });
       return;
     }
-    
+
     if (this.selectedVessel.isNew && this.vessels.some(v => v.code === this.selectedVessel?.code)) {
       this.messageService.add({
         severity: 'warn',
@@ -675,10 +675,10 @@ loadFlagOptions() {
       });
       return;
     }
-    
+
     // Get the current context for relation mapping
     const context = this.contextService.getContext();
-    
+
     const payload: any = {
       vessel_name: this.selectedVessel.vessel_name,
       imo_number: this.selectedVessel.imo_number,
@@ -692,15 +692,15 @@ loadFlagOptions() {
       departmentCode: context.departmentCode,
       ServiceTypeCode: context.serviceType
     };
-    
+
     if (this.selectedVessel.code) {
       payload.code = this.selectedVessel.code; // For manual series
     }
-    
+
     const req = this.selectedVessel.isNew
       ? this.masterVesselService.create(payload)
       : this.masterVesselService.update(this.selectedVessel.id!, payload);
-      
+
     req.subscribe({
       next: (createdVessel) => {
         const msg = this.selectedVessel?.isNew ? 'Vessel created' : 'Vessel updated';
@@ -710,10 +710,10 @@ loadFlagOptions() {
       },
       error: (err) => {
         console.error('Operation failed:', err);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: err.error?.error || 'Operation failed' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: err.error?.error || 'Operation failed'
         });
       }
     });

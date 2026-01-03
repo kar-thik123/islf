@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 @Injectable()
 export abstract class BaseMasterService<T extends object> {
@@ -11,24 +12,30 @@ export abstract class BaseMasterService<T extends object> {
   constructor(
     protected http: HttpClient,
     protected contextPayload: ContextPayloadService,
-    protected contextService: ContextService
-  ) {}
+    protected contextService: ContextService,
+    protected configService: ConfigService // Add this
+  ) { }
 
-  // Common method for context-aware getAll
-  getAll(): Observable<T[]> {
+  // Common method for context-aware getAll with IT Setup validation
+  getAll(filterKey?: string): Observable<T[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const filter = filterKey ? (config?.validation as any)?.[filterKey] : '';
+
     const params: any = {};
-    
-    if (context.companyCode) {
+
+    // If no filterKey is provided, it behaves as before (unconditional context)
+    // but we should ideally pass a filterKey for each implementation.
+    if (!filterKey || (filter && filter.includes('C')) && context.companyCode) {
       params.companyCode = context.companyCode;
     }
-    if (context.branchCode) {
+    if (!filterKey || (filter && filter.includes('B')) && context.branchCode) {
       params.branchCode = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (!filterKey || (filter && filter.includes('D')) && context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
-    
+
     return this.http.get<T[]>(this.apiUrl, { params });
   }
 

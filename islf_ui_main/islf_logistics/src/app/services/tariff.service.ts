@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 import { environment } from '../../environments/environment';
 
 export interface Tariff {
@@ -30,7 +31,7 @@ export interface TariffCharge {
   tariffId?: number;
   chargeName: string;
   basis: string;
-  
+
   currency: string | number;
   charge: number;
   gstVat: string;
@@ -46,21 +47,25 @@ export class TariffService {
   constructor(
     private http: HttpClient,
     private contextPayload: ContextPayloadService,
-    private contextService: ContextService
-  ) {}
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) { }
 
-  // 🔄 Updated getAll method to match UOM pattern (unconditional context sending)
+  // 🔄 Updated getAll method to respect IT Setup validation/filter settings
   getAll(): Observable<Tariff[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const filter = config?.validation?.tariffFilter || '';
+
     const params: any = {};
 
-    if (context.companyCode) {
+    if (filter.includes('C') && context.companyCode) {
       params.companyCode = context.companyCode;
     }
-    if (context.branchCode) {
+    if (filter.includes('B') && context.branchCode) {
       params.branchCode = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (filter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
 
@@ -82,7 +87,7 @@ export class TariffService {
   }
 
   // Delete charge Method
-  deleteCharge(tariffId: number,  chargeId: number): Observable<void>{
+  deleteCharge(tariffId: number, chargeId: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${tariffId}/charge/${chargeId}`);
   }
 
@@ -91,7 +96,7 @@ export class TariffService {
     return this.http.get<TariffCharge[]>(`${this.baseUrl}/${tariffId}/charges`);
   }
 
-  saveCharge(tariffId: number,  tariffCharge: TariffCharge): Observable<TariffCharge> {
+  saveCharge(tariffId: number, tariffCharge: TariffCharge): Observable<TariffCharge> {
     return this.http.post<TariffCharge>(`${this.baseUrl}/${tariffId}/charge`, tariffCharge);
   }
 

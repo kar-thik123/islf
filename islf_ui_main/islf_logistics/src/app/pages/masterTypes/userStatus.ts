@@ -46,7 +46,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         [value]="types"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -267,9 +267,9 @@ export class userStatusComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   // Validation methods
   validateField(type: any, fieldName: string, value: any): string {

@@ -17,8 +17,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MasterTypeComponent } from './mastertype';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { DialogModule } from 'primeng/dialog';
-import {MappingService} from '@/services/mapping.service';
-import {NumberSeriesService} from '@/services/number-series.service';
+import { MappingService } from '@/services/mapping.service';
+import { NumberSeriesService } from '@/services/number-series.service';
 
 @Component({
   selector: 'app-service-area',
@@ -47,7 +47,7 @@ import {NumberSeriesService} from '@/services/number-series.service';
         [value]="serviceAreas"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -361,7 +361,7 @@ import {NumberSeriesService} from '@/services/number-series.service';
 })
 export class ServiceAreaComponent implements OnInit, OnDestroy {
   @ViewChild('dt') table!: Table;
-  
+
   serviceAreas: any[] = [];
   serviceAreaTypes: any[] = [];
   statusOptions: any[] = [
@@ -372,41 +372,41 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     { label: 'Active', value: 'active' },
     { label: 'Inactive', value: 'inactive' }
   ];
-  
+
   searchTerm: string = '';
   contextSubscription: Subscription | null = null;
   contextId: string = '';
   masterDialogVisible: { [key: string]: boolean } = {};
   masterDialogLoading: { [key: string]: boolean } = {};
   matchOptions: any[] = [
-  { label: 'Match All', value: 'match_all' },
-  { label: 'Match Any', value: 'match_any' }
-];
+    { label: 'Match All', value: 'match_all' },
+    { label: 'Match Any', value: 'match_any' }
+  ];
   // number series properties
-  isManualSeries:boolean = false;
-  mappedSvcAreaSeriesCode:string ='';
-  
+  isManualSeries: boolean = false;
+  mappedSvcAreaSeriesCode: string = '';
+
   constructor(
     private serviceAreaService: ServiceAreaService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef,
     private masterTypeService: MasterTypeService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
-  ) {}
+  ) { }
 
-  
+
   getMatchOptionLabel(value: string): string {
-  const option = this.matchOptions.find(opt => opt.value === value);
-  return option ? option.label : value || '';
-}
-  loadMappedServiceAreaCode(){
+    const option = this.matchOptions.find(opt => opt.value === value);
+    return option ? option.label : value || '';
+  }
+  loadMappedServiceAreaCode() {
     const context = this.contextService.getContext();
     console.log('Loading Source Cargo code for context:', context);
-    
+
     // Use context-based mapping with NumberSeriesRelation
     this.mappingService.findMappingByContext(
       'serviceAreaCode',
@@ -467,10 +467,10 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
   ngOnInit() {
     this.loadServiceAreaTypes();
-    
+
     this.contextSubscription = this.contextService.context$
       .pipe(
         debounceTime(300),
@@ -481,25 +481,25 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
           this.contextId = this.getContextId(context);
           this.loadServiceAreas();
         }
-    });
+      });
     this.loadMappedServiceAreaCode();
   }
-  
+
   ngOnDestroy() {
     if (this.contextSubscription) {
       this.contextSubscription.unsubscribe();
     }
   }
-  
+
   // Helper method to get context identifier
   getContextId(context: any): string {
     // Create a composite key from available context properties
     return `${context.companyCode || ''}-${context.branchCode || ''}-${context.departmentCode || ''}-${context.serviceType || ''}`;
   }
-  
+
   loadServiceAreas() {
     if (!this.contextId) return;
-    
+
     this.serviceAreaService.getServiceAreas().subscribe({
       next: (data) => {
         this.serviceAreas = data.map(item => ({
@@ -519,110 +519,110 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
-loadServiceAreaTypes() {
-  this.masterTypeService.getAll().subscribe({
-    next: (types: any[]) => {
-      
-      this.serviceAreaTypes = types
-        .filter(t => t.key === 'SERVICE_AREA' && t.status === 'Active' )
-        .map(t => ({
-          label: t.value,   // adjust based on actual field names
-          value: t.value    // could also use t.id or t.code
-        }));
-      console.log('DEBUG dropdown options:', this.serviceAreaTypes);
-    },
-    error: (error) => {
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to load service area types'
-      });
-      console.error('Error loading service area types:', error);
-    }
-  });
-}
 
+  loadServiceAreaTypes() {
+    this.masterTypeService.getAll().subscribe({
+      next: (types: any[]) => {
 
-addRow() {
-  console.log('Add Service Area button clicked - starting addServiceArea method');
-
- 
-  const config = this.configService.getConfig();
-  const serviceAreaFilter = config?.validation?.serviceAreaFilter || '';
-
-  console.log('Service Area filter:', serviceAreaFilter);
-
-
-  if (serviceAreaFilter) {
-    const context = this.contextService.getContext();
-    console.log('Current context:', context);
-
- 
-    if (serviceAreaFilter.includes('C') && !context.companyCode) {
-      console.log('Company context required but not set');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: 'Please select a Company before adding a new Service Area.'
-      });
-      this.contextService.showContextSelector();
-      return;
-    }
-
-    if (serviceAreaFilter.includes('B') && !context.branchCode) {
-      console.log('Branch context required but not set');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: 'Please select a Branch before adding a new Service Area.'
-      });
-      this.contextService.showContextSelector();
-      return;
-    }
-
-    if (serviceAreaFilter.includes('D') && !context.departmentCode) {
-      console.log('Department context required but not set');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Context Required',
-        detail: 'Please select a Department before adding a new Service Area.'
-      });
-      this.contextService.showContextSelector();
-      return;
-    }
+        this.serviceAreaTypes = types
+          .filter(t => t.key === 'SERVICE_AREA' && t.status === 'Active')
+          .map(t => ({
+            label: t.value,   // adjust based on actual field names
+            value: t.value    // could also use t.id or t.code
+          }));
+        console.log('DEBUG dropdown options:', this.serviceAreaTypes);
+      },
+      error: (error) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load service area types'
+        });
+        console.error('Error loading service area types:', error);
+      }
+    });
   }
 
-  console.log('Context validation passed - proceeding to add new Service Area');
+
+  addRow() {
+    console.log('Add Service Area button clicked - starting addServiceArea method');
 
 
-  const newServiceArea = {
-    id: 'new_' + new Date().getTime(),
-    code: this.isManualSeries ? '' : (this.mappedSvcAreaSeriesCode || ''),
-    type: '',
-    service_area: '',
-    from_location: false,
-    to_location: false,
-    sourcing: 'match_all', 
-    local_tariff: 'match_all', 
-    isNew: true,
-    isEditing: false,
-    errors: {}
-  };
+    const config = this.configService.getConfig();
+    const serviceAreaFilter = config?.validation?.serviceAreaFilter || '';
+
+    console.log('Service Area filter:', serviceAreaFilter);
 
 
-  this.serviceAreas = [newServiceArea, ...this.serviceAreas];
+    if (serviceAreaFilter) {
+      const context = this.contextService.getContext();
+      console.log('Current context:', context);
 
-  console.log('New Service Area added successfully');
-}
 
-  
+      if (serviceAreaFilter.includes('C') && !context.companyCode) {
+        console.log('Company context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Company before adding a new Service Area.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+
+      if (serviceAreaFilter.includes('B') && !context.branchCode) {
+        console.log('Branch context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Branch before adding a new Service Area.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+
+      if (serviceAreaFilter.includes('D') && !context.departmentCode) {
+        console.log('Department context required but not set');
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Context Required',
+          detail: 'Please select a Department before adding a new Service Area.'
+        });
+        this.contextService.showContextSelector();
+        return;
+      }
+    }
+
+    console.log('Context validation passed - proceeding to add new Service Area');
+
+
+    const newServiceArea = {
+      id: 'new_' + new Date().getTime(),
+      code: this.isManualSeries ? '' : (this.mappedSvcAreaSeriesCode || ''),
+      type: '',
+      service_area: '',
+      from_location: false,
+      to_location: false,
+      sourcing: 'match_all',
+      local_tariff: 'match_all',
+      isNew: true,
+      isEditing: false,
+      errors: {}
+    };
+
+
+    this.serviceAreas = [newServiceArea, ...this.serviceAreas];
+
+    console.log('New Service Area added successfully');
+  }
+
+
   editRow(serviceArea: any) {
     serviceArea.isEditing = true;
     serviceArea._originalData = { ...serviceArea };
     this.cdr.detectChanges();
   }
-  
+
   cancelEdit(serviceArea: any) {
     if (serviceArea.isNew) {
       this.serviceAreas = this.serviceAreas.filter(item => item.id !== serviceArea.id);
@@ -632,15 +632,15 @@ addRow() {
       delete serviceArea._originalData;
     }
   }
-  
+
   saveRow(serviceArea: any) {
     if (!this.validateServiceArea(serviceArea)) {
       return;
     }
-    
+
     const serviceAreaData = {
       code: serviceArea.code,
-      seriesCode: this.mappedSvcAreaSeriesCode,  
+      seriesCode: this.mappedSvcAreaSeriesCode,
       type: serviceArea.type,
       service_area: serviceArea.service_area,
       from_location: serviceArea.from_location,
@@ -654,8 +654,8 @@ addRow() {
     if (!this.isManualSeries && serviceArea.isNew) {
       serviceAreaData.code = '';
     }
-    
-    
+
+
     if (serviceArea.isNew) {
       this.serviceAreaService.createServiceArea(serviceAreaData).subscribe({
         next: (response) => {
@@ -664,7 +664,7 @@ addRow() {
             summary: 'Success',
             detail: 'Service Area created successfully'
           });
-          
+
           // Update the row with the returned data
           const index = this.serviceAreas.findIndex(item => item.id === serviceArea.id);
           if (index !== -1) {
@@ -675,7 +675,7 @@ addRow() {
               errors: {}
             };
           }
-          
+
           this.loadServiceAreas(); // Refresh the list
         },
         error: (error) => {
@@ -695,7 +695,7 @@ addRow() {
             summary: 'Success',
             detail: 'Service Area updated successfully'
           });
-          
+
           serviceArea.isEditing = false;
           delete serviceArea._originalData;
           delete serviceArea.errors;
@@ -711,7 +711,7 @@ addRow() {
       });
     }
   }
-  
+
   confirmDelete(serviceArea: any) {
     this.confirmationService.confirm({
       message: 'Are you sure you want to delete this service area?',
@@ -722,7 +722,7 @@ addRow() {
       }
     });
   }
-  
+
   deleteServiceArea(serviceArea: any) {
     this.serviceAreaService.deleteServiceArea(serviceArea.code).subscribe({
       next: () => {
@@ -756,48 +756,48 @@ addRow() {
     // Refresh dropdown after closing master
     this.loadServiceAreaTypes();
   }
-  
-  
+
+
   validateServiceArea(serviceArea: any): boolean {
     serviceArea.errors = {};
     let isValid = true;
-    
+
     if (!serviceArea.code || serviceArea.code.trim() === '') {
       serviceArea.errors['code'] = 'Code is required';
       isValid = false;
     }
-    
+
     if (!serviceArea.type || serviceArea.type.trim() === '') {
       serviceArea.errors['type'] = 'Type is required';
       isValid = false;
     }
-    
+
     if (!serviceArea.service_area || serviceArea.service_area.trim() === '') {
       serviceArea.errors['service_area'] = 'Service Area is required';
       isValid = false;
     }
-    
+
     return isValid;
   }
-  
+
   getFieldError(serviceArea: any, field: string): string {
     return serviceArea.errors && serviceArea.errors[field] ? serviceArea.errors[field] : '';
   }
-  
+
   getFieldErrorClass(serviceArea: any, field: string): string {
     return this.getFieldError(serviceArea, field) ? 'ng-invalid ng-dirty' : '';
   }
-  
+
   onFieldChange(serviceArea: any, field: string, value: any) {
     if (serviceArea.errors && serviceArea.errors[field]) {
       delete serviceArea.errors[field];
     }
   }
-  
+
   onGlobalFilter(table: Table, event: Event) {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
-  
+
   deleteRow(serviceArea: any) {
     if (serviceArea.id && !serviceArea.isNew) {
       this.serviceAreaService.deleteServiceArea(serviceArea.code).subscribe({
@@ -817,8 +817,8 @@ addRow() {
       this.loadServiceAreas();
     }
   }
-  
-  
+
+
   clear(table: Table) {
     table.clear();
     this.searchTerm = '';

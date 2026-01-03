@@ -35,7 +35,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         [value]="currencies"
         dataKey="code"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -187,13 +187,13 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   constructor(
     private currencyService: CurrencyCodeService,
     private messageService: MessageService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -212,10 +212,10 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
 
   refreshList() {
     console.log('Refreshing currency codes list');
-    
+
     try {
       // ❌ Remove context validation block
-      
+
       this.currencyService.getCurrencies().subscribe({
         next: (res: any) => {
           this.currencies = (res || []).map((item: any) => ({
@@ -227,10 +227,10 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error loading currencies:', error);
-          this.messageService.add({ 
-            severity: 'error', 
-            summary: 'Error', 
-            detail: 'Failed to load currency codes' 
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load currency codes'
           });
           this.currencies = [];
         }
@@ -243,23 +243,23 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   addRow() {
     console.log('=== CURRENCY ADD ROW CLICKED ===');
     console.log('Add Currency button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const currencyFilter = config?.validation?.currencyFilter || '';
-    
+
     console.log('Currency filter:', currencyFilter);
-    
+
     // Check if we need to validate context
     if (currencyFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (currencyFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -269,7 +269,7 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
       if (currencyFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       if (missingContexts.length > 0) {
         console.log('Missing contexts:', missingContexts);
         this.messageService.add({
@@ -277,13 +277,13 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} before adding currency`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: null,
@@ -296,7 +296,7 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
     this.currencies = [newRow, ...this.currencies];
     // Clear field errors for new row
     this.fieldErrors['new'] = {};
-    
+
     console.log('New currency row added successfully');
   }
 
@@ -335,8 +335,8 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   isCodeDuplicate(currency: any, code: string): boolean {
     if (!currency.isNew) return false;
     const codeValue = code.trim().toLowerCase();
-    return this.currencies.some(c => 
-      c !== currency && 
+    return this.currencies.some(c =>
+      c !== currency &&
       (c.code || '').trim().toLowerCase() === codeValue
     );
   }
@@ -357,34 +357,34 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   }
 
   isCurrencyValid(currency: any): boolean {
-       // For existing currency, check if basic required fields are present
+    // For existing currency, check if basic required fields are present
     if (!currency.isNew && currency.code && currency.description) {
       const errors = this.fieldErrors[currency.code || 'new'];
       if (!errors) {
         // No validation errors recorded, check basic field requirements
-        return currency.code.toString().trim() !== '' && 
-               currency.description.toString().trim() !== '';
+        return currency.code.toString().trim() !== '' &&
+          currency.description.toString().trim() !== '';
       }
       // If errors exist, check them
       const hasCodeError = errors['code'];
       const hasDescriptionError = errors['description'];
       return !hasCodeError && !hasDescriptionError;
     }
-    
+
     const errors = this.fieldErrors[currency.code || 'new'];
     if (!errors) return false;
-    
+
     const hasCodeError = errors['code'];
     const hasDescriptionError = errors['description'];
-    
-    return !hasCodeError && !hasDescriptionError && 
-           currency.code && currency.code.toString().trim() !== '' &&
-           currency.description && currency.description.toString().trim() !== '';
+
+    return !hasCodeError && !hasDescriptionError &&
+      currency.code && currency.code.toString().trim() !== '' &&
+      currency.description && currency.description.toString().trim() !== '';
   }
 
   saveRow(currency: any) {
     if (!this.isCurrencyValid(currency)) return;
-    
+
     if (currency.isNew) {
       this.currencyService.createCurrency({
         code: currency.code,

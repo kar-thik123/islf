@@ -8,6 +8,7 @@ import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
 import { CarriageService, CarriageDirection } from '../../services/carriage.service';
 import { MessageService } from 'primeng/api';
+import { ConfigService } from '../../services/config.service';
 
 @Component({
   selector: 'carriage-direction-settings',
@@ -20,7 +21,7 @@ import { MessageService } from 'primeng/api';
       <div class="flex justify-between items-center mb-3">
         <h2 class="font-semibold text-xl mb-4">Carriage Configuration</h2>
       </div>
-      <p-table #dt [value]="rows" [paginator]="true" [rows]="10" [rowsPerPageOptions]="[10,20,50]" dataKey="carriage" [responsiveLayout]="'scroll'">
+      <p-table #dt [value]="rows" [paginator]="true" [rows]="configService.getSystemConfig().maxRecordsPerPage" [rowsPerPageOptions]="[10,20,50]" dataKey="carriage" [responsiveLayout]="'scroll'">
         <ng-template pTemplate="header">
           <tr>
             <th>Carriage Type</th>
@@ -68,7 +69,7 @@ import { MessageService } from 'primeng/api';
 })
 export class CarriageDirectionSettingsComponent {
   rows: CarriageDirection[] = [];
-  constructor(private service: CarriageService, private msg: MessageService) {
+  constructor(private service: CarriageService, private msg: MessageService, public configService: ConfigService) {
     this.load();
   }
   load() {
@@ -77,12 +78,12 @@ export class CarriageDirectionSettingsComponent {
     });
   }
   toggleDirection(row: CarriageDirection, type: 'from' | 'to') {
-  if (type === 'from') {
-    if (row.is_from) row.is_to = false;   // Uncheck TO
-  } else {
-    if (row.is_to) row.is_from = false;   // Uncheck FROM
+    if (type === 'from') {
+      if (row.is_from) row.is_to = false;   // Uncheck TO
+    } else {
+      if (row.is_to) row.is_from = false;   // Uncheck FROM
+    }
   }
-}
   save() {
     this.service.saveCarriageDirection(this.rows).subscribe({
       next: () => {

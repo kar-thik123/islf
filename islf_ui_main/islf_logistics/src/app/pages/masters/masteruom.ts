@@ -43,7 +43,7 @@ import { MasterTypeComponent } from './mastertype';
         [value]="uoms"
         dataKey="code"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -243,9 +243,9 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   ];
 
   // Field validation states
-   fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
-   showUomTypeDialog = false;
-   masterDialogLoading: { [key: string]: boolean } = {};
+  fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
+  showUomTypeDialog = false;
+  masterDialogLoading: { [key: string]: boolean } = {};
   private contextSubscription: Subscription | undefined;
 
   constructor(
@@ -253,14 +253,14 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService
-  ) {}
+    public configService: ConfigService
+  ) { }
 
   ngOnInit() {
     this.refreshList();
     // Load UOM types for dropdown
     this.loadUomTypeOptions();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -290,47 +290,47 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
 
   addRow() {
     console.log('Add UOM button clicked - starting addRow method');
-    
+
     // Get the Validation settings
     const config = this.configService.getConfig();
     const uomFilter = config?.validation?.uomFilter || '';
-    
+
     console.log('UOM filter:', uomFilter);
-    
+
     // Check if we need to validate context
     if (uomFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       let contextValid = true;
       let missingContexts = [];
-      
+
       if (uomFilter.includes('C') && !context.companyCode) {
         contextValid = false;
         missingContexts.push('Company');
       }
-      
+
       if (uomFilter.includes('B') && !context.branchCode) {
         contextValid = false;
         missingContexts.push('Branch');
       }
-      
+
       if (uomFilter.includes('D') && !context.departmentCode) {
         contextValid = false;
         missingContexts.push('Department');
       }
-      
+
       if (uomFilter.includes('ST') && !context.serviceType) {
         contextValid = false;
         missingContexts.push('Service Type');
       }
-      
+
       console.log('Context valid:', contextValid);
       console.log('Missing contexts:', missingContexts);
-      
+
       // If context is not valid, show an error message and trigger the context selector
       if (!contextValid) {
         this.messageService.add({
@@ -338,13 +338,13 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a UOM.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     const newRow = {
       id: undefined,
@@ -421,7 +421,7 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
 
   validateField(uom: any, fieldName: string, value: any) {
     const uomKey = this.getUOMKey(uom);
-    
+
     if (!this.fieldErrors[uomKey]) {
       this.fieldErrors[uomKey] = {};
     }
@@ -473,14 +473,14 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   }
 
   isUOMValid(uom: any): boolean {
-        // For existing containers, check if basic required fields are present
-    if (!uom.isNew &&  uom.type && uom.code && uom.description) {
+    // For existing containers, check if basic required fields are present
+    if (!uom.isNew && uom.type && uom.code && uom.description) {
       const errors = this.fieldErrors[uom.code || 'new'];
       if (!errors) {
         // No validation errors recorded, check basic field requirements
-        return uom.uom_type.toString().trim() !== '' && 
-               uom.code.toString().trim() !== '' &&
-               uom.description.toString().trim() !== '';
+        return uom.uom_type.toString().trim() !== '' &&
+          uom.code.toString().trim() !== '' &&
+          uom.description.toString().trim() !== '';
       }
       // If errors exist, check them
       const hasUOMTypeError = errors['uom_type'];
@@ -490,12 +490,12 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     }
     const uomKey = this.getUOMKey(uom);
     const errors = this.fieldErrors[uomKey];
-    
+
     // Check if there are any validation errors
     if (errors && Object.keys(errors).length > 0) {
       return false;
     }
-    
+
     // Check required fields
     return !!(uom.uom_type && uom.code && uom.description);
   }
@@ -514,23 +514,23 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     if (this.masterDialogLoading[type]) {
       return;
     }
-    
+
     this.masterDialogLoading[type] = true;
-    
+
     // Open dialog immediately for better user experience
     if (type === 'uomType') {
       this.showUomTypeDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
-    
+
     // Reset loading state immediately since dialog is now open
     this.masterDialogLoading[type] = false;
   }
 
   closeMasterDialog(type: string) {
     console.log(`Closing master dialog: ${type}`);
-    
+
     // Reset the appropriate dialog visibility
     switch (type) {
       case 'uomType':
@@ -541,7 +541,7 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
       default:
         console.warn(`Unknown master dialog type: ${type}`);
     }
-    
+
     // Reset loading state if it exists
     if (this.masterDialogLoading[type]) {
       this.masterDialogLoading[type] = false;
@@ -556,10 +556,10 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading UOM type options:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to refresh UOM type options' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to refresh UOM type options'
         });
       }
     });

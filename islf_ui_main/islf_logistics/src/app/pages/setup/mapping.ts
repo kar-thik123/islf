@@ -65,7 +65,7 @@ interface NumberSeries {
         [value]="mappingRelations"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -284,11 +284,11 @@ export class mappingComponent implements OnInit, OnDestroy {
     { label: 'Enquiry No Series', value: 'enquiryNo' },
     { label: 'Source Code No Series', value: 'sourceCode' },
     { label: 'Tariff Code No Series', value: 'tariffCode' },
-    { label: 'Cargo Code No Series', value: 'cargoCode'},
-    { label: 'Charge Code No Series', value: 'chargeCode'},
-    { label: 'Service Area Code No Series', value: 'serviceAreaCode'},
-    { label:'Sales/Source Person No Series', value:'salesSourcePersonCode'}
-    
+    { label: 'Cargo Code No Series', value: 'cargoCode' },
+    { label: 'Charge Code No Series', value: 'chargeCode' },
+    { label: 'Service Area Code No Series', value: 'serviceAreaCode' },
+    { label: 'Sales/Source Person No Series', value: 'salesSourcePersonCode' }
+
   ];
 
   // Replace signals with plain properties for form fields
@@ -320,16 +320,16 @@ export class mappingComponent implements OnInit, OnDestroy {
     private branchService: BranchService,
     private departmentService: DepartmentService,
     private serviceTypeService: ServiceTypeService,
-    private configService: ConfigService, 
-    private contextService: ContextService ,
+    public configService: ConfigService,
+    private contextService: ContextService,
     private confirmationService: ConfirmationService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadMappingOptions();
     this.loadCompanies();
     this.loadMappingRelations();
-    
+
     // Subscribe to context changes
     this.contextSubscription = this.contextService.context$
       .pipe(
@@ -356,11 +356,11 @@ export class mappingComponent implements OnInit, OnDestroy {
     const config = this.configService.getConfig();
     const mappingFilter = config?.validation?.mappingFilter || '';
     const context = this.contextService.getContext();
-    
+
     // Check if we need to validate context
     if (mappingFilter) {
       let contextMissing = false;
-      
+
       if (mappingFilter.includes('C') && !context.companyCode) {
         contextMissing = true;
       }
@@ -370,14 +370,14 @@ export class mappingComponent implements OnInit, OnDestroy {
       if (mappingFilter.includes('D') && !context.departmentCode) {
         contextMissing = true;
       }
-      
+
       // If context is missing, show the context selector dialog instead of error message
       if (contextMissing) {
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     this.showMappingDialog = true;
   }
 
@@ -577,35 +577,35 @@ export class mappingComponent implements OnInit, OnDestroy {
   editMappingRelation(index: number) {
     const rel = this.mappingRelations[index];
     this.editingIndex = index;
-    
+
     // Set the basic fields that work with values
     this.selectedCodeType = rel.codeType;
     this.selectedMapping = rel.mapping;
-    
+
     // Load all dropdown options first, then find and set the codes
     this.loadMappingOptions();
     this.loadCompanies();
-    
+
     // Load companies and find the matching code
     this.companyService.getAll().subscribe(companies => {
       this.companyOptions = companies;
       const matchingCompany = companies.find(c => c.name === rel.company);
       this.selectedCompany = matchingCompany ? matchingCompany.code : null;
-      
+
       // After setting company, load branches
       if (this.selectedCompany) {
         this.branchService.getAll().subscribe(branches => {
           this.branchOptions = branches.filter(b => b.company_code === this.selectedCompany);
           const matchingBranch = this.branchOptions.find(b => b.name === rel.branch);
           this.selectedBranch = matchingBranch ? matchingBranch.code : null;
-          
+
           // After setting branch, load departments
           if (this.selectedBranch) {
             this.departmentService.getAll().subscribe(departments => {
               this.departmentOptions = departments.filter(d => d.branch_code === this.selectedBranch);
               const matchingDepartment = this.departmentOptions.find(d => d.name === rel.department);
               this.selectedDepartment = matchingDepartment ? matchingDepartment.code : null;
-              
+
               // After setting department, load service types
               if (this.selectedDepartment) {
                 this.serviceTypeService.getAll().subscribe(serviceTypes => {
@@ -640,48 +640,48 @@ export class mappingComponent implements OnInit, OnDestroy {
         this.selectedServiceType = null;
       }
     });
-    
+
     this.showMappingDialog = true;
   }
-deleteMappingRelation(index: number) {
-  const relation = this.mappingRelations[index];
+  deleteMappingRelation(index: number) {
+    const relation = this.mappingRelations[index];
 
-  this.confirmationService.confirm({
-    message: 'Are you sure you want to delete this mapping relation?',
-    header: 'Confirm Deletion',
-    icon: 'pi pi-exclamation-triangle',
-    accept: () => {
-      if (relation.id) {
-        this.mappingService.deleteMappingRelation(relation.id).subscribe({
-          next: () => {
-            this.loadMappingRelations();
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Deleted',
-              detail: 'Mapping relation deleted successfully'
-            });
-          },
-          error: (error) => {
-            console.error('Error deleting mapping relation:', error);
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to delete mapping relation'
-            });
-          }
-        });
-      } else {
-        // if the relation is only on client side (not saved in DB yet)
-        this.mappingRelations.splice(index, 1);
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Deleted',
-          detail: 'Mapping relation removed locally'
-        });
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this mapping relation?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (relation.id) {
+          this.mappingService.deleteMappingRelation(relation.id).subscribe({
+            next: () => {
+              this.loadMappingRelations();
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Deleted',
+                detail: 'Mapping relation deleted successfully'
+              });
+            },
+            error: (error) => {
+              console.error('Error deleting mapping relation:', error);
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to delete mapping relation'
+              });
+            }
+          });
+        } else {
+          // if the relation is only on client side (not saved in DB yet)
+          this.mappingRelations.splice(index, 1);
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Deleted',
+            detail: 'Mapping relation removed locally'
+          });
+        }
       }
-    }
-  });
-}
+    });
+  }
 
 
   resetMappingForm() {

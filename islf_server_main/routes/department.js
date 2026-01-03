@@ -10,14 +10,14 @@ router.get('/', async (req, res) => {
     const { branch_code } = req.query;
     let query = 'SELECT * FROM departments';
     let params = [];
-    
+
     if (branch_code) {
       query += ' WHERE branch_code = $1';
       params.push(branch_code);
     }
-    
+
     query += ' ORDER BY code DESC';
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -45,18 +45,18 @@ router.post('/', async (req, res) => {
     const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       'INSERT INTO departments (code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,$13) RETURNING *',
-      [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst,created_by]
+      [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst, created_by]
     );
-    
+
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'CREATE',
       setupType: 'Department',
       entityCode: code,
       details: `Department created: ${name} (${code}) for branch ${branch_code}`
     });
-    
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating department:', err);
@@ -73,16 +73,16 @@ router.put('/:code', async (req, res) => {
       [company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    
+
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'UPDATE',
       setupType: 'Department',
       entityCode: req.params.code,
       details: `Department updated: ${name} (${req.params.code}) for branch ${branch_code}`
     });
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating department:', err);
@@ -95,16 +95,16 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM departments WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    
+
     // Log the setup event
     await logSetupEvent({
-      username: req.user?.username || 'system',
+      username: req.user?.username,
       action: 'DELETE',
       setupType: 'Department',
       entityCode: req.params.code,
       details: `Department deleted: ${result.rows[0]?.name || 'Unknown'} (${req.params.code})`
     });
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting department:', err);

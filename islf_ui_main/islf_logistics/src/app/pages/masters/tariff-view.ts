@@ -15,6 +15,7 @@ import { ContextService } from '@/services/context.service';
 import { AccordionModule } from 'primeng/accordion';
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
+import { ConfigService } from '../../services/config.service';
 
 @Component({
   selector: 'app-tariff-view',
@@ -94,7 +95,7 @@ import { DividerModule } from 'primeng/divider';
           [value]="unitTariffs"
           dataKey="id"
           [paginator]="true"
-          [rows]="10"
+          [rows]="configService.getSystemConfig().maxRecordsPerPage"
           [rowsPerPageOptions]="[5, 10, 20]"
           [showGridlines]="true"
           [rowHover]="true"
@@ -163,7 +164,7 @@ import { DividerModule } from 'primeng/divider';
           [value]="fromToTariffs"
           dataKey="id"
           [paginator]="true"
-          [rows]="10"
+          [rows]="configService.getSystemConfig().maxRecordsPerPage"
           [rowsPerPageOptions]="[5, 10, 20]"
           [showGridlines]="true"
           [rowHover]="true"
@@ -304,8 +305,9 @@ export class TariffViewComponent implements OnInit, OnDestroy {
     private serviceTypeService: ServiceTypeService,
     private vendorService: VendorService,
     private messageService: MessageService,
-    private contextService: ContextService
-  ) {}
+    private contextService: ContextService,
+    public configService: ConfigService
+  ) { }
 
   ngOnInit() {
     this.loadInitialData();
@@ -353,9 +355,8 @@ export class TariffViewComponent implements OnInit, OnDestroy {
     this.vendorService.getAll().subscribe({
       next: (data) => {
         this.vendorOptions = data.map((vendor: any) => ({
-          label: `${vendor.vendor_no || vendor.code} - ${
-            vendor.name2 || vendor.name || vendor.vendor_name
-          }`,
+          label: `${vendor.vendor_no || vendor.code} - ${vendor.name2 || vendor.name || vendor.vendor_name
+            }`,
           value: vendor.vendor_no || vendor.code, // Store vendor code for consistency
         }));
       },

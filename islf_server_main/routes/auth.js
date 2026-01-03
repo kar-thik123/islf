@@ -16,7 +16,15 @@ router.post("/register", async (req, res) => {
   if (!username || !password) {
     return res.status(400).json({ message: "Username and password required" });
   }
+
   try {
+    // Check security settings
+    const minPasswordLengthResult = await pool.query("SELECT value FROM settings WHERE key = 'min_password_length'");
+    const minPasswordLength = minPasswordLengthResult.rows.length > 0 ? parseInt(minPasswordLengthResult.rows[0].value, 10) : 8;
+
+    if (password.length < minPasswordLength) {
+      return res.status(400).json({ message: `Password must be at least ${minPasswordLength} characters long.` });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       "INSERT INTO users (username, email, phone, password) VALUES ($1, $2, $3, $4) RETURNING id, username, email, phone",
@@ -136,21 +144,5 @@ router.post("/verify-password", async (req, res) => {
   }
 });
 
-// JWT authentication middleware
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  if (!token) return res.sendStatus(401);
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-}
-
-// Example protected route
-router.get("/protected", authenticateToken, (req, res) => {
-  res.json({ message: "This is a protected route", user: req.user });
-});
 
 module.exports = router;

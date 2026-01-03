@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
+import { ConfigService } from './config.service';
 
 export interface MasterUOM {
   id?: number;
@@ -20,22 +21,31 @@ export interface MasterUOM {
 export class MasterUOMService {
   private apiUrl = `${environment.apiUrl}/api/master_uom`;
 
-  constructor(private http: HttpClient, private contextPayload: ContextPayloadService, private contextService: ContextService) {}
+  constructor(
+    private http: HttpClient,
+    private contextPayload: ContextPayloadService,
+    private contextService: ContextService,
+    private configService: ConfigService
+  ) { }
 
+  // 🔄 Updated getAll method to respect IT Setup validation/filter settings
   getAll(): Observable<MasterUOM[]> {
     const context = this.contextService.getContext();
+    const config = this.configService.getConfig();
+    const uomFilter = config?.validation?.uomFilter || '';
+
     const params: any = {};
-    
-    if (context.companyCode) {
+
+    if (uomFilter.includes('C') && context.companyCode) {
       params.companyCode = context.companyCode;
     }
-    if (context.branchCode) {
+    if (uomFilter.includes('B') && context.branchCode) {
       params.branchCode = context.branchCode;
     }
-    if (context.departmentCode) {
+    if (uomFilter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
     }
-    
+
     return this.http.get<MasterUOM[]>(this.apiUrl, { params });
   }
 

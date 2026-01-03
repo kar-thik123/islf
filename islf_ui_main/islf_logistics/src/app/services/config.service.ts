@@ -272,7 +272,8 @@ export class ConfigService {
         import('./context.service').then(({ ContextService }) => {
           const contextService = this.injector.get(ContextService);
           contextService.context$.subscribe(() => {
-            this.loadConfig().subscribe();
+            // Already loaded in constructor, only reload if context actually changed
+            // this.loadConfig().subscribe(); // Removing this as it's triggered on every context emit
           });
         });
       } catch (error) {
@@ -282,8 +283,43 @@ export class ConfigService {
     }, 0);
   }
 
+  // Load public configuration for bootstrap
+  loadPublicConfig(): Observable<any> {
+    return this.http.get<{ success: boolean, config: any }>(`${environment.apiUrl}/api/public/bootstrap-config`).pipe(
+      tap(response => {
+        if (response.success && response.config) {
+          const currentConfig = this.configSubject.value || this.defaultConfig;
+          const updatedConfig: AppConfig = {
+            ...currentConfig,
+            system: {
+              ...currentConfig.system,
+              maxCompanies: response.config.maxCompanies
+            },
+            branding: {
+              ...currentConfig.branding,
+              appName: response.config.appName,
+              defaultLogo: response.config.defaultLogo
+            }
+          };
+          this.configSubject.next(updatedConfig);
+          this.applyConfig(updatedConfig);
+        }
+      })
+    );
+  }
+
   // Load configuration from backend
   loadConfig(): Observable<AppConfig> {
+    const token = localStorage.getItem('jwt_token') || sessionStorage.getItem('jwt_token');
+
+    // If no token, load public config instead to prevent 401 redirect loop
+    if (!token) {
+      console.log('No token found, loading public bootstrap config...');
+      return this.loadPublicConfig().pipe(
+        switchMap(() => new BehaviorSubject<AppConfig>(this.configSubject.value || this.defaultConfig))
+      );
+    }
+
     let contextParams = '';
 
     try {

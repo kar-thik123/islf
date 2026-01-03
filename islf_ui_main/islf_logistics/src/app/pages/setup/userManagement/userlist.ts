@@ -39,7 +39,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         [value]="users"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5,10,20,50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -161,22 +161,22 @@ export class UserListComponent implements OnInit, OnDestroy {
     { label: 'Active', value: 'Active' },
     { label: 'Inactive', value: 'Inactive' }
   ];
-  
+
   private contextSubscription?: Subscription;
 
   constructor(
-    private router: Router, 
+    private router: Router,
     private userService: UserService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService,
     private messageService: MessageService,
     private cdr: ChangeDetectorRef,
 
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshUserList();
-    
+
     // Subscribe to context changes
     this.contextSubscription = this.contextService.context$
       .pipe(
@@ -187,13 +187,13 @@ export class UserListComponent implements OnInit, OnDestroy {
         this.refreshUserList();
       });
   }
-  
+
   ngOnDestroy() {
     if (this.contextSubscription) {
       this.contextSubscription.unsubscribe();
     }
   }
-  
+
   refreshUserList() {
     this.userService.getUsers().subscribe((res) => {
       console.log("userlist loaded");
@@ -216,48 +216,48 @@ export class UserListComponent implements OnInit, OnDestroy {
     // Get the validation settings
     const config = this.configService.getConfig();
     const userListFilter = config?.validation?.userListFilter || '';
-    
+
     console.log('User list filter:', userListFilter);
-    
+
     // Check if we need to validate context
     if (userListFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       let contextValid = true;
       let missingContexts = [];
-      
+
       if (userListFilter.includes('C') && !context.companyCode) {
         contextValid = false;
         missingContexts.push('Company');
       }
-      
+
       if (userListFilter.includes('B') && !context.branchCode) {
         contextValid = false;
         missingContexts.push('Branch');
       }
-      
+
       if (userListFilter.includes('D') && !context.departmentCode) {
         contextValid = false;
         missingContexts.push('Department');
       }
-      
+
       if (!contextValid) {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector.`
         });
-        
+
         // Show the context selector dialog
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     this.router.navigate(['settings/create_user']);
   }
 

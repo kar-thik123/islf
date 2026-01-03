@@ -944,7 +944,7 @@ router.put("/:code", async (req, res) => {
     }
     const enquiryId = enquiryResult.rows[0].id;
 
-    username = getUsernameFromToken(req) || "system";
+    username = getUsernameFromToken(req);
 
     // Get user context
     const userResult = await pool.query(
@@ -1255,7 +1255,7 @@ router.delete("/:code", async (req, res) => {
 // GET /enquiry/customers/dropdown - Get customers for dropdown
 router.get("/customers/dropdown", async (req, res) => {
   try {
-    const username = getUsernameFromToken(req) || "system";
+    const username = getUsernameFromToken(req);
 
     const { search = "" } = req.query;
     console.log("🔍 Search query received:", search);
@@ -1464,7 +1464,7 @@ router.get("/customers/:customerId/contacts", async (req, res) => {
 // GET /enquiry/locations/dropdown - Get locations for dropdown
 router.get("/locations/dropdown", async (req, res) => {
   try {
-    const username = getUsernameFromToken(req) || "system";
+    const username = getUsernameFromToken(req);
 
     const { search = "" } = req.query;
 
@@ -1525,7 +1525,7 @@ router.get("/locations/dropdown", async (req, res) => {
 router.get("/departments/dropdown", async (req, res) => {
   try {
     const { search, company_code } = req.query;
-    const userContext = getUsernameFromToken(req) || "system";
+    const userContext = getUsernameFromToken(req);
 
     console.log("🏢 Departments dropdown request:", {
       search,

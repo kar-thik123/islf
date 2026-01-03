@@ -47,7 +47,7 @@ interface ItemTypeOption {
         [value]="items"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -269,14 +269,14 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
     this.loadItemTypeOptions();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
       console.log('Context changed in MasterItemComponent, reloading data...');
@@ -296,7 +296,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
   refreshList() {
     console.log('Refreshing items list');
-    
+
     // ❌ Remove context validation - let backend handle filtering
     this.masterItemService.getAll().subscribe({
       next: (data) => {
@@ -305,10 +305,10 @@ export class MasterItemComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading items:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load items' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load items'
         });
         this.items = [];
       }
@@ -317,23 +317,23 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
   addRow() {
     console.log('Add Item button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const itemFilter = config?.validation?.itemFilter || '';
-    
+
     console.log('Item filter:', itemFilter);
-    
+
     // Check if we need to validate context
     if (itemFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (itemFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -343,24 +343,24 @@ export class MasterItemComponent implements OnInit, OnDestroy {
       if (itemFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       const contextValid = missingContexts.length === 0;
-      
+
       console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
-      
+
       if (!contextValid) {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding an Item.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     this.selectedItem = {
       item_type: '',
@@ -450,16 +450,16 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     if (this.masterDialogLoading[type]) {
       return;
     }
-    
+
     this.masterDialogLoading[type] = true;
-    
+
     // Open dialog immediately for better user experience
     if (type === 'itemType') {
       this.showItemTypeDialog = true;
     } else {
       this.messageService.add({ severity: 'info', summary: 'Open Master', detail: `Open ${type} master page` });
     }
-    
+
     // Reset loading state immediately since dialog is now open
     this.masterDialogLoading[type] = false;
     this.cdr.detectChanges();
@@ -467,7 +467,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
   closeMasterDialog(type: string) {
     console.log(`Closing master dialog: ${type}`);
-    
+
     // Reset the appropriate dialog visibility
     switch (type) {
       case 'itemType':
@@ -478,12 +478,12 @@ export class MasterItemComponent implements OnInit, OnDestroy {
       default:
         console.warn(`Unknown master dialog type: ${type}`);
     }
-    
+
     // Reset loading state if it exists
     if (this.masterDialogLoading[type]) {
       this.masterDialogLoading[type] = false;
     }
-    
+
     // Force change detection to ensure UI updates
     this.cdr.detectChanges();
   }
@@ -491,15 +491,15 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   private loadItemTypeOptions() {
     this.masterTypeService.getAll().subscribe({
       next: (types: ItemTypeOption[]) => {
-        this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE'  && t.status === 'Active');
+        this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
         console.log('Item type options refreshed:', this.itemTypeOptions.length);
       },
       error: (error) => {
         console.error('Error loading item type options:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to refresh item type options' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to refresh item type options'
         });
       }
     });

@@ -11,7 +11,7 @@ import { BasisService } from '../../services/basis.service';
 import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
-import {debounceTime,distinctUntilChanged} from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'basis-code',
@@ -35,7 +35,7 @@ import {debounceTime,distinctUntilChanged} from 'rxjs/operators';
         [value]="basis"
         dataKey="code"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -179,13 +179,13 @@ export class BasisComponent implements OnInit, OnDestroy {
   constructor(
     private basisService: BasisService,
     private messageService: MessageService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private contextService: ContextService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.refreshList();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
       debounceTime(300), // Wait 300ms after the last context change
@@ -206,15 +206,15 @@ export class BasisComponent implements OnInit, OnDestroy {
     // Get the Validation settings
     const config = this.configService.getConfig();
     const basisFilter = config?.validation?.basisFilter || '';
-    
+
     // Determine if we should filter by context based on validation settings
-    const filterByContext = basisFilter.includes('C') || 
-                           basisFilter.includes('B') || 
-                           basisFilter.includes('D');
-    
+    const filterByContext = basisFilter.includes('C') ||
+      basisFilter.includes('B') ||
+      basisFilter.includes('D');
+
     console.log('Basis filter:', basisFilter);
     console.log('Filter by context:', filterByContext);
-    
+
     // The BasisService with updated getAll() method handles context filtering
     this.basisService.getBasis().subscribe({
       next: (data) => {
@@ -223,10 +223,10 @@ export class BasisComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading basis:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load basis codes' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load basis codes'
         });
         this.basis = [];
       }
@@ -237,23 +237,23 @@ export class BasisComponent implements OnInit, OnDestroy {
   addRow() {
     console.log('=== BASIS ADD ROW CLICKED ===');
     console.log('Add Basis button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const basisFilter = config?.validation?.basisFilter || '';
-    
+
     console.log('Basis filter:', basisFilter);
-    
+
     // Check if we need to validate context
     if (basisFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (basisFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -263,24 +263,24 @@ export class BasisComponent implements OnInit, OnDestroy {
       if (basisFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       const contextValid = missingContexts.length === 0;
-      
+
       console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
-      
+
       if (!contextValid) {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Basis.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
+
     // If validation passes or no validation required, proceed with adding row
     const newBasis = {
       id: null,
@@ -345,8 +345,8 @@ export class BasisComponent implements OnInit, OnDestroy {
   isCodeDuplicate(basisItem: any, code: string): boolean {
     if (!basisItem.isNew) return false;
     const codeValue = code.trim().toLowerCase();
-    return this.basis.some(c => 
-      c !== basisItem && 
+    return this.basis.some(c =>
+      c !== basisItem &&
       (c.code || '').trim().toLowerCase() === codeValue
     );
   }
@@ -372,8 +372,8 @@ export class BasisComponent implements OnInit, OnDestroy {
       const errors = this.fieldErrors[basisItem.code || 'new'];
       if (!errors) {
         // No validation errors recorded, check basic field requirements
-        return basisItem.code.toString().trim() !== '' && 
-               basisItem.description.toString().trim() !== '';
+        return basisItem.code.toString().trim() !== '' &&
+          basisItem.description.toString().trim() !== '';
       }
       // If errors exist, check them
       const hasCodeError = errors['code'];
@@ -383,19 +383,19 @@ export class BasisComponent implements OnInit, OnDestroy {
 
     const errors = this.fieldErrors[basisItem.code || 'new'];
     if (!errors) return false;
-    
+
     const hasCodeError = errors['code'];
     const hasDescriptionError = errors['description'];
-    
-    return !hasCodeError && !hasDescriptionError && 
-           basisItem.code && basisItem.code.toString().trim() !== '' &&
-           basisItem.description && basisItem.description.toString().trim() !== '';
+
+    return !hasCodeError && !hasDescriptionError &&
+      basisItem.code && basisItem.code.toString().trim() !== '' &&
+      basisItem.description && basisItem.description.toString().trim() !== '';
   }
 
   clearFieldErrors(basisItem: any) {
     const key = basisItem.code || 'new';
     this.fieldErrors[key] = {};
-    
+
     // Validate all fields to populate initial errors
     this.validateField(basisItem, 'code', basisItem.code);
     this.validateField(basisItem, 'description', basisItem.description);
@@ -405,7 +405,7 @@ export class BasisComponent implements OnInit, OnDestroy {
     // Validate all fields before saving
     this.validateField(basisItem, 'code', basisItem.code);
     this.validateField(basisItem, 'description', basisItem.description);
-    
+
     if (!this.isBasisValid(basisItem)) {
       return;
     }
@@ -424,7 +424,7 @@ export class BasisComponent implements OnInit, OnDestroy {
           Object.assign(basisItem, response);
           basisItem.isNew = false;
           basisItem.isEditing = false;
-          
+
           this.messageService.add({
             severity: 'success',
             summary: 'Success',
@@ -452,7 +452,7 @@ export class BasisComponent implements OnInit, OnDestroy {
           Object.assign(basisItem, response);
           basisItem.isEditing = false;
           delete basisItem.originalData;
-          
+
           this.messageService.add({
             severity: 'success',
             summary: 'Success',

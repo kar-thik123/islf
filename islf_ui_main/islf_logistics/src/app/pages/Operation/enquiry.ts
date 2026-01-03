@@ -131,7 +131,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         [value]="enquiries"
         dataKey="code"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
@@ -1417,7 +1417,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               #sourcingTable
               [value]="sourcingVendors"
               [paginator]="true"
-              [rows]="10"
+              [rows]="configService.getSystemConfig().maxRecordsPerPage"
               dataKey="id"
               [(selection)]="sourcingSelection"
               selectionMode="single"
@@ -1841,7 +1841,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               #tariffTable
               [value]="filteredTariffVendors"
               [paginator]="true"
-              [rows]="10"
+              [rows]="configService.getSystemConfig().maxRecordsPerPage"
               dataKey="id"
               selectionMode="multiple"
               [(selection)]="selectedTariffSelection"
@@ -2665,6 +2665,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
   ],
 })
 export class EnquiryComponent implements OnInit {
+  loading = false;
   showServiceAreaDialog = false;
   serviceAreaDropdownOptions: { label: string; value: string }[] = [];
   // Tree Table Properties
@@ -3058,6 +3059,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadInitialData() {
+    this.loading = true; // Use component-level loading flag
     // Load any initial data needed from masters.
     forkJoin({
       enquiries: this.loadEnquiries(),
@@ -3075,6 +3077,8 @@ export class EnquiryComponent implements OnInit {
     }).subscribe({
       next: () => {
         console.log('All initial data loaded successfully');
+        this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error loading initial data:', error);
@@ -3083,6 +3087,8 @@ export class EnquiryComponent implements OnInit {
           summary: 'Error',
           detail: 'Failed to load initial data',
         });
+        this.loading = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -3524,50 +3530,31 @@ export class EnquiryComponent implements OnInit {
 
   // Filter service types based on department
   filterServiceType() {
-    console.log(
-      'Debug: current selected enquiry value in filter service type',
-      this.selectedEnquiry
-    );
     if (!this.selectedEnquiry?.department || !this.allServiceTypes.length) {
       this.serviceTypeOptions = [];
       return;
     }
 
-    console.log(
-      'DEBUG: enquiry service type options in filter service type,',
-      this.allServiceTypes
-    );
-    const departmentName = this.selectedEnquiry.department;
-    const departmentCode = this.departmentNameToCode.get(departmentName);
+    const deptName = this.selectedEnquiry.department.trim().toLowerCase();
+    const deptCodeFromMap = this.departmentNameToCode.get(this.selectedEnquiry.department);
 
-    // First try exact match
-    let filteredTypes = this.allServiceTypes.filter(
-      (st) => st.department_name === departmentName
+    // Also try to find department object directly for robustness
+    const matchingDept = Array.from(this.departmentNameToCode.entries()).find(([name, code]) =>
+      name.trim().toLowerCase() === deptName || code.trim().toLowerCase() === deptName
     );
 
-    // If no exact match, try case-insensitive match
-    if (filteredTypes.length === 0) {
-      filteredTypes = this.allServiceTypes.filter(
-        (st) =>
-          st.department_name?.toLowerCase() === departmentName.toLowerCase()
-      );
-    }
+    const finalDeptCode = (matchingDept ? matchingDept[1] : deptCodeFromMap)?.trim().toLowerCase();
 
-    // If still no match, try matching by department code
-    if (filteredTypes.length === 0 && departmentCode) {
-      filteredTypes = this.allServiceTypes.filter(
-        (st) => st.department_code === departmentCode
-      );
-    }
+    const filteredTypes = this.allServiceTypes.filter(st => {
+      const stDeptName = st.department_name?.trim().toLowerCase();
+      const stDeptCode = st.department_code?.trim().toLowerCase();
+      return stDeptName === deptName || (finalDeptCode && stDeptCode === finalDeptCode);
+    });
 
-    if (filteredTypes.length === 0) {
-      this.serviceTypeOptions = [];
-    } else {
-      this.serviceTypeOptions = filteredTypes.map((st) => ({
-        label: `${st.code} - ${st.name} `,
-        value: st.code,
-      }));
-    }
+    this.serviceTypeOptions = filteredTypes.map((st) => ({
+      label: `${st.code} - ${st.name} `,
+      value: st.code,
+    }));
 
     // Clear selected service type if it's not in the filtered options
     const enquiry = this.selectedEnquiry;

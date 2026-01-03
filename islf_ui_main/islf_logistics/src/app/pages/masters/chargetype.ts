@@ -11,8 +11,8 @@ import { MessageService } from 'primeng/api';
 import { MasterTypeComponent } from './mastertype';
 import { MasterItemService, MasterItem } from '../../services/master-item.service';
 import { MasterTypeService } from '../../services/mastertype.service';
-import {MappingService} from '@/services/mapping.service';
-import {NumberSeriesService} from '@/services/number-series.service';
+import { MappingService } from '@/services/mapping.service';
+import { NumberSeriesService } from '@/services/number-series.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
@@ -57,11 +57,11 @@ interface ChargeType {
         [value]="chargeTypes"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"
-        [globalFilterFields]="['charge_type', 'code', 'name','description']"
+        [globalFilterFields]="['code', 'name', 'charge_type', 'description']"
         responsiveLayout="scroll"
       >
         <ng-template pTemplate="caption">
@@ -304,16 +304,16 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    private configService: ConfigService,
+    public configService: ConfigService,
     private cdr: ChangeDetectorRef,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService
-  ) {}
+  ) { }
 
-  loadMappedChargeSeriesCode(){
+  loadMappedChargeSeriesCode() {
     const context = this.contextService.getContext();
     console.log('Loading Source Charge code for context:', context);
-    
+
     // Use context-based mapping with NumberSeriesRelation
     this.mappingService.findMappingByContext(
       'chargeCode',
@@ -378,9 +378,9 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.refreshList();
     this.loadChargeTypeOptions();
-      // loading the mapped charges code
+    // loading the mapped charges code
     this.loadMappedChargeSeriesCode();
-    
+
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
       console.log('Context changed in ChargeTypeMasterComponent, reloading data...');
@@ -408,7 +408,7 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
   }
   refreshList() {
     console.log('Refreshing charge types list');
-    
+
     // Load charge types from master_item where item_type = 'CHARGE_TYPE'
     this.masterItemService.getAll().subscribe({
       next: (data) => {
@@ -427,10 +427,10 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading charge types:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to load charge types' 
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load charge types'
         });
         this.chargeTypes = [];
       }
@@ -439,23 +439,23 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
 
   async addRow() {
     console.log('Add Charge Type button clicked - starting addRow method');
-    
+
     // Get the validation settings
     const config = this.configService.getConfig();
     const itemFilter = config?.validation?.itemFilter || '';
-    
+
     console.log('Item filter:', itemFilter);
-    
+
     // Check if we need to validate context
     if (itemFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-      
+
       console.log('Current context:', context);
-      
+
       // Check if the required context is set based on the filter
       const missingContexts: string[] = [];
-      
+
       if (itemFilter.includes('C') && !context.companyCode) {
         missingContexts.push('Company');
       }
@@ -465,63 +465,63 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
       if (itemFilter.includes('D') && !context.departmentCode) {
         missingContexts.push('Department');
       }
-      
+
       const contextValid = missingContexts.length === 0;
-      
+
       console.log('Context valid:', contextValid, 'Missing contexts:', missingContexts);
-      
+
       if (!contextValid) {
         this.messageService.add({
           severity: 'error',
           summary: 'Context Required',
           detail: `Please select ${missingContexts.join(', ')} in the context selector before adding a Charge Type.`
         });
-        
+
         // Trigger the context selector
         this.contextService.showContextSelector();
         return;
       }
     }
-    
-     // If validation passes or no validation required, proceed with adding row
-     this.selectedChargeType = {
-       charge_type: this.chargeTypeOptions.length > 0 ? this.chargeTypeOptions[0].value : '',
-       code: this.isManualSeries ? '':(this.mappedChargeSeriesCode || ''),
-       name: '',
-       description:'',
-       active: true,
-       isNew: true
-     };
+
+    // If validation passes or no validation required, proceed with adding row
+    this.selectedChargeType = {
+      charge_type: this.chargeTypeOptions.length > 0 ? this.chargeTypeOptions[0].value : '',
+      code: this.isManualSeries ? '' : (this.mappedChargeSeriesCode || ''),
+      name: '',
+      description: '',
+      active: true,
+      isNew: true
+    };
     this.fieldErrors = {};
     this.isDialogVisible = true;
   }
 
-async editRow(chargeType: ChargeType) {
-  // First, load chargeType options
-  await this.loadChargeTypeOptions(); // ensures dropdown options are ready
+  async editRow(chargeType: ChargeType) {
+    // First, load chargeType options
+    await this.loadChargeTypeOptions(); // ensures dropdown options are ready
 
-  // Then assign selectedChargeType
-  this.selectedChargeType = { ...chargeType, isNew: false };
+    // Then assign selectedChargeType
+    this.selectedChargeType = { ...chargeType, isNew: false };
 
-  // Auto-select charge_type if only one option is available
-  if (this.chargeTypeOptions.length === 1) {
-    this.selectedChargeType.charge_type = this.chargeTypeOptions[0].value;
-  } else if (!this.selectedChargeType.charge_type || this.selectedChargeType.charge_type === '') {
-    // If no charge_type is set and multiple options exist, try to find a match
-    const matchingOption = this.chargeTypeOptions.find(opt => 
-      opt.value === chargeType.charge_type || opt.key === 'CHARGE_TYPE'
-    );
-    if (matchingOption) {
-      this.selectedChargeType.charge_type = matchingOption.value;
+    // Auto-select charge_type if only one option is available
+    if (this.chargeTypeOptions.length === 1) {
+      this.selectedChargeType.charge_type = this.chargeTypeOptions[0].value;
+    } else if (!this.selectedChargeType.charge_type || this.selectedChargeType.charge_type === '') {
+      // If no charge_type is set and multiple options exist, try to find a match
+      const matchingOption = this.chargeTypeOptions.find(opt =>
+        opt.value === chargeType.charge_type || opt.key === 'CHARGE_TYPE'
+      );
+      if (matchingOption) {
+        this.selectedChargeType.charge_type = matchingOption.value;
+      }
     }
+
+    this.fieldErrors = {};
+    this.isDialogVisible = true;
+
+    // Force change detection to ensure dropdown sees the updated options
+    this.cdr.detectChanges();
   }
-
-  this.fieldErrors = {};
-  this.isDialogVisible = true;
-
-  // Force change detection to ensure dropdown sees the updated options
-  this.cdr.detectChanges();
-}
 
   validateField(field: string, value: any): string {
     if (!value || value.toString().trim() === '') {
@@ -561,24 +561,24 @@ async editRow(chargeType: ChargeType) {
       this.onFieldChange(f, (this.selectedChargeType as any)[f]);
     });
     if (!this.isFormValid()) return;
-    
-     // Transform ChargeType to master_item format
-     const masterItemData = {
-       item_type: 'CHARGE_TYPE',
-       charge_type: this.selectedChargeType.charge_type,
-       code: this.selectedChargeType.code,
-       name: this.selectedChargeType.name,
-       description: this.selectedChargeType.description || '',
-       hs_code: '', // Empty string since HS code is not needed for charge type
-       active: this.selectedChargeType.active,
-       masterType: 'Charge Type'
-     };
 
-     // For automatic series, ensure code is empty so backend generates it (only for new records)
+    // Transform ChargeType to master_item format
+    const masterItemData = {
+      item_type: 'CHARGE_TYPE',
+      charge_type: this.selectedChargeType.charge_type,
+      code: this.selectedChargeType.code,
+      name: this.selectedChargeType.name,
+      description: this.selectedChargeType.description || '',
+      hs_code: '', // Empty string since HS code is not needed for charge type
+      active: this.selectedChargeType.active,
+      masterType: 'Charge Type'
+    };
+
+    // For automatic series, ensure code is empty so backend generates it (only for new records)
     if (!this.isManualSeries && this.selectedChargeType.isNew) {
       masterItemData.code = '';
     }
-    
+
     const req = this.selectedChargeType.isNew
       ? this.masterItemService.create(masterItemData)
       : this.masterItemService.update(this.selectedChargeType.id!, masterItemData);
@@ -606,40 +606,40 @@ async editRow(chargeType: ChargeType) {
   }
 
 
-private loadChargeTypeOptions(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    this.masterTypeService.getAll().subscribe({
-      next: (types: ChargeTypeOption[]) => {
-        this.chargeTypeOptions = types.filter(t => t.key === 'CHARGE_TYPE' && t.status === 'Active');
-        console.log('Charge type options refreshed:', this.chargeTypeOptions.length);
-        resolve();
-      },
-      error: (error) => {
-        console.error('Error loading charge type options:', error);
-        this.messageService.add({ 
-          severity: 'error', 
-          summary: 'Error', 
-          detail: 'Failed to refresh charge type options' 
-        });
-        reject(error);
-      }
+  private loadChargeTypeOptions(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.masterTypeService.getAll().subscribe({
+        next: (types: ChargeTypeOption[]) => {
+          this.chargeTypeOptions = types.filter(t => t.key === 'CHARGE_TYPE' && t.status === 'Active');
+          console.log('Charge type options refreshed:', this.chargeTypeOptions.length);
+          resolve();
+        },
+        error: (error) => {
+          console.error('Error loading charge type options:', error);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to refresh charge type options'
+          });
+          reject(error);
+        }
+      });
     });
-  });
-}
-
-openMaster(type: string) {
-  this.masterDialogLoading[type] = true;
-  if (type === 'chargeType') {
-    this.showChargeTypeDialog = true;
   }
-  this.masterDialogLoading[type] = false;
-}
 
-closeMasterDialog(type: string) {
-  if (type === 'chargeType') {
-    this.showChargeTypeDialog = false;
+  openMaster(type: string) {
+    this.masterDialogLoading[type] = true;
+    if (type === 'chargeType') {
+      this.showChargeTypeDialog = true;
+    }
+    this.masterDialogLoading[type] = false;
   }
-  // Refresh the charge type options after closing the dialog
-  this.loadChargeTypeOptions();
-}
+
+  closeMasterDialog(type: string) {
+    if (type === 'chargeType') {
+      this.showChargeTypeDialog = false;
+    }
+    // Refresh the charge type options after closing the dialog
+    this.loadChargeTypeOptions();
+  }
 }

@@ -53,7 +53,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         [value]="relationList()"
         dataKey="id"
         [paginator]="true"
-        [rows]="10"
+        [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
         [rowHover]="true"

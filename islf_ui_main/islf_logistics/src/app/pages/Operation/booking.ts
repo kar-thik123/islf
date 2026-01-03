@@ -52,7 +52,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
     <p-toast></p-toast>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Booking Dashboard</div>
-      <p-table #dt [value]="bookings" [lazy]="true" (onLazyLoad)="loadBookings($event)" [totalRecords]="totalRecords" [paginator]="true" [rows]="10" [loading]="loading" dataKey="booking_no" [showGridlines]="true" [globalFilterFields]="['booking_no','customer_name','company_name','department','service_type','from_location','to_location','status']">
+      <p-table #dt [value]="bookings" [lazy]="true" (onLazyLoad)="loadBookings($event)" [totalRecords]="totalRecords" [paginator]="true" [rows]="configService.getSystemConfig().maxRecordsPerPage" [rowsPerPageOptions]="[5, 10, 20, 50]" dataKey="booking_no" [showGridlines]="true" [globalFilterFields]="['booking_no','customer_name','company_name','department','service_type','from_location','to_location','status']">
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <div class="flex gap-2">
@@ -563,12 +563,13 @@ export class BookingComponent implements OnInit {
   }
 
   loadBookings(event?: any) {
+    // If we're already loading master data, don't trigger lazy load yet
+    // unless it's a pagination event
+    if (!event && this.loading) return;
+
     this.loading = true;
     const page = event ? (event.first / event.rows) + 1 : 1;
-    const limit = event ? event.rows : 10;
-
-    // Handle filters if needed, usually passed in event.filters
-    // For now keeping simple search/status binding
+    const limit = event ? event.rows : this.configService.getSystemConfig().maxRecordsPerPage;
 
     this.bookingService.getAll(page, limit, this.search, this.statusFilter).subscribe({
       next: (res) => {
@@ -577,7 +578,11 @@ export class BookingComponent implements OnInit {
         this.loading = false;
         this.cdr.detectChanges();
       },
-      error: () => { this.loading = false; }
+      error: () => {
+        this.bookings = [];
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -585,7 +590,7 @@ export class BookingComponent implements OnInit {
     this.loading = true;
     const ctx = this.contextService.getContext();
 
-    // 🚀 Parallelize core dropdown calls using forkJoin
+    // 🚀 Hydration Strategy: Load EVERYTHING critical before showing the UI
     forkJoin({
       departments: this.enquiryService.getDepartmentsDropdown(ctx.companyCode).pipe(take(1)),
       locations: this.masterLocationService.getAll().pipe(take(1)),
@@ -599,65 +604,57 @@ export class BookingComponent implements OnInit {
       next: (res) => {
         // 1. Departments
         this.departmentOptionsRaw = res.departments || [];
-        this.departmentOptions = this.departmentOptionsRaw.map((d: any) => ({
-          label: d.display_name || d.name,
-          value: d.name
+        this.departmentOptions = (res.departments || []).map((d: any) => ({
+          label: d.name,
+          value: d.name,
+          code: d.code
         }));
 
-        // 2. Locations (Unified from masterLocationService)
+        // 2. Locations Map (CRITICAL for locName pipe/function)
         this.allLocations = res.locations || [];
-        const locationOpts = this.allLocations.map((l: any) => ({ label: l.name, value: l.code }));
-
         this.locationMap = {};
-        for (const l of this.allLocations) {
-          this.locationMap[l.code] = l.name || l.code;
-        }
-        this.fromLocationOptions = locationOpts;
-        this.toLocationOptions = locationOpts;
+        this.allLocations.forEach(loc => {
+          this.locationMap[loc.code] = loc.name;
+        });
 
-        const locTypes = [...new Set(this.allLocations.map((l: any) => l.type))].filter(Boolean);
-        this.locationTypeOptions = locTypes.map(t => ({ label: t, value: t }));
-
-        // 3. Booking Statuses
-        const statusList = res.bookingStatuses || [];
-        this.bookingStatusOptions = statusList.map((r: any) => ({
-          label: r.display_name || r.name || r.value || r.code,
-          value: r.value || r.name || r.display_name || r.code
+        // 3. Statuses
+        this.bookingStatusOptions = (res.bookingStatuses || []).map((s: any) => ({
+          label: s.value,
+          value: s.value
         }));
 
-        // 4. Cargo Items
-        const cargoItems = (res.cargoItems || []).filter(it =>
-          ((it.item_type || '').toString().toUpperCase() === 'CARGO_TYPE')
-        );
-        this.allCargoItems = cargoItems;
-        const cargoTypes = [...new Set(cargoItems.map(ci =>
-          (ci.cargo_type || ci.charge_type || '').toString()
-        ).filter(Boolean))];
-        this.cargoTypeOptions = cargoTypes.map(t => ({ label: t, value: t }));
+        // 4. Cargo
+        this.allCargoItems = res.cargoItems || [];
+        this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.map(i => i.item_type)))
+          .map(type => ({ label: type, value: type }));
 
         // 5. Vendors
         this.allVendors = res.vendors || [];
 
         // 6. Service Types
         this.allServiceTypes = res.serviceTypes || [];
-        this.serviceTypeOptions = this.allServiceTypes.map((st: any) => ({
+        this.serviceTypeOptions = this.allServiceTypes.map(st => ({
           label: st.name,
-          value: st.name
+          value: st.name,
+          code: st.code
         }));
 
-        // 7. Airlines
+        // 7. Airlines & Vessels
         this.allAirlines = res.airlines || [];
         this.airlineOptions = this.allAirlines.map(a => ({ label: a.airline_name, value: a.airline_name }));
-
-        // 8. Vessels
         this.allVessels = res.vessels || [];
         this.vesselOptions = this.allVessels.map(v => ({ label: v.vessel_name, value: v.vessel_name }));
 
+        // Now that master data is READY, we can safely allow the UI to finish loading
         this.loading = false;
+
+        // Initial load of content
+        this.loadBookings();
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Failed to load dropdowns:', err);
+        console.error('Failed to load master data:', err);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to initialize master data' });
         this.loading = false;
         this.cdr.detectChanges();
       }

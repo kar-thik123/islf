@@ -80,7 +80,7 @@ router.post('/search-enquiries', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const username = getUsernameFromToken(req) || 'system';
+  const username = getUsernameFromToken(req);
   try {
     // await ensureBookingTable();
     const { booking_type, criteria, selected_enquiries = [], freeze, customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status = 'Open', remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
@@ -408,7 +408,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const username = getUsernameFromToken(req) || 'system';
+  const username = getUsernameFromToken(req);
   try {
     // await ensureBookingTable();
     const { booking_type, selected_enquiries = [], customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
