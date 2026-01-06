@@ -1952,15 +1952,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
       },
     });
   }
-  getVendorName(vendorCode: string): string {
-    if (!vendorCode || !this.allVendors) return vendorCode || '';
 
-    const vendor = this.allVendors.find((v) => v.vendor_no === vendorCode);
-    return vendor
-      ? `
-     ${vendor.name2}`
-      : vendorCode;
-  }
   // Updated method to load unique department names (mode options) with case-insensitive deduplication
   loadModeOptions() {
     const context = this.contextService.getContext();
@@ -2276,7 +2268,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         // Initially show all vendors
         this.vendorOptions = this.allVendors.map((v) => ({
           label: `${v.vendor_no} - ${v.name2}`,
-          value: v.name2,
+          value: v.vendor_no,
           vendorType: v.type, // Include vendor type for filtering
         }));
 
@@ -2286,6 +2278,15 @@ export class SourcingComponent implements OnInit, OnDestroy {
         );
       })
     );
+  }
+
+  // Helper to get vendor name from vendor code for table display
+  getVendorName(vendorCode: string): string {
+    if (!vendorCode || !this.allVendors) return vendorCode || '';
+
+    // Use vendor_no to match the vendor, not code
+    const vendor = this.allVendors.find((v) => v.vendor_no === vendorCode);
+    return vendor ? `${vendor.name2}` : vendorCode;
   }
   formatDateForDisplay(date: Date): string {
     if (!date || !(date instanceof Date)) return '';

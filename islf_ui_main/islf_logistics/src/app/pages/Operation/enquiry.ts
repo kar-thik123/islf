@@ -5024,7 +5024,7 @@ export class EnquiryComponent implements OnInit {
     const sourcingList = selectedVendor
       ? [
         {
-          vendor_no: selectedVendor.vendor_name || selectedVendor.vendor_no || selectedVendor.code,
+          vendor_no: selectedVendor.vendor_no || selectedVendor.vendor_name || selectedVendor.code,
           vendor_type: selectedVendor.vendor_type,
         },
       ]
@@ -5131,6 +5131,9 @@ export class EnquiryComponent implements OnInit {
             sub_charges: this.normalizeCharges(opt.sub_charges || opt.charges),
           }));
           this.filteredTariffVendors = [...this.tariffVendors];
+
+          this.clearTariffFilters();
+
           const uniq = (arr: any[]) => Array.from(new Set(arr.filter((x) => x !== undefined && x !== null).map((x) => x.toString().trim())));
           const types = uniq(this.tariffVendors.map((v) => v.vendor_type));
           const names = uniq(this.tariffVendors.map((v) => v.vendor_name || v.vendor_code || v.vendor));
@@ -5779,7 +5782,8 @@ export class EnquiryComponent implements OnInit {
       if (this.tariffFilter.vendor_name) {
         const target = (this.tariffFilter.vendor_name || '').toString();
         const vn = (vendor.vendor_name || vendor.vendor_code || vendor.vendor || vendor.code || '').toString();
-        if (norm(vn) !== norm(target)) matches = false;
+        const va = (vendor.vendor_alias || '').toString();
+        if (norm(vn) !== norm(target) && norm(va) !== norm(target)) matches = false;
       }
 
       if (

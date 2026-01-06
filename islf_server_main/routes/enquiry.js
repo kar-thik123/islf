@@ -1633,13 +1633,14 @@ router.post("/:code/sourcing", async (req, res) => {
 
     let query = `
       SELECT * FROM ( 
-        SELECT *, 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
         CASE
-          WHEN period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > period_end_date::DATE THEN 'Expired'
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
           ELSE 'Active' 
         END AS source_status
-        FROM sourcing
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
       ) WHERE source_status = 'Active'
     `;
 
@@ -1809,9 +1810,9 @@ router.post("/:code/tariff", async (req, res) => {
     } = req.body;
 
     let query = `
-      SELECT t.*, v.name AS vendor_name, v.type AS vendor_type
+      SELECT t.*, COALESCE(v.vendor_no, t.vendor_name) AS vendor_name, v.name AS vendor_alias, v.type AS vendor_type
       FROM tariff AS t
-      LEFT JOIN vendor AS v ON t.vendor_name = v.vendor_no
+      LEFT JOIN vendor AS v ON (t.vendor_name = v.vendor_no OR t.vendor_name = v.name OR t.vendor_name = v.name2)
       WHERE 1=1
     `;
 
@@ -1853,23 +1854,29 @@ router.post("/:code/tariff", async (req, res) => {
       fromVals.forEach((v) => { params.push(v); paramIndex++; });
       const toIdxStart = paramIndex;
       toVals.forEach((v) => { params.push(v); paramIndex++; });
+
       const fromConds = fromVals.map((_, i) => normCmp('t.from_location', fromIdxStart + i)).join(' OR ');
       const toConds = toVals.map((_, i) => normCmp('t.to_location', toIdxStart + i)).join(' OR ');
-      query += ` AND (${fromConds}) AND (${toConds})`;
+
+      // Relaxed: Match specific route OR "General" tariff (empty locations)
+      query += ` AND ((${fromConds}) OR t.from_location IS NULL OR TRIM(t.from_location) = '') 
+                 AND ((${toConds}) OR t.to_location IS NULL OR TRIM(t.to_location) = '')`;
     } else if (hasFrom) {
       const fromVals = [from_location, from_location_code, from_location_name].filter(Boolean);
       const fromIdxStart = paramIndex;
       fromVals.forEach((v) => { params.push(v); paramIndex++; });
       const fromConds = fromVals.map((_, i) => normCmp('t.from_location', fromIdxStart + i)).join(' OR ');
-      // Also allow matches where to_location is empty if matching by "From" only (e.g. Export Locals)
-      query += ` AND (${fromConds}) AND (t.to_location IS NULL OR TRIM(t.to_location) = '' OR TRIM(t.to_location) = 'null')`;
+
+      query += ` AND ((${fromConds}) OR t.from_location IS NULL OR TRIM(t.from_location) = '') 
+                 AND (t.to_location IS NULL OR TRIM(t.to_location) = '' OR TRIM(t.to_location) = 'null')`;
     } else if (hasTo) {
       const toVals = [to_location, to_location_code, to_location_name].filter(Boolean);
       const toIdxStart = paramIndex;
       toVals.forEach((v) => { params.push(v); paramIndex++; });
       const toConds = toVals.map((_, i) => normCmp('t.to_location', toIdxStart + i)).join(' OR ');
-      // Also allow matches where from_location is empty if matching by "To" only (e.g. Import Locals)
-      query += ` AND (${toConds}) AND (t.from_location IS NULL OR TRIM(t.from_location) = '' OR TRIM(t.from_location) = 'null')`;
+
+      query += ` AND ((${toConds}) OR t.to_location IS NULL OR TRIM(t.to_location) = '') 
+                 AND (t.from_location IS NULL OR TRIM(t.from_location) = '' OR TRIM(t.from_location) = 'null')`;
     }
 
     // Service Area filter
@@ -1881,10 +1888,14 @@ router.post("/:code/tariff", async (req, res) => {
 
     // Service Type/Line Item Type filter (Search in t.service_type)
     const lineItemType = req.body.line_item_type || req.body.type;
-    if (lineItemType && lineItemType.trim() !== "") {
-      query += ` AND LOWER(REPLACE(t.service_type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
-      params.push(lineItemType);
-      paramIndex++;
+    const globalServiceType = req.body.service_type;
+
+    if ((lineItemType && lineItemType.trim() !== "") || (globalServiceType && globalServiceType.trim() !== "")) {
+      const types = [lineItemType, globalServiceType].filter(Boolean);
+      const typeIdxStart = paramIndex;
+      types.forEach((v) => { params.push(v); paramIndex++; });
+      const typeConds = types.map((_, i) => normCmp('t.service_type', typeIdxStart + i)).join(' OR ');
+      query += ` AND (${typeConds})`;
     }
 
     if (Array.isArray(sourcing) && sourcing.length > 0) {
@@ -1895,7 +1906,7 @@ router.post("/:code/tariff", async (req, res) => {
         .map((v) => v.vendor_type)
         .filter((x) => x && String(x).trim() !== "");
       if (vendorNos.length > 0) {
-        query += ` AND t.vendor_name = ANY($${paramIndex})`;
+        query += ` AND (t.vendor_name = ANY($${paramIndex}) OR v.vendor_no = ANY($${paramIndex}) OR v.name = ANY($${paramIndex}) OR v.name2 = ANY($${paramIndex}))`;
         params.push(vendorNos);
         paramIndex++;
       }
