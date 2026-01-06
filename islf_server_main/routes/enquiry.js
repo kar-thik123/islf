@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const jwt = require("jsonwebtoken");
+const fs = require("fs");
+const path = require("path");
 const { getUsernameFromToken } = require("../utils/context-helper");
 const { logMasterEvent } = require("../log");
 // GET /enquiry - Fetch all enquiries with context filtering
@@ -1631,6 +1633,25 @@ router.post("/:code/sourcing", async (req, res) => {
       }
     }
 
+    // Resolve service type name if it's a code (Phase 4)
+    let serviceTypeKeywords = [service_type].filter(Boolean);
+    if (service_type && service_type.trim() !== "") {
+      try {
+        const { rows: stRows } = await pool.query(
+          "SELECT name FROM service_types WHERE LOWER(code) = LOWER($1) OR LOWER(name) = LOWER($1)",
+          [service_type]
+        );
+        stRows.forEach((r) => {
+          const n = r.name;
+          if (n && !serviceTypeKeywords.some(k => k.toLowerCase() === n.toLowerCase())) {
+            serviceTypeKeywords.push(n);
+          }
+        });
+      } catch (e) {
+        console.log("sourcing route: service type resolution error", e.message);
+      }
+    }
+
     let query = `
       SELECT * FROM ( 
         SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
@@ -1641,7 +1662,7 @@ router.post("/:code/sourcing", async (req, res) => {
         END AS source_status
         FROM sourcing s
         LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) WHERE source_status = 'Active'
+      ) AS sub WHERE source_status = 'Active'
     `;
 
     const params = [];
@@ -1666,12 +1687,12 @@ router.post("/:code/sourcing", async (req, res) => {
     if (fromLoc && fromLoc.trim() !== "") {
       if (fromLocType && fromLocType.trim() !== "") {
         locationConditions.push(
-          `(from_location = $${paramIndex} AND location_type_from = $${paramIndex + 1})`
+          `(LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($${paramIndex + 1}, ' ', '')))`
         );
         params.push(fromLoc, fromLocType);
         paramIndex += 2;
       } else {
-        locationConditions.push(`from_location = $${paramIndex}`);
+        locationConditions.push(`LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`);
         params.push(fromLoc);
         paramIndex++;
       }
@@ -1679,12 +1700,12 @@ router.post("/:code/sourcing", async (req, res) => {
     if (toLoc && toLoc.trim() !== "") {
       if (toLocType && toLocType.trim() !== "") {
         locationConditions.push(
-          `(to_location = $${paramIndex} AND location_type_to = $${paramIndex + 1})`
+          `(LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($${paramIndex + 1}, ' ', '')))`
         );
         params.push(toLoc, toLocType);
         paramIndex += 2;
       } else {
-        locationConditions.push(`to_location = $${paramIndex}`);
+        locationConditions.push(`LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`);
         params.push(toLoc);
         paramIndex++;
       }
@@ -1721,7 +1742,16 @@ router.post("/:code/sourcing", async (req, res) => {
     }
 
     // Service type filter -> match either "shipping_type" or "type" columns (flexible matching)
-    if (service_type && service_type.trim() !== "") {
+    if (serviceTypeKeywords.length > 0) {
+      const typeIdxStart = paramIndex;
+      serviceTypeKeywords.forEach((v) => { params.push(v); paramIndex++; });
+      const typeConds = serviceTypeKeywords.map((_, i) =>
+        `(LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($${typeIdxStart + i}, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($${typeIdxStart + i}, ' ', '')) || '%')`
+      ).join(' OR ');
+      query += ` AND (${typeConds})`;
+    }
+    // (legacy check if keywords empty but param exists)
+    else if (service_type && service_type.trim() !== "") {
       query += ` AND (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($${paramIndex}, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($${paramIndex}, ' ', '')) || '%')`;
       params.push(service_type);
       paramIndex++;
@@ -1747,10 +1777,8 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY code, id DESC`;
-
-    console.log("Final sourcing query:", query);
-    console.log("Final sourcing params:", params);
+    const logData = `[${new Date().toISOString()}] SOURCING QUERY:\n${query}\nPARAMS: ${JSON.stringify(params)}\n\n`;
+    fs.appendFileSync(path.join(__dirname, "../sourcing_query_log.txt"), logData);
 
     const { rows: sourceResult } = await pool.query(query, params);
     console.log(`Found ${sourceResult.length} sourcing vendors`);
@@ -1808,6 +1836,31 @@ router.post("/:code/tariff", async (req, res) => {
       local_tariff,
       service_area,
     } = req.body;
+
+    // Resolve service type names if codes provided (Phase 4)
+    const lineItemType = req.body.line_item_type || req.body.type;
+    const globalServiceType = req.body.service_type;
+    let serviceTypeKeywords = [lineItemType, globalServiceType].filter(Boolean);
+
+    try {
+      const allInputTypes = [...serviceTypeKeywords];
+      for (const st of allInputTypes) {
+        if (st && st.trim() !== "") {
+          const { rows: stRows } = await pool.query(
+            "SELECT name FROM service_types WHERE LOWER(code) = LOWER($1)",
+            [st]
+          );
+          stRows.forEach((r) => {
+            const n = r.name;
+            if (n && !serviceTypeKeywords.some(k => k.toLowerCase() === n.toLowerCase())) {
+              serviceTypeKeywords.push(n);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.log("tariff route: service type resolution error", e.message);
+    }
 
     let query = `
       SELECT t.*, COALESCE(v.vendor_no, t.vendor_name) AS vendor_name, v.name AS vendor_alias, v.type AS vendor_type
@@ -1886,15 +1939,13 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex++;
     }
 
-    // Service Type/Line Item Type filter (Search in t.service_type)
-    const lineItemType = req.body.line_item_type || req.body.type;
-    const globalServiceType = req.body.service_type;
-
-    if ((lineItemType && lineItemType.trim() !== "") || (globalServiceType && globalServiceType.trim() !== "")) {
-      const types = [lineItemType, globalServiceType].filter(Boolean);
+    // Service Type/Line Item Type filter (Search in t.service_type or t.shipping_type)
+    if (serviceTypeKeywords.length > 0) {
       const typeIdxStart = paramIndex;
-      types.forEach((v) => { params.push(v); paramIndex++; });
-      const typeConds = types.map((_, i) => normCmp('t.service_type', typeIdxStart + i)).join(' OR ');
+      serviceTypeKeywords.forEach((v) => { params.push(v); paramIndex++; });
+      const typeConds = serviceTypeKeywords.map((_, i) =>
+        `(LOWER(REPLACE(t.service_type, ' ', '')) = LOWER(REPLACE($${typeIdxStart + i}, ' ', '')) OR LOWER(REPLACE(t.shipping_type, ' ', '')) = LOWER(REPLACE($${typeIdxStart + i}, ' ', '')))`
+      ).join(' OR ');
       query += ` AND (${typeConds})`;
     }
 
