@@ -1712,9 +1712,16 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    // Service type filter -> match either "shipping_type" or "type" columns
+    // Line item type filter (e.g., Freight, Transportation)
+    if (line_item_type && line_item_type.trim() !== "") {
+      query += ` AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      params.push(line_item_type);
+      paramIndex++;
+    }
+
+    // Service type filter -> match either "shipping_type" or "type" columns (flexible matching)
     if (service_type && service_type.trim() !== "") {
-      query += ` AND (LOWER(REPLACE(shipping_type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')) OR LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')))`;
+      query += ` AND (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($${paramIndex}, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($${paramIndex}, ' ', '')) || '%')`;
       params.push(service_type);
       paramIndex++;
     }
@@ -1833,7 +1840,7 @@ router.post("/:code/tariff", async (req, res) => {
       paramIndex++;
     }
 
-    // Route filtering based on provided from/to
+    // Route filtering based on provided from/to (relaxed for single-location masters)
     const normCmp = (field, idx) => `LOWER(REPLACE(${field}, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))`;
 
     const hasFrom = !!(from_location || from_location_code || from_location_name);
@@ -1854,13 +1861,30 @@ router.post("/:code/tariff", async (req, res) => {
       const fromIdxStart = paramIndex;
       fromVals.forEach((v) => { params.push(v); paramIndex++; });
       const fromConds = fromVals.map((_, i) => normCmp('t.from_location', fromIdxStart + i)).join(' OR ');
-      query += ` AND (${fromConds}) AND (t.to_location IS NULL OR TRIM(t.to_location) = '')`;
+      // Also allow matches where to_location is empty if matching by "From" only (e.g. Export Locals)
+      query += ` AND (${fromConds}) AND (t.to_location IS NULL OR TRIM(t.to_location) = '' OR TRIM(t.to_location) = 'null')`;
     } else if (hasTo) {
       const toVals = [to_location, to_location_code, to_location_name].filter(Boolean);
       const toIdxStart = paramIndex;
       toVals.forEach((v) => { params.push(v); paramIndex++; });
       const toConds = toVals.map((_, i) => normCmp('t.to_location', toIdxStart + i)).join(' OR ');
-      query += ` AND (${toConds}) AND (t.from_location IS NULL OR TRIM(t.from_location) = '')`;
+      // Also allow matches where from_location is empty if matching by "To" only (e.g. Import Locals)
+      query += ` AND (${toConds}) AND (t.from_location IS NULL OR TRIM(t.from_location) = '' OR TRIM(t.from_location) = 'null')`;
+    }
+
+    // Service Area filter
+    if (service_area && service_area.trim() !== "") {
+      query += ` AND LOWER(REPLACE(t.service_area, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      params.push(service_area);
+      paramIndex++;
+    }
+
+    // Service Type/Line Item Type filter (Search in t.service_type)
+    const lineItemType = req.body.line_item_type || req.body.type;
+    if (lineItemType && lineItemType.trim() !== "") {
+      query += ` AND LOWER(REPLACE(t.service_type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      params.push(lineItemType);
+      paramIndex++;
     }
 
     if (Array.isArray(sourcing) && sourcing.length > 0) {

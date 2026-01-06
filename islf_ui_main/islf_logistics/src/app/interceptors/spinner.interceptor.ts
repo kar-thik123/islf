@@ -6,6 +6,11 @@ import { finalize } from 'rxjs';
 
 export const spinnerInterceptor: HttpInterceptorFn = (req, next) => {
   const loadingService = inject(LoadingService);
+  const skipLoading = req.headers.get('X-Skip-Loading') === 'true';
+
+  if (skipLoading) {
+    return next(req);
+  }
 
   // Start tracking this request
   loadingService.show();

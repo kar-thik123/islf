@@ -1225,13 +1225,13 @@ export class ITSetupComponent implements OnInit {
     });
   }
 
-  loadAllSettings() {
-    this.loading.set(true);
+  loadAllSettings(skipLoading = false) {
+    if (!skipLoading) this.loading.set(true);
     this.error.set('');
     this.message.set('');
 
     // Use the config service to load all settings
-    this.configService.loadConfig().subscribe({
+    this.configService.loadConfig(skipLoading).subscribe({
       next: (config) => {
         // Update local settings to match the loaded config
         this.systemSettings = { ...config.system };
@@ -1296,7 +1296,7 @@ export class ITSetupComponent implements OnInit {
     };
 
     // Save using the config service
-    this.configService.saveConfig(config).subscribe({
+    this.configService.saveConfig(config, true).subscribe({
       next: () => {
         this.message.set('All settings saved successfully!');
         this.messageService.add({

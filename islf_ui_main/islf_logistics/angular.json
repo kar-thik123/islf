@@ -35,6 +35,9 @@
               "node_modules/ngx-spinner/animations/square-jelly-box.css",
               "node_modules/@ng-select/ng-select/themes/default.theme.css"
             ],
+            "scripts": [
+              "node_modules/moment/min/moment.min.js"
+            ],
             "index": "src/index.html"
           },
           "configurations": {

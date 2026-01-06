@@ -65,6 +65,11 @@ router.post("/login", async (req, res) => {
     console.log("Full name:", user.full_name);
     console.log("Username:", user.username);
 
+    // Fetch session timeout from settings
+    const timeoutResult = await pool.query("SELECT value FROM settings WHERE key = 'session_timeout'");
+    const sessionTimeout = timeoutResult.rows.length > 0 ? timeoutResult.rows[0].value : "30";
+    const expiresIn = `${sessionTimeout}m`;
+
     const token = jwt.sign(
       {
         userId: user.id,
@@ -73,7 +78,7 @@ router.post("/login", async (req, res) => {
         name: user.full_name || user.username,
       },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: expiresIn }
     );
 
     // Debug: log token payload
@@ -117,6 +122,11 @@ router.post("/verify-password", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    // Fetch session timeout from settings
+    const timeoutResult = await pool.query("SELECT value FROM settings WHERE key = 'session_timeout'");
+    const sessionTimeout = timeoutResult.rows.length > 0 ? timeoutResult.rows[0].value : "30";
+    const expiresIn = `${sessionTimeout}m`;
+
     // Generate new JWT token for re-authentication
     const token = jwt.sign(
       {
@@ -126,7 +136,7 @@ router.post("/verify-password", async (req, res) => {
         name: user.full_name || user.username,
       },
       process.env.JWT_SECRET || "your_jwt_secret",
-      { expiresIn: "24h" }
+      { expiresIn: expiresIn }
     );
 
     await logAuthEvent({

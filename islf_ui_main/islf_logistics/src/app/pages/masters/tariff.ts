@@ -2277,8 +2277,9 @@ export class TariffComponent implements OnInit, OnDestroy {
   // Filter service areas based on selected type
   filterServiceAreasByType() {
     if (this.selectedTariff && this.selectedTariff.serviceAreaType) {
+      const selectedType = this.selectedTariff.serviceAreaType.trim().toLowerCase();
       this.serviceAreaOptions = this.allServiceAreas
-        .filter((sa) => sa.type === this.selectedTariff.serviceAreaType)
+        .filter((sa) => sa.type && sa.type.trim().toLowerCase() === selectedType)
         .map((sa) => ({ label: sa.service_area, value: sa.service_area }));
     } else {
       // If no type is selected, show all service areas

@@ -23,6 +23,7 @@ import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ContextService } from '../../services/context.service';
 import { ConfigService } from '../../services/config.service';
+import { AuthService } from '../../services/auth.service';
 
 
 interface NumberSeries {
@@ -279,7 +280,8 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
     private numberSeriesService: NumberSeriesService,
     // Add these new services
     private contextService: ContextService,
-    public configService: ConfigService
+    public configService: ConfigService,
+    private authService: AuthService
   ) { }
 
   ngOnInit() {
@@ -290,8 +292,10 @@ export class NumberSeriesComponent implements OnInit, OnDestroy {
       debounceTime(300), // Wait 300ms after the last context change
       distinctUntilChanged() // Only emit when context actually changes
     ).subscribe(() => {
-      console.log('Context changed in NumberSeriesComponent, reloading data...');
-      this.refreshList();
+      if (this.authService.isAuthenticated()) {
+        console.log('Context changed in NumberSeriesComponent, reloading data...');
+        this.refreshList();
+      }
     });
   }
 

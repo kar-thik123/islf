@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { BasisService } from './basis.service';
+import { ConfigService } from './config.service';
 
 export interface EnquiryLineItem {
   id?: number;
@@ -173,7 +174,8 @@ export class EnquiryService {
     private http: HttpClient,
     private contextPayload: ContextPayloadService,
     private contextService: ContextService,
-    private basisService: BasisService
+    private basisService: BasisService,
+    private configService: ConfigService
   ) { }
 
   /** Get all enquiries with pagination and filtering */
@@ -629,13 +631,9 @@ ISLF Logistics Team
   formatEnquiryForDisplay(enquiry: Enquiry): any {
     return {
       ...enquiry,
-      date: new Date(enquiry.date).toLocaleDateString(),
-      effective_date_from: enquiry.effective_date_from
-        ? new Date(enquiry.effective_date_from).toLocaleDateString()
-        : '',
-      effective_date_to: enquiry.effective_date_to
-        ? new Date(enquiry.effective_date_to).toLocaleDateString()
-        : '',
+      date: this.configService.formatDate(enquiry.date),
+      effective_date_from: this.configService.formatDate(enquiry.effective_date_from),
+      effective_date_to: this.configService.formatDate(enquiry.effective_date_to),
       customer_display: enquiry.company_name
         ? `${enquiry.customer_name} - ${enquiry.company_name}`
         : enquiry.customer_name,

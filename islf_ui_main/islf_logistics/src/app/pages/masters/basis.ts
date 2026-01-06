@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -172,6 +172,9 @@ export class BasisComponent implements OnInit, OnDestroy {
     { label: 'Inactive', value: 'Inactive' }
   ];
 
+  // State management
+  loading = signal(false);
+
   // Field validation states
   fieldErrors: { [key: string]: { [fieldName: string]: string } } = {};
   private contextSubscription: Subscription | undefined;
@@ -202,7 +205,7 @@ export class BasisComponent implements OnInit, OnDestroy {
     }
   }
 
-  refreshList() {
+  refreshList(skipLoading = false) {
     // Get the Validation settings
     const config = this.configService.getConfig();
     const basisFilter = config?.validation?.basisFilter || '';
@@ -215,11 +218,14 @@ export class BasisComponent implements OnInit, OnDestroy {
     console.log('Basis filter:', basisFilter);
     console.log('Filter by context:', filterByContext);
 
+    if (!skipLoading) this.loading.set(true);
+
     // The BasisService with updated getAll() method handles context filtering
-    this.basisService.getBasis().subscribe({
+    this.basisService.getAll(skipLoading).subscribe({
       next: (data) => {
         this.basis = data || [];
         console.log('Basis loaded:', this.basis.length);
+        this.loading.set(false);
       },
       error: (error) => {
         console.error('Error loading basis:', error);
@@ -229,6 +235,7 @@ export class BasisComponent implements OnInit, OnDestroy {
           detail: 'Failed to load basis codes'
         });
         this.basis = [];
+        this.loading.set(false);
       }
     });
   }
@@ -410,6 +417,8 @@ export class BasisComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.loading.set(true);
+
     if (basisItem.isNew) {
       // Create new basis
       const basisData = {
@@ -418,12 +427,13 @@ export class BasisComponent implements OnInit, OnDestroy {
         status: basisItem.status || 'Active'
       };
 
-      this.basisService.createBasis(basisData).subscribe({
+      this.basisService.create(basisData, true).subscribe({
         next: (response) => {
           // Update the basis item with the response data
           Object.assign(basisItem, response);
           basisItem.isNew = false;
           basisItem.isEditing = false;
+          this.loading.set(false);
 
           this.messageService.add({
             severity: 'success',
@@ -433,6 +443,7 @@ export class BasisComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error creating basis:', error);
+          this.loading.set(false);
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
@@ -447,11 +458,12 @@ export class BasisComponent implements OnInit, OnDestroy {
         status: basisItem.status
       };
 
-      this.basisService.updateBasis(basisItem.code, basisData).subscribe({
+      this.basisService.update(basisItem.code, basisData, true).subscribe({
         next: (response) => {
           Object.assign(basisItem, response);
           basisItem.isEditing = false;
           delete basisItem.originalData;
+          this.loading.set(false);
 
           this.messageService.add({
             severity: 'success',
@@ -461,6 +473,7 @@ export class BasisComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error updating basis:', error);
+          this.loading.set(false);
           this.messageService.add({
             severity: 'error',
             summary: 'Error',

@@ -59,7 +59,7 @@ export class SourceService {
   ) { }
 
   // 🔄 Updated getAll method to respect IT Setup validation/filter settings
-  getAll(): Observable<Source[]> {
+  getAll(skipLoading = false): Observable<Source[]> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const filter = config?.validation?.sourceFilter || '';
@@ -76,15 +76,28 @@ export class SourceService {
       params.departmentCode = context.departmentCode;
     }
 
-    return this.http.get<Source[]>(this.baseUrl, { params });
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+
+    return this.http.get<Source[]>(this.baseUrl, { params, headers });
   }
 
-  create(source: Source): Observable<Source> {
-    return this.http.post<Source>(this.baseUrl, this.contextPayload.withContext(source, this.contextService.getContext()));
+  create(source: Source, skipLoading = false): Observable<Source> {
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+    return this.http.post<Source>(this.baseUrl, this.contextPayload.withContext(source, this.contextService.getContext()), { headers });
   }
 
-  update(id: number, source: Source): Observable<Source> {
-    return this.http.put<Source>(`${this.baseUrl}/${id}`, this.contextPayload.withContext(source, this.contextService.getContext()));
+  update(id: number, source: Source, skipLoading = false): Observable<Source> {
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+    return this.http.put<Source>(`${this.baseUrl}/${id}`, this.contextPayload.withContext(source, this.contextService.getContext()), { headers });
   }
 
   getSubCharges(sourcingId: number): Observable<SourcingSubCharge[]> {

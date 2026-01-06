@@ -5,6 +5,8 @@ import { CompanyService } from './company.service';
 import { BranchService } from './branch.service';
 import { DepartmentService } from './department.service';
 import { ServiceTypeService } from './servicetype.service';
+import { AuthService } from './auth.service';
+
 
 export interface UserContext {
   companyCode?: string;
@@ -17,7 +19,7 @@ export interface UserContext {
 export class ContextService {
   private context: UserContext = {};
   private storageKey = 'userContext';
-  
+
   // Global BehaviorSubject for context changes
   private contextSubject = new BehaviorSubject<UserContext>({});
   public context$ = this.contextSubject.asObservable();
@@ -27,7 +29,7 @@ export class ContextService {
   private branchOptions = new BehaviorSubject<{ label: string; value: string }[]>([]);
   private departmentOptions = new BehaviorSubject<{ label: string; value: string }[]>([]);
   private serviceTypeOptions = new BehaviorSubject<{ label: string; value: string }[]>([]);
-  
+
   // Subject to trigger showing the context selector
   private showContextSelectorSubject = new BehaviorSubject<boolean>(false);
   public showContextSelector$ = this.showContextSelectorSubject.asObservable();
@@ -50,7 +52,7 @@ export class ContextService {
     console.log('Setting context:', ctx);
     this.context = ctx; // This completely replaces the old context
     sessionStorage.setItem(this.storageKey, JSON.stringify(ctx));
-    
+
     // Emit the new context to all subscribers
     this.contextSubject.next(ctx);
   }
@@ -63,7 +65,7 @@ export class ContextService {
     console.log('Clearing context');
     this.context = {};
     sessionStorage.removeItem(this.storageKey);
-    
+
     // Emit the cleared context to all subscribers
     this.contextSubject.next(this.context);
   }
@@ -74,6 +76,12 @@ export class ContextService {
   }
 
   loadOptions() {
+    const authService = this.injector.get(AuthService);
+    if (!authService.isAuthenticated()) {
+      console.warn('ContextService: Skipping loadOptions as user is not authenticated');
+      return;
+    }
+
     const companyService = this.injector.get(CompanyService);
     const branchService = this.injector.get(BranchService);
     const departmentService = this.injector.get(DepartmentService);
@@ -97,7 +105,7 @@ export class ContextService {
 
   loadBranchesForCompany(companyCode: string) {
     const branchService = this.injector.get(BranchService);
-    
+
     branchService.getByCompany(companyCode).pipe(
       map(branches => branches?.map(b => ({ label: b.name, value: b.code })) || []),
       catchError(() => of([]))
@@ -106,7 +114,7 @@ export class ContextService {
 
   loadDepartmentsForBranch(branchCode: string) {
     const departmentService = this.injector.get(DepartmentService);
-    
+
     departmentService.getByBranch(branchCode).pipe(
       map(depts => depts?.map(d => ({ label: d.name, value: d.code })) || []),
       catchError(() => of([]))
@@ -123,7 +131,7 @@ export class ContextService {
 
   loadServiceTypesForDepartment(departmentCode: string) {
     const serviceTypeService = this.injector.get(ServiceTypeService);
-    
+
     serviceTypeService.getByDepartment(departmentCode).pipe(
       map(serviceTypes => serviceTypes?.map(st => ({ label: st.name, value: st.code })) || []),
       catchError(() => of([]))
@@ -137,14 +145,14 @@ export class ContextService {
   someMethod() {
     // Removed unnecessary self-injection
   }
-  
+
   /**
    * Trigger the context selector to be shown
    */
   showContextSelector() {
     this.showContextSelectorSubject.next(true);
   }
-  
+
   /**
    * Hide the context selector
    */

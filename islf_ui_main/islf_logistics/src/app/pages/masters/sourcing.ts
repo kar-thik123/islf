@@ -5,6 +5,7 @@ import {
   ViewChild,
   ElementRef,
   ChangeDetectorRef,
+  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -1419,6 +1420,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   tariffs: any[] = [];
   // sources list
   sources: any[] = [];
+  loading = signal(false);
 
   statusOptions = [
     { label: 'Active', value: 'Active' },
@@ -2208,8 +2210,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
   // Filter service areas based on selected type
   filterServiceAreasByType() {
     if (this.selectedTariff && this.selectedTariff.serviceAreaType) {
+      const selectedType = this.selectedTariff.serviceAreaType.trim().toLowerCase();
       this.serviceAreaOptions = this.allServiceAreas
-        .filter((sa) => sa.type === this.selectedTariff.serviceAreaType)
+        .filter((sa) => sa.type && sa.type.trim().toLowerCase() === selectedType)
         .map((sa) => ({ label: sa.service_area, value: sa.service_area }));
     } else {
       // If no type is selected, show all service areas
@@ -2305,11 +2308,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
     return found ? found.label : value;
   }
 
-  refreshList() {
+  refreshList(skipLoading = false) {
     const context = this.contextService.getContext();
     console.log('🔄 Refreshing source list with context:', context);
 
-    this.sourceService.getAll().subscribe({
+    if (!skipLoading) this.loading.set(true);
+
+    this.sourceService.getAll(skipLoading).subscribe({
       next: (data) => {
         console.log('📊 Source data loaded Successfully:', {
           recordCount: data.length,
@@ -2367,6 +2372,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         );
 
         this.cdr.detectChanges();
+        this.loading.set(false);
       },
       error: (error) => {
         console.error('❌ Error loading tariff data:', error);
@@ -2376,6 +2382,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
           detail: 'Failed to load tariff data',
         });
         this.sources = [];
+        this.loading.set(false);
       },
     });
   }
@@ -2983,9 +2990,11 @@ export class SourcingComponent implements OnInit, OnDestroy {
       payload.code = '';
     }
 
+    this.loading.set(true);
+
     return new Observable((observer: any) => {
       if (this.selectedTariff.isNew) {
-        this.sourceService.create(payload).subscribe({
+        this.sourceService.create(payload, true).subscribe({
           next: (created) => {
             // Update the selected tariff with the response data (including ID and code)
             this.selectedTariff = {
@@ -3001,13 +3010,15 @@ export class SourcingComponent implements OnInit, OnDestroy {
             });
 
             if (!stayOnPage) {
-              this.refreshList();
+              this.refreshList(true);
               this.hideDialog();
             }
+            this.loading.set(false);
             observer.next(created);
             observer.complete();
           },
           error: (err) => {
+            this.loading.set(false);
             this.messageService.add({
               severity: 'error',
               summary: 'Error',
@@ -3018,7 +3029,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
           },
         });
       } else {
-        this.sourceService.update(this.selectedTariff.id, payload).subscribe({
+        this.sourceService.update(this.selectedTariff.id, payload, true).subscribe({
           next: (updated) => {
             this.messageService.add({
               severity: 'success',
@@ -3027,13 +3038,15 @@ export class SourcingComponent implements OnInit, OnDestroy {
             });
 
             if (!stayOnPage) {
-              this.refreshList();
+              this.refreshList(true);
               this.hideDialog();
             }
+            this.loading.set(false);
             observer.next(updated);
             observer.complete();
           },
           error: (err) => {
+            this.loading.set(false);
             this.messageService.add({
               severity: 'error',
               summary: 'Error',

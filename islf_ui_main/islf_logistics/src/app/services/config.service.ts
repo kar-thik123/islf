@@ -149,7 +149,7 @@ export class ConfigService {
   private defaultConfig: AppConfig = {
     system: {
       maxCompanies: 1,
-      sessionTimeout: 2,
+      sessionTimeout: 60,
       defaultLanguage: 'en',
       defaultCurrency: 'USD',
       maxFileSize: 10,
@@ -293,7 +293,8 @@ export class ConfigService {
             ...currentConfig,
             system: {
               ...currentConfig.system,
-              maxCompanies: response.config.maxCompanies
+              maxCompanies: response.config.maxCompanies,
+              sessionTimeout: response.config.sessionTimeout
             },
             branding: {
               ...currentConfig.branding,
@@ -309,7 +310,7 @@ export class ConfigService {
   }
 
   // Load configuration from backend
-  loadConfig(): Observable<AppConfig> {
+  loadConfig(skipLoading = false): Observable<AppConfig> {
     const token = localStorage.getItem('jwt_token') || sessionStorage.getItem('jwt_token');
 
     // If no token, load public config instead to prevent 401 redirect loop
@@ -345,7 +346,12 @@ export class ConfigService {
       console.log('Could not get context for config loading:', error);
     }
 
-    return this.http.get<AppConfig>(`${environment.apiUrl}/api/settings/config${contextParams}`).pipe(
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+
+    return this.http.get<AppConfig>(`${environment.apiUrl}/api/settings/config${contextParams}`, { headers }).pipe(
       tap(config => {
         this.configSubject.next(config);
         this.applyConfig(config);
@@ -354,8 +360,12 @@ export class ConfigService {
   }
 
   // Save configuration to backend
-  saveConfig(config: AppConfig): Observable<any> {
-    return this.http.post(`${environment.apiUrl}/api/settings/config`, config).pipe(
+  saveConfig(config: AppConfig, skipLoading = false): Observable<any> {
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+    return this.http.post(`${environment.apiUrl}/api/settings/config`, config, { headers }).pipe(
       tap(() => {
         this.configSubject.next(config);
         this.applyConfig(config);
@@ -510,20 +520,28 @@ export class ConfigService {
 
   // Apply configuration changes to the application
   private applyConfig(config: AppConfig): void {
-    // Apply date format
-    this.applyDateFormat(config.system.dateFormat);
+    try {
+      // Apply date format
+      this.applyDateFormat(config.system.dateFormat);
 
-    // Apply timezone
-    this.applyTimezone(config.system.timezone);
+      // Apply timezone
+      this.applyTimezone(config.system.timezone);
 
-    // Apply branding
-    this.applyBranding(config.branding);
+      // Apply branding
+      this.applyBranding(config.branding);
 
-    // Apply system settings
-    this.applySystemSettings(config.system);
+      // Apply system settings
+      this.applySystemSettings(config.system);
 
-    // Store in localStorage for persistence
-    localStorage.setItem('appConfig', JSON.stringify(config));
+      // Store in localStorage for persistence
+      try {
+        localStorage.setItem('appConfig', JSON.stringify(config));
+      } catch (e) {
+        console.warn('Failed to save config to localStorage:', e);
+      }
+    } catch (error) {
+      console.error('Error applying configuration:', error);
+    }
   }
 
   private applyDateFormat(dateFormat: string): void {
@@ -533,16 +551,20 @@ export class ConfigService {
     // Update moment.js locale if available
     if (typeof (window as any).moment !== 'undefined') {
       const moment = (window as any).moment;
-      moment.locale('en', {
-        longDateFormat: {
-          LT: 'HH:mm',
-          LTS: 'HH:mm:ss',
-          L: dateFormat,
-          LL: dateFormat,
-          LLL: dateFormat + ' HH:mm',
-          LLLL: dateFormat + ' HH:mm'
-        }
-      });
+      try {
+        moment.locale('en', {
+          longDateFormat: {
+            LT: 'HH:mm',
+            LTS: 'HH:mm:ss',
+            L: dateFormat,
+            LL: dateFormat,
+            LLL: dateFormat + ' HH:mm',
+            LLLL: dateFormat + ' HH:mm'
+          }
+        });
+      } catch (e) {
+        console.warn('Failed to update moment locale:', e);
+      }
     }
   }
 
@@ -589,18 +611,33 @@ export class ConfigService {
   }
 
   // Utility methods for components to use
-  formatDate(date: Date | string, format?: string): string {
+  formatDate(date: Date | string | null | undefined, format?: string): string {
+    if (!date) return '';
+
     const config = this.getSystemConfig();
     const dateFormat = format || config.dateFormat;
 
     if (typeof (window as any).moment !== 'undefined') {
       const moment = (window as any).moment;
-      return moment(date).format(dateFormat);
+      const m = moment(date);
+      if (m.isValid()) {
+        return m.format(dateFormat);
+      }
     }
 
     // Fallback to native Date formatting
-    const d = new Date(date);
-    return d.toLocaleDateString();
+    try {
+      const d = typeof date === 'string' ? new Date(date) : (date as Date);
+      if (isNaN(d.getTime())) return String(date);
+
+      // Better fallback for common formats
+      if (dateFormat === 'DD/MM/YYYY') return d.toLocaleDateString('en-GB');
+      if (dateFormat === 'MM/DD/YYYY') return d.toLocaleDateString('en-US');
+
+      return d.toLocaleDateString();
+    } catch (e) {
+      return String(date);
+    }
   }
 
   formatTime(date: Date | string): string {

@@ -13,7 +13,7 @@ import { AuthService } from '../../services/auth.service';
 import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ToastService } from '@/services/toast.service';
-import {ToastModule} from 'primeng/toast'
+import { ToastModule } from 'primeng/toast'
 import { MessageService } from 'primeng/api';
 import { LogsComponent } from '../logs/logs';
 import { RouterModule } from '@angular/router';
@@ -36,10 +36,10 @@ import { RouterModule } from '@angular/router';
         CommonModule,
         ToastModule,
         RouterModule,
-        
-        
+
+
     ],
-    providers:[ToastService, MessageService],
+    providers: [ToastService, MessageService],
     template: `
         <p-toast></p-toast>
         <svg
@@ -183,7 +183,7 @@ export class Login {
 
     isDarkTheme = computed(() => this.LayoutService.isDarkTheme());
 
-   // Field level validation
+    // Field level validation
 
     get showIdentifierError() {
         return this.identifier !== '' && !this.isValidIdentifier(this.identifier);
@@ -204,10 +204,10 @@ export class Login {
         // this.errorMessage = '';
         if (!this.identifier || !this.password) {
             // this.errorMessage = 'Identifier and password are required.';
-            this.messageService.add({severity: 'error', summary: 'Validation Error', detail: 'Identifier and password are required.', life: 5000});
+            this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Identifier and password are required.', life: 5000 });
             return;
         }
-            if (!this.isValidIdentifier(this.identifier)) {
+        if (!this.isValidIdentifier(this.identifier)) {
             this.messageService.add({
                 severity: 'error',
                 summary: 'Validation Error',
@@ -228,15 +228,22 @@ export class Login {
         }
         this.loginService.login(this.identifier, this.password).subscribe({
             next: (res) => {
-                console.log('Login successful, navigating to root');
+                console.log('Login successful, setting auth data');
                 this.authService.login(res.token, res.name || '', this.rememberMe);
-                this.messageService.add({severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000});
-                this.router.navigate(['/']);
+                this.messageService.add({ severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000 });
+
+                // Wait for auth service to signal readiness (token stored and state updated)
+                this.authService.isReady$.subscribe(ready => {
+                    if (ready) {
+                        console.log('Auth service ready, navigating to root');
+                        this.router.navigate(['/']);
+                    }
+                });
             },
             error: (err) => {
                 const detail = err?.error?.message || 'Invalid identifier or password.';
                 // this.errorMessage = detail;
-                this.messageService.add({severity: 'error', summary: 'Login Failed', detail, life: 5000});
+                this.messageService.add({ severity: 'error', summary: 'Login Failed', detail, life: 5000 });
             }
         });
     }

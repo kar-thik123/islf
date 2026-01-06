@@ -116,6 +116,7 @@ router.post('/document_upload_path_:entityType', async (req, res) => {
 
 // Get complete configuration
 router.get('/config', async (req, res) => {
+  console.log('GET /api/settings/config called');
   try {
     const result = await pool.query("SELECT key, value FROM settings");
     const config = {};
@@ -161,10 +162,10 @@ router.get('/config', async (req, res) => {
         requireUppercase: config.require_uppercase === 'true',
         requireLowercase: config.require_lowercase === 'true',
         requireNumbers: config.require_numbers === 'true',
-        requireSpecialChars: config.require_special_chars === 'false',
+        requireSpecialChars: config.require_special_chars === 'true',
         maxLoginAttempts: parseInt(config.max_login_attempts || '5'),
         lockoutDuration: parseInt(config.lockout_duration || '15'),
-        enableTwoFactor: config.enable_two_factor === 'false',
+        enableTwoFactor: config.enable_two_factor === 'true',
         enableLoginNotifications: config.enable_login_notifications === 'true'
       },
       backup: {
@@ -206,7 +207,7 @@ router.get('/config', async (req, res) => {
         enableVesselAlerts: config.enable_vessel_alerts === 'true',
         enableCustomsAlerts: config.enable_customs_alerts === 'true',
         alertEmailRecipients: config.alert_email_recipients || '',
-        enableAPIIntegration: config.enable_api_integration === 'false',
+        enableAPIIntegration: config.enable_api_integration === 'true',
         apiBaseUrl: config.api_base_url || '',
         apiKey: config.api_key || '',
         apiSecret: config.api_secret || ''
@@ -248,7 +249,7 @@ router.get('/config', async (req, res) => {
     res.json(appConfig);
   } catch (err) {
     console.error('Error fetching configuration:', err);
-    res.status(500).json({ error: 'Failed to fetch configuration' });
+    res.status(500).json({ error: 'Failed to fetch configuration', details: err.message });
   }
 });
 

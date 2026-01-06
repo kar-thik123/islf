@@ -316,6 +316,18 @@ router.post("/", async (req, res) => {
               .status(400)
               .json({ error: "Manual code entry required for this series" });
           }
+          // Check for manual code duplicate
+          const exists = await client.query(
+            "SELECT 1 FROM master_service_area WHERE code = $1",
+            [finalCode]
+          );
+          if (exists.rows.length > 0) {
+            await client.query("ROLLBACK");
+            client.release();
+            return res
+              .status(400)
+              .json({ error: "Service area code already exists" });
+          }
         } else {
           const relResult = await client.query(
             "SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE",
@@ -340,8 +352,23 @@ router.post("/", async (req, res) => {
               ? Number(rel.starting_no)
               : Number(rel.last_no_used) + Number(rel.increment_by);
 
-          finalCode = `${rel.prefix || ""}${nextNo}`;
-          console.log("🔹 Generated code from series:", finalCode);
+          // Robust check for existing code
+          let codeExists = true;
+          while (codeExists) {
+            finalCode = `${rel.prefix || ""}${nextNo}`;
+            const check = await client.query(
+              "SELECT 1 FROM master_service_area WHERE code = $1",
+              [finalCode]
+            );
+            if (check.rows.length === 0) {
+              codeExists = false;
+            } else {
+              console.log(`⚠️ Code ${finalCode} exists, skipping...`);
+              nextNo += Number(rel.increment_by);
+            }
+          }
+
+          console.log("🔹 Generated non-conflicting code:", finalCode);
 
           await client.query(
             "UPDATE number_relation SET last_no_used = $1 WHERE id = $2",
@@ -401,6 +428,13 @@ router.post("/", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
+    if (err.code === "23505") {
+      console.error("❌ Unique violation error:", err.detail);
+      return res.status(400).json({
+        msg: "Service area code already exists",
+        err: err.detail,
+      });
+    }
     console.error("❌ Server error:", err);
     res.status(500).json({ msg: "Server error", err: err.message || err });
   }

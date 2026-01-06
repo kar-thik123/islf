@@ -1,4 +1,4 @@
-import { Component ,HostListener, OnDestroy, OnInit} from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { ToastModule } from 'primeng/toast';
 import { CommonModule } from '@angular/common';
@@ -7,7 +7,7 @@ import { AuthService } from './services/auth.service';
 import { CompanyService } from './services/company.service';
 import { ConfigService } from './services/config.service';
 import { Subscription, timer } from 'rxjs';
-import {NgxSpinnerModule} from 'ngx-spinner';
+import { NgxSpinnerModule } from 'ngx-spinner';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +17,7 @@ import {NgxSpinnerModule} from 'ngx-spinner';
     ToastModule,
     CommonModule,
     NgxSpinnerModule,
-  
+
   ],
   template: `
   <!--  <ngx-spinner
@@ -41,31 +41,33 @@ import {NgxSpinnerModule} from 'ngx-spinner';
 })
 export class AppComponent implements OnInit, OnDestroy {
   private idleTimerSub?: Subscription;
-  private idleTimeout = 5 * 60 * 1000; // Default 5 minutes, will be updated from config
+  private idleTimeout = 0; // Initialize with 0, will be loaded from config/localStorage
   constructor(
     private contextService: ContextService,
     private authService: AuthService,
     private router: Router,
     private companyService: CompanyService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   ngOnInit() {
-    this.router.events.subscribe(() => this.updateContextSelectorVisibility());
-    this.updateContextSelectorVisibility();
+    this.authService.isReady$.subscribe(() => {
+      this.router.events.subscribe(() => this.updateContextSelectorVisibility());
+      this.updateContextSelectorVisibility();
 
-     // Subscribe to context service to show context selector when needed
-    this.contextService.showContextSelector$.subscribe(show => {
-    this.resetIdleTimer();
+      // Subscribe to context service to show context selector when needed
+      this.contextService.showContextSelector$.subscribe(show => {
+        this.resetIdleTimer();
+      });
+
+      // Load session timeout from config
+      this.loadSessionTimeout();
     });
-    
-    // Load session timeout from config
-    this.loadSessionTimeout();
-    
+
     // Debug logging for context selector visibility
     console.log('AppComponent initialized');
   }
-    ngOnDestroy() {
+  ngOnDestroy() {
     this.clearIdleTimer();
   }
 
@@ -73,8 +75,17 @@ export class AppComponent implements OnInit, OnDestroy {
   @HostListener('window:mousemove')
   @HostListener('window:keydown')
   @HostListener('window:click')
+  @HostListener('document:visibilitychange')
   handleUserActivity() {
-    this.resetIdleTimer();
+    // If it's a visibility change, only reset if the document is now visible
+    if (document.visibilityState === 'visible') {
+      this.resetIdleTimer();
+    } else if (document.visibilityState === 'hidden') {
+      // Optional: you could potentially handle hidden state specifically
+      // but usually we just let the timer run.
+    } else {
+      this.resetIdleTimer();
+    }
   }
 
   private loadSessionTimeout() {
@@ -82,28 +93,47 @@ export class AppComponent implements OnInit, OnDestroy {
     this.configService.config$.subscribe(config => {
       if (config?.system?.sessionTimeout) {
         // Convert minutes to milliseconds
-        this.idleTimeout = config.system.sessionTimeout * 60 * 1000;
-        console.log(`Session timeout updated to ${config.system.sessionTimeout} minutes (${this.idleTimeout}ms)`);
-        // Reset the timer with new timeout if user is authenticated
-        if (this.authService.isAuthenticated()) {
-          this.resetIdleTimer();
+        const newTimeout = config.system.sessionTimeout * 60 * 1000;
+        if (this.idleTimeout !== newTimeout) {
+          this.idleTimeout = newTimeout;
+          console.log(`Session timeout updated to ${config.system.sessionTimeout} minutes (${this.idleTimeout}ms)`);
+          // Reset the timer with new timeout if user is authenticated
+          if (this.authService.isAuthenticated()) {
+            this.resetIdleTimer();
+          }
         }
       }
     });
 
-    // Also get the current config immediately in case it's already loaded
+    // Strategy to initialize session timeout as quickly as possible:
+    // 1. Try currently loaded config
+    // 2. Try localStorage (which is updated by ConfigService.applyConfig)
+    // 3. Keep the hardcoded 60 min fallback
     const currentConfig = this.configService.getSystemConfig();
+    const storedTimeout = localStorage.getItem('sessionTimeout');
+
     if (currentConfig?.sessionTimeout) {
       this.idleTimeout = currentConfig.sessionTimeout * 60 * 1000;
-      console.log(`Session timeout initialized to ${currentConfig.sessionTimeout} minutes (${this.idleTimeout}ms)`);
+      console.log(`Session timeout initialized from ConfigService: ${currentConfig.sessionTimeout} minutes`);
+    } else if (storedTimeout) {
+      const timeoutMinutes = parseInt(storedTimeout, 10);
+      if (!isNaN(timeoutMinutes)) {
+        this.idleTimeout = timeoutMinutes * 60 * 1000;
+        console.log(`Session timeout initialized from localStorage: ${timeoutMinutes} minutes`);
+      }
+    } else {
+      console.log(`Session timeout using default fallback: ${this.idleTimeout / 60000} minutes`);
     }
   }
 
   private resetIdleTimer() {
     this.clearIdleTimer();
-    this.idleTimerSub = timer(this.idleTimeout).subscribe(() => {
-      this.handleIdleTimeout();
-    });
+    // Only set timer if we have a valid timeout > 0
+    if (this.idleTimeout > 0) {
+      this.idleTimerSub = timer(this.idleTimeout).subscribe(() => {
+        this.handleIdleTimeout();
+      });
+    }
   }
 
   private clearIdleTimer() {
@@ -123,7 +153,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const isLoggedIn = this.authService.isAuthenticated();
     const isPublicRoute = ['/login', '/forgotpassword', '/newpassword', '/lockscreen'].some(r => this.router.url.includes(r));
     const isContextSet = this.contextService.isContextSet();
-    
+
     // Debug logging
     console.log('Context selector check:', {
       isLoggedIn,
@@ -131,7 +161,7 @@ export class AppComponent implements OnInit, OnDestroy {
       isContextSet,
       url: this.router.url
     });
-    
+
     if (isLoggedIn && !isPublicRoute && !isContextSet) {
       // Check if there are any companies before showing context selector
       this.companyService.getAll().subscribe({

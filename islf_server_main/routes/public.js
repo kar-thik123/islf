@@ -9,7 +9,7 @@ const pool = require('../db');
  */
 router.get('/bootstrap-config', async (req, res) => {
     try {
-        const keys = ['max_companies', 'default_logo', 'app_name', 'primary_color', 'secondary_color'];
+        const keys = ['max_companies', 'default_logo', 'app_name', 'primary_color', 'secondary_color', 'session_timeout'];
         const result = await pool.query("SELECT key, value FROM settings WHERE key = ANY($1)", [keys]);
 
         const config = {};
@@ -21,6 +21,7 @@ router.get('/bootstrap-config', async (req, res) => {
             success: true,
             config: {
                 maxCompanies: parseInt(config.max_companies || '1'),
+                sessionTimeout: parseInt(config.session_timeout || '30'),
                 defaultLogo: config.default_logo || null,
                 appName: config.app_name || 'ISLF Logistics',
                 theme: {

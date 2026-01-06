@@ -39,7 +39,6 @@ import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from '../../masters/sourceSales';
 import { of } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import { ConfigDatePipe } from '../../../pipes/config-date.pipe';
 import { ConfigService } from '../../../services/config.service';
 
 @Component({
@@ -64,7 +63,7 @@ import { ConfigService } from '../../../services/config.service';
     TableModule,
     DialogModule,
     ToastModule,
-    SourceSalesComponent, ConfigDatePipe,
+    SourceSalesComponent,
   ],
   providers: [ConfirmationService],
   template: `

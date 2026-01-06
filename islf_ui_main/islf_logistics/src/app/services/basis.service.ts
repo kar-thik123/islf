@@ -22,15 +22,15 @@ export class BasisService {
     private contextPayload: ContextPayloadService,
     private contextService: ContextService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
-  getAll(): Observable<Basis[]> {
+  getAll(skipLoading = false): Observable<Basis[]> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const basisFilter = config?.validation?.basisFilter || '';
-    
+
     let params: any = {};
-    
+
     // Only send context parameters based on the IT setup validation/filter settings
     if (basisFilter.includes('C') && context.companyCode) {
       params.companyCode = context.companyCode;  // Changed from company_code
@@ -41,23 +41,40 @@ export class BasisService {
     if (basisFilter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;  // Changed from department_code
     }
-    
-    return this.http.get<Basis[]>(this.apiUrl, { params });
+
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+
+    return this.http.get<Basis[]>(this.apiUrl, { params, headers });
   }
 
-  create(data: Partial<Basis>): Observable<Basis> {
+  create(data: Partial<Basis>, skipLoading = false): Observable<Basis> {
     const context = this.contextService.getContext();
-    return this.http.post<Basis>(this.apiUrl, this.contextPayload.withContext(data, context));
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+    return this.http.post<Basis>(this.apiUrl, this.contextPayload.withContext(data, context), { headers });
   }
 
-  update(id: string, data: Partial<Basis>): Observable<Basis> {
+  update(id: string, data: Partial<Basis>, skipLoading = false): Observable<Basis> {
     console.log("DEBUG Update Basis called with id: ", id, " and data: ", data);
     const context = this.contextService.getContext();
-    return this.http.put<Basis>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, context));
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+    return this.http.put<Basis>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, context), { headers });
   }
 
-  delete(id: number): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`);
+  delete(id: number, skipLoading = false): Observable<any> {
+    const headers: any = {};
+    if (skipLoading) {
+      headers['X-Skip-Loading'] = 'true';
+    }
+    return this.http.delete(`${this.apiUrl}/${id}`, { headers });
   }
 
   // Backward compatibility methods
@@ -69,8 +86,8 @@ export class BasisService {
     return this.create(data);
   }
 
-  updateBasis(id: string, data: any): Observable<Basis> {
-    return this.update(id, data);
+  updateBasis(id: string, data: any, skipLoading = false): Observable<Basis> {
+    return this.update(id, data, skipLoading);
   }
 
   deleteBasis(id: string): Observable<any> {
