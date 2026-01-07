@@ -1,4 +1,4 @@
-[2026-01-06T14:50:50.995Z] SOURCING QUERY:
+[2026-01-07T05:23:48.955Z] SOURCING QUERY:
 
       SELECT * FROM ( 
         SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
@@ -16,7 +16,25 @@
       )
 PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
 
-[2026-01-06T15:07:57.723Z] SOURCING QUERY:
+[2026-01-07T05:24:51.353Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T05:25:45.342Z] SOURCING QUERY:
 
       SELECT * FROM ( 
         SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
@@ -34,115 +52,7 @@ PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GE
       )
 PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
 
-[2026-01-06T15:08:32.644Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
-
-[2026-01-06T15:09:21.922Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
-
-[2026-01-06T15:09:36.881Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
-
-[2026-01-06T15:10:16.322Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
-
-[2026-01-06T15:10:51.479Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
-
-[2026-01-06T15:12:51.796Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","GENERAL","W/M","Transportation","FCL","FCL_Export","2026-01-06","2026-01-31"]
-
-[2026-01-06T15:13:48.890Z] SOURCING QUERY:
+[2026-01-07T05:35:44.929Z] SOURCING QUERY:
 
       SELECT * FROM ( 
         SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
@@ -160,7 +70,7 @@ PARAMS: ["EXPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","G
       )
 PARAMS: ["EXPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","GENERAL","W/M","Transportation","lcl001","LCL_Export","2026-01-06","2026-01-31"]
 
-[2026-01-06T15:15:04.679Z] SOURCING QUERY:
+[2026-01-07T05:36:14.128Z] SOURCING QUERY:
 
       SELECT * FROM ( 
         SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
@@ -176,27 +86,9 @@ PARAMS: ["EXPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","G
         (period_start_date IS NULL OR period_start_date <= $13) AND 
         (period_end_date IS NULL OR period_end_date >= $12)
       )
-PARAMS: ["EXPORT","AIR Freight","INMAA","Sea Port","CNSHA","Sea Port","GENERAL","W/M","Freight","FCL","FCL_Export","2026-01-06","2026-01-31"]
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
 
-[2026-01-06T15:15:57.712Z] SOURCING QUERY:
-
-      SELECT * FROM ( 
-        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
-        CASE
-          WHEN s.period_end_date IS NULL THEN 'Active'
-          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
-          ELSE 'Active' 
-        END AS source_status
-        FROM sourcing s
-        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
-      ) AS sub WHERE source_status = 'Active'
-     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
-        (period_start_date IS NULL OR period_start_date <= $13) AND 
-        (period_end_date IS NULL OR period_end_date >= $12)
-      )
-PARAMS: ["EXPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","GENERAL","W/M","Transportation","AIR","AIR_Export","2026-01-06","2026-01-31"]
-
-[2026-01-06T15:16:19.673Z] SOURCING QUERY:
+[2026-01-07T05:50:36.500Z] SOURCING QUERY:
 
       SELECT * FROM ( 
         SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
@@ -212,5 +104,509 @@ PARAMS: ["EXPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","G
         (period_start_date IS NULL OR period_start_date <= $13) AND 
         (period_end_date IS NULL OR period_end_date >= $12)
       )
-PARAMS: ["IMPORT","Transport at Origin","INMAA","Sea Port","CNSHA","Sea Port","GENERAL","W/M","Transportation","AIR_IMP","AIR_Import","2026-01-06","2026-01-31"]
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T05:53:37.598Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T05:53:57.687Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T05:54:16.833Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T05:54:58.593Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T05:55:10.157Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:05:22.581Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:19:38.231Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:25:52.317Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:40:06.296Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:40:51.979Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:47:11.812Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:47:36.198Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:56:46.523Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:57:07.624Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:58:19.162Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T06:59:07.527Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:08:48.605Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:14:57.153Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:23:41.700Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:24:24.682Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:31:01.833Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:43:49.894Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:44:30.178Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:47:36.629Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T07:58:45.102Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T08:02:18.252Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T08:08:56.865Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","FCL Freight","INENR","Sea Port","USORF","Sea Port","GENERAL","40'HC","Freight","FCL","FCL_Export","2026-01-01","2026-01-31"]
+
+[2026-01-07T09:30:18.492Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($1, ' ', '')) AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($2, ' ', '')) AND (LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($3, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($4, ' ', ''))) AND (LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($5, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($6, ' ', ''))) AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($7, ' ', '')) AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($8, ' ', '')) AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($9, ' ', '')) AND ((LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($10, ' ', '')) || '%') OR (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($11, ' ', '')) || '%')) AND (
+        (period_start_date IS NULL OR period_start_date <= $13) AND 
+        (period_end_date IS NULL OR period_end_date >= $12)
+      )
+PARAMS: ["EXPORT","Transport at Origin","CHN","City/Town","INENR","Sea Port","GENERAL","40'HC","Transportation","FCL","FCL_Export","2026-01-01","2026-01-31"]
 

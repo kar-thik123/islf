@@ -3914,7 +3914,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   // load Line of Items for respective Enquiry
-  loadEnquiry(enquiryCode: string) {
+  loadEnquiry(enquiryCode: string, targetLineItemId?: number) {
     this.enquiryService.getEnquiryByCode(enquiryCode).subscribe({
       next: (enquiry: Enquiry) => {
         console.log(
@@ -4008,22 +4008,30 @@ export class EnquiryComponent implements OnInit {
         (this.lineItems || []).forEach((li: any) => {
           const lineId = li?.s_no;
           const summary = li?.enquiry_summary || [];
-          const src = (summary[0]?.selected_source_items || []).map((v: any) => ({
-            ...v,
-            card_id: v.card_id || v.master_id || v.id,
-            enquiry_line_item_id: lineId,
-            selected_subcharges: v.selected_subcharges || [],
-            sell_rates: v.sell_rates || {},
-            remarks: v.remarks || v.selected_subcharges?.[0]?.remarks || '',
-          }));
-          const trf = (summary[1]?.selected_source_items || []).map((v: any) => ({
-            ...v,
-            card_id: v.card_id || v.master_id || v.id,
-            enquiry_line_item_id: lineId,
-            selected_subcharges: v.selected_subcharges || [],
-            sell_rates: v.sell_rates || {},
-            remarks: v.remarks || v.selected_subcharges?.[0]?.remarks || '',
-          }));
+          const src = (summary[0]?.selected_source_items || []).map((v: any) => {
+            const subCharges = v.selected_subcharges || v.sub_charges || [];
+            return {
+              ...v,
+              card_id: v.card_id || v.master_id || v.id,
+              enquiry_line_item_id: lineId,
+              selected_subcharges: subCharges,
+              sub_charges: subCharges,  // Same reference!
+              sell_rates: v.sell_rates || {},
+              remarks: v.remarks || v.selected_subcharges?.[0]?.remarks || '',
+            };
+          });
+          const trf = (summary[1]?.selected_source_items || []).map((v: any) => {
+            const subCharges = v.selected_subcharges || v.sub_charges || [];
+            return {
+              ...v,
+              card_id: v.card_id || v.master_id || v.id,
+              enquiry_line_item_id: lineId,
+              selected_subcharges: subCharges,
+              sub_charges: subCharges,  // Same reference!
+              sell_rates: v.sell_rates || {},
+              remarks: v.remarks || v.selected_subcharges?.[0]?.remarks || '',
+            };
+          });
           this.selectedSourcingVendors = this.selectedSourcingVendors.concat(src);
           this.selectedTariffVendors = this.selectedTariffVendors.concat(trf);
         });
@@ -4047,7 +4055,7 @@ export class EnquiryComponent implements OnInit {
         const defaultLineId = (this.selectedLineItems?.[0]?.s_no) ?? (this.lineItems?.[0]?.s_no) ?? 1;
         const sourcedLineId = this.selectedSourcingVendors[0]?.enquiry_line_item_id;
         const tariffLineId = this.selectedTariffVendors[0]?.enquiry_line_item_id;
-        const initialLineId = sourcedLineId || tariffLineId || defaultLineId;
+        const initialLineId = targetLineItemId || sourcedLineId || tariffLineId || defaultLineId;
         this.currentVendorCriteria = { ...(this.currentVendorCriteria || {}), lineItemId: initialLineId };
         if (this.selectedSourcingVendors.length) {
           this.hydrateSubCharges(this.selectedSourcingVendors);
@@ -4625,11 +4633,11 @@ export class EnquiryComponent implements OnInit {
       this.selectedEnquiry.email = contact.email || '';
       this.selectedEnquiry.mobile = contact.mobile || '';
       this.selectedEnquiry.landline = contact.landline || '';
-    } else {
-      this.selectedEnquiry!.customer_name = '';
-      this.selectedEnquiry!.email = '';
-      this.selectedEnquiry!.mobile = '';
-      this.selectedEnquiry!.landline = '';
+    } else if (this.selectedEnquiry) {
+      this.selectedEnquiry.customer_name = '';
+      this.selectedEnquiry.email = '';
+      this.selectedEnquiry.mobile = '';
+      this.selectedEnquiry.landline = '';
     }
   }
 
@@ -5248,19 +5256,25 @@ export class EnquiryComponent implements OnInit {
 
       // Filter out existing sourcing for this line item (Single-Select/Replace)
       const others = this.selectedSourcingVendors.filter(v => v.enquiry_line_item_id !== lineItemId);
-      this.selectedSourcingVendors = [...others, ...[movedVendors].map((srcVendor) => ({
-        ...srcVendor,
-        sub_charges: srcVendor.sub_charges?.map((sc: any) => {
+      this.selectedSourcingVendors = [...others, ...[movedVendors].map((srcVendor) => {
+        // Process sub-charges to ensure GST values are properly initialized
+        const processedSubCharges = (srcVendor.sub_charges || srcVendor.selected_subcharges || []).map((sc: any) => {
           const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
-          sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;
-          return sc;
-        }),
-        selected_subcharges: srcVendor.selected_subcharges?.map((sc: any) => {
-          const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
-          sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;
-          return sc;
-        }),
-      }))];
+          return {
+            ...sc,
+            sell_rate_gst_vat: typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal
+          };
+        });
+
+        // CRITICAL: Both sub_charges and selected_subcharges must reference the SAME array
+        // so that UI edits to sub_charges are reflected when we save from selected_subcharges
+        return {
+          ...srcVendor,
+          sub_charges: processedSubCharges,
+          selected_subcharges: processedSubCharges  // Same reference, not a copy!
+        };
+      })];
+
       this.refreshSelectedVendorCaches();
 
       // Persist the new sourcing vendor
@@ -5283,6 +5297,7 @@ export class EnquiryComponent implements OnInit {
         period_start_date: selectedVendor.effective_date ?? ctx.effective_date_from,
         period_end_date: selectedVendor.expiry_date ?? ctx.effective_date_to,
         charges: selectedVendor.selected_subcharges,
+        remarks: selectedVendor.remarks,
       };
 
       this.enquiryService
@@ -5295,21 +5310,36 @@ export class EnquiryComponent implements OnInit {
             try {
               const inserted = (res && res.inserted) ? res.inserted : [];
               const cardId = inserted.length ? inserted[0].id : undefined;
+              const subCharges = inserted.length && inserted[0].sub_charges ? inserted[0].sub_charges : [];
+
               if (cardId) {
                 this.selectedSourcingVendors = this.selectedSourcingVendors.map((v) => {
                   if ((v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0) === Number(lineItemId)) {
-                    return { ...v, card_id: cardId };
+                    // Sync the sub-charge IDs from the backend response
+                    const updatedSubCharges = (v.selected_subcharges || []).map((sc: any) => {
+                      const matchingCharge = subCharges.find((bsc: any) => bsc.charge_name === sc.charge_name || bsc.charge_name === sc.name);
+                      if (matchingCharge) {
+                        return { ...sc, id: matchingCharge.id };
+                      }
+                      return sc;
+                    });
+                    return { ...v, card_id: cardId, selected_subcharges: updatedSubCharges, sub_charges: updatedSubCharges };
                   }
                   return v;
                 });
                 this.enquiryService
                   .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(lineItemId), [cardId], 'sourcing')
-                  .subscribe({ next: () => { }, error: () => { } });
+                  .subscribe({
+                    next: () => {
+                      this.loadEnquiry(this.currentEnquiry?.code!, Number(lineItemId));
+                    },
+                    error: () => { }
+                  });
               }
             } catch { }
           },
-          error: (error) => {
-            console.error('Error saving sourcing vendors:', error);
+          error: (err) => {
+            console.error('Error adding sourcing vendor:', err);
             this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save sourcing vendors' });
           },
         });
@@ -5430,6 +5460,7 @@ export class EnquiryComponent implements OnInit {
             amount: sc.amount ?? sc.charges ?? sc.charge ?? 0,
             charges: sc.amount ?? sc.charges ?? sc.charge ?? 0
           })),
+        remarks: vendor.remarks,
       }));
 
     this.enquiryService.deleteLineItemVendorData(this.currentEnquiry?.code!, Number(ctxT.lineItemId), 'tariff').subscribe({
@@ -5443,12 +5474,35 @@ export class EnquiryComponent implements OnInit {
             const subset = this.selectedTariffVendors.filter(v => (v.enquiry_line_item_id ? Number(v.enquiry_line_item_id) : 0) === lineIdT);
             inserted.forEach((row: any, idx: number) => {
               const target = subset[idx];
-              if (target) target.card_id = row.id;
+              if (target) {
+                target.card_id = row.id;
+                // Sync sub-charge IDs from backend response
+                const subCharges = row.sub_charges || [];
+                if (subCharges.length > 0) {
+                  const updatedSubCharges = (target.selected_subcharges || []).map((sc: any) => {
+                    const matchingCharge = subCharges.find((bsc: any) => bsc.charge_name === sc.charge_name || bsc.charge_name === sc.name);
+                    if (matchingCharge) {
+                      return { ...sc, id: matchingCharge.id };
+                    }
+                    return sc;
+                  });
+                  target.selected_subcharges = updatedSubCharges;
+                  target.sub_charges = updatedSubCharges;
+                }
+              }
             });
-            const insertedIds = inserted.map((row: any) => Number(row.id)).filter((id: any) => !!id);
-            if (insertedIds.length) {
-              this.enquiryService.selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), insertedIds, 'tariff')
-                .subscribe({ next: () => { }, error: () => { } });
+            if (inserted.length > 0) {
+              const cardIds = inserted.map((i: any) => i.id);
+              this.enquiryService
+                .selectLineItemVendorCards(this.currentEnquiry?.code!, Number(ctxT.lineItemId), cardIds, 'tariff')
+                .subscribe({
+                  next: () => {
+                    this.loadEnquiry(this.currentEnquiry?.code!, Number(ctxT.lineItemId));
+                  },
+                  error: (err) => {
+                    console.error('Error selecting tariff cards:', err);
+                  }
+                });
             }
           },
           error: (error) => {
@@ -5565,19 +5619,26 @@ export class EnquiryComponent implements OnInit {
     const requests: Observable<any>[] = [];
 
     this.selectedSourcingVendors
-      .filter((v) => (v.card_id || v.id) && (v.enquiry_line_item_id || lineItemId) == lineItemId)
+      .filter((v) => (v.card_id || v.id) && Number(v.enquiry_line_item_id || lineItemId) === Number(lineItemId))
       .forEach((vendor) => {
         const vendorId = vendor.card_id || vendor.id;
-        const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
+        console.log('DEBUG saveSourcingVendors - vendor:', vendor);
+        console.log('DEBUG saveSourcingVendors - vendor.sub_charges:', vendor.sub_charges);
+        console.log('DEBUG saveSourcingVendors - vendor.selected_subcharges:', vendor.selected_subcharges);
+        console.log('DEBUG saveSourcingVendors - Are they the same array?', vendor.sub_charges === vendor.selected_subcharges);
+
+        // CRITICAL: Use sub_charges instead of selected_subcharges because the UI binds to sub_charges!
+        const updates = (vendor.sub_charges || vendor.selected_subcharges || []).map((sc: any) => ({
           id: sc.id,
           charge_name: sc.charge_name || sc.name,
           currency: sc.currency,
           sell_rate_currency: sc.sell_rate_currency || sc.currency,
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
-          gst_vat: sc.gst_vat ?? sc.gst_rate,
+          gst_vat: sc.sell_rate_gst_vat ?? sc.gst_vat ?? sc.gst_rate,
           sell_rate_gst_vat: sc.sell_rate_gst_vat,
           remarks: vendor.remarks || sc.remarks,
         }));
+        console.log('DEBUG saveSourcingVendors - updates being sent:', updates);
 
         requests.push(this.enquiryService.updateVendorSubCharges(code, vendorId, updates));
       });
@@ -5598,8 +5659,8 @@ export class EnquiryComponent implements OnInit {
           summary: 'Saved',
           detail: 'Sourcing vendors updated',
         });
-        this.loadEnquiry(code);
-        this.refreshSelectedVendorCaches();
+        // Don't reload - the local data is already correct and reloading causes race conditions
+        // this.loadEnquiry(code, lineItemId);
       },
       error: (error) => {
         console.error('Error updating sourcing vendors:', error);
@@ -5617,19 +5678,21 @@ export class EnquiryComponent implements OnInit {
     const lineItemId = this.currentVendorCriteria?.lineItemId ?? this.selectedEnquiry?.line_items?.[0]?.s_no ?? 1;
     const requests: Observable<any>[] = [];
     this.selectedTariffVendors
-      .filter((v) => v.card_id && v.enquiry_line_item_id === lineItemId)
+      .filter((v) => (v.card_id || v.id) && Number(v.enquiry_line_item_id) === Number(lineItemId))
       .forEach((vendor) => {
-        const updates = (vendor.selected_subcharges || []).map((sc: any) => ({
+        const vendorId = vendor.card_id || vendor.id;
+        // CRITICAL: Use sub_charges instead of selected_subcharges because the UI binds to sub_charges!
+        const updates = (vendor.sub_charges || vendor.selected_subcharges || []).map((sc: any) => ({
           id: sc.id,
           charge_name: sc.charge_name || sc.name,
           currency: sc.currency,
           sell_rate_currency: sc.sell_rate_currency || sc.currency,
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
-          gst_vat: sc.gst_vat ?? sc.gst_rate,
+          gst_vat: sc.sell_rate_gst_vat ?? sc.gst_vat ?? sc.gst_rate,
           sell_rate_gst_vat: sc.sell_rate_gst_vat,
           remarks: vendor.remarks || sc.remarks,
         }));
-        requests.push(this.enquiryService.updateVendorSubCharges(code, vendor.card_id, updates));
+        requests.push(this.enquiryService.updateVendorSubCharges(code, vendorId, updates));
       });
 
     if (requests.length === 0) {
@@ -5648,9 +5711,8 @@ export class EnquiryComponent implements OnInit {
           summary: 'Saved',
           detail: 'Tariff sub-charges updated',
         });
-        this.showVendorTabsDialog = false;
-        this.loadEnquiry(code);
-        this.refreshSelectedVendorCaches();
+        // Don't reload - the local data is already correct and reloading causes race conditions
+        // this.loadEnquiry(code, lineItemId);
       },
       error: (error) => {
         console.error('Error updating tariff sub-charges:', error);
@@ -5996,11 +6058,23 @@ export class EnquiryComponent implements OnInit {
     const code = this.currentEnquiry?.code!;
     const requests = vendors.map((v) => {
       const cardId = v.card_id || v.master_id;
+      console.log(`DEBUG hydrateSubCharges - Vendor: ${v.vendor_name}, cardId: ${cardId}, sub_charges length: ${v.sub_charges?.length}`);
+
       if (cardId) {
-        return this.enquiryService
-          .getVendorSubCharges(code, Number(cardId))
-          .pipe(catchError(() => of([])));
+        // Log if we are fetching from API
+        if (!(Array.isArray(v.sub_charges) && v.sub_charges.length > 0)) {
+          console.log(`DEBUG hydrateSubCharges - Fetching from API for cardId ${cardId}`);
+          return this.enquiryService
+            .getVendorSubCharges(code, Number(cardId))
+            .pipe(
+              tap(res => console.log(`DEBUG hydrateSubCharges - API Response for ${cardId}:`, res)),
+              catchError(() => of([]))
+            );
+        } else {
+          console.log(`DEBUG hydrateSubCharges - Using existing sub_charges for ${cardId}`);
+        }
       }
+
       if (Array.isArray(v.sub_charges) && v.sub_charges.length > 0) {
         return of(v.sub_charges);
       }
@@ -6016,16 +6090,22 @@ export class EnquiryComponent implements OnInit {
             !vendors[idx].selected_subcharges ||
             vendors[idx].selected_subcharges.length === 0
           ) {
-            vendors[idx].selected_subcharges = [...vendors[idx].sub_charges];
+            // CRITICAL: Use the same reference, not a copy!
+            vendors[idx].selected_subcharges = vendors[idx].sub_charges;
           }
           if (!vendors[idx].sell_rates) vendors[idx].sell_rates = {};
-          const combined = [...(vendors[idx].sub_charges || []), ...(vendors[idx].selected_subcharges || [])];
-          combined.forEach((sc: any) => {
+
+          // Process all sub-charges to initialize sell rates and GST
+          (vendors[idx].sub_charges || []).forEach((sc: any) => {
             const amt = sc.amount ?? sc.charges ?? sc.charge ?? 0;
             const sell = sc.sell_rate ?? vendors[idx].sell_rates[sc.id] ?? amt;
             vendors[idx].sell_rates[sc.id] = sell;
             sc.sell_rate = sell;
-            if (!sc.sell_rate_currency) sc.sell_rate_currency = sc.currency;
+            // Only set default currency if it's truly not set (undefined/null), not just empty string
+            if (sc.sell_rate_currency === undefined || sc.sell_rate_currency === null) {
+              sc.sell_rate_currency = sc.currency;
+            }
+            // Only set default GST if it's truly not set (undefined/null), not 0
             if (sc.sell_rate_gst_vat === undefined || sc.sell_rate_gst_vat === null) {
               const gstVal = sc.sell_rate_gst ?? sc.gst_vat ?? sc.gst_rate ?? sc.vat_rate ?? 0;
               sc.sell_rate_gst_vat = typeof gstVal === 'string' ? parseFloat(gstVal) : gstVal;

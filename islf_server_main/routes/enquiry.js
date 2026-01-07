@@ -334,6 +334,14 @@ router.get("/:code", async (req, res) => {
           [enquiry_id, line_item_id, cardIds]
         );
 
+        console.log('📥 LOADED sub-charges from DB:', subChargesResult.map(sc => ({
+          id: sc.id,
+          charge_name: sc.charge_name,
+          sell_rate_currency: sc.sell_rate_currency,
+          gst_vat: sc.gst_vat,
+          sell_rate_gst: sc.sell_rate_gst
+        })));
+
         // Group by master_id (card_id)
         subChargesByCardId = subChargesResult.reduce((acc, sc) => {
           if (!acc[sc.master_id]) acc[sc.master_id] = [];
@@ -359,6 +367,7 @@ router.get("/:code", async (req, res) => {
 
         const typeVal = (vendorCard.master_type || "").toLowerCase();
         const isSelected = selectedCardIdSet.has(vendorCard.id);
+        vendorCard.is_selected = isSelected;
         if (typeVal === "tariff") {
           if (isSelected) selected_tariff_list.push(vendorCard);
           tariff_list.push(vendorCard);
@@ -2085,16 +2094,20 @@ router.post("/:code/vendor-cards", async (req, res) => {
             card.period_start_date ||
             enquiryRow.effective_date_from ||
             null;
-          expiryDate = card.expiry_date || enquiryRow.effective_date_to || null;
+          enquiryRow.effective_date_to ||
+            null;
         }
+
+        // Ensure remarks column exists
+        await client.query("ALTER TABLE enquiry_vendor_cards ADD COLUMN IF NOT EXISTS remarks TEXT");
 
         const insertQuery = `
           INSERT INTO enquiry_vendor_cards 
             (enquiry_id, enquiry_line_item_id, master_type, department, service_type, 
              type, service_area, vendor_type, vendor_name, basis, cargo, 
              location_type_from, from_location, location_type_to, to_location, 
-             period_start_date, period_end_date)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+             period_start_date, period_end_date, remarks)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
           RETURNING id
         `;
 
@@ -2116,6 +2129,7 @@ router.post("/:code/vendor-cards", async (req, res) => {
           card.to_location || null,
           effectiveDate,
           expiryDate,
+          card.remarks || null,
         ];
 
         const result = await client.query(insertQuery, insertParams);
@@ -2150,10 +2164,11 @@ router.post("/:code/vendor-cards", async (req, res) => {
             }
 
             const subChargeQuery = `
-              INSERT INTO enquiry_vendor_sub_charges 
-                (enquiry_id, enquiry_line_item_id, master_id, master_type, charge_name, 
-                 currency, basis, charges, sell_rate_currency, sell_rate, sell_rate_gst, gst_vat, remarks)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+              INSERT INTO enquiry_vendor_sub_charges
+          (enquiry_id, enquiry_line_item_id, master_id, master_type, charge_name,
+            currency, basis, charges, sell_rate_currency, sell_rate, sell_rate_gst, gst_vat, remarks)
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING id, charge_name
             `;
 
             const subChargeParams = [
@@ -2173,7 +2188,14 @@ router.post("/:code/vendor-cards", async (req, res) => {
             ];
 
 
-            await client.query(subChargeQuery, subChargeParams);
+            const subChargeResult = await client.query(subChargeQuery, subChargeParams);
+            if (subChargeResult.rows && subChargeResult.rows.length > 0) {
+              // Attach the created sub-charge ID to the inserted card's sub_charges array
+              if (!inserted[inserted.length - 1].sub_charges) {
+                inserted[inserted.length - 1].sub_charges = [];
+              }
+              inserted[inserted.length - 1].sub_charges.push(subChargeResult.rows[0]);
+            }
           }
         }
 
@@ -2241,36 +2263,61 @@ router.put("/:code/vendor-cards/:cardId/sub-charges", async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+
+      // Ensure remarks column exists
+      await client.query("ALTER TABLE enquiry_vendor_cards ADD COLUMN IF NOT EXISTS remarks TEXT");
+
       let updated = 0;
       for (const u of updates) {
+        const selGst = u.sell_rate_gst || u.sell_rate_gst_vat || 0;
         const params = [
-          u.sell_rate_currency || u.currency || null,
+          u.sell_rate_currency ?? u.currency ?? null,  // Use ?? to preserve empty strings
           u.sell_rate ?? u.amount ?? null,
-          u.gst_vat ?? u.gst_rate ?? null,
+          u.gst_vat ?? u.gst_rate ?? selGst ?? null,  // Use ?? to preserve 0 values
           u.remarks || null,
-          u.sell_rate_gst || u.sell_rate_gst_vat || 0,
+          selGst,
           Number(cardId),
-          u.id || null,
+          Number(u.id) || null,
           u.charge_name || null,
         ];
 
+        console.log('🔍 UPDATE sub-charge - Input:', {
+          charge_name: u.charge_name,
+          sell_rate_currency: u.sell_rate_currency,
+          gst_vat: u.gst_vat,
+          sell_rate_gst_vat: u.sell_rate_gst_vat,
+          id: u.id
+        });
+        console.log('🔍 UPDATE sub-charge - Params:', params.slice(0, 7));
+
         const qById = `UPDATE enquiry_vendor_sub_charges 
-          SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4, sell_rate_gst=$5 
-          WHERE master_id=$6 AND id=$7`;
+          SET sell_rate_currency = $1, sell_rate = $2, gst_vat = $3, remarks = $4, sell_rate_gst = $5 
+          WHERE master_id = $6 AND id = $7`;
+
         let r;
-        if (u.id) {
+        if (params[6]) { // if we have a numeric ID
           r = await client.query(qById, params.slice(0, 7));
+          console.log('✅ UPDATE by ID - Rows affected:', r.rowCount);
         }
-        if (!u.id || r.rowCount === 0) {
+
+        if (!params[6] || (r && r.rowCount === 0)) {
+          // Fallback to name only if absolutely necessary and no ID matched
           const qByName = `UPDATE enquiry_vendor_sub_charges 
-            SET sell_rate_currency=$1, sell_rate=$2, gst_vat=$3, remarks=$4, sell_rate_gst=$5 
-            WHERE master_id=$6 AND charge_name=$7`;
+            SET sell_rate_currency = $1, sell_rate = $2, gst_vat = $3, remarks = $4, sell_rate_gst = $5 
+            WHERE master_id = $6 AND charge_name = $7`;
           r = await client.query(qByName, [
             params[0], params[1], params[2], params[3], params[4], params[5], params[7]
           ]);
         }
         updated += r.rowCount || 0;
       }
+
+      // Also update remarks on the main card if at least one sub-charge had remarks
+      const mainRemarks = updates.find(u => u.remarks)?.remarks;
+      if (mainRemarks) {
+        await client.query("UPDATE enquiry_vendor_cards SET remarks = $1 WHERE id = $2", [mainRemarks, Number(cardId)]);
+      }
+
       await client.query("COMMIT");
       res.json({ updated });
     } catch (error) {
@@ -2323,9 +2370,9 @@ router.post("/:code/confirm", async (req, res) => {
     // Get enquiry details with active vendor card
     const enquiryResult = await pool.query(
       `
-            SELECT e.*, 
-                   json_agg(eli.*) as line_items,
-                   (SELECT row_to_json(evc.*) FROM enquiry_vendor_cards evc WHERE evc.enquiry_id = e.id AND evc.is_active = true LIMIT 1) as active_vendor
+            SELECT e.*,
+          json_agg(eli.*) as line_items,
+          (SELECT row_to_json(evc.*) FROM enquiry_vendor_cards evc WHERE evc.enquiry_id = e.id AND evc.is_active = true LIMIT 1) as active_vendor
             FROM enquiry e
             LEFT JOIN enquiry_line_items eli ON e.id = eli.enquiry_id
             WHERE e.code = $1
@@ -2359,10 +2406,10 @@ router.post("/:code/confirm", async (req, res) => {
 
       // Create booking
       await client.query(
-        `INSERT INTO booking (booking_no, enquiry_id, customer_id, customer_name, mail_id, phone_no1, phone_no2,
-                 company_name, from_location, to_location, effective_date_from, effective_date_to, department,
-                 status, remarks, vendor_details, line_items, charges, company_code, branch_code, department_code, service_type_code)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+        `INSERT INTO booking(booking_no, enquiry_id, customer_id, customer_name, mail_id, phone_no1, phone_no2,
+            company_name, from_location, to_location, effective_date_from, effective_date_to, department,
+            status, remarks, vendor_details, line_items, charges, company_code, branch_code, department_code, service_type_code)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
         [
           bookingNo,
           id,
@@ -2423,7 +2470,7 @@ router.get("/:code/lineItem", async (req, res) => {
 
     const { rows: enquiryIdRow } = await pool.query(
       ` SELECT id FROM enquiry WHERE code = $1
-    `,
+  `,
       [code]
     );
     console.log("Enquiry Id for the line item,", enquiryIdRow);
@@ -2431,8 +2478,8 @@ router.get("/:code/lineItem", async (req, res) => {
 
     const { rows: lineItemsResult } = await pool.query(
       `
-    SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
-    `,
+SELECT * FROM enquiry_line_items WHERE enquiry_id = $1
+  `,
       [enquiry_id]
     );
 
@@ -2450,14 +2497,14 @@ router.get("/:code/lineItem", async (req, res) => {
 router.get("/:id/carriage-mapping", async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query(`CREATE TABLE IF NOT EXISTS enquiry_carriage_mapping (
-      id SERIAL PRIMARY KEY,
-      enquiry_id INT NOT NULL,
-      direction VARCHAR(10) NOT NULL,
-      carriage VARCHAR(150) NOT NULL,
-      location_type VARCHAR(150),
-      location VARCHAR(150)
-    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS enquiry_carriage_mapping(
+    id SERIAL PRIMARY KEY,
+    enquiry_id INT NOT NULL,
+    direction VARCHAR(10) NOT NULL,
+    carriage VARCHAR(150) NOT NULL,
+    location_type VARCHAR(150),
+    location VARCHAR(150)
+  )`);
     const { rows } = await pool.query(
       'SELECT * FROM enquiry_carriage_mapping WHERE enquiry_id = $1 ORDER BY id',
       [id]
@@ -2482,8 +2529,8 @@ router.post('/carriage-mapping/save', async (req, res) => {
       await client.query('DELETE FROM enquiry_carriage_mapping WHERE enquiry_id = $1', [enquiry_id]);
       for (const it of items) {
         await client.query(
-          `INSERT INTO enquiry_carriage_mapping (enquiry_id, direction, carriage, location_type, location)
-           VALUES ($1, $2, $3, $4, $5)`,
+          `INSERT INTO enquiry_carriage_mapping(enquiry_id, direction, carriage, location_type, location)
+VALUES($1, $2, $3, $4, $5)`,
           [enquiry_id, it.direction, it.carriage, it.location_type || null, it.location || null]
         );
       }
@@ -2510,12 +2557,12 @@ router.post("/:code/line-Item", async (req, res) => {
 
     const { rows: enquiry_id } = await pool.query(
       ` SELECT id FROM enquiry WHERE code = $1
-    `,
+  `,
       [code]
     );
     const { } = await pool.query(
-      `INSERT INTO enquiry_line_items (enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
+      `INSERT INTO enquiry_line_items(enquiry_id, s_no, quantity, type, service_area, basis, remarks, status, enquiry_line_item_id)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $2)`,
       [
         enquiry_id,
         s_no,
@@ -2545,7 +2592,7 @@ router.put("/:code/line-items/selection", async (req, res) => {
 
     const { rows: enquiryIdRow } = await pool.query(
       ` SELECT id FROM enquiry WHERE code = $1
-    `,
+  `,
       [code]
     );
     const [{ id: enquiry_id }] = enquiryIdRow;
@@ -2553,7 +2600,7 @@ router.put("/:code/line-items/selection", async (req, res) => {
     // console.log("line Item Selection enquiry ID", enquiry_id);
     // unselect all line item for the id
     const result = await pool.query(
-      `UPDATE enquiry_line_items SET is_selected = false WHERE enquiry_id = $1 RETURNING *`,
+      `UPDATE enquiry_line_items SET is_selected = false WHERE enquiry_id = $1 RETURNING * `,
       [enquiry_id]
     );
     // console.log(
@@ -2572,20 +2619,20 @@ router.put("/:code/line-items/selection", async (req, res) => {
       lineItemSno: lineItem.s_no,
     }));
     if (selectedLineItems.length > 0) {
-      query = ` UPDATE enquiry_line_items SET is_selected = true WHERE enquiry_id = $1 AND `;
+      query = ` UPDATE enquiry_line_items SET is_selected = true WHERE enquiry_id = $1 AND`;
       params = [enquiry_id];
       console.log("mapped Line Item Result,", lineItemsList);
       lineItemsList.forEach((lineItem, index) => {
         console.log("index,", index, "line item result,", lineItemsList.length);
         if (lineItemsList.length === 1) {
-          query += `( s_no = $${index + 2})`;
+          query += `(s_no = $${index + 2})`;
           params.push(lineItem.lineItemSno);
         } else {
           query +=
             index === 0
-              ? `( s_no = $${index + 2}`
+              ? `(s_no = $${index + 2}`
               : index === lineItemsList.length - 1
-                ? `  OR  s_no = $${index + 2} )`
+                ? `  OR  s_no = $${index + 2})`
                 : `  OR  s_no = $${index + 2} `;
           params.push(lineItem.lineItemSno);
         }
@@ -2663,11 +2710,11 @@ router.delete("/:code/line-item/:lineItemId/vendor-cards", async (req, res) => {
       else if (scope === 'tariff') typeCond = " AND master_type = 'tariff'";
 
       const delSub = await client.query(
-        `DELETE FROM enquiry_vendor_sub_charges WHERE enquiry_id = $1 AND enquiry_line_item_id = $2${typeCond}`,
+        `DELETE FROM enquiry_vendor_sub_charges WHERE enquiry_id = $1 AND enquiry_line_item_id = $2${typeCond} `,
         [enquiryId, Number(lineItemId)]
       );
       const delCards = await client.query(
-        `DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2${typeCond}`,
+        `DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2${typeCond} `,
         [enquiryId, Number(lineItemId)]
       );
       await client.query('COMMIT');
