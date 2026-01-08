@@ -151,6 +151,15 @@ router.post("/", async (req, res) => {
     let code = cleanData.code;
     let seriesCode;
 
+    // 🔹 Resolve User Context
+    const username = getUsernameFromToken(req);
+    const userRes = await pool.query('SELECT company_code, branch_code, department_code FROM users WHERE username = $1', [username]);
+    const uCtx = userRes.rows[0] || {};
+
+    cleanData.company_code = cleanData.company_code || uCtx.company_code;
+    cleanData.branch_code = cleanData.branch_code || uCtx.branch_code;
+    cleanData.department_code = cleanData.department_code || uCtx.department_code;
+
     // 🔹 Number series lookup
     if ((!code || code === "") && cleanData.company_code) {
       let whereConditions = ["code_type = $1", "company_code = $2"];
@@ -158,7 +167,7 @@ router.post("/", async (req, res) => {
       let paramIndex = 3;
 
       if (cleanData.branch_code) {
-        whereConditions.push(`branch_code = $${paramIndex}`);
+        whereConditions.push(`(branch_code = $${paramIndex} OR branch_code IS NULL OR branch_code = '')`);
         queryParams.push(cleanData.branch_code);
         paramIndex++;
       } else {
@@ -166,7 +175,7 @@ router.post("/", async (req, res) => {
       }
 
       if (cleanData.department_code) {
-        whereConditions.push(`department_code = $${paramIndex}`);
+        whereConditions.push(`(department_code = $${paramIndex} OR department_code IS NULL OR department_code = '')`);
         queryParams.push(cleanData.department_code);
       } else {
         whereConditions.push(
@@ -494,7 +503,7 @@ router.post("/sub-charges", async (req, res) => {
     }
 
     let result;
-    
+
     if (cleanData.id) {
       // Update existing sub-charge
       const updateResult = await pool.query(
@@ -514,11 +523,11 @@ router.post("/sub-charges", async (req, res) => {
           cleanData.source_id,
         ]
       );
-      
+
       if (updateResult.rows.length === 0) {
         return res.status(404).json({ error: "Sub-charge not found" });
       }
-      
+
       result = updateResult;
     } else {
       // Insert new sub-charge

@@ -85,17 +85,24 @@ router.post('/', async (req, res) => {
     // await ensureBookingTable();
     const { booking_type, criteria, selected_enquiries = [], freeze, customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status = 'Open', remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
 
+    // Resolve User Context for Number Series
+    const userRes = await pool.query('SELECT company_code, branch_code, department_code FROM users WHERE username = $1', [username]);
+    const uCtx = userRes.rows[0] || {};
+    const effectiveCompany = companyCode || uCtx.company_code;
+    const effectiveBranch = branchCode || uCtx.branch_code;
+    const effectiveDept = departmentCode || uCtx.department_code;
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       let bookingNo;
       let seriesCode;
-      if (companyCode) {
+      if (effectiveCompany) {
         let whereConds = ["code_type = $1", "company_code = $2"];
-        let params = ["bookingNo", companyCode];
+        let params = ["bookingNo", effectiveCompany];
         let p = 3;
-        if (branchCode) { whereConds.push(`branch_code = $${p}`); params.push(branchCode); p++; } else { whereConds.push("(branch_code IS NULL OR branch_code = '')"); }
-        if (departmentCode) { whereConds.push(`department_code = $${p}`); params.push(departmentCode); } else { whereConds.push("(department_code IS NULL OR department_code = '')"); }
+        if (effectiveBranch) { whereConds.push(`(branch_code = $${p} OR branch_code IS NULL OR branch_code = '')`); params.push(effectiveBranch); p++; } else { whereConds.push("(branch_code IS NULL OR branch_code = '')"); }
+        if (effectiveDept) { whereConds.push(`(department_code = $${p} OR department_code IS NULL OR department_code = '')`); params.push(effectiveDept); } else { whereConds.push("(department_code IS NULL OR department_code = '')"); }
         const mapQ = `SELECT mapping FROM mapping_relations WHERE ${whereConds.join(' AND ')} ORDER BY id DESC LIMIT 1`;
         const mapRes = await client.query(mapQ, params);
         if (mapRes.rows.length > 0) seriesCode = mapRes.rows[0].mapping;
@@ -208,9 +215,9 @@ router.post('/', async (req, res) => {
             carriageMapSnap ? JSON.stringify(carriageMapSnap) : null,
             cargo ? JSON.stringify(cargo) : null,
             schedules ? JSON.stringify(schedules) : null,
-            enq.company_code || companyCode || null,
-            enq.branch_code || branchCode || null,
-            enq.department_code || departmentCode || null,
+            enq.company_code || effectiveCompany || null,
+            enq.branch_code || effectiveBranch || null,
+            enq.department_code || effectiveDept || null,
             enq.service_type_code || serviceTypeCode || null,
             username,
             enq.enquiry_type || enquiry_type || null
@@ -275,9 +282,9 @@ router.post('/', async (req, res) => {
             service_type || null,
             status,
             remarks || null,
-            companyCode || null,
-            branchCode || null,
-            departmentCode || null,
+            companyCode || effectiveCompany || null,
+            branchCode || effectiveBranch || null,
+            departmentCode || effectiveDept || null,
             serviceTypeCode || null,
             username,
             enquiry_type || null
@@ -333,9 +340,9 @@ router.post('/', async (req, res) => {
             cargo ? JSON.stringify(cargo) : null,
             carriage_map ? JSON.stringify(carriage_map) : null,
             schedules ? JSON.stringify(schedules) : null,
-            companyCode || null,
-            branchCode || null,
-            departmentCode || null,
+            companyCode || effectiveCompany || null,
+            branchCode || effectiveBranch || null,
+            departmentCode || effectiveDept || null,
             serviceTypeCode || null,
             username,
             enquiry_type || null
