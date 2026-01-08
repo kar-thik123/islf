@@ -84,12 +84,12 @@ interface PageFieldOption {
                 <p-columnFilter type="text" field="description" display="menu" placeholder="Search by description"></p-columnFilter>
               </div>
             </th>
-            <th>
+           <!-- <th>
               <div class="flex justify-between items-center">
                 Reference
                 <p-columnFilter type="text" field="reference" display="menu" placeholder="Search by reference"></p-columnFilter>
               </div>
-            </th>
+            </th>  -->
             <th>
               <div class="flex justify-between items-center">
                 Status
@@ -135,7 +135,7 @@ interface PageFieldOption {
               </ng-container>
               <ng-template #descText>{{ master.description }}</ng-template>
             </td>
-            <td>
+           <!-- <td>
               <ng-container *ngIf="master.isNew || master.isEditing; else refText">
                 <p-multiselect
                   [options]="referenceOptions"
@@ -149,7 +149,7 @@ interface PageFieldOption {
                 ></p-multiselect>
               </ng-container>
               <ng-template #refText>{{ master.reference }}</ng-template>
-            </td>
+            </td>    -->
             <td>
               <ng-container *ngIf="master.isEditing || master.isNew; else statusText">
                 <p-dropdown

@@ -5634,7 +5634,7 @@ export class EnquiryComponent implements OnInit {
           currency: sc.currency,
           sell_rate_currency: sc.sell_rate_currency || sc.currency,
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
-          gst_vat: sc.sell_rate_gst_vat ?? sc.gst_vat ?? sc.gst_rate,
+          gst_vat: sc.gst_vat ?? sc.gst_rate,
           sell_rate_gst_vat: sc.sell_rate_gst_vat,
           remarks: vendor.remarks || sc.remarks,
         }));
@@ -5688,7 +5688,7 @@ export class EnquiryComponent implements OnInit {
           currency: sc.currency,
           sell_rate_currency: sc.sell_rate_currency || sc.currency,
           sell_rate: vendor.sell_rates?.[sc.id] ?? sc.sell_rate ?? sc.amount ?? sc.charges,
-          gst_vat: sc.sell_rate_gst_vat ?? sc.gst_vat ?? sc.gst_rate,
+          gst_vat: sc.gst_vat ?? sc.gst_rate,
           sell_rate_gst_vat: sc.sell_rate_gst_vat,
           remarks: vendor.remarks || sc.remarks,
         }));
