@@ -1764,19 +1764,27 @@ export class TariffComponent implements OnInit, OnDestroy {
     }
   }
   filterServiceType() {
-    console.log('Filtering service/shipping Type:', this.selectedTariff?.mode);
+    console.log('Filtering service/shipping Type by matching all departments:', this.selectedTariff?.mode);
     if (this.selectedTariff?.mode) {
       const selectedMode = this.selectedTariff.mode.trim().toLowerCase();
 
-      const dept = this.allDepartments.find(
-        (d) => d?.name?.trim().toLowerCase() === selectedMode ||
+      // Find ALL matching departments, not just the first one
+      const matchingDepts = this.allDepartments.filter(
+        (d) =>
+          d?.name?.trim().toLowerCase() === selectedMode ||
           d?.code?.trim().toLowerCase() === selectedMode
       );
 
-      console.log('Matched department object:', dept);
+      console.log('Matched department objects:', matchingDepts);
+
+      // Get all unique codes from matching departments
+      const validDeptCodes = matchingDepts
+        .map((d) => d?.code?.trim().toLowerCase())
+        .filter((code) => code); // ensure not undefined/null/empty
 
       const filteredServiceTypes = this.allShippingType.filter((st) => {
-        return st.department_code?.trim().toLowerCase() === dept?.code?.trim().toLowerCase();
+        const typeDeptCode = st.department_code?.trim().toLowerCase();
+        return validDeptCodes.includes(typeDeptCode);
       });
 
       this.shippingTypeOptions = filteredServiceTypes.map((st) => ({
@@ -1789,7 +1797,10 @@ export class TariffComponent implements OnInit, OnDestroy {
         value: st.name,
       }));
     }
-    console.log('Final shipping type options count:', this.shippingTypeOptions.length);
+    console.log(
+      'Final shipping type options count:',
+      this.shippingTypeOptions.length
+    );
   }
 
   filterFromLocations() {
@@ -2082,9 +2093,10 @@ export class TariffComponent implements OnInit, OnDestroy {
     const context = this.contextService.getContext();
 
     // Use context-aware method instead of getAll()
-    const serviceTypeObservable = context.departmentCode
-      ? this.serviceTypeService.getByDepartment(context.departmentCode)
-      : this.serviceTypeService.getAll();
+    // const serviceTypeObservable = context.departmentCode
+    //   ? this.serviceTypeService.getByDepartment(context.departmentCode)
+    //   : this.serviceTypeService.getAll();
+    const serviceTypeObservable = this.serviceTypeService.getAll();
 
     return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
