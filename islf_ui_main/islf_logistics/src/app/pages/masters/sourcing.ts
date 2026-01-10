@@ -2191,14 +2191,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadServiceAreaTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
-      tap((types: any[]) => {
-        this.serviceAreaTypeOptions = types
-          .filter((t) => t.key === 'SERVICE_AREA' && t.status === 'Active')
-          .map((t) => ({
-            label: t.value,
-            value: t.value,
-          }));
+    return this.masterTypeService.getUniqueServiceAreaTypes().pipe(
+      tap((options: any[]) => {
+        this.serviceAreaTypeOptions = options;
         console.log('Service area type options:', this.serviceAreaTypeOptions);
       }),
       catchError((error) => {
