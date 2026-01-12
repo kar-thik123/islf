@@ -133,7 +133,7 @@ export class ContextService {
     const serviceTypeService = this.injector.get(ServiceTypeService);
 
     serviceTypeService.getByDepartment(departmentCode).pipe(
-      map(serviceTypes => serviceTypes?.map(st => ({ label: st.name, value: st.code })) || []),
+      map(serviceTypes => serviceTypes?.map(st => ({ label: st.name, value: st.name })) || []),
       catchError(() => of([]))
     ).subscribe(options => this.serviceTypeOptions.next(options));
   }

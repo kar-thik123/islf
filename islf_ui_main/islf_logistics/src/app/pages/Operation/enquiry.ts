@@ -3552,8 +3552,8 @@ export class EnquiryComponent implements OnInit {
     });
 
     this.serviceTypeOptions = filteredTypes.map((st) => ({
-      label: `${st.code} - ${st.name} `,
-      value: st.code,
+      label: st.name,
+      value: st.name,
     }));
 
     // Clear selected service type if it's not in the filtered options
@@ -3584,8 +3584,8 @@ export class EnquiryComponent implements OnInit {
       list = filtered.length ? filtered : list;
     }
     this.serviceTypeFilterOptions = (list || []).map((st: any) => ({
-      label: `${st.code} - ${st.name} `,
-      value: st.code,
+      label: st.name,
+      value: st.name,
     }));
   }
 

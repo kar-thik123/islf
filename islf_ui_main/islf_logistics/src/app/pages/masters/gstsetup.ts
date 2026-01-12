@@ -7,7 +7,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MasterLocationService } from '@/services/master-location.service';
 import { GstSetupService } from '@/services/gstsetup.service';
 import { ConfigService } from '../../services/config.service';
@@ -44,11 +45,13 @@ interface GstRule {
     CheckboxModule,
     ToastModule,
     MasterLocationComponent,
-    DialogModule
+    DialogModule,
+    ConfirmDialogModule
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">GST Setup</div>
       <p-table
@@ -183,6 +186,7 @@ export class GstSetupComponent implements OnInit, OnDestroy {
 
   constructor(
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private masterLocationService: MasterLocationService,
     private gstSetupService: GstSetupService,
     public configService: ConfigService,
@@ -375,36 +379,45 @@ export class GstSetupComponent implements OnInit, OnDestroy {
   }
 
   deleteRow(rule: GstRule) {
-    if (rule.id) {
-      // Delete from database
-      this.gstSetupService.delete(rule.id).subscribe({
-        next: () => {
-          console.log('GST rule deleted successfully');
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Deleted',
-            detail: 'GST Rule deleted successfully'
+    this.confirmationService.confirm({
+      message: rule.isNew
+        ? 'Are you sure you want to discard this new row?'
+        : 'Are you sure you want to delete this GST Rule?',
+      header: 'Confirm',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (rule.id) {
+          // Delete from database
+          this.gstSetupService.delete(rule.id).subscribe({
+            next: () => {
+              console.log('GST rule deleted successfully');
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Deleted',
+                detail: 'GST Rule deleted successfully'
+              });
+              this.refreshList(); // Reload the list
+            },
+            error: (error) => {
+              console.error('Error deleting GST rule:', error);
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Failed to delete GST rule'
+              });
+            }
           });
-          this.refreshList(); // Reload the list
-        },
-        error: (error) => {
-          console.error('Error deleting GST rule:', error);
+        } else {
+          // Remove from UI only (for new unsaved rows)
+          this.gstRules.set(this.gstRules().filter(r => r !== rule));
           this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to delete GST rule'
+            severity: 'info',
+            summary: 'Cancelled',
+            detail: 'New row discarded'
           });
         }
-      });
-    } else {
-      // Remove from UI only (for new unsaved rows)
-      this.gstRules.set(this.gstRules().filter(r => r !== rule));
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Deleted',
-        detail: 'GST Rule removed'
-      });
-    }
+      }
+    });
   }
 
   clear(table: Table) {

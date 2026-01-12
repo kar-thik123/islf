@@ -7,7 +7,8 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { CalendarModule } from 'primeng/calendar';
 import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { MasterTypeService } from '../../services/mastertype.service';
@@ -20,7 +21,7 @@ import { MasterTypeComponent } from './mastertype';
 @Component({
   selector: 'master-uom',
   standalone: true,
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   imports: [
     CommonModule,
     FormsModule,
@@ -31,10 +32,12 @@ import { MasterTypeComponent } from './mastertype';
     ToastModule,
     DialogModule,
     CalendarModule,
-    MasterTypeComponent
+    MasterTypeComponent,
+    ConfirmDialogModule
   ],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
     <div class="card">
       <div class="font-semibold text-xl mb-4">Master UOM</div>
 
@@ -252,6 +255,7 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     private masterUOMService: MasterUOMService,
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private contextService: ContextService,
     public configService: ConfigService
   ) { }
@@ -398,20 +402,27 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   }
 
   deleteRow(uom: any) {
-    if (uom.id && !uom.isNew) {
-      this.masterUOMService.delete(uom.id).subscribe({
-        next: () => {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to discard this new row?',
+      header: 'Confirm',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        if (uom.id && !uom.isNew) {
+          this.masterUOMService.delete(uom.id).subscribe({
+            next: () => {
+              this.uoms = this.uoms.filter(u => u !== uom);
+              this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'UOM deleted' });
+              this.refreshList();
+            },
+            error: () => {
+              this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Delete failed' });
+            }
+          });
+        } else {
           this.uoms = this.uoms.filter(u => u !== uom);
-          this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'UOM deleted' });
-          this.refreshList();
-        },
-        error: () => {
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Delete failed' });
         }
-      });
-    } else {
-      this.uoms = this.uoms.filter(u => u !== uom);
-    }
+      }
+    });
   }
 
   // Field validation methods

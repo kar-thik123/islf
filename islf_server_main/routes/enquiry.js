@@ -1798,14 +1798,14 @@ router.post("/:code/sourcing", async (req, res) => {
 
     // Department filter (normalized compare against name/code stored in "mode")
     if (department && department.trim() !== "") {
-      query += ` AND LOWER(REPLACE(mode, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      query += ` AND LOWER(REPLACE(REPLACE(mode, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(department);
       paramIndex++;
     }
 
     // Service Area filter (normalized)
     if (service_area && service_area.trim() !== "") {
-      query += ` AND LOWER(REPLACE(service_area, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      query += ` AND LOWER(REPLACE(REPLACE(service_area, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(service_area);
       paramIndex++;
     }
@@ -1815,12 +1815,12 @@ router.post("/:code/sourcing", async (req, res) => {
     if (fromLoc && fromLoc.trim() !== "") {
       if (fromLocType && fromLocType.trim() !== "") {
         locationConditions.push(
-          `(LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')) AND LOWER(REPLACE(location_type_from, ' ', '')) = LOWER(REPLACE($${paramIndex + 1}, ' ', '')))`
+          `(LOWER(REPLACE(REPLACE(from_location, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(location_type_from, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex + 1}, ' ', ''), '_', '')))`
         );
         params.push(fromLoc, fromLocType);
         paramIndex += 2;
       } else {
-        locationConditions.push(`LOWER(REPLACE(from_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`);
+        locationConditions.push(`LOWER(REPLACE(REPLACE(from_location, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`);
         params.push(fromLoc);
         paramIndex++;
       }
@@ -1828,12 +1828,12 @@ router.post("/:code/sourcing", async (req, res) => {
     if (toLoc && toLoc.trim() !== "") {
       if (toLocType && toLocType.trim() !== "") {
         locationConditions.push(
-          `(LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', '')) AND LOWER(REPLACE(location_type_to, ' ', '')) = LOWER(REPLACE($${paramIndex + 1}, ' ', '')))`
+          `(LOWER(REPLACE(REPLACE(to_location, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(location_type_to, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex + 1}, ' ', ''), '_', '')))`
         );
         params.push(toLoc, toLocType);
         paramIndex += 2;
       } else {
-        locationConditions.push(`LOWER(REPLACE(to_location, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`);
+        locationConditions.push(`LOWER(REPLACE(REPLACE(to_location, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`);
         params.push(toLoc);
         paramIndex++;
       }
@@ -1850,21 +1850,21 @@ router.post("/:code/sourcing", async (req, res) => {
 
     // Cargo type filter (normalized)
     if (cargo_type && cargo_type.trim() !== "") {
-      query += ` AND LOWER(REPLACE(cargo_type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      query += ` AND LOWER(REPLACE(REPLACE(cargo_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(cargo_type);
       paramIndex++;
     }
 
     // Basis filter (code match, normalized)
     if (basis && basis.trim() !== "") {
-      query += ` AND LOWER(REPLACE(basis, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      query += ` AND LOWER(REPLACE(REPLACE(basis, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(basis);
       paramIndex++;
     }
 
     // Line item type filter (e.g., Freight, Transportation)
     if (line_item_type && line_item_type.trim() !== "") {
-      query += ` AND LOWER(REPLACE(type, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      query += ` AND LOWER(REPLACE(REPLACE(type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(line_item_type);
       paramIndex++;
     }
@@ -1874,13 +1874,13 @@ router.post("/:code/sourcing", async (req, res) => {
       const typeIdxStart = paramIndex;
       serviceTypeKeywords.forEach((v) => { params.push(v); paramIndex++; });
       const typeConds = serviceTypeKeywords.map((_, i) =>
-        `(LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($${typeIdxStart + i}, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($${typeIdxStart + i}, ' ', '')) || '%')`
+        `(LOWER(REPLACE(REPLACE(shipping_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${typeIdxStart + i}, ' ', ''), '_', '')) OR LOWER(REPLACE(REPLACE(type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${typeIdxStart + i}, ' ', ''), '_', '')))`
       ).join(' OR ');
       query += ` AND (${typeConds})`;
     }
     // (legacy check if keywords empty but param exists)
     else if (service_type && service_type.trim() !== "") {
-      query += ` AND (LOWER(REPLACE(shipping_type, ' ', '')) LIKE LOWER(REPLACE($${paramIndex}, ' ', '')) || '%' OR LOWER(REPLACE(type, ' ', '')) LIKE LOWER(REPLACE($${paramIndex}, ' ', '')) || '%')`;
+      query += ` AND (LOWER(REPLACE(REPLACE(shipping_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', '')) OR LOWER(REPLACE(REPLACE(type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', '')))`;
       params.push(service_type);
       paramIndex++;
     }
@@ -2011,19 +2011,19 @@ router.post("/:code/tariff", async (req, res) => {
     }
 
     if (department && department.trim() !== "") {
-      query += ` AND t.mode = $${paramIndex}`;
+      query += ` AND LOWER(REPLACE(REPLACE(t.mode, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(department);
       paramIndex++;
     }
 
     if (cargo_type && cargo_type.trim() !== "") {
-      query += ` AND t.cargo_type = $${paramIndex}`;
+      query += ` AND LOWER(REPLACE(REPLACE(t.cargo_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(cargo_type);
       paramIndex++;
     }
 
     // Route filtering based on provided from/to (relaxed for single-location masters)
-    const normCmp = (field, idx) => `LOWER(REPLACE(${field}, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))`;
+    const normCmp = (field, idx) => `LOWER(REPLACE(REPLACE(${field}, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${idx}, ' ', ''), '_', ''))`;
 
     const hasFrom = !!(from_location || from_location_code || from_location_name);
     const hasTo = !!(to_location || to_location_code || to_location_name);
@@ -2062,17 +2062,17 @@ router.post("/:code/tariff", async (req, res) => {
 
     // Service Area filter
     if (service_area && service_area.trim() !== "") {
-      query += ` AND LOWER(REPLACE(t.service_area, ' ', '')) = LOWER(REPLACE($${paramIndex}, ' ', ''))`;
+      query += ` AND LOWER(REPLACE(REPLACE(t.service_area, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
       params.push(service_area);
       paramIndex++;
     }
 
-    // Service Type/Line Item Type filter (Search in t.service_type or t.shipping_type)
+    // Service Type/Line Item Type filter (Search in t.shipping_type)
     if (serviceTypeKeywords.length > 0) {
       const typeIdxStart = paramIndex;
       serviceTypeKeywords.forEach((v) => { params.push(v); paramIndex++; });
       const typeConds = serviceTypeKeywords.map((_, i) =>
-        `(LOWER(REPLACE(t.service_type, ' ', '')) = LOWER(REPLACE($${typeIdxStart + i}, ' ', '')) OR LOWER(REPLACE(t.shipping_type, ' ', '')) = LOWER(REPLACE($${typeIdxStart + i}, ' ', '')))`
+        `(LOWER(REPLACE(REPLACE(t.shipping_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${typeIdxStart + i}, ' ', ''), '_', '')))`
       ).join(' OR ');
       query += ` AND (${typeConds})`;
     }

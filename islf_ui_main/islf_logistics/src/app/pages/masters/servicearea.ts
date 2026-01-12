@@ -638,6 +638,8 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const context = this.contextService.getContext();
+
     const serviceAreaData = {
       code: serviceArea.code,
       seriesCode: this.mappedSvcAreaSeriesCode,
@@ -648,7 +650,11 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
       sourcing: serviceArea.sourcing,
       local_tariff: serviceArea.local_tariff,
       status: serviceArea.status,
-      context_id: this.contextId
+      context_id: this.contextId,
+      company_code: context.companyCode,
+      branch_code: context.branchCode,
+      department_code: context.departmentCode,
+      service_type_code: context.serviceType
     };
 
     if (!this.isManualSeries && serviceArea.isNew) {
@@ -712,13 +718,20 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     }
   }
 
-  confirmDelete(serviceArea: any) {
+  deleteRow(serviceArea: any) {
     this.confirmationService.confirm({
-      message: 'Are you sure you want to delete this service area?',
+      message: serviceArea.isNew 
+        ? 'Are you sure you want to discard this new row?' 
+        : 'Are you sure you want to delete this service area?',
       header: 'Confirm',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.deleteServiceArea(serviceArea);
+        if (serviceArea.isNew) {
+          this.serviceAreas = this.serviceAreas.filter(item => item.id !== serviceArea.id);
+          this.messageService.add({ severity: 'info', summary: 'Cancelled', detail: 'New row discarded' });
+        } else {
+          this.deleteServiceArea(serviceArea);
+        }
       }
     });
   }
@@ -798,25 +811,7 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
   }
 
-  deleteRow(serviceArea: any) {
-    if (serviceArea.id && !serviceArea.isNew) {
-      this.serviceAreaService.deleteServiceArea(serviceArea.code).subscribe({
-        next: () => {
-          this.serviceAreas = this.serviceAreas.filter(m => m !== serviceArea);
-          this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Service Area deleted' });
-          this.loadServiceAreas();
-        },
-        error: (err) => {
-          console.error('Failed to delete master', err);
-          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Delete failed' });
-        }
-      });
-    } else {
-      this.serviceAreas = this.serviceAreas.filter(m => m !== serviceArea);
-      this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Service Area deleted' });
-      this.loadServiceAreas();
-    }
-  }
+
 
 
   clear(table: Table) {
