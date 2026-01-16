@@ -1533,6 +1533,16 @@ export class CompanyManagementComponent implements OnInit {
         { label: 'Airline', value: 'Airline' }
       ]
     },
+    {
+      key: 'booking_breakup',
+      label: 'Booking Breakup',
+      type: 'dropdown',
+      required: false,
+      options: [
+        { label: 'CONTAINER BREAKUP', value: 'CONTAINER BREAKUP' },
+        { label: 'PACKAGE BREAKUP', value: 'PACKAGE BREAKUP' }
+      ]
+    },
   ];
 
   maxCompanies = 1;

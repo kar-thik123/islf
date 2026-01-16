@@ -18,6 +18,7 @@ export interface ServiceType {
   start_date?: string;
   close_date?: string;
   remarks?: string;
+  booking_breakup?: string;
   created_at?: string;
   updated_at?: string;
   [key: string]: any;
@@ -27,7 +28,7 @@ export interface ServiceType {
   providedIn: 'root'
 })
 export class ServiceTypeService {
-    private apiUrl = `${environment.apiUrl}/api/service_types`; // Fixed: was /api/number_series
+  private apiUrl = `${environment.apiUrl}/api/service_types`; // Fixed: was /api/number_series
 
   constructor(private http: HttpClient) { }
 

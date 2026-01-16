@@ -49,17 +49,17 @@ router.post('/', async (req, res) => {
   const {
     code, company_code, branch_code, department_code,
     name, description, incharge_name, incharge_from,
-    status, start_date, close_date, remarks, schedule_type
+    status, start_date, close_date, remarks, schedule_type, booking_breakup
   } = req.body;
 
   try {
     const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       `INSERT INTO service_types 
-       (code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by, schedule_type) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+       (code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by, schedule_type, booking_breakup) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
        RETURNING *`,
-      [code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by, schedule_type]
+      [code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by, schedule_type, booking_breakup]
     );
 
     await logSetupEvent({
@@ -82,7 +82,7 @@ router.put('/:code', async (req, res) => {
   const {
     company_code, branch_code, department_code, name,
     description, incharge_name, incharge_from, status,
-    start_date, close_date, remarks, schedule_type
+    start_date, close_date, remarks, schedule_type, booking_breakup
   } = req.body;
 
   try {
@@ -103,11 +103,12 @@ router.put('/:code', async (req, res) => {
       `UPDATE service_types SET 
         company_code = $1, branch_code = $2, department_code = $3,
         name = $4, description = $5, incharge_name = $6, incharge_from = $7,
-        status = $8, start_date = $9, close_date = $10, remarks = $11, schedule_type = $12
-       WHERE code = $13 RETURNING *`,
+        status = $8, start_date = $9, close_date = $10, remarks = $11, schedule_type = $12,
+        booking_breakup = $13
+       WHERE code = $14 RETURNING *`,
       [company_code, branch_code, department_code, name,
         description, incharge_name, incharge_from, status,
-        start_date, close_date, remarks, schedule_type, req.params.code]
+        start_date, close_date, remarks, schedule_type, booking_breakup, req.params.code]
     );
 
     // Build detailed change log
@@ -122,7 +123,8 @@ router.put('/:code', async (req, res) => {
       start_date,
       close_date,
       remarks,
-      schedule_type
+      schedule_type,
+      booking_breakup
     };
 
     const normalize = (value) => {

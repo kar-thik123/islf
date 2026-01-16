@@ -13,7 +13,8 @@ import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
-import { MessageService } from 'primeng/api';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { BookingService, BookingRecord } from '../../services/booking.service';
 import { EnquiryService } from '../../services/enquiry.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
@@ -46,10 +47,20 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
     TooltipModule,
     MasterLocationComponent,
     ConfigDatePipe,
+    ConfirmDialogModule
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
+    <p-confirmDialog appendTo="body"></p-confirmDialog>
+    
+    <p-dialog [(visible)]="showSubVendorTypeDialog" header="Select Vendor Type" [modal]="true" [style]="{'width':'300px'}" appendTo="body">
+      <div class="flex flex-col gap-3">
+        <label class="font-semibold">Vendor Type</label>
+        <p-dropdown [options]="vendorTypeOptions" placeholder="Select Type" (onChange)="confirmSubVendorType($event.value)" appendTo="body" [filter]="true" [style]="{'width':'100%'}"></p-dropdown>
+      </div>
+    </p-dialog>
+
     <div class="card">
       <div class="font-semibold text-xl mb-4">Booking Dashboard</div>
       <p-table #dt [value]="bookings" [lazy]="true" (onLazyLoad)="loadBookings($event)" [totalRecords]="totalRecords" [paginator]="true" [rows]="configService.getSystemConfig().maxRecordsPerPage" [rowsPerPageOptions]="[5, 10, 20, 50]" dataKey="booking_no" [showGridlines]="true" [globalFilterFields]="['booking_no','customer_name','company_name','department','service_type','from_location','to_location','status']">
@@ -458,6 +469,140 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
           </ng-template>
         </p-table>
       </div>
+
+      <div class="section-header">Booking Breakup</div>
+      <div class="mb-2">
+        <button pButton label="+ Add Breakup" class="p-button-sm" (click)="addBreakupRow()"></button>
+      </div>
+      <p-table [value]="breakupRows" [showGridlines]="true">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>S.No.</th>
+            <th>Vendor Type</th>
+            <th>Vendor Name</th>
+            <th>Bkg Reference No</th>
+            <th>Basis</th>
+            <th>Bkg Validity</th>
+            <th>Qty</th>
+            <th>Remarks</th>
+            <th>Action</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-bk let-i="rowIndex">
+          <tr>
+            <td>
+              <input pInputText [(ngModel)]="bk.breakup_no" placeholder="No" [style]="{'width':'80px'}" (ngModelChange)="onBreakupQuantityChange()" />
+            </td>
+            <td>
+              <p-dropdown [(ngModel)]="bk.vendor_type" [options]="vendorTypeOptions" placeholder="Select Type" (onChange)="onBreakupVendorTypeChange(bk, true); onBreakupQuantityChange()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'150px'}"></p-dropdown>
+            </td>
+            <td>
+              <p-dropdown [(ngModel)]="bk.vendor_name" [options]="bk._vendorOptions || []" placeholder="Select Vendor" (onChange)="onBreakupQuantityChange()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'200px'}"></p-dropdown>
+            </td>
+            <td>
+              <input pInputText [(ngModel)]="bk.booking_ref_no" placeholder="Ref No" class="w-full" (ngModelChange)="onBreakupQuantityChange()" />
+            </td>
+            <td>
+              <p-dropdown [(ngModel)]="bk.basis" [options]="getBasisOptions()" placeholder="Select Basis" (onChange)="onBreakupQuantityChange()" appendTo="body" [style]="{'width':'120px'}"></p-dropdown>
+            </td>
+            <td>
+              <p-calendar [(ngModel)]="bk.valid_till" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [style]="{'width':'150px'}"></p-calendar>
+            </td>
+            <td>
+              <input pInputText type="number" [(ngModel)]="bk.quantity" placeholder="Qty" [style]="{'width':'80px'}" (ngModelChange)="onBreakupQuantityChange()" />
+            </td>
+            <td>
+              <input pInputText [(ngModel)]="bk.remarks" placeholder="Remarks" [style]="{'width':'100%'}" />
+            </td>
+            <td>
+              <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBreakupRow(i)"></button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <!-- Container Breakup Section -->
+      <div *ngIf="breakupType === 'CONTAINER BREAKUP'">
+        <div class="section-header mt-4 text-blue-700">Container Breakup Details</div>
+        <p-table [value]="containerBreakupRows" [showGridlines]="true">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Breakup No.</th>
+              <th>Vendor Name</th>
+              <th>Ref No.</th>
+              <th>Basis</th>
+              <th>Container No.</th>
+              <th>Pickup/Handover Date</th>
+              <th>Empty Yard</th>
+              <th>Action</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-cb let-i="rowIndex">
+            <tr>
+              <td><input pInputText [ngModel]="cb.breakup_no" [style]="{'width':'80px'}" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [ngModel]="cb.vendor_name" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [ngModel]="cb.booking_ref_no" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [ngModel]="cb.basis" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [(ngModel)]="cb.container_no" placeholder="Container No" class="bg-orange-50" /></td>
+              <td>
+                <p-calendar [(ngModel)]="cb.pickup_handover_date" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [style]="{'width':'50%'}" class="bg-orange-50"></p-calendar>
+              </td>
+              <td>
+                <p-dropdown [(ngModel)]="cb.empty_yard" [options]="subVendorOptions" placeholder="Select Vendor" (onShow)="triggerSubVendorTypeSelection()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}" class="bg-orange-50"></p-dropdown>
+              </td>
+              <td>
+                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'container')"></button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <!-- Package Breakup Section -->
+      <div *ngIf="breakupType === 'PACKAGE BREAKUP'">
+        <div class="section-header mt-4 text-blue-700">Package Breakup Details</div>
+        <p-table [value]="packageBreakupRows" [showGridlines]="true">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Breakup No.</th>
+              <th>Vendor Name</th>
+              <th>Ref No.</th>
+              <th>Basis</th>
+              <th>Pkg No.</th>
+              <th>L(cm)</th>
+              <th>W(cm)</th>
+              <th>H(cm)</th>
+              <th>Wt(kgs)</th>
+              <th>Handover Date</th>
+              <th>Carting</th>
+              <th>Action</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-pb let-i="rowIndex">
+            <tr>
+              <td><input pInputText [ngModel]="pb.breakup_no" [style]="{'width':'80px'}" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [ngModel]="pb.vendor_name" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [ngModel]="pb.booking_ref_no" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [ngModel]="pb.basis" class="bg-gray-50" readonly /></td>
+              <td><input pInputText [(ngModel)]="pb.package_no" placeholder="Pkg No" class="bg-orange-50" /></td>
+              <td><input pInputText type="number" [(ngModel)]="pb.length_cm" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
+              <td><input pInputText type="number" [(ngModel)]="pb.width_cm" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
+              <td><input pInputText type="number" [(ngModel)]="pb.height_cm" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
+              <td><input pInputText type="number" [(ngModel)]="pb.weight_kgs" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
+              <td>
+                <p-calendar [(ngModel)]="pb.handover_date" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [style]="{'width':'100%'}" class="bg-orange-50"></p-calendar>
+              </td>
+              <td>
+                <p-dropdown [(ngModel)]="pb.carting" [options]="subVendorOptions" placeholder="Select Vendor" (onShow)="triggerSubVendorTypeSelection()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}" class="bg-orange-50"></p-dropdown>
+              </td>
+              <td>
+                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'package')"></button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
       <p-dialog header="Location" [(visible)]="showMasterLocationDialog" [modal]="true" [style]="{width: '85vw'}" [contentStyle]="{height: '70vh'}" [draggable]="false" [resizable]="false">
         <master-location (onSave)="loadDropdowns()"></master-location>
         <ng-template pTemplate="footer">
@@ -512,6 +657,12 @@ export class BookingComponent implements OnInit {
   carriageRows: any[] = [];
   lineItemsRows: any[] = [];
   scheduleGroups: { [service: string]: any[] } = {};
+  breakupRows: any[] = [];
+  containerBreakupRows: any[] = [];
+  packageBreakupRows: any[] = [];
+  showSubVendorTypeDialog = false;
+  subVendorOptions: any[] = [];
+  vendorTypeOptions: any[] = [];
   yesNoOptions = [{ label: 'YES', value: 'YES' }, { label: 'NO', value: 'NO' }];
   enquiryTypeOptions = [{ label: 'Direct', value: 'Direct' }, { label: 'Nominee', value: 'Nominee' }];
   allCargoItems: MasterItem[] = [];
@@ -537,6 +688,7 @@ export class BookingComponent implements OnInit {
     private masterAirlineService: MasterAirlineService,
     private masterVesselService: MasterVesselService,
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private cdr: ChangeDetectorRef,
     public configService: ConfigService
   ) { }
@@ -599,7 +751,8 @@ export class BookingComponent implements OnInit {
       vendors: this.vendorService.getAll().pipe(take(1)),
       serviceTypes: this.serviceTypeService.getAll().pipe(take(1)),
       airlines: this.masterAirlineService.getAll().pipe(take(1)),
-      vessels: this.masterVesselService.getAll().pipe(take(1))
+      vessels: this.masterVesselService.getAll().pipe(take(1)),
+      vendorTypes: this.masterTypeService.getAllByType('VENDOR').pipe(take(1))
     }).subscribe({
       next: (res) => {
         // 1. Departments
@@ -630,6 +783,7 @@ export class BookingComponent implements OnInit {
 
         // 5. Vendors
         this.allVendors = res.vendors || [];
+        this.refreshSubVendorOptions();
 
         // 6. Service Types
         this.allServiceTypes = res.serviceTypes || [];
@@ -642,8 +796,10 @@ export class BookingComponent implements OnInit {
         // 7. Airlines & Vessels
         this.allAirlines = res.airlines || [];
         this.airlineOptions = this.allAirlines.map(a => ({ label: a.airline_name, value: a.airline_name }));
-        this.allVessels = res.vessels || [];
         this.vesselOptions = this.allVessels.map(v => ({ label: v.vessel_name, value: v.vessel_name }));
+
+        // 8. Vendor Types
+        this.vendorTypeOptions = (res.vendorTypes || []).map((t: any) => ({ label: t.value, value: t.value }));
 
         // Now that master data is READY, we can safely allow the UI to finish loading
         this.loading = false;
@@ -807,11 +963,20 @@ export class BookingComponent implements OnInit {
         ...li,
         valid_till: this.formatDate(li.valid_till)
       })),
-      schedules: this.flattenSchedules().map(s => ({
-        ...s,
-        etd: this.formatDate(s.etd),
-        eta: this.formatDate(s.eta)
-      }))
+      schedules: this.scheduleGroups,
+      booking_breakup: this.breakupRows.map(bk => {
+        const rowData = { ...bk };
+        if (this.breakupType === 'CONTAINER BREAKUP') {
+          rowData.container_breakup = this.containerBreakupRows
+            .filter(cb => cb.breakup_no === bk.breakup_no)
+            .map(cb => ({ ...cb, pickup_handover_date: this.formatDate(cb.pickup_handover_date) }));
+        } else if (this.breakupType === 'PACKAGE BREAKUP') {
+          rowData.package_breakup = this.packageBreakupRows
+            .filter(pb => pb.breakup_no === bk.breakup_no)
+            .map(pb => ({ ...pb, handover_date: this.formatDate(pb.handover_date) }));
+        }
+        return rowData;
+      })
     } as BookingRecord;
 
     // if (this.isFrozen) { this.showBookingForm = false; return; }
@@ -851,6 +1016,34 @@ export class BookingComponent implements OnInit {
 
         this.currentBooking.effective_date_from = this.parseDate(this.currentBooking.effective_date_from) as any;
         this.currentBooking.effective_date_to = this.parseDate(this.currentBooking.effective_date_to) as any;
+
+        this.breakupRows = (b?.booking_breakup || []).map((bk: any) => {
+          bk.valid_till = bk.valid_till ? new Date(bk.valid_till) : null;
+          this.onBreakupVendorTypeChange(bk, false);
+          return bk;
+        });
+
+        this.refreshSubVendorOptions();
+
+        // Initialize sub-breakups
+        this.containerBreakupRows = [];
+        this.packageBreakupRows = [];
+        this.breakupRows.forEach((bk) => {
+          if (Array.isArray(bk.container_breakup)) {
+            bk.container_breakup.forEach((cb: any) => {
+              cb.breakup_no = bk.breakup_no;
+              cb.pickup_handover_date = cb.pickup_handover_date ? new Date(cb.pickup_handover_date) : null;
+              this.containerBreakupRows.push(cb);
+            });
+          }
+          if (Array.isArray(bk.package_breakup)) {
+            bk.package_breakup.forEach((pb: any) => {
+              pb.breakup_no = bk.breakup_no;
+              pb.handover_date = pb.handover_date ? new Date(pb.handover_date) : null;
+              this.packageBreakupRows.push(pb);
+            });
+          }
+        });
 
         this.isFrozen = (b as any)?.booking_type === 'from_enquiry';
 
@@ -1133,6 +1326,179 @@ export class BookingComponent implements OnInit {
       cg.hs_code = '';
     }
     this.cargoRows = [...this.cargoRows];
+  }
+
+  addBreakupRow() {
+    const nextNo = this.breakupRows.length > 0
+      ? Math.max(...this.breakupRows.map(r => parseInt(r.breakup_no) || 0)) + 1
+      : 1;
+    this.breakupRows.push({
+      breakup_no: nextNo.toString(),
+      vendor_type: '',
+      vendor_name: '',
+      booking_ref_no: '',
+      basis: '',
+      valid_till: null,
+      quantity: null,
+      remarks: '',
+      _vendorOptions: []
+    });
+    this.breakupRows = [...this.breakupRows];
+  }
+
+  removeBreakupRow(index: number) {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this booking breakup?\n\nThis will also delete all related sub breakups\nThis action cannot be undone.',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Yes, Delete',
+      rejectLabel: 'Cancel',
+      accept: () => {
+        this.breakupRows.splice(index, 1);
+        this.breakupRows = [...this.breakupRows];
+        this.onBreakupQuantityChange();
+        this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Booking breakup removed' });
+      }
+    });
+  }
+
+  getVendorsByType(type: any) {
+    const t = (type || '').toString().toLowerCase();
+    if (!t) return [];
+    return (this.allVendors || [])
+      .filter((v: any) => (v.type || '').toString().toLowerCase() === t)
+      .map((v: any) => ({ label: v.name2 || v.name || v.vendor_name, value: v.name2 || v.name || v.vendor_name }));
+  }
+
+  onBreakupVendorTypeChange(row: any, isUserChange: boolean = false) {
+    row._vendorOptions = this.getVendorsByType(row.vendor_type);
+    if (isUserChange) {
+      row.vendor_name = '';
+    }
+  }
+
+  triggerSubVendorTypeSelection() {
+    if (!this.currentBooking.sub_breakup_vendor_type) {
+      this.showSubVendorTypeDialog = true;
+    }
+  }
+
+  confirmSubVendorType(type: string) {
+    this.currentBooking.sub_breakup_vendor_type = type;
+    this.refreshSubVendorOptions();
+    this.showSubVendorTypeDialog = false;
+  }
+
+  refreshSubVendorOptions() {
+    const type = this.currentBooking.sub_breakup_vendor_type;
+    if (!type) {
+      this.subVendorOptions = [];
+      return;
+    }
+    const t = type.toLowerCase();
+    this.subVendorOptions = (this.allVendors || [])
+      .filter((v: any) => (v.type || '').toString().toLowerCase() === t)
+      .map((v: any) => ({ label: v.name2 || v.name || v.vendor_name, value: v.name2 || v.name || v.vendor_name }));
+  }
+
+  get breakupType(): string {
+    if (!this.currentBooking?.service_type || !this.allServiceTypes) return '';
+    const stValue = this.currentBooking.service_type;
+    const st = this.allServiceTypes.find(s => s.name === stValue || s.code === stValue);
+    return st?.booking_breakup || '';
+  }
+
+  onBreakupQuantityChange() {
+    const type = this.breakupType;
+    if (!type) {
+      this.containerBreakupRows = [];
+      this.packageBreakupRows = [];
+      return;
+    }
+
+    if (type === 'CONTAINER BREAKUP') {
+      this.syncSubBreakupRows(this.containerBreakupRows, 'container');
+    } else if (type === 'PACKAGE BREAKUP') {
+      this.syncSubBreakupRows(this.packageBreakupRows, 'package');
+    }
+  }
+
+  syncSubBreakupRows(subRows: any[], subType: 'container' | 'package') {
+    const newSubRows: any[] = [];
+
+    // Sort main rows by breakup_no or maintain array order? 
+    // Array order is safer for user expectation.
+    this.breakupRows.forEach((mainRow) => {
+      const qty = parseInt(mainRow.quantity) || 0;
+      // Use breakup_no as the stable key to find existing sub-rows
+      const mySubRows = subRows.filter(sr => sr.breakup_no === mainRow.breakup_no);
+
+      for (let i = 0; i < qty; i++) {
+        const existing = mySubRows[i];
+
+        if (existing) {
+          existing.vendor_name = mainRow.vendor_name;
+          existing.booking_ref_no = mainRow.booking_ref_no;
+          existing.basis = mainRow.basis;
+          newSubRows.push(existing);
+        } else {
+          const newRow: any = {
+            breakup_no: mainRow.breakup_no,
+            vendor_name: mainRow.vendor_name,
+            booking_ref_no: mainRow.booking_ref_no,
+            basis: mainRow.basis
+          };
+          if (subType === 'container') {
+            newRow.container_no = '';
+            newRow.pickup_handover_date = null;
+            newRow.empty_yard = '';
+          } else {
+            newRow.package_no = '';
+            newRow.length_cm = 0;
+            newRow.width_cm = 0;
+            newRow.height_cm = 0;
+            newRow.weight_kgs = 0;
+            newRow.handover_date = null;
+            newRow.carting = '';
+          }
+          newSubRows.push(newRow);
+        }
+      }
+    });
+
+    if (subType === 'container') this.containerBreakupRows = newSubRows;
+    else this.packageBreakupRows = newSubRows;
+  }
+
+  removeSubBreakupRow(index: number, type: 'container' | 'package') {
+    const rows = type === 'container' ? this.containerBreakupRows : this.packageBreakupRows;
+    const row = rows[index];
+    const bNo = row.breakup_no;
+    const mainRow = this.breakupRows.find(br => br.breakup_no === bNo);
+    const currentQty = mainRow ? (parseInt(mainRow.quantity) || 0) : 0;
+
+    this.confirmationService.confirm({
+      message: `Are you sure you want to delete this sub breakup?\n\nIf you delete this row, the quantity in booking breakup\nwill be updated automatically.\n\nThis action cannot be undone.`,
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Yes, Delete',
+      rejectLabel: 'Cancel',
+      accept: () => {
+        if (mainRow) {
+          if (currentQty > 0) {
+            rows.splice(index, 1);
+            mainRow.quantity = currentQty - 1;
+            this.onBreakupQuantityChange();
+          }
+        }
+        this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Sub breakup removed' });
+      }
+    });
+  }
+
+  getBasisOptions() {
+    const bases = (this.lineItemsRows || []).map(li => li.basis).filter(b => !!b);
+    return Array.from(new Set(bases)).map(b => ({ label: b, value: b }));
   }
 
   openMasterLocation() { this.showMasterLocationDialog = true; }

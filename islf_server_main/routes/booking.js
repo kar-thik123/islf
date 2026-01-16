@@ -83,7 +83,7 @@ router.post('/', async (req, res) => {
   const username = getUsernameFromToken(req);
   try {
     // await ensureBookingTable();
-    const { booking_type, criteria, selected_enquiries = [], freeze, customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status = 'Open', remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
+    const { booking_type, criteria, selected_enquiries = [], freeze, customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status = 'Open', remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, booking_breakup, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type, sub_breakup_vendor_type } = req.body || {};
 
     // Resolve User Context for Number Series
     const userRes = await pool.query('SELECT company_code, branch_code, department_code FROM users WHERE username = $1', [username]);
@@ -191,8 +191,8 @@ router.post('/', async (req, res) => {
           Array.isArray(vendorSnap) ? (vendorSnap[0]?.negotiated_charges || null) : (vendorSnap ? vendorSnap.negotiated_charges : null)
         );
         await client.query(
-          `INSERT INTO booking (booking_no, booking_type, enquiry_id, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, carriage_map, cargo, schedules, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
+          `INSERT INTO booking (booking_no, booking_type, enquiry_id, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, carriage_map, cargo, schedules, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type, sub_breakup_vendor_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
           [
             bookingNo,
             'from_enquiry',
@@ -220,7 +220,8 @@ router.post('/', async (req, res) => {
             enq.department_code || effectiveDept || null,
             enq.service_type_code || serviceTypeCode || null,
             username,
-            enq.enquiry_type || enquiry_type || null
+            enq.enquiry_type || enquiry_type || null,
+            sub_breakup_vendor_type || null
           ]
         );
         const bRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
@@ -262,11 +263,18 @@ router.post('/', async (req, res) => {
               [bookingId, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc)]
             );
           }
+          const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
+          for (const bk of breakupArr) {
+            await client.query(
+              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null]
+            );
+          }
         }
       } else if (booking_type === 'from_enquiry') {
         await client.query(
-          `INSERT INTO booking (booking_no, booking_type, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+          `INSERT INTO booking (booking_no, booking_type, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type, sub_breakup_vendor_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
           [
             bookingNo,
             'from_enquiry',
@@ -287,7 +295,8 @@ router.post('/', async (req, res) => {
             departmentCode || effectiveDept || null,
             serviceTypeCode || null,
             username,
-            enquiry_type || null
+            enquiry_type || null,
+            sub_breakup_vendor_type || null
           ]
         );
         const bRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
@@ -315,11 +324,18 @@ router.post('/', async (req, res) => {
               [bookingId, chargeName, currencyVal, basisVal, amountVal, sellRateCur, sellRateVal, gstVatVal, remarksVal, JSON.stringify(ch)]
             );
           }
+          const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
+          for (const bk of breakupArr) {
+            await client.query(
+              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null]
+            );
+          }
         }
       } else {
         await client.query(
-          `INSERT INTO booking (booking_no, booking_type, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+          `INSERT INTO booking (booking_no, booking_type, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type, sub_breakup_vendor_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)`,
           [
             bookingNo,
             'manual',
@@ -345,7 +361,8 @@ router.post('/', async (req, res) => {
             departmentCode || effectiveDept || null,
             serviceTypeCode || null,
             username,
-            enquiry_type || null
+            enquiry_type || null,
+            sub_breakup_vendor_type || null
           ]
         );
         const bRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
@@ -395,6 +412,34 @@ router.post('/', async (req, res) => {
               [bookingId, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc)]
             );
           }
+          const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
+          for (const bk of breakupArr) {
+            const bkRes = await client.query(
+              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
+            );
+            const bkId = bkRes.rows[0].id;
+
+            // Handle container breakup
+            if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
+              for (const cb of bk.container_breakup) {
+                await client.query(
+                  `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
+                );
+              }
+            }
+
+            // Handle package breakup
+            if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
+              for (const pb of bk.package_breakup) {
+                await client.query(
+                  `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
+                );
+              }
+            }
+          }
         }
       }
       await client.query('COMMIT');
@@ -418,7 +463,7 @@ router.put('/:id', async (req, res) => {
   const username = getUsernameFromToken(req);
   try {
     // await ensureBookingTable();
-    const { booking_type, selected_enquiries = [], customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type } = req.body || {};
+    const { booking_type, selected_enquiries = [], customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type, booking_breakup, sub_breakup_vendor_type } = req.body || {};
 
     const client = await pool.connect();
     try {
@@ -451,9 +496,10 @@ router.put('/:id', async (req, res) => {
            service_type_code = COALESCE($22, service_type_code),
            enquiry_type = COALESCE($23, enquiry_type),
            schedules = COALESCE($24, schedules),
-           updated_by = $25,
+           sub_breakup_vendor_type = COALESCE($25, sub_breakup_vendor_type),
+           updated_by = $26,
            updated_at = NOW()
-         WHERE id = $26`,
+         WHERE id = $27`,
         [
           booking_type || null,
           JSON.stringify(selected_enquiries || []),
@@ -479,10 +525,42 @@ router.put('/:id', async (req, res) => {
           serviceTypeCode || null,
           enquiry_type || null,
           schedules ? JSON.stringify(schedules) : null,
+          sub_breakup_vendor_type || null,
           username,
           id
         ]
       );
+
+      // Handle Booking Breakup
+      await client.query('DELETE FROM booking_breakup WHERE booking_id = $1', [id]);
+      const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
+      for (const bk of breakupArr) {
+        const bkRes = await client.query(
+          `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+          [id, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
+        );
+        const bkId = bkRes.rows[0].id;
+
+        // Handle container breakup
+        if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
+          for (const cb of bk.container_breakup) {
+            await client.query(
+              `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+              [id, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
+            );
+          }
+        }
+
+        // Handle package breakup
+        if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
+          for (const pb of bk.package_breakup) {
+            await client.query(
+              `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+              [id, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
+            );
+          }
+        }
+      }
 
       // Handle Child Tables: Delete and Re-insert
       await client.query('DELETE FROM booking_line_items WHERE booking_id = $1', [id]);
@@ -551,11 +629,22 @@ router.put('/:id', async (req, res) => {
 
 router.get('/:bookingNo', async (req, res) => {
   try {
-    // await ensureBookingTable();
     const { bookingNo } = req.params;
     const { rows } = await pool.query('SELECT * FROM booking WHERE booking_no = $1', [bookingNo]);
     if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
-    res.json(rows[0]);
+
+    const booking = rows[0];
+    const breakupRes = await pool.query('SELECT * FROM booking_breakup WHERE booking_id = $1 ORDER BY id', [booking.id]);
+    const breakupRows = breakupRes.rows;
+    for (let row of breakupRows) {
+      const containerRes = await pool.query('SELECT * FROM booking_container_breakup WHERE booking_breakup_id = $1', [row.id]);
+      row.container_breakup = containerRes.rows;
+      const packageRes = await pool.query('SELECT * FROM booking_package_breakup WHERE booking_breakup_id = $1', [row.id]);
+      row.package_breakup = packageRes.rows;
+    }
+    booking.booking_breakup = breakupRows;
+
+    res.json(booking);
   } catch (error) {
     console.error('Get booking error:', error);
     res.status(500).json({ error: 'Internal server error' });
