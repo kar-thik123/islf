@@ -170,7 +170,12 @@ router.post('/', async (req, res) => {
             if (r.enquiry_line_item_id) liVendorMap[r.enquiry_line_item_id] = r.vendor_name || null;
           }
         }
-        lineItemSnap = lineItemSnap || lis.map(li => ({ ...li, sourced_vendor: liVendorMap[li.id] || li.sourced_vendor || null }));
+        lineItemSnap = lineItemSnap || lis.map(li => ({
+          ...li,
+          sourced_vendor: liVendorMap[li.id] || li.sourced_vendor || null,
+          enq_no: enq.code || null,
+          enq_exp: enq.effective_date_to || null
+        }));
         let carr = [];
         if (ids.length > 0) {
           const resCarr = await client.query(`SELECT * FROM enquiry_carriage_mapping WHERE enquiry_id = ANY($1) ORDER BY id`, [ids]);
@@ -230,8 +235,8 @@ router.post('/', async (req, res) => {
           const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
           for (const li of liArr) {
             await client.query(
-              `INSERT INTO booking_line_items (booking_id, s_no, quantity, basis, remarks, status) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (booking_id, s_no) DO NOTHING`,
-              [bookingId, li.s_no || null, li.quantity || null, li.basis || null, li.remarks || null, li.status || 'Active']
+              `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (booking_id, s_no) DO NOTHING`,
+              [bookingId, li.s_no || null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null]
             );
           }
           const chArr = Array.isArray(chargesSnap) ? chargesSnap : (Array.isArray(chargesSnap?.list) ? chargesSnap.list : []);
@@ -371,8 +376,8 @@ router.post('/', async (req, res) => {
           const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
           for (const li of liArr) {
             await client.query(
-              `INSERT INTO booking_line_items (booking_id, s_no, quantity, basis, remarks, status) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (booking_id, s_no) DO NOTHING`,
-              [bookingId, (li.s_no ?? null) ?? null, li.quantity || null, li.basis || null, li.remarks || null, li.status || 'Active']
+              `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (booking_id, s_no) DO NOTHING`,
+              [bookingId, (li.s_no ?? null) ?? null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null]
             );
           }
           const chArr = Array.isArray(chargesSnap) ? chargesSnap : [];
@@ -567,8 +572,8 @@ router.put('/:id', async (req, res) => {
       const liArr = Array.isArray(line_items) ? line_items : [];
       for (const li of liArr) {
         await client.query(
-          `INSERT INTO booking_line_items (booking_id, s_no, quantity, basis, remarks, status) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [id, (li.s_no ?? null) ?? null, li.quantity || null, li.basis || null, li.remarks || null, li.status || 'Active']
+          `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [id, (li.s_no ?? null) ?? null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null]
         );
       }
 

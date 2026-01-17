@@ -340,51 +340,42 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       <p-table [value]="lineItemsRows" [showGridlines]="true">
         <ng-template pTemplate="header">
           <tr>
+            <th>EnqNo</th>
+            <th>EnqExp</th>
             <th>Type</th>
             <th>Service Area</th>
             <th>Basis</th>
             <th>From</th>
             <th>To</th>
             <th>Sourced Vendor</th>
-            <th>Basis Qty</th>
-            <th>Booking Ref</th>
-            <th>Valid Till</th>
             <th>Status</th>
             <th>Remarks</th>
-            <th>Schedule</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-li>
           <tr>
+            <td><input pInputText class="bg-gray-50" [readonly]="true" [(ngModel)]="li.enq_no"/></td>
+            <td><input pInputText class="bg-gray-50" [readonly]="true" [value]="li.enq_exp | configDate"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.type"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.service_area"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.basis"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.from_location"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.to_location"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.sourced_vendor"/></td>
-            <td><input pInputText class="bg-orange-50" [(ngModel)]="li.basis_qty"/></td>
-            <td><input pInputText class="bg-orange-50" [(ngModel)]="li.booking_ref"/></td>
-            <td>
-              <p-calendar [(ngModel)]="li.valid_till" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-40" [inputStyle]="{ width: '200px' }" [style]="{ width: '250px' }"></p-calendar>
-            </td>
             <td>
               <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" class="w-60" appendTo="body"></p-dropdown>
             </td>
             <td><input pInputText class="bg-orange-50" [(ngModel)]="li.remarks"/></td>
-            <td>
-              <p-dropdown [options]="yesNoOptions" [(ngModel)]="li.schedule" (onChange)="onLineItemScheduleChange(li)" appendTo="body"></p-dropdown>
-            </td>
           </tr>
         </ng-template>
       </p-table>
 
       <div class="section-header">Schedule</div>
-      <div *ngFor="let svc of scheduleServiceKeys()" class="mb-4">
-        <div class="flex items-center justify-between mb-2">
-          <div class="font-semibold">{{ svc }}</div>
-          <button pButton label="+ Add Transit" class="p-button-sm" (click)="addTransit(svc)"></button>
+      <div class="mb-4">
+        <div class="flex items-center mb-2">
+          <button pButton label="+ Add Transit" class="p-button-sm" (click)="addTransit()"></button>
         </div>
-        <p-table [value]="scheduleGroups[svc]" [showGridlines]="true">
+        <p-table [value]="scheduleRows" [showGridlines]="true">
           <ng-template pTemplate="header">
             <tr>
               <th>Transit Count</th>
@@ -396,11 +387,12 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <th>Voyage / Flight No</th>
               <th>ETD</th>
               <th>ETA</th>
+              <th>Action</th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-trn let-i="rowIndex">
             <tr>
-              <td>{{ iToOneBased(trn.transit_count) }}</td>
+              <td>{{ i + 1 }}</td>
               <td>
                 <div class="flex gap-2 items-center">
                   <p-dropdown [(ngModel)]="trn.from_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onTransitLocTypeChange(trn, 'from')"></p-dropdown>
@@ -465,6 +457,9 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <td>
                 <p-calendar [(ngModel)]="trn.eta" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
+              <td>
+                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeTransitRow(i)"></button>
+              </td>
             </tr>
           </ng-template>
         </p-table>
@@ -527,6 +522,14 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         <p-table [value]="containerBreakupRows" [showGridlines]="true">
           <ng-template pTemplate="header">
             <tr>
+              <th colspan="8" class="bg-gray-50">
+                <div class="flex justify-between items-center px-2 py-1">
+                  <span>Container Breakup Details</span>
+                  <button *ngIf="currentBooking.sub_breakup_vendor_type" pButton label="Change Vendor Type" icon="pi pi-refresh" class="p-button-outlined p-button-warning p-button-sm" (click)="changeSubVendorType()"></button>
+                </div>
+              </th>
+            </tr>
+            <tr>
               <th>Breakup No.</th>
               <th>Vendor Name</th>
               <th>Ref No.</th>
@@ -563,6 +566,14 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         <div class="section-header mt-4 text-blue-700">Package Breakup Details</div>
         <p-table [value]="packageBreakupRows" [showGridlines]="true">
           <ng-template pTemplate="header">
+            <tr>
+              <th colspan="12" class="bg-gray-50">
+                <div class="flex justify-between items-center px-2 py-1">
+                  <span>Package Breakup Details</span>
+                  <button *ngIf="currentBooking.sub_breakup_vendor_type" pButton label="Change Vendor Type" icon="pi pi-refresh" class="p-button-outlined p-button-warning p-button-sm" (click)="changeSubVendorType()"></button>
+                </div>
+              </th>
+            </tr>
             <tr>
               <th>Breakup No.</th>
               <th>Vendor Name</th>
@@ -656,7 +667,7 @@ export class BookingComponent implements OnInit {
   cargoRows: any[] = [];
   carriageRows: any[] = [];
   lineItemsRows: any[] = [];
-  scheduleGroups: { [service: string]: any[] } = {};
+  scheduleRows: any[] = [];
   breakupRows: any[] = [];
   containerBreakupRows: any[] = [];
   packageBreakupRows: any[] = [];
@@ -960,10 +971,13 @@ export class BookingComponent implements OnInit {
       cargo: this.cargoRows,
       carriage_map: this.carriageRows,
       line_items: this.lineItemsRows.map(li => ({
-        ...li,
-        valid_till: this.formatDate(li.valid_till)
+        ...li
       })),
-      schedules: this.scheduleGroups,
+      schedules: this.scheduleRows.map(s => ({
+        ...s,
+        etd: this.formatDate(s.etd),
+        eta: this.formatDate(s.eta)
+      })),
       booking_breakup: this.breakupRows.map(bk => {
         const rowData = { ...bk };
         if (this.breakupType === 'CONTAINER BREAKUP') {
@@ -1057,20 +1071,21 @@ export class BookingComponent implements OnInit {
         this.carriageRows = Array.isArray((b as any)?.carriage_map) ? (b as any).carriage_map : [];
         const rawItems = Array.isArray((b as any)?.line_items) ? (b as any).line_items : [];
 
-        // Init Schedule Groups and their options
-        this.scheduleGroups = {};
+        // Initialize Schedule Rows
+        this.scheduleRows = [];
         const scheds = (b as any)?.schedules || [];
         if (Array.isArray(scheds)) {
-          scheds.forEach((s: any) => {
-            const key = s.service || 'SERVICE';
-            if (!this.scheduleGroups[key]) this.scheduleGroups[key] = [];
-            this.scheduleGroups[key].push({
-              ...s,
-              etd: this.parseDate(s.etd),
-              eta: this.parseDate(s.eta),
-              _fromLocationOptions: this.getLocationsByType(s.from_location_type),
-              _toLocationOptions: this.getLocationsByType(s.to_location_type)
-            });
+          this.scheduleRows = scheds.map((s: any) => ({
+            ...s,
+            etd: this.parseDate(s.etd),
+            eta: this.parseDate(s.eta),
+            _fromLocationOptions: this.getLocationsByType(s.from_location_type),
+            _toLocationOptions: this.getLocationsByType(s.to_location_type),
+            _flightNoOptions: [] // Will be populated by onAirlineChange if needed
+          }));
+          // Pre-populate flight options for airlines
+          this.scheduleRows.forEach(s => {
+            if (this.getScheduleType() === 'Airline') this.onAirlineChange(s);
           });
         }
 
@@ -1088,16 +1103,12 @@ export class BookingComponent implements OnInit {
           });
           const vendorName = validVendor?.vendor_name || li.sourced_vendor || (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
 
-          const key = li.service_area || li.type || 'SERVICE';
-          const hasSchedule = (this.scheduleGroups[key] && this.scheduleGroups[key].length > 0) ? 'YES' : 'NO';
-
           return {
             ...li,
             from_location: toLabel(li.from_location || li.line_from_location || li.line_from_location_name || ''),
             to_location: toLabel(li.to_location || li.line_to_location || li.line_to_location_name || ''),
             sourced_vendor: vendorName,
-            valid_till: this.parseDate(li.valid_till),
-            schedule: hasSchedule
+            status: li.status || 'Active'
           };
         });
 
@@ -1225,53 +1236,6 @@ export class BookingComponent implements OnInit {
     this.cargoRows = [...this.cargoRows];
   }
 
-  addTransit(service: string) {
-    if (!this.scheduleGroups[service]) this.scheduleGroups[service] = [];
-    const cnt = this.scheduleGroups[service].length;
-    this.scheduleGroups[service] = [...this.scheduleGroups[service], {
-      service,
-      transit_count: cnt,
-      from_location_type: '',
-      from_location: '',
-      to_location_type: '',
-      to_location: '',
-      vessel_airline: '',
-      voyage_flight_no: '',
-      etd: '',
-      eta: '',
-      _fromLocationOptions: [],
-      _toLocationOptions: []
-    }];
-  }
-
-  onLineItemScheduleChange(li: any) {
-    const key = li.service_area || li.type || 'SERVICE';
-    if ((li.schedule || '').toString().toUpperCase() === 'YES') {
-      if (!this.scheduleGroups[key] || this.scheduleGroups[key].length === 0) {
-        this.addTransit(key);
-      }
-    } else {
-      delete this.scheduleGroups[key];
-    }
-  }
-
-  scheduleServiceKeys(): string[] {
-    const yesServices = new Set(
-      this.lineItemsRows
-        .filter(li => (li.schedule || '').toString().toUpperCase() === 'YES')
-        .map(li => li.service_area || li.type || 'SERVICE')
-    );
-    return Array.from(yesServices).filter(k => !!this.scheduleGroups[k]);
-  }
-
-  flattenSchedules(): any[] {
-    const out: any[] = [];
-    for (const k of Object.keys(this.scheduleGroups)) for (const t of this.scheduleGroups[k]) out.push({ ...t, service: k });
-    return out;
-  }
-
-  iToOneBased(v: any) { const n = Number(v ?? 0); return isNaN(n) ? '' : (n + 1); }
-
   locName(code: any) {
     const key = (code || '').toString();
     return this.locationMap[key] || key;
@@ -1387,6 +1351,28 @@ export class BookingComponent implements OnInit {
     this.currentBooking.sub_breakup_vendor_type = type;
     this.refreshSubVendorOptions();
     this.showSubVendorTypeDialog = false;
+  }
+
+  changeSubVendorType() {
+    this.confirmationService.confirm({
+      message: '⚠ Changing vendor type will clear all selected vendor names. Do you want to continue?',
+      header: 'Confirm Change Vendor Type',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'YES',
+      rejectLabel: 'NO',
+      accept: () => {
+        // Clear all vendor selections in sub breakup rows
+        this.containerBreakupRows.forEach(row => row.empty_yard = '');
+        this.packageBreakupRows.forEach(row => row.carting = '');
+
+        // Reset stored vendor type
+        this.currentBooking.sub_breakup_vendor_type = '';
+
+        // Refresh options and show selection popup again
+        this.refreshSubVendorOptions();
+        this.showSubVendorTypeDialog = true;
+      }
+    });
   }
 
   refreshSubVendorOptions() {
@@ -1540,7 +1526,27 @@ export class BookingComponent implements OnInit {
     // Deprecated: Logic moved to saveFromEnquiries
   }
 
-  addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', basis_qty: '', booking_ref: '', valid_till: '', status: 'Active', remarks: '', schedule: 'NO' }]; }
+  addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { enq_no: '', enq_exp: '', type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', status: 'Active', remarks: '' }]; }
+
+  addTransit() {
+    this.scheduleRows = [...this.scheduleRows, {
+      from_location_type: '',
+      from_location: '',
+      to_location_type: '',
+      to_location: '',
+      vessel_airline: '',
+      voyage_flight_no: '',
+      etd: null,
+      eta: null,
+      _fromLocationOptions: [],
+      _toLocationOptions: [],
+      _flightNoOptions: []
+    }];
+  }
+
+  removeTransitRow(idx: number) {
+    this.scheduleRows = this.scheduleRows.filter((_, i) => i !== idx);
+  }
 
   getScheduleType(): string {
     if (!this.currentBooking?.service_type) return 'Vessel';

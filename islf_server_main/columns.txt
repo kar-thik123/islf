@@ -1,0 +1,3 @@
+booking columns: id, booking_no, booking_type, enquiry_id, selected_enquiries, customer_id, customer_name, mail_id, phone_no1, phone_no2, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, company_code, branch_code, department_code, service_type_code, created_at, updated_at, created_by, updated_by, source_sales_person, enquiry_type, sub_breakup_vendor_type
+
+booking_line_items columns: id, booking_id, s_no, quantity, basis, remarks, status, created_at, updated_at
