@@ -3,6 +3,20 @@ const router = express.Router();
 const pool = require('../db');
 const { getUsernameFromToken } = require('../utils/context-helper');
 
+// Utility for safe JSON parsing (handles jsonb objects and strings)
+const safeJsonParse = (val) => {
+  if (typeof val === 'object' && val !== null) return val;
+  if (typeof val === 'string') {
+    try {
+      return JSON.parse(val || '[]');
+    } catch (e) {
+      console.error('JSON parse error:', e, 'Value:', val);
+      return [];
+    }
+  }
+  return [];
+};
+
 
 router.get('/', async (req, res) => {
   try {
@@ -621,13 +635,13 @@ router.put('/:id', async (req, res) => {
     } catch (e) {
       await client.query('ROLLBACK');
       console.error('Error updating booking:', e);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Internal server error', details: e.message });
     } finally {
       client.release();
     }
   } catch (error) {
     console.error('Update booking route error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -649,9 +663,210 @@ router.get('/:bookingNo', async (req, res) => {
     }
     booking.booking_breakup = breakupRows;
 
+    // Fetch quote mappings
+    const quoteMappingsRes = await pool.query('SELECT * FROM booking_quote_mapping WHERE booking_id = $1 ORDER BY breakup_number, enquiry_no', [booking.id]);
+    booking.quote_mappings = quoteMappingsRes.rows;
+
     res.json(booking);
   } catch (error) {
     console.error('Get booking error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+
+// =====================================================
+// QUOTE MAPPING ENDPOINTS
+// =====================================================
+
+// Get all quote mappings for a booking
+router.get('/:bookingNo/quote-mappings', async (req, res) => {
+  try {
+    const { bookingNo } = req.params;
+    const bookingRes = await pool.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
+    if (bookingRes.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+    const bookingId = bookingRes.rows[0].id;
+    const { rows } = await pool.query(
+      'SELECT * FROM booking_quote_mapping WHERE booking_id = $1 ORDER BY breakup_number, enquiry_no',
+      [bookingId]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Get quote mappings error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get enquiries associated with a booking
+router.get('/:bookingNo/enquiries', async (req, res) => {
+  try {
+    const { bookingNo } = req.params;
+    const { rows } = await pool.query('SELECT selected_enquiries FROM booking WHERE booking_no = $1', [bookingNo]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+    const selectedEnquiries = safeJsonParse(rows[0].selected_enquiries);
+    res.json(selectedEnquiries);
+  } catch (error) {
+    console.error('Get booking enquiries error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get line item types for a specific enquiry
+router.get('/:bookingNo/enquiry/:enquiryNo/line-item-types', async (req, res) => {
+  try {
+    const { bookingNo, enquiryNo } = req.params;
+
+    // Verify booking exists and enquiry is associated
+    const bookingRes = await pool.query('SELECT selected_enquiries FROM booking WHERE booking_no = $1', [bookingNo]);
+    if (bookingRes.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+    const selectedEnquiries = safeJsonParse(bookingRes.rows[0].selected_enquiries);
+    const enquiryCodes = selectedEnquiries.map(e => e.code);
+
+    if (!enquiryCodes.includes(enquiryNo)) {
+      return res.status(400).json({ error: 'Enquiry not associated with this booking' });
+    }
+
+    // Get enquiry ID
+    const enquiryRes = await pool.query('SELECT id FROM enquiry WHERE code = $1', [enquiryNo]);
+    if (enquiryRes.rows.length === 0) return res.status(404).json({ error: 'Enquiry not found' });
+
+    const enquiryId = enquiryRes.rows[0].id;
+
+    // Get distinct line item types
+    const { rows } = await pool.query(
+      'SELECT DISTINCT type FROM enquiry_line_items WHERE enquiry_id = $1 AND type IS NOT NULL ORDER BY type',
+      [enquiryId]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Get line item types error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Save/update quote mappings for a booking
+router.post('/:bookingNo/quote-mappings', async (req, res) => {
+  const username = getUsernameFromToken(req);
+  try {
+    const { bookingNo } = req.params;
+    const { mappings } = req.body;
+
+    if (!Array.isArray(mappings)) {
+      return res.status(400).json({ error: 'Mappings must be an array' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Get booking ID
+      const bookingRes = await client.query('SELECT id, selected_enquiries FROM booking WHERE booking_no = $1', [bookingNo]);
+      if (bookingRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      const bookingId = bookingRes.rows[0].id;
+      const selectedEnquiries = safeJsonParse(bookingRes.rows[0].selected_enquiries);
+      const enquiryCodes = selectedEnquiries.map(e => e.code);
+
+      // Delete existing mappings
+      await client.query('DELETE FROM booking_quote_mapping WHERE booking_id = $1', [bookingId]);
+
+      // Insert new mappings with validation
+      for (const mapping of mappings) {
+        const { breakup_type, breakup_number, enquiry_no, line_item_type } = mapping;
+
+        // Validate required fields
+        if (!breakup_type || !breakup_number || !enquiry_no || !line_item_type) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Missing required fields in mapping' });
+        }
+
+        // Validate enquiry is associated with booking
+        if (!enquiryCodes.includes(enquiry_no)) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Enquiry ${enquiry_no} is not associated with this booking` });
+        }
+
+        // Get enquiry ID and validate line item type
+        const enquiryRes = await client.query('SELECT id FROM enquiry WHERE code = $1', [enquiry_no]);
+        if (enquiryRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `Enquiry ${enquiry_no} not found` });
+        }
+
+        const enquiryId = enquiryRes.rows[0].id;
+
+        const lineItemRes = await client.query(
+          'SELECT COUNT(*) FROM enquiry_line_items WHERE enquiry_id = $1 AND type = $2',
+          [enquiryId, line_item_type]
+        );
+
+        if (parseInt(lineItemRes.rows[0].count) === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Line item type "${line_item_type}" not found for enquiry ${enquiry_no}` });
+        }
+
+        // Insert mapping
+        await client.query(
+          `INSERT INTO booking_quote_mapping 
+           (booking_id, booking_no, breakup_type, breakup_number, enquiry_no, enquiry_id, line_item_type, created_by) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [bookingId, bookingNo, breakup_type, breakup_number, enquiry_no, enquiryId, line_item_type, username]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      // Fetch and return saved mappings
+      const savedMappings = await client.query(
+        'SELECT * FROM booking_quote_mapping WHERE booking_id = $1 ORDER BY breakup_number, enquiry_no',
+        [bookingId]
+      );
+
+      res.json({ message: 'Quote mappings saved successfully', mappings: savedMappings.rows });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('Save quote mappings error:', e);
+      res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Save quote mappings route error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a specific quote mapping
+router.delete('/:bookingNo/quote-mappings/:id', async (req, res) => {
+  try {
+    const { bookingNo, id } = req.params;
+
+    // Verify booking exists
+    const bookingRes = await pool.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
+    if (bookingRes.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+    const bookingId = bookingRes.rows[0].id;
+
+    // Delete mapping
+    const result = await pool.query(
+      'DELETE FROM booking_quote_mapping WHERE id = $1 AND booking_id = $2 RETURNING *',
+      [id, bookingId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Quote mapping not found' });
+    }
+
+    res.json({ message: 'Quote mapping deleted successfully', deleted: result.rows[0] });
+  } catch (error) {
+    console.error('Delete quote mapping error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

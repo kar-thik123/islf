@@ -546,7 +546,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <td><input pInputText [ngModel]="cb.vendor_name" class="bg-gray-50" readonly /></td>
               <td><input pInputText [ngModel]="cb.booking_ref_no" class="bg-gray-50" readonly /></td>
               <td><input pInputText [ngModel]="cb.basis" class="bg-gray-50" readonly /></td>
-              <td><input pInputText [(ngModel)]="cb.container_no" placeholder="Container No" class="bg-orange-50" /></td>
+              <td><input pInputText [(ngModel)]="cb.container_no" placeholder="Container No" class="bg-orange-50" (ngModelChange)="initializeQuoteMappings()"/></td>
               <td>
                 <p-calendar [(ngModel)]="cb.pickup_handover_date" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [style]="{'width':'50%'}" class="bg-orange-50"></p-calendar>
               </td>
@@ -595,7 +595,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <td><input pInputText [ngModel]="pb.vendor_name" class="bg-gray-50" readonly /></td>
               <td><input pInputText [ngModel]="pb.booking_ref_no" class="bg-gray-50" readonly /></td>
               <td><input pInputText [ngModel]="pb.basis" class="bg-gray-50" readonly /></td>
-              <td><input pInputText [(ngModel)]="pb.package_no" placeholder="Pkg No" class="bg-orange-50" /></td>
+              <td><input pInputText [(ngModel)]="pb.package_no" placeholder="Pkg No" class="bg-orange-50" (ngModelChange)="initializeQuoteMappings()"/></td>
               <td><input pInputText type="number" [(ngModel)]="pb.length_cm" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
               <td><input pInputText type="number" [(ngModel)]="pb.width_cm" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
               <td><input pInputText type="number" [(ngModel)]="pb.height_cm" [style]="{'width':'70px'}" class="bg-orange-50" /></td>
@@ -608,6 +608,69 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               </td>
               <td>
                 <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'package')"></button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <!-- Quote Mapping Section -->
+      <div *ngIf="breakupType === 'CONTAINER BREAKUP' || breakupType === 'PACKAGE BREAKUP'">
+        <div class="section-header mt-4 text-green-700">Quote Mapping</div>
+        <div class="mb-2">
+          <button pButton label="+ Add Mapping" class="p-button-sm p-button-success" (click)="addQuoteMappingRow()"></button>
+        </div>
+        <p-table [value]="quoteMappingRows" [showGridlines]="true">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>{{ breakupType === 'CONTAINER BREAKUP' ? 'Container No.' : 'Package No.' }}</th>
+              <th>Enquiry Number</th>
+              <th>Line Item Type</th>
+              <th>Action</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-qm let-i="rowIndex">
+            <tr>
+              <td>
+                <p-dropdown 
+                  [(ngModel)]="qm.breakup_number" 
+                  [options]="getBreakupNumberOptions()" 
+                  placeholder="Select Number" 
+                  appendTo="body" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  [style]="{'width':'150px'}"
+                  class="bg-orange-50"
+                ></p-dropdown>
+              </td>
+              <td>
+                <p-dropdown 
+                  [(ngModel)]="qm.enquiry_no" 
+                  [options]="enquiryOptions" 
+                  placeholder="Select Enquiry" 
+                  (onChange)="onEnquiryChange(qm)" 
+                  appendTo="body" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  [style]="{'width':'150px'}"
+                  class="bg-orange-50"
+                ></p-dropdown>
+              </td>
+              <td>
+                <p-dropdown 
+                  [(ngModel)]="qm.line_item_type" 
+                  [options]="qm._lineItemTypeOptions || []" 
+                  placeholder="Select Type" 
+                  appendTo="body" 
+                  [filter]="true" 
+                  filterBy="label" 
+                  [style]="{'width':'200px'}"
+                  class="bg-orange-50"
+                  [disabled]="!qm.enquiry_no"
+                ></p-dropdown>
+              </td>
+              <td>
+                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeQuoteMappingRow(i)"></button>
               </td>
             </tr>
           </ng-template>
@@ -686,6 +749,11 @@ export class BookingComponent implements OnInit {
   airlineOptions: any[] = [];
   allVessels: any[] = [];
   vesselOptions: any[] = [];
+
+  // Quote Mapping State
+  quoteMappingRows: any[] = [];
+  enquiryOptions: any[] = [];
+  lineItemTypeOptionsMap: { [enquiryNo: string]: any[] } = {};
 
   constructor(
     private bookingService: BookingService,
@@ -970,8 +1038,9 @@ export class BookingComponent implements OnInit {
       effective_date_to: this.formatDate(this.currentBooking.effective_date_to),
       cargo: this.cargoRows,
       carriage_map: this.carriageRows,
-      line_items: this.lineItemsRows.map(li => ({
-        ...li
+      line_items: this.lineItemsRows.map((li, index) => ({
+        ...li,
+        s_no: index + 1
       })),
       schedules: this.scheduleRows.map(s => ({
         ...s,
@@ -997,12 +1066,23 @@ export class BookingComponent implements OnInit {
 
     if (payload.id) {
       this.bookingService.updateBooking(payload.id, payload).subscribe({
-        next: (res) => { this.showBookingForm = false; this.loadBookings(); this.messageService.add({ severity: 'success', summary: 'Updated', detail: `Booking ${res.booking_no} updated` }); },
+        next: (res) => {
+          this.saveQuoteMappings();
+          this.showBookingForm = false;
+          this.loadBookings();
+          this.messageService.add({ severity: 'success', summary: 'Updated', detail: `Booking ${res.booking_no} updated` });
+        },
         error: () => { this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update booking' }); }
       });
     } else {
       this.bookingService.createManualBooking(payload).subscribe({
-        next: (res) => { this.showBookingForm = false; this.loadBookings(); this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Booking ${res.booking_no} created` }); },
+        next: (res) => {
+          this.currentBooking.booking_no = res.booking_no;
+          this.saveQuoteMappings();
+          this.showBookingForm = false;
+          this.loadBookings();
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Booking ${res.booking_no} created` });
+        },
         error: () => { this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to save booking' }); }
       });
     }
@@ -1208,6 +1288,11 @@ export class BookingComponent implements OnInit {
           this.pendingLinkEnquiries = [];
           this.messageService.add({ severity: 'info', summary: 'Enquiry Linked', detail: 'Please review and save changes' });
         }
+
+        // Initialize Quote Mapping
+        this.loadEnquiryOptions();
+        this.loadQuoteMappings();
+        this.initializeQuoteMappings();
 
         this.loading = false;
         this.showBookingForm = true;
@@ -1454,6 +1539,9 @@ export class BookingComponent implements OnInit {
 
     if (subType === 'container') this.containerBreakupRows = newSubRows;
     else this.packageBreakupRows = newSubRows;
+
+    // Trigger quote mapping update
+    this.initializeQuoteMappings();
   }
 
   removeSubBreakupRow(index: number, type: 'container' | 'package') {
@@ -1576,6 +1664,176 @@ export class BookingComponent implements OnInit {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  // =====================================================
+  // QUOTE MAPPING METHODS
+  // =====================================================
+
+  initializeQuoteMappings() {
+    const breakupNumbers = this.getBreakupNumbersList();
+    const existingMappings = new Set(this.quoteMappingRows.map(qm => qm.breakup_number));
+
+    // Create one row per breakup number if not already exists
+    breakupNumbers.forEach(num => {
+      if (!existingMappings.has(num)) {
+        this.quoteMappingRows.push({
+          breakup_number: num,
+          enquiry_no: null,
+          line_item_type: null,
+          _lineItemTypeOptions: []
+        });
+      }
+    });
+  }
+
+  getBreakupNumbersList(): string[] {
+    if (this.breakupType === 'CONTAINER BREAKUP') {
+      return this.containerBreakupRows
+        .map(cb => cb.container_no)
+        .filter(no => no && no.trim() !== '');
+    } else if (this.breakupType === 'PACKAGE BREAKUP') {
+      return this.packageBreakupRows
+        .map(pb => pb.package_no)
+        .filter(no => no && no.trim() !== '');
+    }
+    return [];
+  }
+
+  getBreakupNumberOptions(): any[] {
+    const numbers = this.getBreakupNumbersList();
+    return numbers.map(num => ({ label: num, value: num }));
+  }
+
+  loadEnquiryOptions() {
+    // Extract enquiries from selected_enquiries
+    let selectedEnquiries: any[] = [];
+    const val = this.currentBooking.selected_enquiries;
+
+    if (Array.isArray(val)) {
+      selectedEnquiries = val;
+    } else if (typeof val === 'string') {
+      try {
+        selectedEnquiries = JSON.parse(val || '[]');
+      } catch (e) {
+        console.error('Error parsing selected_enquiries:', e);
+        selectedEnquiries = [];
+      }
+    }
+
+    this.enquiryOptions = selectedEnquiries.map((enq: any) => ({
+      label: enq.code,
+      value: enq.code,
+      id: enq.id
+    }));
+  }
+
+  async onEnquiryChange(qm: any) {
+    if (!qm.enquiry_no) {
+      qm._lineItemTypeOptions = [];
+      qm.line_item_type = null;
+      return;
+    }
+
+    // Check cache first
+    if (this.lineItemTypeOptionsMap[qm.enquiry_no]) {
+      qm._lineItemTypeOptions = this.lineItemTypeOptionsMap[qm.enquiry_no];
+      return;
+    }
+
+    // Fetch line item types for selected enquiry
+    try {
+      const types = await this.bookingService.getEnquiryLineItemTypes(
+        this.currentBooking.booking_no!,
+        qm.enquiry_no
+      ).toPromise();
+
+      qm._lineItemTypeOptions = (types || []).map((t: any) => ({
+        label: t.type,
+        value: t.type
+      }));
+
+      // Cache for reuse
+      this.lineItemTypeOptionsMap[qm.enquiry_no] = qm._lineItemTypeOptions;
+    } catch (error) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to load line item types'
+      });
+    }
+  }
+
+  addQuoteMappingRow() {
+    this.quoteMappingRows.push({
+      breakup_number: null,
+      enquiry_no: null,
+      line_item_type: null,
+      _lineItemTypeOptions: []
+    });
+  }
+
+  removeQuoteMappingRow(index: number) {
+    this.quoteMappingRows.splice(index, 1);
+  }
+
+  loadQuoteMappings() {
+    if (!this.currentBooking.booking_no) return;
+
+    this.bookingService.getQuoteMappings(this.currentBooking.booking_no).subscribe({
+      next: (mappings) => {
+        this.quoteMappingRows = mappings.map(m => ({
+          id: m.id,
+          breakup_number: m.breakup_number,
+          enquiry_no: m.enquiry_no,
+          line_item_type: m.line_item_type,
+          _lineItemTypeOptions: []
+        }));
+
+        // Load line item type options for each mapping
+        this.quoteMappingRows.forEach(qm => {
+          if (qm.enquiry_no) {
+            this.onEnquiryChange(qm);
+          }
+        });
+      },
+      error: (err) => {
+        console.error('Failed to load quote mappings:', err);
+      }
+    });
+  }
+
+  async saveQuoteMappings() {
+    if (!this.currentBooking.booking_no) return;
+
+    // Filter out incomplete mappings
+    const validMappings = this.quoteMappingRows
+      .filter(qm => qm.breakup_number && qm.enquiry_no && qm.line_item_type)
+      .map(qm => ({
+        breakup_type: this.breakupType === 'CONTAINER BREAKUP' ? 'CONTAINER' : 'PACKAGE',
+        breakup_number: qm.breakup_number,
+        enquiry_no: qm.enquiry_no,
+        line_item_type: qm.line_item_type
+      }));
+
+    try {
+      await this.bookingService.saveQuoteMappings(
+        this.currentBooking.booking_no,
+        validMappings
+      ).toPromise();
+
+      /* this.messageService.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Quote mappings saved successfully'
+      }); */
+    } catch (error: any) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: error.error?.error || 'Failed to save quote mappings'
+      });
+    }
   }
 
   private parseDate(d: any): Date | null {
