@@ -55,7 +55,8 @@ router.post('/search-enquiries', async (req, res) => {
   try {
     // await ensureBookingTable();
     const { department, service_type, from_location, to_location } = req.body || {};
-    let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status
+    let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status,
+                 COALESCE((SELECT json_agg(ecm.*) FROM enquiry_carriage_mapping ecm WHERE ecm.enquiry_id = enquiry.id), '[]'::json) as carriage_map
                  FROM enquiry WHERE (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)`;
     const params = [];
     let idx = 1;
@@ -270,10 +271,31 @@ router.post('/', async (req, res) => {
           }
           const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
           for (const bk of breakupArr) {
-            await client.query(
-              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null]
+            const bkRes = await client.query(
+              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
             );
+            const bkId = bkRes.rows[0].id;
+
+            // Handle container breakup
+            if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
+              for (const cb of bk.container_breakup) {
+                await client.query(
+                  `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
+                );
+              }
+            }
+
+            // Handle package breakup
+            if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
+              for (const pb of bk.package_breakup) {
+                await client.query(
+                  `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
+                );
+              }
+            }
           }
         }
       } else if (booking_type === 'from_enquiry') {
@@ -310,8 +332,8 @@ router.post('/', async (req, res) => {
           const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
           for (const li of liArr) {
             await client.query(
-              `INSERT INTO booking_line_items (booking_id, s_no, quantity, basis, remarks, status) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (booking_id, s_no) DO NOTHING`,
-              [bookingId, li.s_no || null, li.quantity || null, li.basis || null, li.remarks || null, li.status || 'Active']
+              `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (booking_id, s_no) DO NOTHING`,
+              [bookingId, li.s_no || null, li.basis || null, li.remarks || null, li.status || 'Active']
             );
           }
           const chArr = Array.isArray(chargesSnap) ? chargesSnap : (Array.isArray(chargesSnap?.list) ? chargesSnap.list : []);
@@ -331,10 +353,31 @@ router.post('/', async (req, res) => {
           }
           const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
           for (const bk of breakupArr) {
-            await client.query(
-              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null]
+            const bkRes = await client.query(
+              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
             );
+            const bkId = bkRes.rows[0].id;
+
+            // Handle container breakup
+            if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
+              for (const cb of bk.container_breakup) {
+                await client.query(
+                  `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
+                );
+              }
+            }
+
+            // Handle package breakup
+            if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
+              for (const pb of bk.package_breakup) {
+                await client.query(
+                  `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
+                );
+              }
+            }
           }
         }
       } else {
@@ -452,7 +495,7 @@ router.post('/', async (req, res) => {
     } catch (e) {
       await client.query('ROLLBACK');
       console.error('Error creating booking:', e);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Internal server error', message: e.message, detail: e.toString() });
     } finally {
       client.release();
     }

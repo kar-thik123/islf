@@ -60,9 +60,9 @@ export class BookingService {
     return this.http.post<any[]>(`${this.baseUrl}/search-enquiries`, payload);
   }
 
-  createFromEnquiries(criteria: any, selectedEnquiries: Array<{ id: number; code: string }>): Observable<BookingRecord> {
+  createFromEnquiries(criteria: any, selectedEnquiries: Array<{ id: number; code: string }>, overrides?: any): Observable<BookingRecord> {
     const payload = this.contextPayload.withContext(
-      { booking_type: 'from_enquiry', criteria, selected_enquiries: selectedEnquiries, freeze: true },
+      { booking_type: 'from_enquiry', criteria, selected_enquiries: selectedEnquiries, freeze: true, ...overrides },
       this.contextService.getContext()
     );
     return this.http.post<BookingRecord>(`${this.baseUrl}`, payload);

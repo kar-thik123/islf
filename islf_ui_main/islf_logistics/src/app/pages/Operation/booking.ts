@@ -14,6 +14,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService, ConfirmationService } from 'primeng/api';
+import { BadgeModule } from 'primeng/badge';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { BookingService, BookingRecord } from '../../services/booking.service';
 import { EnquiryService } from '../../services/enquiry.service';
@@ -47,7 +48,8 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
     TooltipModule,
     MasterLocationComponent,
     ConfigDatePipe,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    BadgeModule
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -194,13 +196,14 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <th>Service Type</th>
               <th>From</th>
               <th>To</th>
+              <th>Status</th>
               <th>Dates</th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-enq>
-            <tr [pSelectableRow]="enq">
+            <tr [pSelectableRow]="enq" [pSelectableRowDisabled]="!isEnquirySelectable(enq)">
               <td>
-                <p-tableCheckbox [value]="enq"></p-tableCheckbox>
+                <p-tableCheckbox [value]="enq" [disabled]="!isEnquirySelectable(enq)"></p-tableCheckbox>
               </td>
               <td>{{ enq.code }}</td>
               <td>{{ enq.company_name }}</td>
@@ -208,6 +211,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <td>{{ enq.service_type }}</td>
               <td>{{ locName(enq.from_location) }}</td>
               <td>{{ locName(enq.to_location) }}</td>
+              <td><p-badge [value]="enq.status" [severity]="getEnquirySeverity(enq.status)"></p-badge></td>
               <td>{{ enq.effective_date_from | configDate }} → {{ enq.effective_date_to | configDate }}</td>
             </tr>
           </ng-template>
@@ -215,7 +219,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       </div>
 
       <ng-template pTemplate="footer">
-        <button pButton label="Save" icon="pi pi-check" (click)="saveFromEnquiries()"></button>
+        <button pButton [label]="linkTargetBooking ? 'Append' : 'Save'" icon="pi pi-check" (click)="saveFromEnquiries()"></button>
         <button pButton label="Cancel" class="p-button-secondary" (click)="showCreateDialog=false"></button>
       </ng-template>
     </p-dialog>
@@ -657,6 +661,7 @@ export class BookingComponent implements OnInit {
   showLinkDialog = false;
   linkTargetBooking: any = null;
   pendingLinkEnquiries: any[] = [];
+  pendingOverrides: any = {};
 
   totalRecords: number = 0;
   loading: boolean = false;
@@ -763,7 +768,8 @@ export class BookingComponent implements OnInit {
       serviceTypes: this.serviceTypeService.getAll().pipe(take(1)),
       airlines: this.masterAirlineService.getAll().pipe(take(1)),
       vessels: this.masterVesselService.getAll().pipe(take(1)),
-      vendorTypes: this.masterTypeService.getAllByType('VENDOR').pipe(take(1))
+      vendorTypes: this.masterTypeService.getAllByType('VENDOR').pipe(take(1)),
+      locationTypes: this.masterTypeService.getAll().pipe(take(1))
     }).subscribe({
       next: (res) => {
         // 1. Departments
@@ -811,6 +817,11 @@ export class BookingComponent implements OnInit {
 
         // 8. Vendor Types
         this.vendorTypeOptions = (res.vendorTypes || []).map((t: any) => ({ label: t.value, value: t.value }));
+
+        // 9. Location Types
+        this.locationTypeOptions = (res.locationTypes || [])
+          .filter((t: any) => (t.key || '').toString().toLowerCase() === 'location' && (t.status || '').toString().toLowerCase() === 'active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
 
         // Now that master data is READY, we can safely allow the UI to finish loading
         this.loading = false;
@@ -903,14 +914,98 @@ export class BookingComponent implements OnInit {
   }
 
   saveFromEnquiries() {
-    const selected = this.selectedEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
+    // Booking Initial Validation
+    if (this.selectedEnquiries.length > 1) {
+      const first = this.selectedEnquiries[0];
+      const mismatch = this.selectedEnquiries.some(e =>
+        e.company_name !== first.company_name ||
+        e.department !== first.department ||
+        e.service_type !== first.service_type ||
+        e.from_location !== first.from_location ||
+        e.to_location !== first.to_location
+      );
 
+      if (mismatch) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Validation Error',
+          detail: 'All selected enquiries must have matching Company, Department, Service Type, From Location, and To Location.'
+        });
+        return;
+      }
+    }
+    console.log('Selected Enquiries: during the save enquiry', this.selectedEnquiries);
+    // Carriage Validation
+    const carriageTypes = ['Place of Receipt', 'Port of Loading', 'Final Destination', 'Place of Delivery', 'Port of Discharge'];
+    for (const type of carriageTypes) {
+      const uniqueValues = new Set<string>();
+      for (const enq of this.selectedEnquiries) {
+        const item = (enq.carriage_map || []).find((c: any) => c.carriage === type);
+        const loc = item?.location?.toString().trim();
+        if (loc) uniqueValues.add(loc.toLowerCase());
+      }
+      if (uniqueValues.size > 1) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Carriage Conflict',
+          detail: `Selected enquiries have conflicting values for ${type}. Please ensure they match or are empty.`
+        });
+        return;
+      }
+    }
+    // Calculate overrides (earliest effective date from, oldest effective date to)
+    let overrides: any = {};
+    if (this.selectedEnquiries.length > 0) {
+      // Calculate earliest Effective Date From
+      const fromDates = this.selectedEnquiries
+        .map((e: any) => e.effective_date_from ? new Date(e.effective_date_from).getTime() : null)
+        .filter((t: number | null) => t !== null && !isNaN(t)) as number[];
+
+      if (fromDates.length > 0) {
+        overrides.effective_date_from = this.formatDate(new Date(Math.min(...fromDates)));
+      }
+
+      // Calculate Oldest Effective Date To
+      const toDates = this.selectedEnquiries
+        .map((e: any) => e.effective_date_to ? new Date(e.effective_date_to).getTime() : null)
+        .filter((t: number | null) => t !== null && !isNaN(t)) as number[];
+
+      if (toDates.length > 0) {
+        overrides.effective_date_to = this.formatDate(new Date(Math.max(...toDates)));
+      }
+      // console.log('Select Enquiry Overrides for min from and to dates: ', overrides);
+    }
+    this.pendingOverrides = overrides;
+
+
+    const selected = this.selectedEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
+    console.log('Selected Enquiries: during the save enquiry', this.selectedEnquiries);
     // Check for Link Mode (Existing Booking)
     if (this.linkTargetBooking) {
       if (selected.length === 0) {
         this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No enquiry selected' });
         return;
       }
+
+      // Validating against target booking
+      const target = this.linkTargetBooking;
+      const mismatch = this.selectedEnquiries.some(e =>
+        (e.company_name || '').trim().toLowerCase() !== (target.company_name || '').trim().toLowerCase() ||
+        (e.department || '').trim().toLowerCase() !== (target.department || '').trim().toLowerCase() ||
+        (e.service_type || '').trim().toLowerCase() !== (target.service_type || '').trim().toLowerCase() ||
+        this.locName(e.from_location).trim().toLowerCase() !== (target.from_location || '').trim().toLowerCase() ||
+        this.locName(e.to_location).trim().toLowerCase() !== (target.to_location || '').trim().toLowerCase()
+      );
+
+      if (mismatch) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Link Error',
+          detail: 'Selected enquiries must match Company, Department, Service Type, From and To Location of the existing booking.'
+        });
+        return;
+      }
+
       this.pendingLinkEnquiries = [...this.selectedEnquiries];
       this.showCreateDialog = false;
       this.openBooking(this.linkTargetBooking.booking_no);
@@ -944,7 +1039,8 @@ export class BookingComponent implements OnInit {
       });
       return;
     }
-    this.bookingService.createFromEnquiries(this.dialog, selected).subscribe({
+
+    this.bookingService.createFromEnquiries(this.dialog, selected, overrides).subscribe({
       next: (res) => {
         this.showCreateDialog = false;
         this.loadBookings();
@@ -1117,6 +1213,15 @@ export class BookingComponent implements OnInit {
           location: toLabel(cr.location || '')
         }));
 
+        // Deduplicate Carriage Rows
+        const uniqueKeys = new Set();
+        this.carriageRows = this.carriageRows.filter(cr => {
+          const key = `${cr.carriage}-${cr.location_type}-${cr.location}`;
+          if (uniqueKeys.has(key)) return false;
+          uniqueKeys.add(key);
+          return true;
+        });
+
         this.currentBooking.from_location = toLabel((b as any)?.from_location || '');
         this.currentBooking.to_location = toLabel((b as any)?.to_location || '');
 
@@ -1125,88 +1230,105 @@ export class BookingComponent implements OnInit {
           // this.currentBooking.booking_type = 'from_enquiry'; // Removed to prevents creation of new booking
           const selected = this.pendingLinkEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
           this.currentBooking.selected_enquiries = selected;
-          // Map first enquiry details to booking
-          if (this.pendingLinkEnquiries.length === 1) {
-            const enq = this.pendingLinkEnquiries[0];
-            // Fetch full details since table row might be partial
-            this.enquiryService.getByCode(enq.code).subscribe((fullEnq: any) => {
-              this.currentBooking.company_name = fullEnq.customer_name;
-              this.currentBooking.department = fullEnq.department;
-              this.currentBooking.service_type = fullEnq.service_type;
-              this.currentBooking.from_location = this.locName(fullEnq.from_location);
-              this.currentBooking.to_location = this.locName(fullEnq.to_location);
-              this.currentBooking.enquiry_type = fullEnq.enquiry_type;
-              this.currentBooking.effective_date_from = this.parseDate(fullEnq.effective_date_from) as any;
-              this.currentBooking.effective_date_to = this.parseDate(fullEnq.effective_date_to) as any;
-              this.currentBooking.source_sales_person = fullEnq.sales_person;
 
-              // Map Line Items
-              if (Array.isArray(fullEnq.line_items)) {
-                const enqVendorCards = fullEnq.vendor_cards || [];
-                this.lineItemsRows = fullEnq.line_items.map((li: any) => {
-                  const sourcingSummary = Array.isArray(li.enquiry_summary) ? li.enquiry_summary.find((s: any) => s.summary_type === 'sourcing') : null;
-
-                  const validVendor = enqVendorCards.find((vc: any) => {
-                    const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
-                    return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
-                      (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
-                      (vc.code || '').toString().trim().toLowerCase() === lookup;
-                  });
-
-                  let vendorName = validVendor?.vendor_name || (sourcingSummary ? sourcingSummary.vendor_name : (li.sourced_vendor || ''));
-
-                  // Attempt to resolve vendor name from master list if it's a code
-                  if (vendorName && this.allVendors.length > 0) {
-                    const lookup = vendorName.toString().trim().toLowerCase();
-                    const masterVendor = this.allVendors.find((v: any) => (v.vendor_no || '').toString().trim().toLowerCase() === lookup || (v.code || '').toString().trim().toLowerCase() === lookup);
-                    if (masterVendor) vendorName = masterVendor.name || masterVendor.name2 || masterVendor.vendor_name || vendorName;
-                  }
-
-                  console.log('DEBUG Vendor Lookup:', {
-                    sourced: li.sourced_vendor,
-                    validVendor: validVendor,
-                    vendorName: vendorName
-                  });
-
-                  return {
-                    type: li.type,
-                    service_area: li.service_area,
-                    basis: li.basis,
-                    from_location: this.locName(li.line_from_location || li.from_location),
-                    to_location: this.locName(li.line_to_location || li.to_location),
-                    sourced_vendor: vendorName,
-                    basis_qty: li.basis_qty,
-                    booking_ref: '',
-                    valid_till: this.parseDate(li.valid_till),
-                    status: 'Active',
-                    remarks: li.remarks,
-                    schedule: 'NO'
-                  };
-                });
-              }
-
-              // Map Cargo
-              if (Array.isArray(fullEnq.cargo)) {
-                this.cargoRows = fullEnq.cargo.map((cg: any) => ({
-                  cargo_type: cg.cargo_type,
-                  description: cg.description,
-                  hs_code: cg.hs_code
-                }));
-              }
-
-              // Map Carriage List
-              if (Array.isArray(fullEnq.carriage_map)) {
-                this.carriageRows = fullEnq.carriage_map.map((cm: any) => ({
-                  carriage: cm.carriage,
-                  location_type: cm.location_type,
-                  location: this.locName(cm.location)
-                }));
-              }
-            });
+          // Apply overrides if any
+          if (this.pendingOverrides) {
+            if (this.pendingOverrides.effective_date_from) {
+              this.currentBooking.effective_date_from = this.parseDate(this.pendingOverrides.effective_date_from) as any;
+            }
+            if (this.pendingOverrides.effective_date_to) {
+              this.currentBooking.effective_date_to = this.parseDate(this.pendingOverrides.effective_date_to) as any;
+            }
+            // Clear overrides after use
+            this.pendingOverrides = {};
           }
 
-          this.pendingLinkEnquiries = [];
-          this.messageService.add({ severity: 'info', summary: 'Enquiry Linked', detail: 'Please review and save changes' });
+          // Map first enquiry details to booking
+          if (this.pendingLinkEnquiries.length > 0) {
+            const observables = this.pendingLinkEnquiries.map(e => this.enquiryService.getByCode(e.code).pipe(take(1)));
+
+            forkJoin(observables).subscribe((fullEnquiries: any[]) => {
+              fullEnquiries.forEach((fullEnq: any) => {
+                // Append Line Items
+                if (Array.isArray(fullEnq.line_items)) {
+                  const enqVendorCards = fullEnq.vendor_cards || [];
+                  const newItems = fullEnq.line_items.map((li: any) => {
+                    const sourcingSummary = Array.isArray(li.enquiry_summary) ? li.enquiry_summary.find((s: any) => s.summary_type === 'sourcing') : null;
+                    const validVendor = enqVendorCards.find((vc: any) => {
+                      const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
+                      return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
+                        (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
+                        (vc.code || '').toString().trim().toLowerCase() === lookup;
+                    });
+                    let vendorName = validVendor?.vendor_name || (sourcingSummary ? sourcingSummary.vendor_name : (li.sourced_vendor || ''));
+                    if (vendorName && this.allVendors.length > 0) {
+                      const lookup = vendorName.toString().trim().toLowerCase();
+                      const masterVendor = this.allVendors.find((v: any) => (v.vendor_no || '').toString().trim().toLowerCase() === lookup || (v.code || '').toString().trim().toLowerCase() === lookup);
+                      if (masterVendor) vendorName = masterVendor.name || masterVendor.name2 || masterVendor.vendor_name || vendorName;
+                    }
+                    return {
+                      type: li.type,
+                      service_area: li.service_area,
+                      basis: li.basis,
+                      from_location: this.locName(li.line_from_location || li.from_location),
+                      to_location: this.locName(li.line_to_location || li.to_location),
+                      sourced_vendor: vendorName,
+                      basis_qty: li.basis_qty,
+                      booking_ref: '',
+                      valid_till: this.parseDate(li.valid_till),
+                      status: 'Active',
+                      remarks: li.remarks,
+                      schedule: 'NO',
+                      enq_no: fullEnq.code,
+                      enq_exp: fullEnq.effective_date_to
+                    };
+                  });
+                  this.lineItemsRows = [...this.lineItemsRows, ...newItems];
+                }
+
+                // Append Cargo
+                if (Array.isArray(fullEnq.cargo)) {
+                  const newCargo = fullEnq.cargo.map((cg: any) => ({
+                    cargo_type: cg.cargo_type,
+                    description: cg.description,
+                    hs_code: cg.hs_code,
+                    _descriptionOptions: this.getCargoNamesByType(cg.cargo_type),
+                    _hsCodeOptions: this.getHsCodesByTypeAndName(cg.cargo_type, cg.description)
+                  }));
+                  this.cargoRows = [...this.cargoRows, ...newCargo];
+                }
+
+                // Append Carriage Map
+                if (Array.isArray(fullEnq.carriage_map)) {
+                  const newCarriage = fullEnq.carriage_map.map((cm: any) => ({
+                    carriage: cm.carriage,
+                    location_type: cm.location_type,
+                    location: this.locName(cm.location)
+                  }));
+                  this.carriageRows = [...this.carriageRows, ...newCarriage];
+                }
+              });
+
+              // Re-run Carriage Deduplication
+              const uniqueKeys = new Set();
+              this.carriageRows = this.carriageRows.filter(cr => {
+                const key = `${cr.carriage}-${cr.location_type}-${cr.location}`;
+                if (uniqueKeys.has(key)) return false;
+                uniqueKeys.add(key);
+                return true;
+              });
+
+              // Append selected enquiries to current booking list
+              const currentIds = new Set((this.currentBooking.selected_enquiries || []).map((e: any) => e.code));
+              const newSelections = selected.filter((s: any) => !currentIds.has(s.code));
+              this.currentBooking.selected_enquiries = [...(this.currentBooking.selected_enquiries || []), ...newSelections];
+
+              this.pendingLinkEnquiries = [];
+              this.messageService.add({ severity: 'success', summary: 'Enquiries Linked', detail: 'New enquiries appended successfully.' });
+            });
+          } else {
+            this.messageService.add({ severity: 'info', summary: 'Enquiry Linked', detail: 'Please review and save changes' });
+          }
         }
 
         this.loading = false;
@@ -1582,5 +1704,20 @@ export class BookingComponent implements OnInit {
     if (!d) return null;
     const date = new Date(d);
     return isNaN(date.getTime()) ? null : date;
+  }
+
+  getEnquirySeverity(status: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
+    switch ((status || '').toString().toLowerCase()) {
+      case 'open': return 'success';
+      case 'pending': return 'warn';
+      case 'closed': return 'danger';
+      case 'draft': return 'secondary';
+      default: return 'info';
+    }
+  }
+
+  isEnquirySelectable(enq: any): boolean {
+    const status = (enq.status || '').toString().toLowerCase();
+    return status === 'open' || status === 'pending';
   }
 }
