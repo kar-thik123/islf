@@ -89,4 +89,25 @@ export class BookingService {
   getByNo(bookingNo: string): Observable<BookingRecord> {
     return this.http.get<BookingRecord>(`${this.baseUrl}/${bookingNo}`);
   }
+
+  // Quote Mapping Methods
+  getBookingEnquiries(bookingNo: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/enquiries`);
+  }
+
+  getEnquiryLineItemTypes(bookingNo: string, enquiryNo: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/enquiry/${enquiryNo}/line-item-types`);
+  }
+
+  getQuoteMappings(bookingNo: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/quote-mappings`);
+  }
+
+  saveQuoteMappings(bookingNo: string, mappings: any[]): Observable<any> {
+    return this.http.post(`${this.baseUrl}/${bookingNo}/quote-mappings`, { mappings });
+  }
+
+  deleteQuoteMapping(bookingNo: string, mappingId: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/${bookingNo}/quote-mappings/${mappingId}`);
+  }
 }
