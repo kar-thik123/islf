@@ -254,7 +254,6 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
             <ng-container *ngIf="currentBooking.booking_type === 'from_enquiry'">
               <input pInputText class="bg-yellow-50" [readonly]="true" [(ngModel)]="currentBooking.enquiry_type"/>
             </ng-container>
-            <button pButton icon="pi pi-search" class="p-button-sm" (click)="openEnquirySelection()" pTooltip="Link Enquiry"></button>
           </div>
         </div>
         <div class="col-span-3">
@@ -351,6 +350,9 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       </p-table>
 
       <div class="section-header">Line Items (Booking Details)</div>
+      <div class="mb-2">
+       <button pButton icon="pi pi-link" label="Link Enquiry" class="p-button-sm" (click)="openLinkEnquiryDialog(currentBooking)"></button>
+      </div>
       <p-table [value]="lineItemsRows" [showGridlines]="true">
         <ng-template pTemplate="header">
           <tr>
@@ -632,7 +634,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       <div *ngIf="breakupType === 'CONTAINER BREAKUP' || breakupType === 'PACKAGE BREAKUP'">
         <div class="section-header mt-4 text-green-700">Quote Mapping</div>
         <div class="mb-2">
-          <button pButton label="+ Add Mapping" class="p-button-sm p-button-success" (click)="addQuoteMappingRow()"></button>
+          <button pButton label="+ Add Mapping" class="p-button-sm " (click)="addQuoteMappingRow()"></button>
         </div>
         <p-table [value]="quoteMappingRows" [showGridlines]="true">
           <ng-template pTemplate="header">
@@ -1458,7 +1460,7 @@ export class BookingComponent implements OnInit {
   getLocationsByType(type: any) {
     const t = (type || '').toString().trim().toLowerCase();
     if (!t) return [];
-    
+
     return (this.allLocations || [])
       .filter((l: any) => (l.type || '').toString().trim().toLowerCase() === t)
       .map((l: any) => ({ label: l.name, value: l.code }));
@@ -1718,14 +1720,23 @@ export class BookingComponent implements OnInit {
       to_location_type: '',
       to_location: row.to_location
     };
+
+    // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
     if (this.dialog.from_location) {
-      const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location);
-      if (loc) this.dialog.from_location_type = loc.type;
+      const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
+      if (loc) {
+        this.dialog.from_location = loc.code;
+        this.dialog.from_location_type = loc.type;
+      }
     }
     if (this.dialog.to_location) {
-      const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location);
-      if (loc) this.dialog.to_location_type = loc.type;
+      const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
+      if (loc) {
+        this.dialog.to_location = loc.code;
+        this.dialog.to_location_type = loc.type;
+      }
     }
+
     this.onLocationTypeChange('from');
     this.onLocationTypeChange('to');
     this.onDepartmentChange();
