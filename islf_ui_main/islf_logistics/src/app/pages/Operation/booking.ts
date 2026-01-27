@@ -230,7 +230,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 
       <ng-template pTemplate="footer">
         <button pButton [label]="linkTargetBooking ? 'Append' : 'Save'" icon="pi pi-check" (click)="saveFromEnquiries()"></button>
-        <button pButton label="Cancel" class="p-button-secondary" (click)="showCreateDialog=false"></button>
+        <button pButton label="Cancel" class="p-button-secondary" (click)="onCreateBookingCancel()"></button>
       </ng-template>
     </p-dialog>
 
@@ -996,6 +996,15 @@ export class BookingComponent implements OnInit {
     });
   }
 
+  // on closing the create booking dialog
+  onCreateBookingCancel() {
+    console.log("linkTargetBooking value before cancelling", this.linkTargetBooking);
+    this.showCreateDialog = false;
+    this.linkTargetBooking = null;
+    console.log("linkTargetBooking value after cancelling", this.linkTargetBooking);
+  }
+
+  // on creating booking from enquiries
   saveFromEnquiries() {
     // Booking Initial Validation
     if (this.selectedEnquiries.length > 1) {
@@ -1202,7 +1211,7 @@ export class BookingComponent implements OnInit {
   }
   openBooking(bookingNo: string) {
     this.loading = true;
-
+    console.log("Vendors list when open booking,", this.allVendors);
     // 🚀 Only load vendors if not already loaded to save an API call
     const vendors$ = this.allVendors.length > 0 ? of(this.allVendors) : this.vendorService.getAll().pipe(take(1));
 
@@ -1286,7 +1295,7 @@ export class BookingComponent implements OnInit {
               (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
               (vc.code || '').toString().trim().toLowerCase() === lookup;
           });
-          const vendorName = validVendor?.vendor_name || li.sourced_vendor || (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
+          const vendorName = validVendor?.vendor_type || validVendor?.vendor_name || li.sourced_vendor || (match && (match.vendor_name || match.vendor || match.vendor_code)) || (vendorCards[0]?.vendor_name) || '';
 
           return {
             ...li,
