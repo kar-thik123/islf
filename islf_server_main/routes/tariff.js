@@ -500,6 +500,7 @@ router.post("/:tariffId/charge", async (req, res) => {
     res.status(400).json({ error: "Tariff ID is required" });
   }
   try {
+    console.log("request body",req.body);
     // check if tariff exists
     const { rows: tariffResult } = await pool.query(
       "SELECT * FROM tariff WHERE id = $1",

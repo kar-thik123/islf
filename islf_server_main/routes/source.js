@@ -487,7 +487,9 @@ router.post("/sub-charges", async (req, res) => {
       return res.status(400).json({ error: "Charge name is required" });
     }
 
-    if (!cleanData.charges || cleanData.charges <= 0) {
+    if (cleanData.charges=== undefined || cleanData.charges=== null
+      //  || cleanData.charges <= 0
+      ) {
       return res
         .status(400)
         .json({ error: "Charges must be a positive number" });

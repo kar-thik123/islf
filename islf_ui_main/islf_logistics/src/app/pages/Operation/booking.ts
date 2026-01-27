@@ -56,6 +56,16 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
     <p-toast></p-toast>
     <p-confirmDialog appendTo="body"></p-confirmDialog>
     
+    <p-dialog [(visible)]="showErrorDialog" [header]="errorHeader" [modal]="true" [style]="{width: '450px'}" appendTo="body">
+      <div class="flex items-center gap-3">
+        <i class="pi pi-exclamation-triangle text-red-500 text-2xl"></i>
+        <span class="text-lg">{{ errorMessage }}</span>
+      </div>
+      <ng-template pTemplate="footer">
+        <button pButton label="OK" class="p-button-text" (click)="showErrorDialog = false"></button>
+      </ng-template>
+    </p-dialog>
+    
     <p-dialog [(visible)]="showSubVendorTypeDialog" header="Select Vendor Type" [modal]="true" [style]="{'width':'300px'}" appendTo="body">
       <div class="flex flex-col gap-3">
         <label class="font-semibold">Vendor Type</label>
@@ -399,21 +409,21 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <td>{{ i + 1 }}</td>
               <td>
                 <div class="flex gap-2 items-center">
-                  <p-dropdown [(ngModel)]="trn.from_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onTransitLocTypeChange(trn, 'from')"></p-dropdown>
+                  <p-dropdown [(ngModel)]="trn.from_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
                   <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMasterLocation()"></button>
                 </div>
               </td>
               <td>
-                <p-dropdown [(ngModel)]="trn.from_location" [options]="trn._fromLocationOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
+                <p-dropdown [(ngModel)]="trn.from_location" [options]="getLocationsByType(trn.from_location_type)" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
               </td>
               <td>
                 <div class="flex gap-2 items-center">
-                  <p-dropdown [(ngModel)]="trn.to_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onTransitLocTypeChange(trn, 'to')"></p-dropdown>
+                  <p-dropdown [(ngModel)]="trn.to_location_type" [options]="locationTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
                   <button pButton icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMasterLocation()"></button>
                 </div>
               </td>
               <td>
-                <p-dropdown [(ngModel)]="trn.to_location" [options]="trn._toLocationOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
+                <p-dropdown [(ngModel)]="trn.to_location" [options]="getLocationsByType(trn.to_location_type)" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60"></p-dropdown>
               </td>
               <td>
                 <p-dropdown 
@@ -708,6 +718,9 @@ export class BookingComponent implements OnInit {
   bookingStatusOptions: any[] = [];
 
   showCreateDialog = false;
+  showErrorDialog = false;
+  errorMessage = '';
+  errorHeader = 'Error';
   dialog: any = { department: '', service_type: '', from_location: '', to_location: '' };
   departmentOptions: any[] = [];
   departmentOptionsRaw: any[] = [];
@@ -994,11 +1007,9 @@ export class BookingComponent implements OnInit {
       );
 
       if (mismatch) {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Validation Error',
-          detail: 'All selected enquiries must have matching Company, Department, Service Type, From Location, and To Location.'
-        });
+        this.errorHeader = 'Validation Error';
+        this.errorMessage = 'All selected enquiries must have matching Company, Department, Service Type, From Location, and To Location.';
+        this.showErrorDialog = true;
         return;
       }
     }
@@ -1013,11 +1024,9 @@ export class BookingComponent implements OnInit {
         if (loc) uniqueValues.add(loc.toLowerCase());
       }
       if (uniqueValues.size > 1) {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Carriage Conflict',
-          detail: `Selected enquiries have conflicting values for ${type}. Please ensure they match or are empty.`
-        });
+        this.errorHeader = 'Carriage Conflict';
+        this.errorMessage = `Selected enquiries have conflicting values for ${type}. Please ensure they match or are empty.`;
+        this.showErrorDialog = true;
         return;
       }
     }
@@ -1066,11 +1075,9 @@ export class BookingComponent implements OnInit {
       );
 
       if (mismatch) {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Link Error',
-          detail: 'Selected enquiries must match Company, Department, Service Type, From and To Location of the existing booking.'
-        });
+        this.errorHeader = 'Link Error';
+        this.errorMessage = 'Selected enquiries must match Company, Department, Service Type, From and To Location of the existing booking.';
+        this.showErrorDialog = true;
         return;
       }
 
@@ -1083,7 +1090,9 @@ export class BookingComponent implements OnInit {
 
     if (selected.length === 0) {
       if (!this.dialog.department || !this.dialog.service_type || !this.dialog.from_location || !this.dialog.to_location) {
-        this.messageService.add({ severity: 'error', summary: 'Missing Fields', detail: 'Please select Department, Service Type, From and To Location' });
+        this.errorHeader = 'Missing Fields';
+        this.errorMessage = 'Please select Department, Service Type, From and To Location';
+        this.showErrorDialog = true;
         return;
       }
       const manual: BookingRecord = {
@@ -1255,8 +1264,6 @@ export class BookingComponent implements OnInit {
             ...s,
             etd: this.parseDate(s.etd),
             eta: this.parseDate(s.eta),
-            _fromLocationOptions: this.getLocationsByType(s.from_location_type),
-            _toLocationOptions: this.getLocationsByType(s.to_location_type),
             _flightNoOptions: [] // Will be populated by onAirlineChange if needed
           }));
           // Pre-populate flight options for airlines
@@ -1449,19 +1456,16 @@ export class BookingComponent implements OnInit {
   }
 
   getLocationsByType(type: any) {
-    const t = (type || '').toString();
+    const t = (type || '').toString().trim().toLowerCase();
     if (!t) return [];
+    
     return (this.allLocations || [])
-      .filter((l: any) => (l.type || '').toString() === t)
+      .filter((l: any) => (l.type || '').toString().trim().toLowerCase() === t)
       .map((l: any) => ({ label: l.name, value: l.code }));
   }
 
   onTransitLocTypeChange(trn: any, field: 'from' | 'to') {
-    if (field === 'from') {
-      trn._fromLocationOptions = this.getLocationsByType(trn.from_location_type);
-    } else {
-      trn._toLocationOptions = this.getLocationsByType(trn.to_location_type);
-    }
+    // Deprecated: Template now binds directly to getLocationsByType
   }
 
   getCargoNamesByType(type: any) {
