@@ -11,6 +11,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
+
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -29,6 +30,7 @@ import { MasterAirlineService } from '../../services/master-airline.service';
 import { MasterVesselService } from '../../services/master-vessel.service';
 import { ConfigService } from '../../services/config.service';
 import { ConfigDatePipe } from '../../pipes/config-date.pipe';
+import { TextareaModule } from 'primeng/textarea';
 
 @Component({
   selector: 'app-booking',
@@ -40,6 +42,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
     CardModule,
     ButtonModule,
     InputTextModule,
+    TextareaModule,
     DropdownModule,
     DialogModule,
     ToastModule,
@@ -49,7 +52,8 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
     MasterLocationComponent,
     ConfigDatePipe,
     ConfirmDialogModule,
-    BadgeModule
+    BadgeModule,
+
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -284,11 +288,11 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date From</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_from" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Effective Date To</label>
-          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [disabled]="isFrozen" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
+          <p-calendar [(ngModel)]="currentBooking.effective_date_to" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-60" [inputStyle]="{ width: '250px' }" [style]="{ width: '250px'}"></p-calendar>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Status</label>
@@ -296,7 +300,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Remarks</label>
-          <input pInputText class="bg-orange-50" [(ngModel)]="currentBooking.remarks"/>
+          <textarea pInputTextarea [rows]="3" class="w-full" [(ngModel)]="currentBooking.remarks" placeholder="Enter remarks"></textarea>
         </div>
         <div class="col-span-3">
           <label class="block mb-1">Date</label>
@@ -320,13 +324,13 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         <ng-template pTemplate="body" let-cg let-i="rowIndex">
           <tr>
             <td>
-              <p-dropdown [(ngModel)]="cg.cargo_type" [options]="cargoTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onCargoTypeChange(cg)"></p-dropdown>
+               <p-dropdown [(ngModel)]="cg.cargo_type" [options]="cargoTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" [style]="{'width':'200px'}" (onChange)="onCargoTypeChange(cg)"></p-dropdown>
             </td>
             <td>
-              <p-dropdown [(ngModel)]="cg.description" [options]="cg._descriptionOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" (onChange)="onCargoNameChange(cg)"></p-dropdown>
+              <p-dropdown [(ngModel)]="cg.description" [options]="cg._descriptionOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" [style]="{'width':'250px'}" (onChange)="onCargoNameChange(cg)"></p-dropdown>
             </td>
             <td>
-              <p-dropdown [(ngModel)]="cg.hs_code" [options]="cg._hsCodeOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"  appendTo="body" class="w-60"></p-dropdown>
+              <p-dropdown [(ngModel)]="cg.hs_code" [options]="cg._hsCodeOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"  appendTo="body" class="w-60" [style]="{'width':'150px'}"></p-dropdown>
             </td>
             <td><button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCargoRow(i)"></button></td>
           </tr>
@@ -383,7 +387,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
             <td>
               <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" class="w-60" appendTo="body"></p-dropdown>
             </td>
-            <td><input pInputText class="bg-orange-50" [(ngModel)]="li.remarks"/></td>
+            <td><textarea pInputTextarea [rows]="1" [autoResize]="true" class="w-full" [(ngModel)]="li.remarks"></textarea></td>
           </tr>
         </ng-template>
       </p-table>
@@ -530,7 +534,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <input pInputText type="number" [(ngModel)]="bk.quantity" placeholder="Qty" [style]="{'width':'80px'}" (ngModelChange)="onBreakupQuantityChange()" />
             </td>
             <td>
-              <input pInputText [(ngModel)]="bk.remarks" placeholder="Remarks" [style]="{'width':'100%'}" />
+              <textarea pInputTextarea [rows]="1" [autoResize]="true" [(ngModel)]="bk.remarks" placeholder="Remarks" class="w-full"></textarea>
             </td>
             <td>
               <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBreakupRow(i)"></button>
@@ -647,6 +651,9 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         <p-dialog [(visible)]="showBulkApplyDialog" header="Bulk Apply" [modal]="true" [style]="{width: '450px'}" appendTo="body">
           <div class="grid grid-cols-12 gap-3 pt-2">
             <div class="col-span-12">
+              <p class="text-sm text-gray-500 mb-2">Select criteria to apply to existing Quote Mapping rows.</p>
+            </div>
+            <div class="col-span-12">
               <label class="block text-sm font-medium text-slate-700 mb-1">Number</label>
               <p-dropdown [(ngModel)]="bulkApplyQuote.breakup_number" [options]="getBreakupNumberOptions()" placeholder="Select" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}"></p-dropdown>
             </div>
@@ -658,13 +665,13 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <label class="block text-sm font-medium text-slate-700 mb-1">Line Item Type</label>
               <p-dropdown [(ngModel)]="bulkApplyQuote.line_item_type" [options]="bulkApplyQuote._lineItemTypeOptions || []" placeholder="Select" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}" [disabled]="!bulkApplyQuote.enquiry_no"></p-dropdown>
             </div>
-            <div class="col-span-6">
+            <div class="col-span-6 bg-blue-50 p-2 rounded">
               <label class="block text-sm font-medium text-slate-700 mb-1">From Row</label>
-              <input pInputText type="number" [(ngModel)]="bulkApplyQuote.from_row" class="w-full" />
+              <p-dropdown [(ngModel)]="bulkApplyQuote.from_row" [options]="getQuoteMappingRowOptions()" appendTo="body" [style]="{'width':'100%'}" placeholder="Select"></p-dropdown>
             </div>
-            <div class="col-span-6">
+            <div class="col-span-6 bg-blue-50 p-2 rounded">
               <label class="block text-sm font-medium text-slate-700 mb-1">To Row</label>
-              <input pInputText type="number" [(ngModel)]="bulkApplyQuote.to_row" class="w-full" />
+              <p-dropdown [(ngModel)]="bulkApplyQuote.to_row" [options]="getQuoteMappingRowOptions()" appendTo="body" [style]="{'width':'100%'}" placeholder="Select"></p-dropdown>
             </div>
           </div>
           <ng-template pTemplate="footer">
@@ -675,7 +682,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 
         <div class="mb-2">
           <button pButton label="+ Add Mapping" class="p-button-sm " (click)="addQuoteMappingRow()"></button>
-          <button pButton label="Bulk Apply" icon="pi pi-bolt" style="margin-left:8px" class="p-button-sm" (click)="showBulkApplyDialog = true"></button>
+          <button pButton label="Bulk Entry" icon="pi pi-bolt" style="margin-left:8px " class="p-button-sm p-button-outlined ml-2" (click)="showBulkApplyDialog = true"></button>
         </div>
         <p-table [value]="quoteMappingRows" [showGridlines]="true">
           <ng-template pTemplate="header">
@@ -696,6 +703,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                   appendTo="body" 
                   [filter]="true" 
                   filterBy="label" 
+                  [scrollHeight]="'200px'"
                   [style]="{'width':'150px'}"
                   class="bg-orange-50"
                 ></p-dropdown>
@@ -709,6 +717,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                   appendTo="body" 
                   [filter]="true" 
                   filterBy="label" 
+                  [scrollHeight]="'200px'"
                   [style]="{'width':'150px'}"
                   class="bg-orange-50"
                 ></p-dropdown>
@@ -721,6 +730,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                   appendTo="body" 
                   [filter]="true" 
                   filterBy="label" 
+                  [scrollHeight]="'200px'"
                   [style]="{'width':'200px'}"
                   class="bg-orange-50"
                   [disabled]="!qm.enquiry_no"
@@ -1251,7 +1261,7 @@ export class BookingComponent implements OnInit {
       }
     }
     // Calculate overrides (earliest effective date from, oldest effective date to)
-    let overrides: any = {};
+    let overrides: any = { status: 'Active' };
     if (this.selectedEnquiries.length > 0) {
       // Calculate earliest Effective Date From
       const fromDates = this.selectedEnquiries
@@ -1321,7 +1331,7 @@ export class BookingComponent implements OnInit {
         service_type: this.dialog.service_type,
         from_location: this.locName(this.dialog.from_location),
         to_location: this.locName(this.dialog.to_location),
-        status: 'Open',
+        status: 'Active',
       } as any;
       this.bookingService.createManualBooking(manual).subscribe({
         next: (res) => {
@@ -1352,7 +1362,7 @@ export class BookingComponent implements OnInit {
 
   createManual() {
     this.isFrozen = false;
-    this.currentBooking = { booking_type: 'manual', status: 'Open', created_at: new Date() } as any;
+    this.currentBooking = { booking_type: 'manual', status: 'Active', created_at: new Date() } as any;
     this.showBookingForm = true;
   }
 
@@ -2128,6 +2138,16 @@ export class BookingComponent implements OnInit {
     });
   }
 
+
+  getQuoteMappingRowOptions(): any[] {
+    const total = this.quoteMappingRows.length;
+    const options = [];
+    for (let i = 1; i <= total; i++) {
+      options.push({ label: i.toString(), value: i });
+    }
+    return options;
+  }
+
   async onBulkEnquiryChange() {
     if (!this.bulkApplyQuote.enquiry_no) {
       this.bulkApplyQuote._lineItemTypeOptions = [];
@@ -2159,8 +2179,8 @@ export class BookingComponent implements OnInit {
 
   applyBulkQuoteMapping() {
     const { breakup_number, enquiry_no, line_item_type, from_row, to_row } = this.bulkApplyQuote;
-    if (!enquiry_no || !line_item_type) {
-      this.messageService.add({ severity: 'warn', summary: 'Missing Fields', detail: 'Please select Enquiry and Line Item Type' });
+    if (!breakup_number && !enquiry_no && !line_item_type) {
+      this.messageService.add({ severity: 'warn', summary: 'Missing Fields', detail: 'Please select at least one value to apply' });
       return;
     }
 
@@ -2175,9 +2195,11 @@ export class BookingComponent implements OnInit {
     for (let i = start; i < end; i++) {
       const row = this.quoteMappingRows[i];
       if (breakup_number) row.breakup_number = breakup_number;
-      row.enquiry_no = enquiry_no;
-      row.line_item_type = line_item_type;
-      row._lineItemTypeOptions = this.bulkApplyQuote._lineItemTypeOptions;
+      if (enquiry_no) {
+        row.enquiry_no = enquiry_no;
+        row._lineItemTypeOptions = this.bulkApplyQuote._lineItemTypeOptions;
+      }
+      if (line_item_type) row.line_item_type = line_item_type;
     }
 
     this.messageService.add({ severity: 'success', summary: 'Applied', detail: `Bulk values applied to rows ${start + 1} to ${end}` });
