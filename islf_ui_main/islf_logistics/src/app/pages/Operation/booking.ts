@@ -150,8 +150,10 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
             </td>
             
             <td>
-              <button pButton label="Open" icon="pi pi-external-link" class="p-button-sm" (click)="openBooking(row.booking_no)"></button>
-              <button pButton icon="pi pi-link" class="p-button p-button-outlined p-button-secondary p-button-sm ml-4" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
+            <div style="display:flex;gap:6px;justify-content:center">
+              <button pButton  icon="pi pi-pencil" class="p-button-sm" (click)="openBooking(row.booking_no)" pTooltip="Edit Booking" tooltipPosition="top"></button>
+              <button pButton icon="pi pi-link" class="p-button-sm" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
+            </div>
             </td>
           </tr>
         </ng-template>
@@ -632,9 +634,43 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 
       <!-- Quote Mapping Section -->
       <div *ngIf="breakupType === 'CONTAINER BREAKUP' || breakupType === 'PACKAGE BREAKUP'">
-        <div class="section-header mt-4 text-green-700">Quote Mapping</div>
+        <div class="section-header mt-4 text-green-700 flex justify-between items-center">
+          <span>Quote Mapping</span>
+          
+        </div>
+
+        <p-dialog [(visible)]="showBulkApplyDialog" header="Bulk Apply" [modal]="true" [style]="{width: '450px'}" appendTo="body">
+          <div class="grid grid-cols-12 gap-3 pt-2">
+            <div class="col-span-12">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Number</label>
+              <p-dropdown [(ngModel)]="bulkApplyQuote.breakup_number" [options]="getBreakupNumberOptions()" placeholder="Select" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}"></p-dropdown>
+            </div>
+            <div class="col-span-12">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Enquiry No</label>
+              <p-dropdown [(ngModel)]="bulkApplyQuote.enquiry_no" [options]="enquiryOptions" placeholder="Select" (onChange)="onBulkEnquiryChange()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}"></p-dropdown>
+            </div>
+            <div class="col-span-12">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Line Item Type</label>
+              <p-dropdown [(ngModel)]="bulkApplyQuote.line_item_type" [options]="bulkApplyQuote._lineItemTypeOptions || []" placeholder="Select" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}" [disabled]="!bulkApplyQuote.enquiry_no"></p-dropdown>
+            </div>
+            <div class="col-span-6">
+              <label class="block text-sm font-medium text-slate-700 mb-1">From Row</label>
+              <input pInputText type="number" [(ngModel)]="bulkApplyQuote.from_row" class="w-full" />
+            </div>
+            <div class="col-span-6">
+              <label class="block text-sm font-medium text-slate-700 mb-1">To Row</label>
+              <input pInputText type="number" [(ngModel)]="bulkApplyQuote.to_row" class="w-full" />
+            </div>
+          </div>
+          <ng-template pTemplate="footer">
+            <button pButton label="Cancel" class="p-button-text" icon="pi pi-times" (click)="showBulkApplyDialog = false"></button>
+            <button pButton label="Apply" class="p-button-sm" icon="pi pi-check" (click)="applyBulkQuoteMapping(); showBulkApplyDialog = false"></button>
+          </ng-template>
+        </p-dialog>
+
         <div class="mb-2">
           <button pButton label="+ Add Mapping" class="p-button-sm " (click)="addQuoteMappingRow()"></button>
+          <button pButton label="Bulk Apply" icon="pi pi-bolt" style="margin-left:8px" class="p-button-sm" (click)="showBulkApplyDialog = true"></button>
         </div>
         <p-table [value]="quoteMappingRows" [showGridlines]="true">
           <ng-template pTemplate="header">
@@ -700,8 +736,8 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
         </ng-template>
       </p-dialog>
       <div class="flex justify-end gap-2 mt-4">
-        <button pButton label="Cancel" class="p-button-secondary" (click)="showBookingForm=false"></button>
-        <button pButton label="Save" icon="pi pi-save" class="p-button-success" (click)="finalSave()"></button>
+        <button pButton icon="pi pi-times" label="Cancel" class="p-button-text" (click)="showBookingForm=false"></button>
+        <button pButton label="Save" icon="pi pi-save" class="p-button-sm" (click)="finalSave()"></button>
       </div>
       </div>
       </ng-template>
@@ -755,6 +791,7 @@ export class BookingComponent implements OnInit {
   containerBreakupRows: any[] = [];
   packageBreakupRows: any[] = [];
   showSubVendorTypeDialog = false;
+  showBulkApplyDialog = false;
   subVendorOptions: any[] = [];
   vendorTypeOptions: any[] = [];
   yesNoOptions = [{ label: 'YES', value: 'YES' }, { label: 'NO', value: 'NO' }];
@@ -774,6 +811,15 @@ export class BookingComponent implements OnInit {
   quoteMappingRows: any[] = [];
   enquiryOptions: any[] = [];
   lineItemTypeOptionsMap: { [enquiryNo: string]: any[] } = {};
+
+  bulkApplyQuote: any = {
+    breakup_number: null,
+    enquiry_no: null,
+    line_item_type: null,
+    from_row: 1,
+    to_row: 1,
+    _lineItemTypeOptions: []
+  };
 
   constructor(
     private bookingService: BookingService,
@@ -809,7 +855,9 @@ export class BookingComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Initial load happens via onLazyLoad
+    // Load grid immediately so user sees something
+    this.loadBookings();
+    // Load masters in background
     this.loadDropdowns();
   }
 
@@ -838,7 +886,8 @@ export class BookingComponent implements OnInit {
   }
 
   loadDropdowns() {
-    this.loading = true;
+    // Do NOT set this.loading = true here. 
+    // We want the grid to load independently. Master data can arrive later.
     const ctx = this.contextService.getContext();
 
     // 🚀 Hydration Strategy: Load EVERYTHING critical before showing the UI
@@ -896,7 +945,11 @@ export class BookingComponent implements OnInit {
         // 7. Airlines & Vessels
         this.allAirlines = res.airlines || [];
         this.airlineOptions = this.allAirlines.map(a => ({ label: a.airline_name, value: a.airline_name }));
+
+        console.log('Vessel Data Loaded:', res.vessels);
+        this.allVessels = res.vessels || [];
         this.vesselOptions = this.allVessels.map(v => ({ label: v.vessel_name, value: v.vessel_name }));
+        console.log('Vessel Options Mapped:', this.vesselOptions);
 
         // 8. Vendor Types
         this.vendorTypeOptions = (res.vendorTypes || []).map((t: any) => ({ label: t.value, value: t.value }));
@@ -906,17 +959,13 @@ export class BookingComponent implements OnInit {
           .filter((t: any) => (t.key || '').toString().toLowerCase() === 'location' && (t.status || '').toString().toLowerCase() === 'active')
           .map((t: any) => ({ label: t.value, value: t.value }));
 
-        // Now that master data is READY, we can safely allow the UI to finish loading
-        this.loading = false;
-
-        // Initial load of content
-        this.loadBookings();
+        // Masters are ready
         this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load master data:', err);
+        // Do not block UI on error
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to initialize master data' });
-        this.loading = false;
         this.cdr.detectChanges();
       }
     });
@@ -1908,6 +1957,62 @@ export class BookingComponent implements OnInit {
       line_item_type: null,
       _lineItemTypeOptions: []
     });
+  }
+
+  async onBulkEnquiryChange() {
+    if (!this.bulkApplyQuote.enquiry_no) {
+      this.bulkApplyQuote._lineItemTypeOptions = [];
+      this.bulkApplyQuote.line_item_type = null;
+      return;
+    }
+
+    if (this.lineItemTypeOptionsMap[this.bulkApplyQuote.enquiry_no]) {
+      this.bulkApplyQuote._lineItemTypeOptions = this.lineItemTypeOptionsMap[this.bulkApplyQuote.enquiry_no];
+      return;
+    }
+
+    try {
+      const types = await this.bookingService.getEnquiryLineItemTypes(
+        this.currentBooking.booking_no!,
+        this.bulkApplyQuote.enquiry_no
+      ).toPromise();
+
+      this.bulkApplyQuote._lineItemTypeOptions = (types || []).map((t: any) => ({
+        label: t.type,
+        value: t.type
+      }));
+
+      this.lineItemTypeOptionsMap[this.bulkApplyQuote.enquiry_no] = this.bulkApplyQuote._lineItemTypeOptions;
+    } catch (error) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load line item types' });
+    }
+  }
+
+  applyBulkQuoteMapping() {
+    const { breakup_number, enquiry_no, line_item_type, from_row, to_row } = this.bulkApplyQuote;
+    if (!enquiry_no || !line_item_type) {
+      this.messageService.add({ severity: 'warn', summary: 'Missing Fields', detail: 'Please select Enquiry and Line Item Type' });
+      return;
+    }
+
+    const start = Math.max(1, from_row) - 1;
+    const end = Math.min(this.quoteMappingRows.length, to_row);
+
+    if (start >= this.quoteMappingRows.length || start < 0 || start >= end) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid Range', detail: 'Please check From and To row numbers' });
+      return;
+    }
+
+    for (let i = start; i < end; i++) {
+      const row = this.quoteMappingRows[i];
+      if (breakup_number) row.breakup_number = breakup_number;
+      row.enquiry_no = enquiry_no;
+      row.line_item_type = line_item_type;
+      row._lineItemTypeOptions = this.bulkApplyQuote._lineItemTypeOptions;
+    }
+
+    this.messageService.add({ severity: 'success', summary: 'Applied', detail: `Bulk values applied to rows ${start + 1} to ${end}` });
+    this.cdr.detectChanges();
   }
 
   removeQuoteMappingRow(index: number) {
