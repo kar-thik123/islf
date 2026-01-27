@@ -484,6 +484,11 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       <div class="section-header">Booking Breakup</div>
       <div class="mb-2">
         <button pButton label="+ Add Breakup" class="p-button-sm" (click)="addBreakupRow()"></button>
+        <button *ngIf="breakupRows.length > 0 && (breakupType === 'CONTAINER BREAKUP' || breakupType === 'PACKAGE BREAKUP')" 
+                pButton label="Bulk Entry" icon="pi pi-table" 
+                class="p-button-sm p-button-outlined ml-2" 
+                (click)="openBulkEntryDialog()">
+        </button>
       </div>
       <p-table [value]="breakupRows" [showGridlines]="true">
         <ng-template pTemplate="header">
@@ -706,6 +711,154 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       </div>
       </ng-template>
     </p-dialog>
+
+    <!-- Bulk Entry Dialog -->
+    <p-dialog 
+      [header]="activeBulkEntryType === 'container' ? 'Container Breakup Bulk Entry' : 'Package Breakup Bulk Entry'" 
+      [(visible)]="showBulkEntryDialog" 
+      [modal]="true" 
+      [draggable]="false" 
+      [resizable]="false" 
+      [style]="{ width: '800px' }"
+      [contentStyle]="{ overflow: 'auto' }">
+      <ng-template pTemplate="content">
+        <div class="p-fluid">
+          <!-- Breakup Number Selector (shown when multiple breakups exist) -->
+          <div *ngIf="breakupRows.length > 1" class="grid grid-cols-12 gap-4 mb-4 p-4 bg-yellow-50 rounded border-2 border-yellow-300">
+            <div class="col-span-12">
+              <h4 class="text-lg font-semibold mb-2">Select Booking Breakup</h4>
+              <p class="text-sm text-gray-600 mb-2">Choose which booking breakup's rows to update</p>
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Breakup No.</label>
+              <p-dropdown 
+                [(ngModel)]="selectedBreakupNo" 
+                [options]="getBreakupNoOptions()" 
+                placeholder="Select Breakup No." 
+                (onChange)="onBreakupNoChange()"
+                appendTo="body"
+                [style]="{'width':'100%'}">
+              </p-dropdown>
+            </div>
+          </div>
+
+          <!-- Range Selector -->
+          <div class="grid grid-cols-12 gap-4 mb-4 p-4 bg-blue-50 rounded">
+            <div class="col-span-12">
+              <h4 class="text-lg font-semibold mb-2">Select Range</h4>
+            </div>
+            <div class="col-span-6">
+              <label class="block mb-1">From Row</label>
+              <p-dropdown 
+                [(ngModel)]="bulkEntryRange.from" 
+                [options]="getRangeOptions()" 
+                placeholder="Select From" 
+                appendTo="body"
+                [style]="{'width':'100%'}">
+              </p-dropdown>
+            </div>
+            <div class="col-span-6">
+              <label class="block mb-1">To Row</label>
+              <p-dropdown 
+                [(ngModel)]="bulkEntryRange.to" 
+                [options]="getRangeOptions()" 
+                placeholder="Select To" 
+                appendTo="body"
+                [style]="{'width':'100%'}">
+              </p-dropdown>
+            </div>
+          </div>
+
+          <!-- Container Breakup Form -->
+          <div *ngIf="activeBulkEntryType === 'container'" class="grid grid-cols-12 gap-4">
+            <div class="col-span-12">
+              <h4 class="text-lg font-semibold mb-2">Bulk Entry Fields</h4>
+              <p class="text-sm text-gray-600 mb-3">Only fields with values will be applied to selected rows</p>
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Container No.</label>
+              <input pInputText [(ngModel)]="bulkEntryForm.container_no" placeholder="Enter Container No." class="w-full" />
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Pickup/Handover Date</label>
+              <p-calendar 
+                [(ngModel)]="bulkEntryForm.pickup_handover_date" 
+                [showIcon]="true" 
+                [dateFormat]="configService.calendarDateFormat" 
+                appendTo="body" 
+                [style]="{'width':'100%'}">
+              </p-calendar>
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Empty Yard</label>
+              <p-dropdown 
+                [(ngModel)]="bulkEntryForm.empty_yard" 
+                [options]="subVendorOptions" 
+                placeholder="Select Vendor" 
+                appendTo="body" 
+                [filter]="true" 
+                filterBy="label" 
+                [style]="{'width':'100%'}">
+              </p-dropdown>
+            </div>
+          </div>
+
+          <!-- Package Breakup Form -->
+          <div *ngIf="activeBulkEntryType === 'package'" class="grid grid-cols-12 gap-4">
+            <div class="col-span-12">
+              <h4 class="text-lg font-semibold mb-2">Bulk Entry Fields</h4>
+              <p class="text-sm text-gray-600 mb-3">Only fields with values will be applied to selected rows</p>
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Package No.</label>
+              <input pInputText [(ngModel)]="bulkEntryForm.package_no" placeholder="Enter Package No." class="w-full" />
+            </div>
+            <div class="col-span-6">
+              <label class="block mb-1">Length (cm)</label>
+              <input pInputText type="number" [(ngModel)]="bulkEntryForm.length_cm" placeholder="Length" class="w-full" />
+            </div>
+            <div class="col-span-6">
+              <label class="block mb-1">Width (cm)</label>
+              <input pInputText type="number" [(ngModel)]="bulkEntryForm.width_cm" placeholder="Width" class="w-full" />
+            </div>
+            <div class="col-span-6">
+              <label class="block mb-1">Height (cm)</label>
+              <input pInputText type="number" [(ngModel)]="bulkEntryForm.height_cm" placeholder="Height" class="w-full" />
+            </div>
+            <div class="col-span-6">
+              <label class="block mb-1">Weight (kgs)</label>
+              <input pInputText type="number" [(ngModel)]="bulkEntryForm.weight_kgs" placeholder="Weight" class="w-full" />
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Handover Date</label>
+              <p-calendar 
+                [(ngModel)]="bulkEntryForm.handover_date" 
+                [showIcon]="true" 
+                [dateFormat]="configService.calendarDateFormat" 
+                appendTo="body" 
+                [style]="{'width':'100%'}">
+              </p-calendar>
+            </div>
+            <div class="col-span-12">
+              <label class="block mb-1">Carting</label>
+              <p-dropdown 
+                [(ngModel)]="bulkEntryForm.carting" 
+                [options]="subVendorOptions" 
+                placeholder="Select Vendor" 
+                appendTo="body" 
+                [filter]="true" 
+                filterBy="label" 
+                [style]="{'width':'100%'}">
+              </p-dropdown>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+      <ng-template pTemplate="footer">
+        <button pButton label="Cancel" class="p-button-secondary" (click)="closeBulkEntryDialog()"></button>
+        <button pButton label="Apply" icon="pi pi-check" (click)="submitBulkEntry()"></button>
+      </ng-template>
+    </p-dialog>
   `,
 })
 export class BookingComponent implements OnInit {
@@ -774,6 +927,13 @@ export class BookingComponent implements OnInit {
   quoteMappingRows: any[] = [];
   enquiryOptions: any[] = [];
   lineItemTypeOptionsMap: { [enquiryNo: string]: any[] } = {};
+
+  // Bulk Entry State
+  showBulkEntryDialog = false;
+  bulkEntryForm: any = {};
+  bulkEntryRange: { from: number, to: number } = { from: 1, to: 1 };
+  activeBulkEntryType: 'container' | 'package' | null = null;
+  selectedBreakupNo: string | null = null;
 
   constructor(
     private bookingService: BookingService,
@@ -1984,12 +2144,13 @@ export class BookingComponent implements OnInit {
 
   private parseDate(d: any): Date | null {
     if (!d) return null;
-    const date = new Date(d);
-    return isNaN(date.getTime()) ? null : date;
+    if (d instanceof Date) return d;
+    const parsed = new Date(d);
+    return isNaN(parsed.getTime()) ? null : parsed;
   }
 
   getEnquirySeverity(status: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
-    switch ((status || '').toString().toLowerCase()) {
+    switch ((status || '').toString().toLowerCase()) { // Keep original logic for case-insensitivity and default
       case 'open': return 'success';
       case 'pending': return 'warn';
       case 'closed': return 'danger';
@@ -1999,7 +2160,172 @@ export class BookingComponent implements OnInit {
   }
 
   isEnquirySelectable(enq: any): boolean {
-    const status = (enq.status || '').toString().toLowerCase();
-    return status === 'open' || status === 'pending';
+    if (!this.selectedEnquiries || this.selectedEnquiries.length === 0) return true;
+    const first = this.selectedEnquiries[0];
+    return enq.company_name === first.company_name &&
+      enq.department === first.department &&
+      enq.service_type === first.service_type &&
+      enq.from_location === first.from_location &&
+      enq.to_location === first.to_location;
+  }
+
+  // Bulk Entry Methods
+  openBulkEntryDialog() {
+    const type = this.breakupType;
+    if (type === 'CONTAINER BREAKUP') {
+      this.activeBulkEntryType = 'container';
+    } else if (type === 'PACKAGE BREAKUP') {
+      this.activeBulkEntryType = 'package';
+    } else {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'Bulk entry is only available for Container or Package breakup types' });
+      return;
+    }
+
+    // Set default breakup number (first one if multiple exist)
+    if (this.breakupRows.length > 0) {
+      this.selectedBreakupNo = this.breakupRows[0].breakup_no;
+    } else {
+      this.selectedBreakupNo = null;
+    }
+
+    const totalRows = this.getTotalSubBreakupRows();
+    if (totalRows === 0) {
+      this.messageService.add({ severity: 'warn', summary: 'Warning', detail: 'No breakup rows available. Please add quantity to breakup rows first.' });
+      return;
+    }
+
+    // Initialize form and range
+    this.bulkEntryForm = {};
+    this.bulkEntryRange = { from: 1, to: totalRows };
+    this.showBulkEntryDialog = true;
+  }
+
+  getTotalSubBreakupRows(): number {
+    if (this.activeBulkEntryType === 'container') {
+      return this.getFilteredSubBreakupRows(this.containerBreakupRows).length;
+    } else if (this.activeBulkEntryType === 'package') {
+      return this.getFilteredSubBreakupRows(this.packageBreakupRows).length;
+    }
+    return 0;
+  }
+
+  getFilteredSubBreakupRows(rows: any[]): any[] {
+    // If only one breakup or no breakup selected, return all rows
+    if (this.breakupRows.length <= 1 || !this.selectedBreakupNo) {
+      return rows;
+    }
+    // Filter rows by selected breakup number
+    return rows.filter(row => row.breakup_no === this.selectedBreakupNo);
+  }
+
+  getRangeOptions(): any[] {
+    const total = this.getTotalSubBreakupRows();
+    const options = [];
+    for (let i = 1; i <= total; i++) {
+      options.push({ label: i.toString(), value: i });
+    }
+    return options;
+  }
+
+  getBreakupNoOptions(): any[] {
+    return this.breakupRows.map(row => ({
+      label: `Breakup ${row.breakup_no} - ${row.vendor_name || 'No Vendor'}`,
+      value: row.breakup_no
+    }));
+  }
+
+  onBreakupNoChange() {
+    // Reset range when breakup number changes
+    const totalRows = this.getTotalSubBreakupRows();
+    this.bulkEntryRange = { from: 1, to: totalRows };
+  }
+
+  submitBulkEntry() {
+    // Validate range
+    if (this.bulkEntryRange.from > this.bulkEntryRange.to) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'From row must be less than or equal to To row' });
+      return;
+    }
+
+    const totalRows = this.getTotalSubBreakupRows();
+    if (this.bulkEntryRange.from < 1 || this.bulkEntryRange.to > totalRows) {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: `Range must be between 1 and ${totalRows}` });
+      return;
+    }
+
+    // Get the filtered rows for the selected breakup
+    const allRows = this.activeBulkEntryType === 'container' ? this.containerBreakupRows : this.packageBreakupRows;
+    const filteredRows = this.getFilteredSubBreakupRows(allRows);
+
+    // Apply bulk updates to selected range (convert to 0-indexed)
+    const fromIndex = this.bulkEntryRange.from - 1;
+    const toIndex = this.bulkEntryRange.to - 1;
+
+    let updatedCount = 0;
+    for (let i = fromIndex; i <= toIndex; i++) {
+      const row = filteredRows[i];
+      if (!row) continue;
+
+      // Apply only non-empty fields from bulk form
+      if (this.activeBulkEntryType === 'container') {
+        if (this.bulkEntryForm.container_no !== undefined && this.bulkEntryForm.container_no !== null && this.bulkEntryForm.container_no !== '') {
+          row.container_no = this.bulkEntryForm.container_no;
+        }
+        if (this.bulkEntryForm.pickup_handover_date !== undefined && this.bulkEntryForm.pickup_handover_date !== null) {
+          row.pickup_handover_date = this.bulkEntryForm.pickup_handover_date;
+        }
+        if (this.bulkEntryForm.empty_yard !== undefined && this.bulkEntryForm.empty_yard !== null && this.bulkEntryForm.empty_yard !== '') {
+          row.empty_yard = this.bulkEntryForm.empty_yard;
+        }
+      } else if (this.activeBulkEntryType === 'package') {
+        if (this.bulkEntryForm.package_no !== undefined && this.bulkEntryForm.package_no !== null && this.bulkEntryForm.package_no !== '') {
+          row.package_no = this.bulkEntryForm.package_no;
+        }
+        if (this.bulkEntryForm.length_cm !== undefined && this.bulkEntryForm.length_cm !== null && this.bulkEntryForm.length_cm !== '') {
+          row.length_cm = this.bulkEntryForm.length_cm;
+        }
+        if (this.bulkEntryForm.width_cm !== undefined && this.bulkEntryForm.width_cm !== null && this.bulkEntryForm.width_cm !== '') {
+          row.width_cm = this.bulkEntryForm.width_cm;
+        }
+        if (this.bulkEntryForm.height_cm !== undefined && this.bulkEntryForm.height_cm !== null && this.bulkEntryForm.height_cm !== '') {
+          row.height_cm = this.bulkEntryForm.height_cm;
+        }
+        if (this.bulkEntryForm.weight_kgs !== undefined && this.bulkEntryForm.weight_kgs !== null && this.bulkEntryForm.weight_kgs !== '') {
+          row.weight_kgs = this.bulkEntryForm.weight_kgs;
+        }
+        if (this.bulkEntryForm.handover_date !== undefined && this.bulkEntryForm.handover_date !== null) {
+          row.handover_date = this.bulkEntryForm.handover_date;
+        }
+        if (this.bulkEntryForm.carting !== undefined && this.bulkEntryForm.carting !== null && this.bulkEntryForm.carting !== '') {
+          row.carting = this.bulkEntryForm.carting;
+        }
+      }
+      updatedCount++;
+    }
+
+    // Trigger change detection
+    if (this.activeBulkEntryType === 'container') {
+      this.containerBreakupRows = [...this.containerBreakupRows];
+    } else {
+      this.packageBreakupRows = [...this.packageBreakupRows];
+    }
+
+    // Trigger quote mapping update if needed
+    this.initializeQuoteMappings();
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: `Bulk update applied to ${updatedCount} row(s)`
+    });
+    this.closeBulkEntryDialog();
+  }
+
+  closeBulkEntryDialog() {
+    this.showBulkEntryDialog = false;
+    this.bulkEntryForm = {};
+    this.bulkEntryRange = { from: 1, to: 1 };
+    this.activeBulkEntryType = null;
+    this.selectedBreakupNo = null;
   }
 }
