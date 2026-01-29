@@ -486,11 +486,6 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
       <div class="section-header">Booking Breakup</div>
       <div class="mb-2">
         <button pButton label="+ Add Breakup" class="p-button-sm" (click)="addBreakupRow()"></button>
-        <button *ngIf="breakupRows.length > 0 && (breakupType === 'CONTAINER BREAKUP' || breakupType === 'PACKAGE BREAKUP')" 
-                pButton label="Bulk Entry" icon="pi pi-table" 
-                class="p-button-sm p-button-outlined ml-2" 
-                (click)="openBulkEntryDialog()">
-        </button>
       </div>
       <p-table [value]="breakupRows" [showGridlines]="true">
         <ng-template pTemplate="header">
@@ -549,6 +544,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                 <div class="flex justify-between items-center px-2 py-1">
                   <span>Container Breakup Details</span>
                   <button *ngIf="currentBooking.sub_breakup_vendor_type" pButton label="Change Vendor Type" icon="pi pi-refresh" class="p-button-outlined p-button-warning p-button-sm" (click)="changeSubVendorType()"></button>
+                  <button *ngIf="breakupRows.length > 0" pButton label="Bulk Entry" icon="pi pi-table" class="p-button-sm p-button-outlined ml-2" (click)="openBulkEntryDialog()"></button>
                 </div>
               </th>
             </tr>
@@ -594,6 +590,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                 <div class="flex justify-between items-center px-2 py-1">
                   <span>Package Breakup Details</span>
                   <button *ngIf="currentBooking.sub_breakup_vendor_type" pButton label="Change Vendor Type" icon="pi pi-refresh" class="p-button-outlined p-button-warning p-button-sm" (click)="changeSubVendorType()"></button>
+                  <button *ngIf="breakupRows.length > 0" pButton label="Bulk Entry" icon="pi pi-table" class="p-button-sm p-button-outlined ml-2" (click)="openBulkEntryDialog()"></button>
                 </div>
               </th>
             </tr>
@@ -811,6 +808,25 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
               <h4 class="text-lg font-semibold mb-2">Bulk Entry Fields</h4>
               <p class="text-sm text-gray-600 mb-3">Only fields with values will be applied to selected rows</p>
             </div>
+            
+            <div class="col-span-12" *ngIf="bulkEntryInfo">
+              <div class="grid grid-cols-12 gap-2 p-2 bg-gray-50 rounded">
+                 <div class="col-span-4">
+                    <label class="block text-xs font-semibold text-gray-500">Vendor Name</label>
+                    <input pInputText [value]="bulkEntryInfo.vendor_name" readonly class="w-full p-inputtext-sm bg-gray-100" />
+                 </div>
+                 <div class="col-span-4">
+                    <label class="block text-xs font-semibold text-gray-500">Ref No.</label>
+                    <input pInputText [value]="bulkEntryInfo.booking_ref_no" readonly class="w-full p-inputtext-sm bg-gray-100" />
+                 </div>
+                 <div class="col-span-4">
+                    <label class="block text-xs font-semibold text-gray-500">Basis</label>
+                    <input pInputText [value]="bulkEntryInfo.basis" readonly class="w-full p-inputtext-sm bg-gray-100" />
+                 </div>
+              </div>
+            </div>
+
+            <div class="col-span-12">
             <div class="col-span-12">
               <label class="block mb-1">Container No.</label>
               <input pInputText [(ngModel)]="bulkEntryForm.container_no" placeholder="Enter Container No." class="w-full" />
@@ -831,6 +847,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                 [(ngModel)]="bulkEntryForm.empty_yard" 
                 [options]="subVendorOptions" 
                 placeholder="Select Vendor" 
+                (onShow)="triggerSubVendorTypeSelection()"
                 appendTo="body" 
                 [filter]="true" 
                 filterBy="label" 
@@ -881,6 +898,7 @@ import { ConfigDatePipe } from '../../pipes/config-date.pipe';
                 [(ngModel)]="bulkEntryForm.carting" 
                 [options]="subVendorOptions" 
                 placeholder="Select Vendor" 
+                (onShow)="triggerSubVendorTypeSelection()"
                 appendTo="body" 
                 [filter]="true" 
                 filterBy="label" 
