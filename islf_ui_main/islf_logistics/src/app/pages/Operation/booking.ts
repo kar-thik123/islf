@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Observable, forkJoin, of } from 'rxjs';
-import { take } from 'rxjs/operators';
+import { take, tap, catchError } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
@@ -11,12 +11,15 @@ import { DropdownModule } from 'primeng/dropdown';
 import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
+import { RadioButtonModule } from 'primeng/radiobutton';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { BadgeModule } from 'primeng/badge';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TabViewModule } from 'primeng/tabview';
 import { BookingService, BookingRecord } from '../../services/booking.service';
 import { EnquiryService } from '../../services/enquiry.service';
 import { ServiceTypeService } from '../../services/servicetype.service';
@@ -49,10 +52,13 @@ import { TextareaModule } from 'primeng/textarea';
     TableModule,
     CalendarModule,
     TooltipModule,
+    RadioButtonModule,
     MasterLocationComponent,
     ConfigDatePipe,
     ConfirmDialogModule,
     BadgeModule,
+    TabViewModule,
+    InputNumberModule,
 
   ],
   providers: [MessageService, ConfirmationService],
@@ -372,6 +378,7 @@ import { TextareaModule } from 'primeng/textarea';
             <th>Sourced Vendor</th>
             <th>Status</th>
             <th>Remarks</th>
+            <th>Preview</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-li>
@@ -385,14 +392,143 @@ import { TextareaModule } from 'primeng/textarea';
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.to_location"/></td>
             <td><input pInputText class="bg-yellow-50" [readonly]="isFrozen" [(ngModel)]="li.sourced_vendor"/></td>
             <td>
-              <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" class="w-60" appendTo="body"></p-dropdown>
+              <p-dropdown [(ngModel)]="li.status" [options]="bookingStatusOptions" optionLabel="label" optionValue="value" [style]="{'width':'120px'}" appendTo="body"></p-dropdown>
             </td>
-            <td><textarea pInputTextarea [rows]="1" [autoResize]="true" class="w-full" [(ngModel)]="li.remarks"></textarea></td>
+            <td><textarea pInputTextarea [rows]="1" [autoResize]="true" [style]="{'width':'300px'}" [(ngModel)]="li.remarks" placeholder="Remarks"></textarea></td>
+            <td>
+              <button pButton icon="pi pi-eye" class="p-button-outlined p-button-rounded p-button-sm" (click)="openEnquiryPreview(li)" pTooltip="View Sourcing & Tariff Preview" tooltipPosition="left"></button>
+            </td>
           </tr>
         </ng-template>
       </p-table>
 
       <div class="section-header">Schedule</div>
+      
+      <!-- Enquiry Preview Dialog -->
+      <p-dialog [(visible)]="showEnquiryPreviewDialog" [header]="'Enquiry Preview: ' + (selectedEnquiryForPreview?.code || '')" [modal]="true" [style]="{width: '85vw'}" [maximizable]="true" appendTo="body">
+        <div *ngIf="loadingPreview" class="flex justify-content-center p-5">
+          <i class="pi pi-spin pi-spinner text-4xl"></i>
+        </div>
+
+        <div *ngIf="!loadingPreview && selectedEnquiryForPreview" class="p-fluid">
+          
+          <div class="bg-blue-50 p-3 rounded mb-3 border border-blue-100 flex gap-4 flex-wrap">
+            <div class="flex-1">
+              <label class="font-semibold text-sm text-gray-600 block">Service Area</label>
+              <span class="font-medium text-lg text-blue-800">{{ selectedEnquiryLineItem?.service_area || 'N/A' }}</span>
+            </div>
+            <div class="flex-1">
+               <label class="font-semibold text-sm text-gray-600 block">Type</label>
+               <span class="font-medium">{{ selectedEnquiryLineItem?.type || 'N/A' }}</span>
+            </div>
+             <div class="flex-1">
+               <label class="font-semibold text-sm text-gray-600 block">Basis</label>
+               <span class="font-medium">{{ selectedEnquiryLineItem?.basis || 'N/A' }}</span>
+            </div>
+             <div class="flex-1">
+               <label class="font-semibold text-sm text-gray-600 block">Customer</label>
+               <span class="font-medium">{{ selectedEnquiryForPreview.customer_name }}</span>
+            </div>
+          </div>
+
+          <p-tabView>
+            <p-tabPanel header="Selected Sourcing">
+              <div *ngIf="!previewSourcingCharges || previewSourcingCharges.length === 0" class="text-center p-4 text-gray-500 bg-gray-50 rounded">
+                No sourcing charges selected for this line item.
+              </div>
+              
+              <p-table *ngIf="previewSourcingCharges && previewSourcingCharges.length > 0" [value]="previewSourcingCharges" [showGridlines]="true" styleClass="p-datatable-sm">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>Charge Name</th>
+                    <th>Basis</th>
+                    <th>Currency</th>
+                    <th class="text-right">Charges</th>
+                    <th class="text-right">GST/VAT</th>
+                    <th>Sell Rate Currency</th>
+                    <th class="text-right">Sell Rate</th>
+                    <th class="text-right">GST/VAT</th>
+                    <th class="text-right">Total Sell</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-charge>
+                  <tr>
+                    <td>{{ chargeCodeToName.get(charge.charge_name || charge.name) || charge.charge_name || charge.name }}</td>
+                    <td>{{ charge.basis }}</td>
+                    <td>{{ charge.currency }}</td>
+                    <td class="text-right">{{ charge.charges | number:'1.2-2' }}</td>
+                    <td class="text-right">{{ charge.gst_vat ? charge.gst_vat + '%' : '' }}</td>
+                    <td>{{ charge.sell_rate_currency || charge.currency }}</td>
+                    <td class="text-right">{{ charge.sell_rate | number:'1.2-2' }}</td>
+                    <td class="text-right">{{ (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) ? (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) + '%' : '' }}</td>
+                    <td class="text-right font-semibold">{{ calculateRowTotal(charge) | number:'1.2-2' }}</td>
+                  </tr>
+                </ng-template>
+                 <ng-template pTemplate="footer">
+                    <tr>
+                        <td colspan="8" class="text-right font-bold">Total Sell Amount:</td>
+                         <td class="text-right font-bold text-green-700">{{ calculateTotalSell(previewSourcingCharges) }}</td>
+                    </tr>
+                </ng-template>
+              </p-table>
+              
+               <div class="mt-3" *ngIf="previewSourcingRemarks">
+                <label class="block font-semibold mb-1 text-gray-700">Remarks:</label>
+                <div class="p-2 bg-gray-50 rounded text-sm text-gray-700 border border-gray-200">{{ previewSourcingRemarks }}</div>
+              </div>
+            </p-tabPanel>
+
+            <p-tabPanel header="Selected Tariff">
+               <div *ngIf="!previewTariffCharges || previewTariffCharges.length === 0" class="text-center p-4 text-gray-500 bg-gray-50 rounded">
+                No tariff charges selected for this line item.
+              </div>
+
+              <p-table *ngIf="previewTariffCharges && previewTariffCharges.length > 0" [value]="previewTariffCharges" [showGridlines]="true" styleClass="p-datatable-sm">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>Charge Name</th>
+                    <th>Basis</th>
+                    <th>Currency</th>
+                    <th class="text-right">Charges</th>
+                    <th class="text-right">GST/VAT</th>
+                    <th>Sell Rate Currency</th>
+                    <th class="text-right">Sell Rate</th>
+                    <th class="text-right">GST/VAT</th>
+                    <th class="text-right">Total Sell</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-charge>
+                  <tr>
+                    <td>{{ chargeCodeToName.get(charge.charge_name || charge.name) || charge.charge_name || charge.name }}</td>
+                    <td>{{ charge.basis }}</td>
+                    <td>{{ charge.currency }}</td>
+                    <td class="text-right">{{ charge.charges | number:'1.2-2' }}</td>
+                    <td class="text-right">{{ charge.gst_vat ? charge.gst_vat + '%' : '' }}</td>
+                    <td>{{ charge.sell_rate_currency || charge.currency }}</td>
+                    <td class="text-right">{{ charge.sell_rate | number:'1.2-2' }}</td>
+                    <td class="text-right">{{ (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) ? (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) + '%' : '' }}</td>
+                    <td class="text-right font-semibold">{{ calculateRowTotal(charge) | number:'1.2-2' }}</td>
+                  </tr>
+                </ng-template>
+                 <ng-template pTemplate="footer">
+                    <tr>
+                        <td colspan="8" class="text-right font-bold">Total Sell Amount:</td>
+                         <td class="text-right font-bold text-green-700">{{ calculateTotalTariff(previewTariffCharges) }}</td>
+                    </tr>
+                </ng-template>
+              </p-table>
+               <div class="mt-3" *ngIf="previewTariffRemarks">
+                <label class="block font-semibold mb-1 text-gray-700">Remarks:</label>
+                <div class="p-2 bg-gray-50 rounded text-sm text-gray-700 border border-gray-200">{{ previewTariffRemarks }}</div>
+              </div>
+            </p-tabPanel>
+          </p-tabView>
+        </div>
+        <ng-template pTemplate="footer">
+            <button pButton label="Close" icon="pi pi-times" (click)="showEnquiryPreviewDialog = false"></button>
+        </ng-template>
+      </p-dialog>
+
       <div class="mb-4">
         <div class="flex items-center mb-2">
           <button pButton label="+ Add Transit" class="p-button-sm" (click)="addTransit()"></button>
@@ -490,11 +626,6 @@ import { TextareaModule } from 'primeng/textarea';
       <div class="section-header">Booking Breakup</div>
       <div class="mb-2">
         <button pButton label="+ Add Breakup" class="p-button-sm" (click)="addBreakupRow()"></button>
-        <button *ngIf="breakupRows.length > 0 && (breakupType === 'CONTAINER BREAKUP' || breakupType === 'PACKAGE BREAKUP')" 
-                pButton label="Bulk Entry" icon="pi pi-table" 
-                class="p-button-sm p-button-outlined ml-2" 
-                (click)="openBulkEntryDialog()">
-        </button>
       </div>
       <p-table [value]="breakupRows" [showGridlines]="true">
         <ng-template pTemplate="header">
@@ -505,7 +636,7 @@ import { TextareaModule } from 'primeng/textarea';
             <th>Bkg Reference No</th>
             <th>Basis</th>
             <th>Bkg Validity</th>
-            <th>Qty</th>
+            <th style="width: 120px;">Qty</th>
             <th>Remarks</th>
             <th>Action</th>
           </tr>
@@ -531,7 +662,7 @@ import { TextareaModule } from 'primeng/textarea';
               <p-calendar [(ngModel)]="bk.valid_till" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" [style]="{'width':'150px'}"></p-calendar>
             </td>
             <td>
-              <input pInputText type="number" [(ngModel)]="bk.quantity" placeholder="Qty" [style]="{'width':'80px'}" (ngModelChange)="onBreakupQuantityChange()" />
+              <p-inputNumber [(ngModel)]="bk.quantity" placeholder="Qty" [style]="{'width':'100%'}" (ngModelChange)="onBreakupQuantityChange()" [min]="bk.min_qty || 0" [showButtons]="true" (onBlur)="lockMinQty(bk)"></p-inputNumber>
             </td>
             <td>
               <textarea pInputTextarea [rows]="1" [autoResize]="true" [(ngModel)]="bk.remarks" placeholder="Remarks" class="w-full"></textarea>
@@ -546,6 +677,9 @@ import { TextareaModule } from 'primeng/textarea';
       <!-- Container Breakup Section -->
       <div *ngIf="breakupType === 'CONTAINER BREAKUP'">
         <div class="section-header mt-4 text-blue-700">Container Breakup Details</div>
+        <div class="mb-2 mt-2" *ngIf="breakupRows.length > 0">
+          <button pButton label="Bulk Entry" icon="pi pi-table" class="p-button-sm p-button-outlined" (click)="openBulkEntryDialog()"></button>
+        </div>
         <p-table [value]="containerBreakupRows" [showGridlines]="true">
           <ng-template pTemplate="header">
             <tr>
@@ -591,6 +725,9 @@ import { TextareaModule } from 'primeng/textarea';
       <!-- Package Breakup Section -->
       <div *ngIf="breakupType === 'PACKAGE BREAKUP'">
         <div class="section-header mt-4 text-blue-700">Package Breakup Details</div>
+        <div class="mb-2 mt-2" *ngIf="breakupRows.length > 0">
+          <button pButton label="Bulk Entry" icon="pi pi-table" class="p-button-sm p-button-outlined" (click)="openBulkEntryDialog()"></button>
+        </div>
         <p-table [value]="packageBreakupRows" [showGridlines]="true">
           <ng-template pTemplate="header">
             <tr>
@@ -682,10 +819,12 @@ import { TextareaModule } from 'primeng/textarea';
 
         <div class="mb-2">
           <button pButton label="+ Add Mapping" class="p-button-sm " (click)="addQuoteMappingRow()"></button>
-          <button pButton label="Bulk Entry" icon="pi pi-bolt" style="margin-left:8px " class="p-button-sm p-button-outlined ml-2" (click)="showBulkApplyDialog = true"></button>
+          <button pButton label="Bulk Apply" icon="pi pi-bolt" style="margin-left:8px" class="p-button-sm p-button-outlined ml-2" (click)="showBulkApplyDialog = true"></button>
         </div>
         <p-table [value]="quoteMappingRows" [showGridlines]="true">
+        
           <ng-template pTemplate="header">
+          
             <tr>
               <th>{{ breakupType === 'CONTAINER BREAKUP' ? 'Container No.' : 'Package No.' }}</th>
               <th>Enquiry Number</th>
@@ -769,7 +908,7 @@ import { TextareaModule } from 'primeng/textarea';
       [contentStyle]="{ overflow: 'auto' }">
       <ng-template pTemplate="content">
         <div class="p-fluid">
-          <!-- Breakup Number Selector (shown when multiple breakups exist) -->
+          <!-- Breakup Number Selector -->
           <div *ngIf="breakupRows.length > 1" class="grid grid-cols-12 gap-4 mb-4 p-4 bg-yellow-50 rounded border-2 border-yellow-300">
             <div class="col-span-12">
               <h4 class="text-lg font-semibold mb-2">Select Booking Breakup</h4>
@@ -783,6 +922,7 @@ import { TextareaModule } from 'primeng/textarea';
                 placeholder="Select Breakup No." 
                 (onChange)="onBreakupNoChange()"
                 appendTo="body"
+                [scrollHeight]="'200px'"
                 [style]="{'width':'100%'}">
               </p-dropdown>
             </div>
@@ -800,6 +940,7 @@ import { TextareaModule } from 'primeng/textarea';
                 [options]="getRangeOptions()" 
                 placeholder="Select From" 
                 appendTo="body"
+                [scrollHeight]="'200px'"
                 [style]="{'width':'100%'}">
               </p-dropdown>
             </div>
@@ -810,16 +951,78 @@ import { TextareaModule } from 'primeng/textarea';
                 [options]="getRangeOptions()" 
                 placeholder="Select To" 
                 appendTo="body"
+                [scrollHeight]="'200px'"
                 [style]="{'width':'100%'}">
               </p-dropdown>
             </div>
           </div>
 
+          <!-- New Common Fields (Booking Breakup Details) -->
+          <div class="grid grid-cols-12 gap-4 mb-4 p-4 bg-gray-50 rounded border border-gray-200">
+             <div class="col-span-12">
+               <h4 class="text-lg font-semibold mb-2">Booking Breakup Details</h4>
+             </div>
+             <!-- Breakup No (Assign to specific breakup) -->
+             <div class="col-span-6">
+                <label class="block mb-1">Breakup No.</label>
+                 <p-dropdown 
+                   [(ngModel)]="bulkEntryForm.breakup_no" 
+                   [options]="getBreakupNoOptions()" 
+                   placeholder="Select Breakup No" 
+                   appendTo="body" 
+                   [filter]="true" 
+                   filterBy="label"
+                   [scrollHeight]="'200px'"
+                   [style]="{'width':'100%'}">
+                 </p-dropdown>
+             </div>
+             
+             <div class="col-span-6">
+                <label class="block mb-1">Vendor Name</label>
+                <!-- Existing Vendor Names from Breakup Rows -->
+                <p-dropdown 
+                   [(ngModel)]="bulkEntryForm.vendor_name" 
+                   [options]="getUniqueVendorNames()" 
+                   placeholder="Select Vendor" 
+                   appendTo="body" 
+                   [filter]="true" 
+                   filterBy="label" 
+                   [scrollHeight]="'200px'"
+                   [style]="{'width':'100%'}">
+                </p-dropdown>
+             </div>
+             
+             <div class="col-span-6">
+                <label class="block mb-1">Ref No.</label>
+                <p-dropdown 
+                   [(ngModel)]="bulkEntryForm.booking_ref_no" 
+                   [options]="getUniqueRefNos()" 
+                   placeholder="Select Ref No" 
+                   appendTo="body" 
+                   [filter]="true" 
+                   filterBy="label" 
+                   [scrollHeight]="'200px'"
+                   [style]="{'width':'100%'}">
+                </p-dropdown>
+             </div>
+
+             <div class="col-span-6">
+                <label class="block mb-1">Basis</label>
+                <p-dropdown 
+                   [(ngModel)]="bulkEntryForm.basis" 
+                   [options]="getUniqueBasis()" 
+                   placeholder="Select Basis" 
+                   appendTo="body" 
+                   [scrollHeight]="'200px'"
+                   [style]="{'width':'100%'}">
+                </p-dropdown>
+             </div>
+          </div>
+
           <!-- Container Breakup Form -->
           <div *ngIf="activeBulkEntryType === 'container'" class="grid grid-cols-12 gap-4">
             <div class="col-span-12">
-              <h4 class="text-lg font-semibold mb-2">Bulk Entry Fields</h4>
-              <p class="text-sm text-gray-600 mb-3">Only fields with values will be applied to selected rows</p>
+              <h4 class="text-lg font-semibold mb-2">Container Details</h4>
             </div>
             <div class="col-span-12">
               <label class="block mb-1">Container No.</label>
@@ -835,30 +1038,84 @@ import { TextareaModule } from 'primeng/textarea';
                 [style]="{'width':'100%'}">
               </p-calendar>
             </div>
-            <div class="col-span-12">
-              <label class="block mb-1">Empty Yard</label>
-              <p-dropdown 
-                [(ngModel)]="bulkEntryForm.empty_yard" 
-                [options]="subVendorOptions" 
-                placeholder="Select Vendor" 
-                appendTo="body" 
-                [filter]="true" 
-                filterBy="label" 
-                [style]="{'width':'100%'}">
-              </p-dropdown>
+
+            <!-- Empty Yard (Two-Step Vendor Selection) -->
+            <div class="col-span-12 p-3 bg-blue-50 rounded border border-blue-100">
+               <h5 class="font-medium mb-2">Empty Yard Details</h5>
+               <div class="grid grid-cols-2 gap-4">
+                 <div>
+                    <label class="block mb-1">Vendor Type</label>
+                    <p-dropdown [(ngModel)]="bulkEntryForm.empty_yard_vendor_type" [options]="vendorTypeOptions" placeholder="Select Type" (onChange)="onBulkEmptyYardTypeChange()" appendTo="body" [scrollHeight]="'200px'" [style]="{'width':'100%'}"></p-dropdown>
+                 </div>
+                 <div>
+                    <label class="block mb-1">Vendor Name</label>
+                    <p-dropdown 
+                      [(ngModel)]="bulkEntryForm.empty_yard" 
+                      [options]="bulkEntryForm._emptyYardVendorOptions || []" 
+                      placeholder="Select Vendor" 
+                      appendTo="body" 
+                      [filter]="true" 
+                      filterBy="label" 
+                      [scrollHeight]="'200px'"
+                      [style]="{'width':'100%'}">
+                    </p-dropdown>
+                 </div>
+               </div>
             </div>
+
           </div>
 
           <!-- Package Breakup Form -->
           <div *ngIf="activeBulkEntryType === 'package'" class="grid grid-cols-12 gap-4">
             <div class="col-span-12">
-              <h4 class="text-lg font-semibold mb-2">Bulk Entry Fields</h4>
-              <p class="text-sm text-gray-600 mb-3">Only fields with values will be applied to selected rows</p>
+              <h4 class="text-lg font-semibold mb-2">Package Details</h4>
             </div>
-            <div class="col-span-12">
-              <label class="block mb-1">Package No.</label>
-              <input pInputText [(ngModel)]="bulkEntryForm.package_no" placeholder="Enter Package No." class="w-full" />
-            </div>
+
+            <!-- Package Number Generation Section -->
+             <div class="col-span-12 p-3 bg-indigo-50 rounded border border-indigo-100">
+               <label class="block mb-2 font-medium">Package Number Mode</label>
+               
+               <div class="flex flex-col gap-3 mb-3">
+                 <div class="flex align-items-center">
+                   <p-radioButton 
+                     inputId="pkgModeSame" 
+                     name="pkgMode" 
+                     value="same" 
+                     [(ngModel)]="bulkEntryForm.package_no_mode">
+                   </p-radioButton>
+                   <label for="pkgModeSame" class="ml-2 cursor-pointer">Same Package No</label>
+                 </div>
+                 <div class="flex align-items-center">
+                   <p-radioButton 
+                     inputId="pkgModeSeq" 
+                     name="pkgMode" 
+                     value="sequence" 
+                     [(ngModel)]="bulkEntryForm.package_no_mode">
+                   </p-radioButton>
+                   <label for="pkgModeSeq" class="ml-2 cursor-pointer">Generate Sequence</label>
+                 </div>
+               </div>
+
+               <div *ngIf="bulkEntryForm.package_no_mode === 'same'">
+                  <label class="block mb-1">Package No.</label>
+                  <input pInputText [(ngModel)]="bulkEntryForm.package_no" placeholder="Enter Package No." class="w-full" />
+               </div>
+
+               <div *ngIf="bulkEntryForm.package_no_mode === 'sequence'" class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block mb-1">First Package No (e.g. pck1)</label>
+                    <input pInputText [(ngModel)]="bulkEntryForm.pkg_seq_first" placeholder="e.g. pck1" class="w-full" />
+                  </div>
+                  <div>
+                    <label class="block mb-1">Next Package No (e.g. pck2)</label>
+                    <input pInputText [(ngModel)]="bulkEntryForm.pkg_seq_next" placeholder="e.g. pck2" class="w-full" />
+                  </div>
+                  <div class="col-span-2 text-xs text-gray-500">
+                    System will automatically detect prefix and increment.
+                  </div>
+               </div>
+             </div>
+
             <div class="col-span-6">
               <label class="block mb-1">Length (cm)</label>
               <input pInputText type="number" [(ngModel)]="bulkEntryForm.length_cm" placeholder="Length" class="w-full" />
@@ -875,6 +1132,7 @@ import { TextareaModule } from 'primeng/textarea';
               <label class="block mb-1">Weight (kgs)</label>
               <input pInputText type="number" [(ngModel)]="bulkEntryForm.weight_kgs" placeholder="Weight" class="w-full" />
             </div>
+            
             <div class="col-span-12">
               <label class="block mb-1">Handover Date</label>
               <p-calendar 
@@ -885,18 +1143,31 @@ import { TextareaModule } from 'primeng/textarea';
                 [style]="{'width':'100%'}">
               </p-calendar>
             </div>
-            <div class="col-span-12">
-              <label class="block mb-1">Carting</label>
-              <p-dropdown 
-                [(ngModel)]="bulkEntryForm.carting" 
-                [options]="subVendorOptions" 
-                placeholder="Select Vendor" 
-                appendTo="body" 
-                [filter]="true" 
-                filterBy="label" 
-                [style]="{'width':'100%'}">
-              </p-dropdown>
+
+            <!-- Carting (Two-Step Vendor Selection) -->
+            <div class="col-span-12 p-3 bg-green-50 rounded border border-green-100">
+               <h5 class="font-medium mb-2">Carting Details</h5>
+               <div class="grid grid-cols-2 gap-4">
+                 <div>
+                    <label class="block mb-1">Vendor Type</label>
+                    <p-dropdown [(ngModel)]="bulkEntryForm.carting_vendor_type" [options]="vendorTypeOptions" placeholder="Select Type" (onChange)="onBulkCartingTypeChange()" appendTo="body" [scrollHeight]="'200px'" [style]="{'width':'100%'}"></p-dropdown>
+                 </div>
+                 <div>
+                    <label class="block mb-1">Vendor Name</label>
+                    <p-dropdown 
+                      [(ngModel)]="bulkEntryForm.carting" 
+                      [options]="bulkEntryForm._cartingVendorOptions || []" 
+                      placeholder="Select Vendor" 
+                      appendTo="body" 
+                      [filter]="true" 
+                      filterBy="label" 
+                      [scrollHeight]="'200px'"
+                      [style]="{'width':'100%'}">
+                    </p-dropdown>
+                 </div>
+               </div>
             </div>
+
           </div>
         </div>
       </ng-template>
@@ -991,6 +1262,18 @@ export class BookingComponent implements OnInit {
   activeBulkEntryType: 'container' | 'package' | null = null;
   selectedBreakupNo: string | null = null;
 
+  // Enquiry Preview Properties
+  showEnquiryPreviewDialog = false;
+  loadingPreview = false;
+  selectedEnquiryForPreview: any = null;
+  selectedEnquiryLineItem: any = null;
+  selectedSourcingVendor: any = null;
+  previewSourcingCharges: any[] = [];
+  previewTariffCharges: any[] = [];
+  previewSourcingRemarks: string = '';
+  previewTariffRemarks: string = '';
+  chargeCodeToName: Map<string, string> = new Map();
+
   constructor(
     private bookingService: BookingService,
     private enquiryService: EnquiryService,
@@ -1025,6 +1308,7 @@ export class BookingComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.loadChargeTypeNames().subscribe();
     // Load grid immediately so user sees something
     this.loadBookings();
     // Load masters in background
@@ -1083,29 +1367,35 @@ export class BookingComponent implements OnInit {
         }));
 
         // 2. Locations Map (CRITICAL for locName pipe/function)
-        this.allLocations = res.locations || [];
+        // Filter only active locations
+        this.allLocations = (res.locations || []).filter((loc: any) => loc.active === true);
         this.locationMap = {};
         this.allLocations.forEach(loc => {
           this.locationMap[loc.code] = loc.name;
         });
 
         // 3. Statuses
-        this.bookingStatusOptions = (res.bookingStatuses || []).map((s: any) => ({
-          label: s.value,
-          value: s.value
-        }));
+        this.bookingStatusOptions = (res.bookingStatuses || [])
+          .filter((s: any) => (s.status || '').toString().toLowerCase() === 'active')
+          .map((s: any) => ({
+            label: s.value,
+            value: s.value
+          }));
 
         // 4. Cargo
-        this.allCargoItems = res.cargoItems || [];
+        // Filter only active cargo items
+        this.allCargoItems = (res.cargoItems || []).filter((item: any) => (item.status || '').toString().toLowerCase() === 'active');
         this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.map(i => i.item_type)))
           .map(type => ({ label: type, value: type }));
 
         // 5. Vendors
-        this.allVendors = res.vendors || [];
+        // Filter only active vendors
+        this.allVendors = (res.vendors || []).filter((v: any) => (v.status || '').toString().toLowerCase() === 'active');
         this.refreshSubVendorOptions();
 
         // 6. Service Types
-        this.allServiceTypes = res.serviceTypes || [];
+        // Filter only active service types
+        this.allServiceTypes = (res.serviceTypes || []).filter((st: any) => (st.status || '').toString().toLowerCase() === 'active');
         this.serviceTypeOptions = this.allServiceTypes.map(st => ({
           label: st.name,
           value: st.name,
@@ -1113,16 +1403,20 @@ export class BookingComponent implements OnInit {
         }));
 
         // 7. Airlines & Vessels
-        this.allAirlines = res.airlines || [];
+        // Filter only active airlines
+        this.allAirlines = (res.airlines || []).filter((a: any) => a.active === true);
         this.airlineOptions = this.allAirlines.map(a => ({ label: a.airline_name, value: a.airline_name }));
 
         console.log('Vessel Data Loaded:', res.vessels);
-        this.allVessels = res.vessels || [];
+        // Filter only active vessels
+        this.allVessels = (res.vessels || []).filter((v: any) => v.active === true);
         this.vesselOptions = this.allVessels.map(v => ({ label: v.vessel_name, value: v.vessel_name }));
-        console.log('Vessel Options Mapped:', this.vesselOptions);
+        console.log('Vessel Options Mapped (Active only):', this.vesselOptions);
 
         // 8. Vendor Types
-        this.vendorTypeOptions = (res.vendorTypes || []).map((t: any) => ({ label: t.value, value: t.value }));
+        this.vendorTypeOptions = (res.vendorTypes || [])
+          .filter((t: any) => (t.status || '').toString().toLowerCase() === 'active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
 
         // 9. Location Types
         this.locationTypeOptions = (res.locationTypes || [])
@@ -1448,6 +1742,7 @@ export class BookingComponent implements OnInit {
 
         this.breakupRows = (b?.booking_breakup || []).map((bk: any) => {
           bk.valid_till = bk.valid_till ? new Date(bk.valid_till) : null;
+          bk.min_qty = bk.quantity;
           this.onBreakupVendorTypeChange(bk, false);
           return bk;
         });
@@ -1745,10 +2040,17 @@ export class BookingComponent implements OnInit {
       basis: '',
       valid_till: null,
       quantity: null,
+      min_qty: null,
       remarks: '',
       _vendorOptions: []
     });
     this.breakupRows = [...this.breakupRows];
+  }
+
+  lockMinQty(row: any) {
+    if (row.quantity !== null && row.quantity !== undefined && row.min_qty === null) {
+      row.min_qty = row.quantity;
+    }
   }
 
   removeBreakupRow(index: number) {
@@ -1843,11 +2145,26 @@ export class BookingComponent implements OnInit {
       return;
     }
 
+    const rows = type === 'CONTAINER BREAKUP' ? this.containerBreakupRows : this.packageBreakupRows;
+    this.breakupRows.forEach(bk => {
+      // Use == for loose equality as breakup_no can be string or numeric
+      const currentCount = rows.filter(r => r.breakup_no == bk.breakup_no).length;
+
+      // Prevent manual reduction below current count
+      if (bk.quantity < currentCount) bk.quantity = currentCount;
+
+      // Ensure quantity doesn't go below min_qty
+      if (bk.min_qty !== null && bk.min_qty !== undefined && bk.quantity < bk.min_qty) {
+        bk.quantity = bk.min_qty;
+      }
+    });
+
     if (type === 'CONTAINER BREAKUP') {
-      this.syncSubBreakupRows(this.containerBreakupRows, 'container');
+      this.syncSubBreakupRows([...this.containerBreakupRows], 'container');
     } else if (type === 'PACKAGE BREAKUP') {
-      this.syncSubBreakupRows(this.packageBreakupRows, 'package');
+      this.syncSubBreakupRows([...this.packageBreakupRows], 'package');
     }
+    this.cdr.detectChanges();
   }
 
   syncSubBreakupRows(subRows: any[], subType: 'container' | 'package') {
@@ -1858,7 +2175,7 @@ export class BookingComponent implements OnInit {
     this.breakupRows.forEach((mainRow) => {
       const qty = parseInt(mainRow.quantity) || 0;
       // Use breakup_no as the stable key to find existing sub-rows
-      const mySubRows = subRows.filter(sr => sr.breakup_no === mainRow.breakup_no);
+      const mySubRows = subRows.filter(sr => sr.breakup_no == mainRow.breakup_no);
 
       for (let i = 0; i < qty; i++) {
         const existing = mySubRows[i];
@@ -1904,7 +2221,7 @@ export class BookingComponent implements OnInit {
     const rows = type === 'container' ? this.containerBreakupRows : this.packageBreakupRows;
     const row = rows[index];
     const bNo = row.breakup_no;
-    const mainRow = this.breakupRows.find(br => br.breakup_no === bNo);
+    const mainRow = this.breakupRows.find(br => br.breakup_no == bNo);
     const currentQty = mainRow ? (parseInt(mainRow.quantity) || 0) : 0;
 
     this.confirmationService.confirm({
@@ -1914,14 +2231,26 @@ export class BookingComponent implements OnInit {
       acceptLabel: 'Yes, Delete',
       rejectLabel: 'Cancel',
       accept: () => {
-        if (mainRow) {
-          if (currentQty > 0) {
-            rows.splice(index, 1);
-            mainRow.quantity = currentQty - 1;
-            this.onBreakupQuantityChange();
+        if (mainRow && currentQty > 0) {
+          rows.splice(index, 1);
+          mainRow.quantity = currentQty - 1;
+
+          // Update min_qty as well when explicitly deleting
+          if (mainRow.min_qty !== null && mainRow.min_qty !== undefined) {
+            mainRow.min_qty = mainRow.quantity;
           }
+
+          // Re-assign array references to trigger Angular change detection
+          this.breakupRows = [...this.breakupRows];
+          if (type === 'container') {
+            this.containerBreakupRows = [...this.containerBreakupRows];
+          } else {
+            this.packageBreakupRows = [...this.packageBreakupRows];
+          }
+
+          this.onBreakupQuantityChange();
+          this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Sub breakup removed' });
         }
-        this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Sub breakup removed' });
       }
     });
   }
@@ -2322,7 +2651,7 @@ export class BookingComponent implements OnInit {
     }
 
     // Initialize form and range
-    this.bulkEntryForm = {};
+    this.bulkEntryForm = { package_no_mode: 'same' };
     this.bulkEntryRange = { from: 1, to: totalRows };
     this.showBulkEntryDialog = true;
   }
@@ -2356,7 +2685,7 @@ export class BookingComponent implements OnInit {
 
   getBreakupNoOptions(): any[] {
     return this.breakupRows.map(row => ({
-      label: `Breakup ${row.breakup_no} - ${row.vendor_name || 'No Vendor'}`,
+      label: row.breakup_no.toString(),
       value: row.breakup_no
     }));
   }
@@ -2367,8 +2696,64 @@ export class BookingComponent implements OnInit {
     this.bulkEntryRange = { from: 1, to: totalRows };
   }
 
+  onBulkVendorTypeChange() {
+    this.bulkEntryForm._vendorOptions = this.getVendorsByType(this.bulkEntryForm.vendor_type);
+    this.bulkEntryForm.vendor_name = ''; // Reset selection
+  }
+
+  onBulkCartingTypeChange() {
+    const type = this.bulkEntryForm.carting_vendor_type;
+    if (!type) {
+      this.bulkEntryForm._cartingVendorOptions = [];
+      this.bulkEntryForm.carting = ''; // Reset selection
+      return;
+    }
+    const t = type.toLowerCase();
+    this.bulkEntryForm._cartingVendorOptions = (this.allVendors || [])
+      .filter((v: any) => (v.type || '').toString().toLowerCase() === t)
+      .map((v: any) => ({ label: v.name2 || v.name || v.vendor_name, value: v.name2 || v.name || v.vendor_name }));
+    this.bulkEntryForm.carting = ''; // Reset selection
+  }
+
+  onBulkEmptyYardTypeChange() {
+    const type = this.bulkEntryForm.empty_yard_vendor_type;
+    if (!type) {
+      this.bulkEntryForm._emptyYardVendorOptions = [];
+      this.bulkEntryForm.empty_yard = ''; // Reset selection
+      return;
+    }
+    const t = type.toLowerCase();
+    this.bulkEntryForm._emptyYardVendorOptions = (this.allVendors || [])
+      .filter((v: any) => (v.type || '').toString().toLowerCase() === t)
+      .map((v: any) => ({ label: v.name2 || v.name || v.vendor_name, value: v.name2 || v.name || v.vendor_name }));
+    this.bulkEntryForm.empty_yard = ''; // Reset selection
+  }
+
+  // Helper methods for bulk entry dropdowns
+  getUniqueVendorNames(): any[] {
+    const unique = new Set(this.breakupRows.map(r => r.vendor_name).filter(v => v));
+    return Array.from(unique).map(v => ({ label: v, value: v }));
+  }
+
+  getUniqueRefNos(): any[] {
+    const unique = new Set(this.breakupRows.map(r => r.booking_ref_no).filter(v => v));
+    return Array.from(unique).map(v => ({ label: v, value: v }));
+  }
+
+  getUniqueBasis(): any[] {
+    const unique = new Set(this.breakupRows.map(r => r.basis).filter(v => v));
+    return Array.from(unique).map(v => ({ label: v, value: v }));
+  }
+
   submitBulkEntry() {
     // Validate range
+    if (this.bulkEntryForm.package_no_mode === 'sequence') {
+      if (!this.bulkEntryForm.pkg_seq_first || !this.bulkEntryForm.pkg_seq_next) {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Please fill First and Next Package No for sequence generation' });
+        return;
+      }
+    }
+
     if (this.bulkEntryRange.from > this.bulkEntryRange.to) {
       this.messageService.add({ severity: 'error', summary: 'Error', detail: 'From row must be less than or equal to To row' });
       return;
@@ -2384,48 +2769,179 @@ export class BookingComponent implements OnInit {
     const allRows = this.activeBulkEntryType === 'container' ? this.containerBreakupRows : this.packageBreakupRows;
     const filteredRows = this.getFilteredSubBreakupRows(allRows);
 
-    // Apply bulk updates to selected range (convert to 0-indexed)
+    // Identify range indices
     const fromIndex = this.bulkEntryRange.from - 1;
     const toIndex = this.bulkEntryRange.to - 1;
 
-    let updatedCount = 0;
+    // 1. OVERWRITE PROTECTION CHECK
+    // Check if ANY field we are trying to update already has a value in the target rows
+    const fieldsToCheck: { field: string, label: string, value: any }[] = [];
+
+    // Common Fields
+    if (this.hasValue(this.bulkEntryForm.booking_ref_no)) fieldsToCheck.push({ field: 'booking_ref_no', label: 'Ref No', value: this.bulkEntryForm.booking_ref_no });
+    if (this.hasValue(this.bulkEntryForm.basis)) fieldsToCheck.push({ field: 'basis', label: 'Basis', value: this.bulkEntryForm.basis });
+    if (this.hasValue(this.bulkEntryForm.vendor_name)) fieldsToCheck.push({ field: 'vendor_name', label: 'Vendor Name', value: this.bulkEntryForm.vendor_name });
+    if (this.hasValue(this.bulkEntryForm.breakup_no)) fieldsToCheck.push({ field: 'breakup_no', label: 'Breakup No', value: this.bulkEntryForm.breakup_no });
+
+    // Container Fields
+    if (this.activeBulkEntryType === 'container') {
+      if (this.hasValue(this.bulkEntryForm.container_no)) fieldsToCheck.push({ field: 'container_no', label: 'Container No', value: this.bulkEntryForm.container_no });
+      if (this.hasValue(this.bulkEntryForm.pickup_handover_date)) fieldsToCheck.push({ field: 'pickup_handover_date', label: 'Pickup Date', value: this.bulkEntryForm.pickup_handover_date });
+      if (this.hasValue(this.bulkEntryForm.empty_yard)) fieldsToCheck.push({ field: 'empty_yard', label: 'Empty Yard', value: this.bulkEntryForm.empty_yard });
+    }
+
+    // Package Fields
+    if (this.activeBulkEntryType === 'package') {
+      // For Package No, we check if user provided a specific value OR if sequence mode is on
+      const isPkgMode = this.bulkEntryForm.package_no_mode;
+      if ((isPkgMode === 'same' && this.hasValue(this.bulkEntryForm.package_no)) || (isPkgMode === 'sequence')) {
+        fieldsToCheck.push({ field: 'package_no', label: 'Package No', value: 'SEQUENCE_OR_VALUE' });
+      }
+      if (this.hasValue(this.bulkEntryForm.length_cm)) fieldsToCheck.push({ field: 'length_cm', label: 'Length', value: this.bulkEntryForm.length_cm });
+      if (this.hasValue(this.bulkEntryForm.width_cm)) fieldsToCheck.push({ field: 'width_cm', label: 'Width', value: this.bulkEntryForm.width_cm });
+      if (this.hasValue(this.bulkEntryForm.height_cm)) fieldsToCheck.push({ field: 'height_cm', label: 'Height', value: this.bulkEntryForm.height_cm });
+      if (this.hasValue(this.bulkEntryForm.weight_kgs)) fieldsToCheck.push({ field: 'weight_kgs', label: 'Weight', value: this.bulkEntryForm.weight_kgs });
+      if (this.hasValue(this.bulkEntryForm.handover_date)) fieldsToCheck.push({ field: 'handover_date', label: 'Handover Date', value: this.bulkEntryForm.handover_date });
+      if (this.hasValue(this.bulkEntryForm.carting)) fieldsToCheck.push({ field: 'carting', label: 'Carting', value: this.bulkEntryForm.carting });
+    }
+
+    let hasOverwriteRisk = false;
     for (let i = fromIndex; i <= toIndex; i++) {
       const row = filteredRows[i];
       if (!row) continue;
 
-      // Apply only non-empty fields from bulk form
+      for (const check of fieldsToCheck) {
+        const existingVal = row[check.field];
+        // Check if existing value is non-empty
+        if (existingVal !== null && existingVal !== undefined && existingVal !== '') {
+          hasOverwriteRisk = true;
+          break;
+        }
+      }
+      if (hasOverwriteRisk) break;
+    }
+
+    if (hasOverwriteRisk) {
+      this.confirmationService.confirm({
+        message: '⚠ Some selected rows already contain data.\nApplying bulk entry will overwrite existing values.\nDo you want to continue?',
+        header: 'Confirm Overwrite',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Yes, Overwrite',
+        rejectLabel: 'Cancel',
+        accept: () => {
+          this.executeBulkApply(filteredRows, fromIndex, toIndex);
+        }
+      });
+    } else {
+      this.executeBulkApply(filteredRows, fromIndex, toIndex);
+    }
+  }
+
+  hasValue(val: any): boolean {
+    return val !== undefined && val !== null && val !== '';
+  }
+
+  executeBulkApply(filteredRows: any[], fromIndex: number, toIndex: number) {
+    let updatedCount = 0;
+
+    // SEQUENCE GENERATION SETUP
+    let seqPrefix = '';
+    let seqNextNum = 0;
+    let seqIncrement = 1;
+    let seqWidth = 0; // for padding if needed
+
+    if (this.activeBulkEntryType === 'package' && this.bulkEntryForm.package_no_mode === 'sequence') {
+      const first = this.bulkEntryForm.pkg_seq_first || '';
+      const second = this.bulkEntryForm.pkg_seq_next || '';
+
+      // Regex to split alpha prefix and numeric part
+      // Matches "pck1" -> ["pck", "1"], "pkg_005" -> ["pkg_", "005"]
+      // Looks for numbers at the END of the string
+      const regex = /^(.*?)(\d+)$/;
+      const match1 = first.match(regex);
+      const match2 = second.match(regex);
+
+      if (match1 && match2) {
+        const prefix1 = match1[1];
+        const numPart1 = match1[2];
+        const num1 = parseInt(numPart1, 10);
+
+        const prefix2 = match2[1];
+        const numPart2 = match2[2];
+        const num2 = parseInt(numPart2, 10);
+
+        if (prefix1 === prefix2) {
+          seqPrefix = prefix1;
+          seqIncrement = num2 - num1;
+          seqNextNum = num1;
+          seqWidth = numPart1.length; // Preserve leading zeros length if possible
+        } else {
+          // Fallback: prefixes don't match, just use raw values? 
+          // Currently system requirement says "detect prefix... then generate".
+          // If detection fails, maybe just assign first value? 
+          // Let's default to no-op or simple increment if valid number found
+          seqNextNum = NaN;
+        }
+      } else {
+        // Cannot detect pattern
+        seqNextNum = NaN;
+      }
+    }
+
+    // SET SUB-BREAKUP VENDOR TYPE (for carting/empty yard)
+    // This must be set BEFORE applying vendor names so the dropdown options are populated
+    if (this.hasValue(this.bulkEntryForm.carting_vendor_type)) {
+      this.currentBooking.sub_breakup_vendor_type = this.bulkEntryForm.carting_vendor_type;
+      this.refreshSubVendorOptions();
+    } else if (this.hasValue(this.bulkEntryForm.empty_yard_vendor_type)) {
+      this.currentBooking.sub_breakup_vendor_type = this.bulkEntryForm.empty_yard_vendor_type;
+      this.refreshSubVendorOptions();
+    }
+
+    for (let i = fromIndex; i <= toIndex; i++) {
+      const row = filteredRows[i];
+      if (!row) continue;
+
+      // Apply Common Fields
+      if (this.hasValue(this.bulkEntryForm.booking_ref_no)) row.booking_ref_no = this.bulkEntryForm.booking_ref_no;
+      if (this.hasValue(this.bulkEntryForm.basis)) row.basis = this.bulkEntryForm.basis;
+      if (this.hasValue(this.bulkEntryForm.vendor_name)) row.vendor_name = this.bulkEntryForm.vendor_name;
+      if (this.hasValue(this.bulkEntryForm.breakup_no)) row.breakup_no = this.bulkEntryForm.breakup_no;
+
+      // Container Fields
       if (this.activeBulkEntryType === 'container') {
-        if (this.bulkEntryForm.container_no !== undefined && this.bulkEntryForm.container_no !== null && this.bulkEntryForm.container_no !== '') {
-          row.container_no = this.bulkEntryForm.container_no;
+        if (this.hasValue(this.bulkEntryForm.container_no)) row.container_no = this.bulkEntryForm.container_no;
+        if (this.hasValue(this.bulkEntryForm.pickup_handover_date)) row.pickup_handover_date = this.bulkEntryForm.pickup_handover_date;
+        if (this.hasValue(this.bulkEntryForm.empty_yard)) row.empty_yard = this.bulkEntryForm.empty_yard;
+      }
+
+      // Package Fields
+      else if (this.activeBulkEntryType === 'package') {
+        // Package No Logic
+        if (this.bulkEntryForm.package_no_mode === 'same') {
+          if (this.hasValue(this.bulkEntryForm.package_no)) row.package_no = this.bulkEntryForm.package_no;
+        } else if (this.bulkEntryForm.package_no_mode === 'sequence') {
+          if (!isNaN(seqNextNum)) {
+            // Pad with zeros to match original width if number string was shorter than width (e.g. 001 -> 1)
+            const numStr = seqNextNum.toString();
+            // If original had leading zeros (e.g. 005), try to maintain? 
+            // Simple padding logic:
+            const padded = numStr.padStart(seqWidth, '0');
+            row.package_no = seqPrefix + padded;
+
+            seqNextNum += seqIncrement;
+          } else {
+            // Fallback if sequence logic failed? just leave it or use first value?
+            // Safe to do nothing if invalid
+          }
         }
-        if (this.bulkEntryForm.pickup_handover_date !== undefined && this.bulkEntryForm.pickup_handover_date !== null) {
-          row.pickup_handover_date = this.bulkEntryForm.pickup_handover_date;
-        }
-        if (this.bulkEntryForm.empty_yard !== undefined && this.bulkEntryForm.empty_yard !== null && this.bulkEntryForm.empty_yard !== '') {
-          row.empty_yard = this.bulkEntryForm.empty_yard;
-        }
-      } else if (this.activeBulkEntryType === 'package') {
-        if (this.bulkEntryForm.package_no !== undefined && this.bulkEntryForm.package_no !== null && this.bulkEntryForm.package_no !== '') {
-          row.package_no = this.bulkEntryForm.package_no;
-        }
-        if (this.bulkEntryForm.length_cm !== undefined && this.bulkEntryForm.length_cm !== null && this.bulkEntryForm.length_cm !== '') {
-          row.length_cm = this.bulkEntryForm.length_cm;
-        }
-        if (this.bulkEntryForm.width_cm !== undefined && this.bulkEntryForm.width_cm !== null && this.bulkEntryForm.width_cm !== '') {
-          row.width_cm = this.bulkEntryForm.width_cm;
-        }
-        if (this.bulkEntryForm.height_cm !== undefined && this.bulkEntryForm.height_cm !== null && this.bulkEntryForm.height_cm !== '') {
-          row.height_cm = this.bulkEntryForm.height_cm;
-        }
-        if (this.bulkEntryForm.weight_kgs !== undefined && this.bulkEntryForm.weight_kgs !== null && this.bulkEntryForm.weight_kgs !== '') {
-          row.weight_kgs = this.bulkEntryForm.weight_kgs;
-        }
-        if (this.bulkEntryForm.handover_date !== undefined && this.bulkEntryForm.handover_date !== null) {
-          row.handover_date = this.bulkEntryForm.handover_date;
-        }
-        if (this.bulkEntryForm.carting !== undefined && this.bulkEntryForm.carting !== null && this.bulkEntryForm.carting !== '') {
-          row.carting = this.bulkEntryForm.carting;
-        }
+
+        if (this.hasValue(this.bulkEntryForm.length_cm)) row.length_cm = this.bulkEntryForm.length_cm;
+        if (this.hasValue(this.bulkEntryForm.width_cm)) row.width_cm = this.bulkEntryForm.width_cm;
+        if (this.hasValue(this.bulkEntryForm.height_cm)) row.height_cm = this.bulkEntryForm.height_cm;
+        if (this.hasValue(this.bulkEntryForm.weight_kgs)) row.weight_kgs = this.bulkEntryForm.weight_kgs;
+        if (this.hasValue(this.bulkEntryForm.handover_date)) row.handover_date = this.bulkEntryForm.handover_date;
+        if (this.hasValue(this.bulkEntryForm.carting)) row.carting = this.bulkEntryForm.carting;
       }
       updatedCount++;
     }
@@ -2437,7 +2953,7 @@ export class BookingComponent implements OnInit {
       this.packageBreakupRows = [...this.packageBreakupRows];
     }
 
-    // Trigger quote mapping update if needed
+    // Trigger quote mapping update
     this.initializeQuoteMappings();
 
     this.messageService.add({
@@ -2454,5 +2970,174 @@ export class BookingComponent implements OnInit {
     this.bulkEntryRange = { from: 1, to: 1 };
     this.activeBulkEntryType = null;
     this.selectedBreakupNo = null;
+  }
+
+  // Enquiry Preview Methods
+  openEnquiryPreview(lineItem: any) {
+    if (!lineItem.enq_no) {
+      this.messageService.add({ severity: 'warn', summary: 'Info', detail: 'No Enquiry Number linked to this line item.' });
+      return;
+    }
+
+    this.loadingPreview = true;
+    this.showEnquiryPreviewDialog = true;
+    this.selectedEnquiryForPreview = null;
+    this.selectedEnquiryLineItem = null;
+    this.selectedSourcingVendor = null;
+    this.previewSourcingCharges = [];
+    this.previewTariffCharges = [];
+    this.previewSourcingRemarks = '';
+    this.previewTariffRemarks = '';
+
+    // Extract Enquiry Code (handle cases where enq_no might be an object or have different format)
+    const enqCode = (typeof lineItem.enq_no === 'object') ? lineItem.enq_no.code : lineItem.enq_no;
+
+    // Use getEnquiryPreviewByCode matching Enquiry Component logic to ensure we get populated vendor data
+    this.enquiryService.getEnquiryPreviewByCode(enqCode).subscribe({
+      next: (response: any) => {
+        const previewData = response;
+        this.selectedEnquiryForPreview = previewData; // Structure might be different but code/customer_name usually at top level
+        console.log('Enquiry Preview Response loaded:', previewData);
+
+        // Find matching line item in the preview response
+        // We match by Service Area
+        const bookingServiceArea = (lineItem.service_area || lineItem.type || '').toString().trim().toLowerCase();
+
+        // In preview response, line_items usually contain sourcing_vendors and tariff_vendors directly
+        this.selectedEnquiryLineItem = (previewData.line_items || []).find((eli: any) =>
+          (eli.service_area || eli.type || '').toString().trim().toLowerCase() === bookingServiceArea
+        );
+
+        console.log('Matched Line Item in Preview:', this.selectedEnquiryLineItem);
+
+        if (this.selectedEnquiryLineItem) {
+          const sourcingRemarksSet = new Set<string>();
+          const tariffRemarksSet = new Set<string>();
+
+          // Direct access from line item vendors
+          // Sourcing
+          if (Array.isArray(this.selectedEnquiryLineItem.sourcing_vendors)) {
+            this.previewSourcingCharges = [];
+            this.selectedEnquiryLineItem.sourcing_vendors.forEach((sv: any) => {
+              // Collect remarks if present
+              if (sv.remarks) sourcingRemarksSet.add(sv.remarks);
+
+              const charges = sv.sub_charges || sv.charges || sv.sourcing_charges || [];
+              if (Array.isArray(charges)) {
+                charges.forEach((c: any) => this.previewSourcingCharges.push({ ...c, vendor_name: sv.vendor_name }));
+              }
+            });
+          }
+          this.previewSourcingRemarks = Array.from(sourcingRemarksSet).join('; ');
+
+          // Tariff
+          if (Array.isArray(this.selectedEnquiryLineItem.tariff_vendors)) {
+            this.previewTariffCharges = [];
+            this.selectedEnquiryLineItem.tariff_vendors.forEach((tv: any) => {
+              if (tv.remarks) tariffRemarksSet.add(tv.remarks);
+
+              const charges = tv.sub_charges || tv.charges || tv.tariff_charges || [];
+              if (Array.isArray(charges)) {
+                charges.forEach((c: any) => this.previewTariffCharges.push({ ...c, vendor_name: tv.vendor_name }));
+              }
+            });
+          }
+          this.previewTariffRemarks = Array.from(tariffRemarksSet).join('; ');
+        }
+
+        this.loadingPreview = false;
+      },
+      error: (err) => {
+        console.error('Failed to load enquiry for preview:', err);
+        this.loadingPreview = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch enquiry details.' });
+      }
+    });
+  }
+
+  calculateRowTotal(charge: any): number {
+    if (!charge) return 0;
+    const rate = parseFloat(charge.sell_rate || 0);
+    const gst = parseFloat(charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat || 0);
+    return rate + (rate * gst / 100);
+  }
+
+  calculateTotalSell(charges: any[]): string {
+    if (!charges || charges.length === 0) return '0.00';
+
+    const totals = new Map<string, number>();
+
+    charges.forEach(charge => {
+      const currency = charge.sell_rate_currency || charge.currency || '';
+      const sellRate = parseFloat(charge.sell_rate || 0);
+      const gst = parseFloat(charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat || 0);
+      const total = sellRate + (sellRate * gst / 100);
+
+      if (currency) {
+        const currentTotal = totals.get(currency) || 0;
+        totals.set(currency, currentTotal + total);
+      }
+    });
+
+    const parts: string[] = [];
+    totals.forEach((value, key) => {
+      // Simple formatter
+      parts.push(`${key} ${value.toFixed(2)}`);
+    });
+
+    return parts.length > 0 ? parts.join(' + ') : '0.00';
+  }
+
+  calculateTotalTariff(charges: any[]): string {
+    if (!charges || charges.length === 0) return '0.00';
+
+    const totals = new Map<string, number>();
+
+    charges.forEach(charge => {
+      // Use sell_rate_currency or currency
+      const currency = charge.sell_rate_currency || charge.currency || '';
+      const rate = parseFloat(charge.sell_rate || 0);
+      const gst = parseFloat(charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat || 0);
+      const total = rate + (rate * gst / 100);
+
+      if (currency) {
+        const currentTotal = totals.get(currency) || 0;
+        totals.set(currency, currentTotal + total);
+      }
+    });
+
+    const parts: string[] = [];
+    totals.forEach((value, key) => {
+      parts.push(`${key} ${value.toFixed(2)}`);
+    });
+
+    return parts.length > 0 ? parts.join(' + ') : '0.00';
+  }
+  loadChargeTypeNames() {
+    // Determine mapping source. Using MasterItemService as it likely contains Charge codes.
+    return this.masterItemService.getAll().pipe(
+      tap((items: any[]) => {
+        // Map generic master items (Charges)
+        (items || []).forEach((item) => {
+          if (item.code && item.name) {
+            this.chargeCodeToName.set(item.code, item.name);
+          }
+        });
+
+        // Also fallback to MasterTypeService
+        this.masterTypeService.getAll().subscribe(types => {
+          (types || [])
+            .filter((t) => t.status?.toLowerCase() === 'active' && t.key?.toLowerCase() === 'charge_type')
+            .forEach((t) => {
+              if (t.value) this.chargeCodeToName.set(t.value, t.description || t.value);
+            });
+          console.log('Charge Type Names Loaded (merged):', this.chargeCodeToName.size);
+        });
+      }),
+      catchError((error: any) => {
+        console.error('Error loading charge type names', error);
+        return of([]);
+      })
+    );
   }
 }
