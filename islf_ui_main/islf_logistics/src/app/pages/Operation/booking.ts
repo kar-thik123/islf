@@ -1208,6 +1208,7 @@ export class BookingComponent implements OnInit {
   selectedEnquiries: any[] = [];
   showLinkDialog = false;
   linkTargetBooking: any = null;
+  linkedEnquiryCodes: Set<string> = new Set();
   pendingLinkEnquiries: any[] = [];
   pendingOverrides: any = {};
 
@@ -1438,6 +1439,7 @@ export class BookingComponent implements OnInit {
   openCreateDialog() {
     this.dialog = { department: '', service_type: '', from_location_type: '', from_location: '', to_location_type: '', to_location: '' };
     this.matchingEnquiries = []; this.selectedEnquiries = [];
+    this.linkedEnquiryCodes.clear();
     this.showCreateDialog = true;
     this.isSelectingForExisting = false;
     this.onLocationTypeChange('from');
@@ -1514,6 +1516,7 @@ export class BookingComponent implements OnInit {
     console.log("linkTargetBooking value before cancelling", this.linkTargetBooking);
     this.showCreateDialog = false;
     this.linkTargetBooking = null;
+    this.linkedEnquiryCodes.clear();
     console.log("linkTargetBooking value after cancelling", this.linkTargetBooking);
   }
 
@@ -2267,42 +2270,75 @@ export class BookingComponent implements OnInit {
     // 🚀 Use the optimized loadDropdowns instead of redundant calls
     this.loadDropdowns();
   }
+
   openLinkEnquiryDialog(row: any) {
-    this.linkTargetBooking = row;
-    this.dialog = {
-      department: row.department,
-      service_type: row.service_type,
-      from_location_type: '',
-      from_location: row.from_location,
-      to_location_type: '',
-      to_location: row.to_location
-    };
+  this.linkTargetBooking = row;
+  console.log("Row value argument from the booking link:",row);
+  this.dialog = {
+    department: row.department,
+    service_type: row.service_type,
+    from_location_type: '',
+    from_location: row.from_location,
+    to_location_type: '',
+    to_location: row.to_location
+  };
 
-    // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
-    if (this.dialog.from_location) {
-      const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
-      if (loc) {
-        this.dialog.from_location = loc.code;
-        this.dialog.from_location_type = loc.type;
-      }
+  // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
+  if (this.dialog.from_location) {
+    const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
+    if (loc) {
+      this.dialog.from_location = loc.code;
+      this.dialog.from_location_type = loc.type;
     }
-    if (this.dialog.to_location) {
-      const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
-      if (loc) {
-        this.dialog.to_location = loc.code;
-        this.dialog.to_location_type = loc.type;
-      }
-    }
-
-    this.onLocationTypeChange('from');
-    this.onLocationTypeChange('to');
-    this.onDepartmentChange();
-
-    this.matchingEnquiries = [];
-    this.selectedEnquiries = [];
-    this.showCreateDialog = true;
-    this.isSelectingForExisting = true;
   }
+  if (this.dialog.to_location) {
+    const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
+    if (loc) {
+      this.dialog.to_location = loc.code;
+      this.dialog.to_location_type = loc.type;
+    }
+  }
+
+  this.onLocationTypeChange('from');
+  this.onLocationTypeChange('to');
+  this.onDepartmentChange();
+
+  this.matchingEnquiries = [];
+  this.selectedEnquiries = [];
+  this.linkedEnquiryCodes.clear();
+  this.showCreateDialog = true;
+  this.isSelectingForExisting = true;
+
+  // Fetch booking details to get already-linked enquiries
+  if (row.booking_no) {
+    this.bookingService.getByNo(row.booking_no).subscribe({
+      next: (booking: any) => {
+        // Extract enquiry codes from line items
+        const lineItems = booking?.line_items || [];
+        lineItems.forEach((li: any) => {
+          if (li.enq_no) {
+            // Handle both string and object formats
+            const enqCode = typeof li.enq_no === 'object' ? li.enq_no.code : li.enq_no;
+            if (enqCode) {
+              this.linkedEnquiryCodes.add(enqCode.toString());
+            }
+          }
+        });
+        console.log('Already linked enquiry codes:', Array.from(this.linkedEnquiryCodes));
+        // Now search for enquiries after we have the linked codes
+        this.searchEnquiries();
+      },
+      error: (err) => {
+        console.error('Failed to fetch booking details:', err);
+        // Still search enquiries even if fetch fails
+        this.searchEnquiries();
+      }
+    });
+  } else {
+    // If no booking_no, just search enquiries
+    this.searchEnquiries();
+  }
+}
 
   saveLinkEnquiry() {
     // Deprecated: Logic moved to saveFromEnquiries
@@ -2616,6 +2652,12 @@ export class BookingComponent implements OnInit {
   }
 
   isEnquirySelectable(enq: any): boolean {
+    // Check if enquiry is already linked to the current booking
+    if (this.linkTargetBooking && this.linkedEnquiryCodes.has(enq.code)) {
+      return false;
+    }
+
+    // Check if enquiry matches the first selected enquiry's attributes
     if (!this.selectedEnquiries || this.selectedEnquiries.length === 0) return true;
     const first = this.selectedEnquiries[0];
     return enq.company_name === first.company_name &&
