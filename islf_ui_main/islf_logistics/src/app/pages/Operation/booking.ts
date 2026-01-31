@@ -433,93 +433,98 @@ import { TextareaModule } from 'primeng/textarea';
 
           <p-tabView>
             <p-tabPanel header="Selected Sourcing">
-              <div *ngIf="!previewSourcingCharges || previewSourcingCharges.length === 0" class="text-center p-4 text-gray-500 bg-gray-50 rounded">
+              <div *ngIf="!groupedSourcingData || groupedSourcingData.length === 0" class="text-center p-4 text-gray-500 bg-gray-50 rounded">
                 No sourcing charges selected for this line item.
               </div>
               
-              <p-table *ngIf="previewSourcingCharges && previewSourcingCharges.length > 0" [value]="previewSourcingCharges" [showGridlines]="true" styleClass="p-datatable-sm">
-                <ng-template pTemplate="header">
-                  <tr>
-                    <th>Charge Name</th>
-                    <th>Basis</th>
-                    <th>Currency</th>
-                    <th class="text-right">Charges</th>
-                    <th class="text-right">GST/VAT</th>
-                    <th>Sell Rate Currency</th>
-                    <th class="text-right">Sell Rate</th>
-                    <th class="text-right">GST/VAT</th>
-                    <th class="text-right">Total Sell</th>
-                  </tr>
-                </ng-template>
-                <ng-template pTemplate="body" let-charge>
-                  <tr>
-                    <td>{{ chargeCodeToName.get(charge.charge_name || charge.name) || charge.charge_name || charge.name }}</td>
-                    <td>{{ charge.basis }}</td>
-                    <td>{{ charge.currency }}</td>
-                    <td class="text-right">{{ charge.charges | number:'1.2-2' }}</td>
-                    <td class="text-right">{{ charge.gst_vat ? charge.gst_vat + '%' : '' }}</td>
-                    <td>{{ charge.sell_rate_currency || charge.currency }}</td>
-                    <td class="text-right">{{ charge.sell_rate | number:'1.2-2' }}</td>
-                    <td class="text-right">{{ (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) ? (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) + '%' : '' }}</td>
-                    <td class="text-right font-semibold">{{ calculateRowTotal(charge) | number:'1.2-2' }}</td>
-                  </tr>
-                </ng-template>
-                 <ng-template pTemplate="footer">
+              <div *ngFor="let group of groupedSourcingData" class="mb-5">
+                <div class="bg-gray-100 px-3 py-2 border-l-4 border-blue-500 font-bold text-blue-800 mb-2">
+                  Route: {{ group.route }}
+                </div>
+                <p-table [value]="group.charges" [showGridlines]="true" styleClass="p-datatable-sm">
+                  <ng-template pTemplate="header">
                     <tr>
-                        <td colspan="8" class="text-right font-bold">Total Sell Amount:</td>
-                         <td class="text-right font-bold text-green-700">{{ calculateTotalSell(previewSourcingCharges) }}</td>
+                      <th>Charge Name</th>
+                      <th>Basis</th>
+                      <th>Currency</th>
+                      <th class="text-right">Charges</th>
+                      <th class="text-right">GST/VAT</th>
+                      <th>Sell Rate Currency</th>
+                      <th class="text-right">Sell Rate</th>
+                      <th class="text-right">GST/VAT</th>
+                      <th class="text-right">Total Sell</th>
                     </tr>
-                </ng-template>
-              </p-table>
-              
-               <div class="mt-3" *ngIf="previewSourcingRemarks">
-                <label class="block font-semibold mb-1 text-gray-700">Remarks:</label>
-                <div class="p-2 bg-gray-50 rounded text-sm text-gray-700 border border-gray-200">{{ previewSourcingRemarks }}</div>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-charge>
+                    <tr>
+                      <td>{{ chargeCodeToName.get(charge.charge_name || charge.name) || charge.charge_name || charge.name }}</td>
+                      <td>{{ charge.basis }}</td>
+                      <td>{{ charge.currency }}</td>
+                      <td class="text-right">{{ charge.charges | number:'1.2-2' }}</td>
+                      <td class="text-right">{{ charge.gst_vat ? charge.gst_vat + '%' : '' }}</td>
+                      <td>{{ charge.sell_rate_currency || charge.currency }}</td>
+                      <td class="text-right">{{ charge.sell_rate | number:'1.2-2' }}</td>
+                      <td class="text-right">{{ (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) ? (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) + '%' : '' }}</td>
+                      <td class="text-right font-semibold">{{ calculateRowTotal(charge) | number:'1.2-2' }}</td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+                <div class="mt-2 p-2 bg-gray-50 text-sm  text-gray-600 border border-gray-100" *ngIf="group.remarks && group.remarks.length > 0">
+                  <strong>Remarks:</strong> {{ group.remarks.join('; ') }}
+                </div>
+              </div>
+
+              <div class="flex justify-end mt-4 p-3 bg-blue-50 border border-blue-100 rounded" *ngIf="previewSourcingCharges && previewSourcingCharges.length > 0">
+                <span class="font-bold mr-4">Total Sell Amount:</span>
+                <span class="font-bold text-green-700 text-lg">{{ calculateTotalSell(previewSourcingCharges) }}</span>
               </div>
             </p-tabPanel>
 
             <p-tabPanel header="Selected Tariff">
-               <div *ngIf="!previewTariffCharges || previewTariffCharges.length === 0" class="text-center p-4 text-gray-500 bg-gray-50 rounded">
+              <div *ngIf="!groupedTariffData || groupedTariffData.length === 0" class="text-center p-4 text-gray-500 bg-gray-50 rounded">
                 No tariff charges selected for this line item.
               </div>
 
-              <p-table *ngIf="previewTariffCharges && previewTariffCharges.length > 0" [value]="previewTariffCharges" [showGridlines]="true" styleClass="p-datatable-sm">
-                <ng-template pTemplate="header">
-                  <tr>
-                    <th>Charge Name</th>
-                    <th>Basis</th>
-                    <th>Currency</th>
-                    <th class="text-right">Charges</th>
-                    <th class="text-right">GST/VAT</th>
-                    <th>Sell Rate Currency</th>
-                    <th class="text-right">Sell Rate</th>
-                    <th class="text-right">GST/VAT</th>
-                    <th class="text-right">Total Sell</th>
-                  </tr>
-                </ng-template>
-                <ng-template pTemplate="body" let-charge>
-                  <tr>
-                    <td>{{ chargeCodeToName.get(charge.charge_name || charge.name) || charge.charge_name || charge.name }}</td>
-                    <td>{{ charge.basis }}</td>
-                    <td>{{ charge.currency }}</td>
-                    <td class="text-right">{{ charge.charges | number:'1.2-2' }}</td>
-                    <td class="text-right">{{ charge.gst_vat ? charge.gst_vat + '%' : '' }}</td>
-                    <td>{{ charge.sell_rate_currency || charge.currency }}</td>
-                    <td class="text-right">{{ charge.sell_rate | number:'1.2-2' }}</td>
-                    <td class="text-right">{{ (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) ? (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) + '%' : '' }}</td>
-                    <td class="text-right font-semibold">{{ calculateRowTotal(charge) | number:'1.2-2' }}</td>
-                  </tr>
-                </ng-template>
-                 <ng-template pTemplate="footer">
+              <div *ngFor="let group of groupedTariffData" class="mb-5">
+                <div class="bg-gray-100 px-3 py-2 border-l-4 border-blue-500 font-bold text-blue-800 mb-2">
+                  Route: {{ group.route }}
+                </div>
+                <p-table [value]="group.charges" [showGridlines]="true" styleClass="p-datatable-sm">
+                  <ng-template pTemplate="header">
                     <tr>
-                        <td colspan="8" class="text-right font-bold">Total Sell Amount:</td>
-                         <td class="text-right font-bold text-green-700">{{ calculateTotalTariff(previewTariffCharges) }}</td>
+                      <th>Charge Name</th>
+                      <th>Basis</th>
+                      <th>Currency</th>
+                      <th class="text-right">Charges</th>
+                      <th class="text-right">GST/VAT</th>
+                      <th>Sell Rate Currency</th>
+                      <th class="text-right">Sell Rate</th>
+                      <th class="text-right">GST/VAT</th>
+                      <th class="text-right">Total Sell</th>
                     </tr>
-                </ng-template>
-              </p-table>
-               <div class="mt-3" *ngIf="previewTariffRemarks">
-                <label class="block font-semibold mb-1 text-gray-700">Remarks:</label>
-                <div class="p-2 bg-gray-50 rounded text-sm text-gray-700 border border-gray-200">{{ previewTariffRemarks }}</div>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-charge>
+                    <tr>
+                      <td>{{ chargeCodeToName.get(charge.charge_name || charge.name) || charge.charge_name || charge.name }}</td>
+                      <td>{{ charge.basis }}</td>
+                      <td>{{ charge.currency }}</td>
+                      <td class="text-right">{{ charge.charges | number:'1.2-2' }}</td>
+                      <td class="text-right">{{ charge.gst_vat ? charge.gst_vat + '%' : '' }}</td>
+                      <td>{{ charge.sell_rate_currency || charge.currency }}</td>
+                      <td class="text-right">{{ charge.sell_rate | number:'1.2-2' }}</td>
+                      <td class="text-right">{{ (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) ? (charge.sell_rate_gst || charge.sell_rate_gst_vat || charge.sell_gst_vat) + '%' : '' }}</td>
+                      <td class="text-right font-semibold">{{ calculateRowTotal(charge) | number:'1.2-2' }}</td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+                <div class="mt-2 p-2 bg-gray-50 text-sm text-gray-600 border border-gray-100" *ngIf="group.remarks && group.remarks.length > 0">
+                  <strong>Remarks:</strong> {{ group.remarks.join('; ') }}
+                </div>
+              </div>
+
+              <div class="flex justify-end mt-4 p-3 bg-blue-50 border border-blue-100 rounded" *ngIf="previewTariffCharges && previewTariffCharges.length > 0">
+                <span class="font-bold mr-4">Total Sell Amount:</span>
+                <span class="font-bold text-green-700 text-lg">{{ calculateTotalTariff(previewTariffCharges) }}</span>
               </div>
             </p-tabPanel>
           </p-tabView>
@@ -792,7 +797,7 @@ import { TextareaModule } from 'primeng/textarea';
             </div>
             <div class="col-span-12">
               <label class="block text-sm font-medium text-slate-700 mb-1">Number</label>
-              <p-dropdown [(ngModel)]="bulkApplyQuote.breakup_number" [options]="getBreakupNumberOptions()" placeholder="Select" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}"></p-dropdown>
+              <p-dropdown [(ngModel)]="bulkApplyQuote.breakup_number" [options]="breakupNumberOptions" placeholder="Select" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}"></p-dropdown>
             </div>
             <div class="col-span-12">
               <label class="block text-sm font-medium text-slate-700 mb-1">Enquiry No</label>
@@ -825,11 +830,11 @@ import { TextareaModule } from 'primeng/textarea';
         
           <ng-template pTemplate="header">
           
-            <tr>
-              <th>{{ breakupType === 'CONTAINER BREAKUP' ? 'Container No.' : 'Package No.' }}</th>
-              <th>Enquiry Number</th>
-              <th>Line Item Type</th>
-              <th>Action</th>
+             <tr>
+              <th style="width: 220px;">{{ breakupType === 'CONTAINER BREAKUP' ? 'Container No.' : 'Package No.' }}</th>
+              <th style="width: 220px;">Enquiry Number</th>
+              <th style="width: 270px;">Line Item Type</th>
+              <th style="width: 80px;">Action</th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-qm let-i="rowIndex">
@@ -837,13 +842,13 @@ import { TextareaModule } from 'primeng/textarea';
               <td>
                 <p-dropdown 
                   [(ngModel)]="qm.breakup_number" 
-                  [options]="getBreakupNumberOptions()" 
+                  [options]="breakupNumberOptions" 
                   placeholder="Select Number" 
                   appendTo="body" 
                   [filter]="true" 
                   filterBy="label" 
-                  [scrollHeight]="'200px'"
-                  [style]="{'width':'150px'}"
+                   [scrollHeight]="'300px'"
+                  [style]="{'width':'200px'}"
                   class="bg-orange-50"
                 ></p-dropdown>
               </td>
@@ -856,8 +861,8 @@ import { TextareaModule } from 'primeng/textarea';
                   appendTo="body" 
                   [filter]="true" 
                   filterBy="label" 
-                  [scrollHeight]="'200px'"
-                  [style]="{'width':'150px'}"
+                   [scrollHeight]="'300px'"
+                  [style]="{'width':'200px'}"
                   class="bg-orange-50"
                 ></p-dropdown>
               </td>
@@ -869,8 +874,8 @@ import { TextareaModule } from 'primeng/textarea';
                   appendTo="body" 
                   [filter]="true" 
                   filterBy="label" 
-                  [scrollHeight]="'200px'"
-                  [style]="{'width':'200px'}"
+                   [scrollHeight]="'300px'"
+                  [style]="{'width':'250px'}"
                   class="bg-orange-50"
                   [disabled]="!qm.enquiry_no"
                 ></p-dropdown>
@@ -1245,6 +1250,7 @@ export class BookingComponent implements OnInit {
   // Quote Mapping State
   quoteMappingRows: any[] = [];
   enquiryOptions: any[] = [];
+  breakupNumberOptions: any[] = [];
   lineItemTypeOptionsMap: { [enquiryNo: string]: any[] } = {};
 
   bulkApplyQuote: any = {
@@ -1273,6 +1279,16 @@ export class BookingComponent implements OnInit {
   previewTariffCharges: any[] = [];
   previewSourcingRemarks: string = '';
   previewTariffRemarks: string = '';
+  groupedSourcingData: any[] = [];
+  groupedTariffData: any[] = [];
+
+  get locationMapReverse(): { [name: string]: string } {
+    const rev: any = {};
+    Object.keys(this.locationMap).forEach(code => {
+      rev[this.locationMap[code]] = code;
+    });
+    return rev;
+  }
   chargeCodeToName: Map<string, string> = new Map();
 
   constructor(
@@ -1385,8 +1401,9 @@ export class BookingComponent implements OnInit {
 
         // 4. Cargo
         // Filter only active cargo items
-        this.allCargoItems = (res.cargoItems || []).filter((item: any) => (item.status || '').toString().toLowerCase() === 'active');
-        this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.map(i => i.item_type)))
+        this.allCargoItems = (res.cargoItems || []).filter((item: any) => item.active === true || (item.status || '').toString().toLowerCase() === 'active');
+        this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.filter(i => i.item_type === 'CARGO_TYPE').map(i => i.charge_type || i.cargo_type)))
+          .filter(val => !!val)
           .map(type => ({ label: type, value: type }));
 
         // 5. Vendors
@@ -1999,7 +2016,7 @@ export class BookingComponent implements OnInit {
   getCargoNamesByType(type: any) {
     const t = (type || '').toString();
     return (this.allCargoItems || [])
-      .filter((ci: any) => ((ci.cargo_type || ci.charge_type || '').toString() === t))
+      .filter((ci: any) => ((ci.charge_type || ci.cargo_type || ci.item_type || '').toString() === t))
       .map((ci: any) => ({ label: ci.name, value: ci.name }));
   }
 
@@ -2007,7 +2024,7 @@ export class BookingComponent implements OnInit {
     const t = (type || '').toString();
     const n = (name || '').toString();
     return (this.allCargoItems || [])
-      .filter((ci: any) => ((ci.cargo_type || ci.charge_type || '').toString() === t) && ((ci.name || '').toString() === n))
+      .filter((ci: any) => ((ci.charge_type || ci.cargo_type || ci.item_type || '').toString() === t) && ((ci.name || '').toString() === n))
       .map((ci: any) => ({ label: ci.hs_code, value: ci.hs_code }));
   }
 
@@ -2272,73 +2289,73 @@ export class BookingComponent implements OnInit {
   }
 
   openLinkEnquiryDialog(row: any) {
-  this.linkTargetBooking = row;
-  console.log("Row value argument from the booking link:",row);
-  this.dialog = {
-    department: row.department,
-    service_type: row.service_type,
-    from_location_type: '',
-    from_location: row.from_location,
-    to_location_type: '',
-    to_location: row.to_location
-  };
+    this.linkTargetBooking = row;
+    console.log("Row value argument from the booking link:", row);
+    this.dialog = {
+      department: row.department,
+      service_type: row.service_type,
+      from_location_type: '',
+      from_location: row.from_location,
+      to_location_type: '',
+      to_location: row.to_location
+    };
 
-  // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
-  if (this.dialog.from_location) {
-    const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
-    if (loc) {
-      this.dialog.from_location = loc.code;
-      this.dialog.from_location_type = loc.type;
-    }
-  }
-  if (this.dialog.to_location) {
-    const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
-    if (loc) {
-      this.dialog.to_location = loc.code;
-      this.dialog.to_location_type = loc.type;
-    }
-  }
-
-  this.onLocationTypeChange('from');
-  this.onLocationTypeChange('to');
-  this.onDepartmentChange();
-
-  this.matchingEnquiries = [];
-  this.selectedEnquiries = [];
-  this.linkedEnquiryCodes.clear();
-  this.showCreateDialog = true;
-  this.isSelectingForExisting = true;
-
-  // Fetch booking details to get already-linked enquiries
-  if (row.booking_no) {
-    this.bookingService.getByNo(row.booking_no).subscribe({
-      next: (booking: any) => {
-        // Extract enquiry codes from line items
-        const lineItems = booking?.line_items || [];
-        lineItems.forEach((li: any) => {
-          if (li.enq_no) {
-            // Handle both string and object formats
-            const enqCode = typeof li.enq_no === 'object' ? li.enq_no.code : li.enq_no;
-            if (enqCode) {
-              this.linkedEnquiryCodes.add(enqCode.toString());
-            }
-          }
-        });
-        console.log('Already linked enquiry codes:', Array.from(this.linkedEnquiryCodes));
-        // Now search for enquiries after we have the linked codes
-        this.searchEnquiries();
-      },
-      error: (err) => {
-        console.error('Failed to fetch booking details:', err);
-        // Still search enquiries even if fetch fails
-        this.searchEnquiries();
+    // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
+    if (this.dialog.from_location) {
+      const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
+      if (loc) {
+        this.dialog.from_location = loc.code;
+        this.dialog.from_location_type = loc.type;
       }
-    });
-  } else {
-    // If no booking_no, just search enquiries
-    this.searchEnquiries();
+    }
+    if (this.dialog.to_location) {
+      const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
+      if (loc) {
+        this.dialog.to_location = loc.code;
+        this.dialog.to_location_type = loc.type;
+      }
+    }
+
+    this.onLocationTypeChange('from');
+    this.onLocationTypeChange('to');
+    this.onDepartmentChange();
+
+    this.matchingEnquiries = [];
+    this.selectedEnquiries = [];
+    this.linkedEnquiryCodes.clear();
+    this.showCreateDialog = true;
+    this.isSelectingForExisting = true;
+
+    // Fetch booking details to get already-linked enquiries
+    if (row.booking_no) {
+      this.bookingService.getByNo(row.booking_no).subscribe({
+        next: (booking: any) => {
+          // Extract enquiry codes from line items
+          const lineItems = booking?.line_items || [];
+          lineItems.forEach((li: any) => {
+            if (li.enq_no) {
+              // Handle both string and object formats
+              const enqCode = typeof li.enq_no === 'object' ? li.enq_no.code : li.enq_no;
+              if (enqCode) {
+                this.linkedEnquiryCodes.add(enqCode.toString());
+              }
+            }
+          });
+          console.log('Already linked enquiry codes:', Array.from(this.linkedEnquiryCodes));
+          // Now search for enquiries after we have the linked codes
+          this.searchEnquiries();
+        },
+        error: (err) => {
+          console.error('Failed to fetch booking details:', err);
+          // Still search enquiries even if fetch fails
+          this.searchEnquiries();
+        }
+      });
+    } else {
+      // If no booking_no, just search enquiries
+      this.searchEnquiries();
+    }
   }
-}
 
   saveLinkEnquiry() {
     // Deprecated: Logic moved to saveFromEnquiries
@@ -2402,11 +2419,19 @@ export class BookingComponent implements OnInit {
 
   initializeQuoteMappings() {
     const breakupNumbers = this.getBreakupNumbersList();
-    const existingMappings = new Set(this.quoteMappingRows.map(qm => qm.breakup_number));
+    const breakupNumbersSet = new Set(breakupNumbers);
 
-    // Create one row per breakup number if not already exists
+    // Remove stale mappings (rows with a breakup_number that no longer exists)
+    // BUT preserve rows with null breakup_number (manually added empty rows)
+    this.quoteMappingRows = this.quoteMappingRows.filter(qm =>
+      !qm.breakup_number || breakupNumbersSet.has(qm.breakup_number)
+    );
+
+    const existingMappingsSet = new Set(this.quoteMappingRows.map(qm => qm.breakup_number).filter(val => !!val));
+
+    // Add missing rows for new container/package numbers
     breakupNumbers.forEach(num => {
-      if (!existingMappings.has(num)) {
+      if (!existingMappingsSet.has(num)) {
         this.quoteMappingRows.push({
           breakup_number: num,
           enquiry_no: null,
@@ -2415,6 +2440,11 @@ export class BookingComponent implements OnInit {
         });
       }
     });
+
+    // Update stable options for dropdowns to prevent instability
+    this.breakupNumberOptions = breakupNumbers.map(num => ({ label: num, value: num }));
+
+    this.cdr.detectChanges();
   }
 
   getBreakupNumbersList(): string[] {
@@ -2572,7 +2602,18 @@ export class BookingComponent implements OnInit {
   }
 
   removeQuoteMappingRow(index: number) {
-    this.quoteMappingRows.splice(index, 1);
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this quote mapping row?',
+      header: 'Confirm Deletion',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Yes, Delete',
+      rejectLabel: 'Cancel',
+      accept: () => {
+        this.quoteMappingRows.splice(index, 1);
+        this.quoteMappingRows = [...this.quoteMappingRows];
+        this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Quote mapping row removed' });
+      }
+    });
   }
 
   loadQuoteMappings() {
@@ -3053,38 +3094,27 @@ export class BookingComponent implements OnInit {
         console.log('Matched Line Item in Preview:', this.selectedEnquiryLineItem);
 
         if (this.selectedEnquiryLineItem) {
-          const sourcingRemarksSet = new Set<string>();
-          const tariffRemarksSet = new Set<string>();
+          // Grouping logic for Sourcing
+          this.groupedSourcingData = this.groupVendorsByRoute(this.selectedEnquiryLineItem.sourcing_vendors || []);
+          // Grouping logic for Tariff
+          this.groupedTariffData = this.groupVendorsByRoute(this.selectedEnquiryLineItem.tariff_vendors || []);
 
-          // Direct access from line item vendors
-          // Sourcing
-          if (Array.isArray(this.selectedEnquiryLineItem.sourcing_vendors)) {
-            this.previewSourcingCharges = [];
-            this.selectedEnquiryLineItem.sourcing_vendors.forEach((sv: any) => {
-              // Collect remarks if present
-              if (sv.remarks) sourcingRemarksSet.add(sv.remarks);
+          // Legacy flat arrays for safety/compatibility (used for totals calculation if template isn't fully updated)
+          this.previewSourcingCharges = [];
+          (this.selectedEnquiryLineItem.sourcing_vendors || []).forEach((sv: any) => {
+            const charges = sv.sub_charges || sv.charges || sv.sourcing_charges || [];
+            if (Array.isArray(charges)) {
+              charges.forEach((c: any) => this.previewSourcingCharges.push({ ...c, vendor_name: sv.vendor_name }));
+            }
+          });
 
-              const charges = sv.sub_charges || sv.charges || sv.sourcing_charges || [];
-              if (Array.isArray(charges)) {
-                charges.forEach((c: any) => this.previewSourcingCharges.push({ ...c, vendor_name: sv.vendor_name }));
-              }
-            });
-          }
-          this.previewSourcingRemarks = Array.from(sourcingRemarksSet).join('; ');
-
-          // Tariff
-          if (Array.isArray(this.selectedEnquiryLineItem.tariff_vendors)) {
-            this.previewTariffCharges = [];
-            this.selectedEnquiryLineItem.tariff_vendors.forEach((tv: any) => {
-              if (tv.remarks) tariffRemarksSet.add(tv.remarks);
-
-              const charges = tv.sub_charges || tv.charges || tv.tariff_charges || [];
-              if (Array.isArray(charges)) {
-                charges.forEach((c: any) => this.previewTariffCharges.push({ ...c, vendor_name: tv.vendor_name }));
-              }
-            });
-          }
-          this.previewTariffRemarks = Array.from(tariffRemarksSet).join('; ');
+          this.previewTariffCharges = [];
+          (this.selectedEnquiryLineItem.tariff_vendors || []).forEach((tv: any) => {
+            const charges = tv.sub_charges || tv.charges || tv.tariff_charges || [];
+            if (Array.isArray(charges)) {
+              charges.forEach((c: any) => this.previewTariffCharges.push({ ...c, vendor_name: tv.vendor_name }));
+            }
+          });
         }
 
         this.loadingPreview = false;
@@ -3095,6 +3125,58 @@ export class BookingComponent implements OnInit {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch enquiry details.' });
       }
     });
+  }
+
+  groupVendorsByRoute(vendors: any[]) {
+    if (!vendors || vendors.length === 0) return [];
+
+    const routeGroups = new Map<string, any>();
+
+    vendors.forEach((vendor: any) => {
+      const fromLoc = this.getLocationName(vendor.from_location);
+      const toLoc = this.getLocationName(vendor.to_location);
+      const routeKey = `${fromLoc} → ${toLoc}`;
+
+      if (!routeGroups.has(routeKey)) {
+        routeGroups.set(routeKey, {
+          route: routeKey,
+          fromLoc,
+          toLoc,
+          charges: [],
+          remarks: []
+        });
+      }
+
+      const group = routeGroups.get(routeKey);
+      if (vendor.remarks) group.remarks.push(vendor.remarks);
+
+      const subCharges = vendor.sub_charges || vendor.charges || vendor.sourcing_charges || vendor.tariff_charges || [];
+      if (Array.isArray(subCharges)) {
+        subCharges.forEach((sc: any) => {
+          group.charges.push({
+            ...sc,
+            vendor_name: vendor.vendor_name
+          });
+        });
+      }
+    });
+
+    return Array.from(routeGroups.values());
+  }
+
+  getLocationName(code: string): string {
+    if (!code) return '';
+    return this.locationMap[code] || code;
+  }
+
+  getVendorName(vendorId: any): string {
+    if (!vendorId) return '';
+    const vendorIdStr = vendorId.toString();
+    // Try to find the vendor in allVendors
+    const vendor = (this.allVendors || []).find((v: any) =>
+      (v.id?.toString() === vendorIdStr) || (v.code?.toString() === vendorIdStr) || (v.vendor_name === vendorIdStr)
+    );
+    return vendor ? vendor.vendor_name : vendorIdStr;
   }
 
   calculateRowTotal(charge: any): number {
