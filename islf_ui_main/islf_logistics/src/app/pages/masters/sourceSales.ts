@@ -24,6 +24,7 @@ import { DialogModule } from 'primeng/dialog';
 import { MappingService } from '@/services/mapping.service';
 import { NumberSeriesService } from '@/services/number-series.service';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 @Component({
   selector: 'app-source-sales',
@@ -435,7 +436,8 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
     public configService: ConfigService,
     private cdr: ChangeDetectorRef,
     private mappingService: MappingService,
-    private numberSeriesService: NumberSeriesService
+    private numberSeriesService: NumberSeriesService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -524,9 +526,10 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
   loadSourceSales() {
     if (!this.contextId) return;
 
-    this.sourceSalesService.getSourceSales().subscribe({
+    // Use MasterCacheService to handle context-aware caching
+    this.masterCache.getSourceSales().subscribe({
       next: (data) => {
-        this.sourceSales = data.map((item) => ({
+        this.sourceSales = (data || []).map((item) => ({
           ...item,
           isEditing: false,
           isNew: false,

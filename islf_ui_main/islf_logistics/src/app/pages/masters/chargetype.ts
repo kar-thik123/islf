@@ -16,6 +16,8 @@ import { NumberSeriesService } from '@/services/number-series.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
+import { MasterCacheService } from '../../services/master-cache.service';
+import { take } from 'rxjs/operators';
 
 interface ChargeTypeOption {
   key: string;
@@ -307,7 +309,8 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
     public configService: ConfigService,
     private cdr: ChangeDetectorRef,
     private mappingService: MappingService,
-    private numberSeriesService: NumberSeriesService
+    private numberSeriesService: NumberSeriesService,
+    private masterCache: MasterCacheService
   ) { }
 
   loadMappedChargeSeriesCode() {
@@ -410,7 +413,7 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
     console.log('Refreshing charge types list');
 
     // Load charge types from master_item where item_type = 'CHARGE_TYPE'
-    this.masterItemService.getAll().subscribe({
+    this.masterCache.getItems().subscribe({
       next: (data) => {
         // Filter for CHARGE_TYPE entries and transform to ChargeType format
         this.chargeTypes = (data || [])
@@ -608,7 +611,7 @@ export class ChargeTypeMasterComponent implements OnInit, OnDestroy {
 
   private loadChargeTypeOptions(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.masterTypeService.getAll().subscribe({
+      this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe({
         next: (types: ChargeTypeOption[]) => {
           this.chargeTypeOptions = types.filter(t => t.key === 'CHARGE_TYPE' && t.status === 'Active');
           console.log('Charge type options refreshed:', this.chargeTypeOptions.length);

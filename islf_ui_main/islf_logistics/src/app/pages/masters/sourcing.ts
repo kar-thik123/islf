@@ -65,6 +65,7 @@ import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceSalesComponent } from './sourceSales';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ConfigDatePipe } from '../../pipes/config-date.pipe';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 @Component({
   selector: 'app-sourcing',
@@ -1619,6 +1620,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
     private numberSeriesRelationService: NumberSeriesRelationService,
+    private masterCache: MasterCacheService,
     private serviceAreaService: ServiceAreaService,
     private sourceSalesService: SourceSalesService,
     private cdr: ChangeDetectorRef,
@@ -1927,35 +1929,39 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   private loadAllData() {
-    console.log('Loading all source master data...');
+    console.log('Loading critical source master data...');
+    this.loading.set(true);
+
+    // Initial critical data needed for table display mapping
     forkJoin({
-      modes: this.loadModeOptions(),
-      shippingTypes: this.loadShippingTypeOptions(),
-      cargoTypes: this.loadCargoTypeOptions(),
-      serviceAreaTypes: this.loadServiceAreaTypeOptions(),
-      // tariffTypes: this.loadTariffTypeOptions(),
       locations: this.loadLocationOptions(),
-      locationTypes: this.loadLocationTypeOptions(),
-      basis: this.loadBasisOptions(),
-      // containers: this.loadContainersOptions(),
-      // currencies: this.loadCurrencyOptions(),
-      items: this.loadItemOptions(),
-      vendorTypes: this.loadVendorTypeOptions(),
       vendors: this.loadVendorOptions(),
-      serviceAreas: this.loadServiceAreaOptions(),
-      sourceSales: this.loadSourceSalesOptions(),
     }).subscribe({
       next: () => {
-        console.log('All master data loaded, now loading tariff list...');
+        console.log('Critical data loaded, loading primary list...');
         this.refreshList();
+
+        // Hydrate other dropdowns/metadata in the background
+        this.loadModeOptions().subscribe();
+        this.loadShippingTypeOptions().subscribe();
+        this.loadCargoTypeOptions().subscribe();
+        this.loadServiceAreaTypeOptions().subscribe();
+        this.loadLocationTypeOptions().subscribe();
+        this.loadBasisOptions().subscribe();
+        this.loadItemOptions().subscribe();
+        this.loadVendorTypeOptions().subscribe();
+        this.loadServiceAreaOptions().subscribe();
+        this.loadSourceSalesOptions().subscribe();
+
         this.loadMappedTariffSeriesCode();
       },
       error: (error) => {
-        console.error('Error loading data:', error);
+        console.error('Error loading critical data:', error);
+        this.loading.set(false);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load master data',
+          detail: 'Failed to load critical master data',
         });
       },
     });
@@ -1963,12 +1969,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
   // Updated method to load unique department names (mode options) with case-insensitive deduplication
   loadModeOptions() {
+    const departmentObservable = this.masterCache.getDepartments();
     const context = this.contextService.getContext();
-
-    // Use context-aware method instead of getAll()
-    const departmentObservable = context.branchCode
-      ? this.departmentService.getByBranch(context.branchCode)
-      : this.departmentService.getAll();
 
     return departmentObservable.pipe(
       tap((departments: any[]) => {
@@ -2012,15 +2014,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
 
-  // Updated method to load unique service type values with case-insensitive deduplication
   loadShippingTypeOptions() {
+    const serviceTypeObservable = this.masterCache.getServiceTypes();
     const context = this.contextService.getContext();
-
-    // Use context-aware method instead of getAll()
-    // const serviceTypeObservable = context.departmentCode
-    //   ? this.serviceTypeService.getByDepartment(context.departmentCode)
-    //   : this.serviceTypeService.getAll();
-    const serviceTypeObservable = this.serviceTypeService.getAll();
 
     return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
@@ -2050,7 +2046,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadCargoTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
         this.cargoTypeOptions = (types || [])
           .filter(
@@ -2066,7 +2062,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadTariffTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       // @ts-ignore
       tap((types: any[]) => {
         this.tariffTypeOptions = (types || [])
@@ -2076,7 +2072,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadLocationTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
         this.locationTypeOptions = types
           .filter((t) => t.key === 'LOCATION' && t.status === 'Active')
@@ -2089,7 +2085,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   loadLocationOptions() {
-    return this.masterLocationService.getAll().pipe(
+    return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
         this.allLocations = locations.filter((l) => l.active);
         console.log('Loaded all locations:', this.allLocations.length);
@@ -2130,7 +2126,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadBasisOptions() {
-    return this.basisService.getBasis().pipe(
+    return this.masterCache.getBasis().pipe(
       tap((basis: any[]) => {
         this.basisOptions = (basis || [])
           .filter((b) => b.status === 'Active')
@@ -2142,7 +2138,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadContainersOptions() {
-    return this.containerCodeService.getContainers().pipe(
+    return this.masterCache.getContainers().pipe(
       // @ts-ignore
       tap((containerCodes: any[]) => {
         this.containerTypeOptions = (containerCodes || [])
@@ -2152,7 +2148,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadCurrencyOptions() {
-    return this.currencyCodeService.getCurrencies().pipe(
+    return this.masterCache.getCurrencies().pipe(
       // @ts-ignore
       tap((currencyCodes: any[]) => {
         this.currencyOptions = (currencyCodes || [])
@@ -2162,7 +2158,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     );
   }
   loadItemOptions() {
-    return this.masterItemService.getAll().pipe(
+    return this.masterCache.getItems().pipe(
       // @ts-ignore
       tap((items: any[]) => {
         this.itemNameOptions = (items || [])
@@ -2173,7 +2169,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   loadServiceAreaOptions() {
-    return this.serviceAreaService.getServiceAreas().pipe(
+    return this.masterCache.getServiceAreas().pipe(
       tap((serviceAreas: any[]) => {
         this.allServiceAreas = (serviceAreas || []).filter(
           (sa) => sa.status === 'active'
@@ -2227,7 +2223,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   loadSourceSalesOptions() {
-    return this.sourceSalesService.getSourceSales().pipe(
+    return this.masterCache.getSourceSales().pipe(
       tap((sourceSales: any[]) => {
         this.sourceSalesOptions = (sourceSales || [])
           .filter((s) => s.status === 'active' || s.status === 'Active')
@@ -2253,7 +2249,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   loadVendorTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
         this.vendorTypeOptions = (types || [])
           .filter((t) => t.key === 'VENDOR' && t.status === 'Active')
@@ -2264,7 +2260,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   loadVendorOptions() {
-    return this.vendorService.getAll().pipe(
+    return this.masterCache.getVendors().pipe(
       tap((vendors: any[]) => {
         // Store all vendors for filtering
         this.allVendors = vendors || [];

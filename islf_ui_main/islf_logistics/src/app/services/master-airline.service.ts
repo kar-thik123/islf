@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
@@ -21,6 +22,8 @@ export interface MasterAirline {
 @Injectable({ providedIn: 'root' })
 export class MasterAirlineService {
     private apiUrl = `${environment.apiUrl}/api/master_airline`;
+    private cache: MasterAirline[] | null = null;
+    private lastContextKey: string = '';
 
     constructor(
         private http: HttpClient,
@@ -45,18 +48,37 @@ export class MasterAirlineService {
             params.department_code = context.departmentCode;
         }
 
-        return this.http.get<MasterAirline[]>(this.apiUrl, { params });
+        const currentContextKey = JSON.stringify(params);
+        if (this.cache && this.lastContextKey === currentContextKey) {
+            console.log('Returning cached airlines');
+            return of(this.cache);
+        }
+
+        return this.http.get<MasterAirline[]>(this.apiUrl, { params }).pipe(
+            tap(data => {
+                this.cache = data;
+                this.lastContextKey = currentContextKey;
+            })
+        );
+    }
+
+    clearCache() {
+        this.cache = null;
+        this.lastContextKey = '';
     }
 
     create(data: MasterAirline): Observable<MasterAirline> {
+        this.clearCache();
         return this.http.post<MasterAirline>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
     }
 
     update(id: number, data: Partial<MasterAirline>): Observable<MasterAirline> {
+        this.clearCache();
         return this.http.put<MasterAirline>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, this.contextService.getContext()));
     }
 
     delete(id: number): Observable<any> {
+        this.clearCache();
         return this.http.delete(`${this.apiUrl}/${id}`);
     }
 }

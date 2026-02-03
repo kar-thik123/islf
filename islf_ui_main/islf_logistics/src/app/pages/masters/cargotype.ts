@@ -20,6 +20,8 @@ import { NumberSeriesService } from '@/services/number-series.service';
 import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
 import { MasterTypeComponent } from './mastertype';
+import { MasterCacheService } from '../../services/master-cache.service';
+import { take } from 'rxjs/operators';
 
 interface CargoTypeOption {
   key: string;
@@ -426,7 +428,8 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private contextService: ContextService,
     public configService: ConfigService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private masterCache: MasterCacheService
   ) { }
 
   loadMappedCargoSeriesCode() {
@@ -542,14 +545,14 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
     console.log('Refreshing cargo types list');
 
     // Load cargo types from master_item where item_type = 'CARGO_TYPE'
-    this.masterItemService.getAll().subscribe({
+    this.masterCache.getItems().subscribe({
       next: (data) => {
         // Filter for CARGO_TYPE entries and transform to CargoType format
         this.cargoTypes = (data || [])
           .filter((item) => item.item_type === 'CARGO_TYPE')
           .map((item) => ({
             id: item.id,
-            cargo_type: item.charge_type || '',
+            cargo_type: item.charge_type || '', // Wait, original mapped charge_type? Yes, seems so from previous read
             code: item.code,
             name: item.name,
             hs_code: item.hs_code || '',
@@ -795,7 +798,7 @@ export class CargoTypeMasterComponent implements OnInit, OnDestroy {
 
   private loadCargoTypeOptions() {
     // Load cargo type options from master_type for dropdown
-    this.masterTypeService.getAll().subscribe({
+    this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe({
       next: (types: CargoTypeOption[]) => {
         this.cargoTypeOptions = types.filter(
           (t) => t.key === 'CARGO_TYPE' && t.status === 'Active'

@@ -14,6 +14,7 @@ import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 interface ExtendedMasterAirline extends MasterAirline {
   isEditing?: boolean;
@@ -184,7 +185,8 @@ export class MasterAirlineComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
-    public configService: ConfigService
+    public configService: ConfigService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -200,9 +202,9 @@ export class MasterAirlineComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.masterAirlineService.getAll().subscribe({
+    this.masterCache.getAirlines().subscribe({
       next: (data) => {
-        this.airlines = data.map(airline => ({
+        this.airlines = (data || []).map(airline => ({
           ...airline,
           status: airline.active ? 'Active' : 'Inactive',
           isEditing: false,

@@ -62,6 +62,7 @@ import { SourceSalesComponent } from './sourceSales';
 import { InputNumber } from 'primeng/inputnumber';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfigDatePipe } from '../../pipes/config-date.pipe';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 @Component({
   selector: 'app-tariff',
@@ -1647,6 +1648,9 @@ export class TariffComponent implements OnInit, OnDestroy {
   ];
   // ... existing code ...
 
+  // Loading state
+  loading = false;
+
   // Field validation states
   fieldErrors: { [key: string]: string } = {};
   isFormValid = false;
@@ -1674,7 +1678,8 @@ export class TariffComponent implements OnInit, OnDestroy {
     private sourceSalesService: SourceSalesService,
     private cdr: ChangeDetectorRef,
     private confirmationService: ConfirmationService,
-    private router: Router
+    private router: Router,
+    private masterCache: MasterCacheService
   ) { }
 
   // Validation methods
@@ -1979,36 +1984,42 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   private loadAllData() {
-    console.log('Loading all tariff master data...');
-    forkJoin({
-      modes: this.loadModeOptions(),
-      serviceAreas: this.loadServiceAreaOptions(),
-      serviceAreaTypes: this.loadServiceAreaTypeOptions(),
-      shippingTypes: this.loadShippingTypeOptions(),
-      cargoTypes: this.loadCargoTypeOptions(),
-      tariffTypes: this.loadTariffTypeOptions(),
-      locations: this.loadLocationOptions(),
-      locationTypes: this.loadLocationTypeOptions(),
-      basis: this.loadBasisOptions(),
-      containers: this.loadContainersOptions(),
-      currencies: this.loadCurrencyOptions(),
-      items: this.loadItemOptions(),
-      vendorTypes: this.loadVendorTypeOptions(),
-      vendors: this.loadVendorOptions(),
+    console.log('Loading critical tariff master data...');
+    this.loading = true;
 
-      sourceSales: this.loadSourceSalesOptions(),
+    // Initial critical data needed for table display mapping
+    forkJoin({
+      locations: this.loadLocationOptions(),
+      vendors: this.loadVendorOptions(),
     }).subscribe({
       next: () => {
-        console.log('All master data loaded, now loading tariff list...');
+        console.log('Critical data loaded, loading primary list...');
         this.refreshList();
+
+        // Hydrate other dropdowns/metadata in the background
+        this.loadModeOptions().subscribe();
+        this.loadShippingTypeOptions().subscribe();
+        this.loadCargoTypeOptions().subscribe();
+        this.loadTariffTypeOptions().subscribe();
+        this.loadLocationTypeOptions().subscribe();
+        this.loadBasisOptions().subscribe();
+        this.loadContainersOptions().subscribe();
+        this.loadCurrencyOptions().subscribe();
+        this.loadItemOptions().subscribe();
+        this.loadVendorTypeOptions().subscribe();
+        this.loadServiceAreaOptions().subscribe();
+        this.loadServiceAreaTypeOptions().subscribe();
+        this.loadSourceSalesOptions().subscribe();
+
         this.loadMappedTariffSeriesCode();
       },
       error: (error) => {
-        console.error('Error loading data:', error);
+        console.error('Error loading critical data:', error);
+        this.loading = false;
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load master data',
+          detail: 'Failed to load critical master data',
         });
       },
     });
@@ -2016,12 +2027,8 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   // Updated method to load unique department names (mode options) with case-insensitive deduplication
   loadModeOptions() {
+    const departmentObservable = this.masterCache.getDepartments();
     const context = this.contextService.getContext();
-
-    // Use context-aware method instead of getAll()
-    const departmentObservable = context.branchCode
-      ? this.departmentService.getByBranch(context.branchCode)
-      : this.departmentService.getAll();
 
     return departmentObservable.pipe(
       tap((departments: any[]) => {
@@ -2064,7 +2071,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadSourceSalesOptions() {
-    return this.sourceSalesService.getSourceSales().pipe(
+    return this.masterCache.getSourceSales().pipe(
       tap((sourceSales: any[]) => {
         this.sourceSalesOptions = (sourceSales || [])
           .filter((s) => s.status === 'active' || s.status === 'Active')
@@ -2090,13 +2097,8 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
   // Updated method to load unique service type values with case-insensitive deduplication
   loadShippingTypeOptions() {
+    const serviceTypeObservable = this.masterCache.getServiceTypes();
     const context = this.contextService.getContext();
-
-    // Use context-aware method instead of getAll()
-    // const serviceTypeObservable = context.departmentCode
-    //   ? this.serviceTypeService.getByDepartment(context.departmentCode)
-    //   : this.serviceTypeService.getAll();
-    const serviceTypeObservable = this.serviceTypeService.getAll();
 
     return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
@@ -2126,7 +2128,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadCargoTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
         this.cargoTypeOptions = (types || [])
           .filter(
@@ -2142,7 +2144,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadTariffTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       // @ts-ignore
       tap((types: any[]) => {
         this.tariffTypeOptions = (types || [])
@@ -2152,7 +2154,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadLocationTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
         this.locationTypeOptions = types
           .filter((t) => t.key === 'LOCATION' && t.status === 'Active')
@@ -2165,7 +2167,7 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   loadLocationOptions() {
-    return this.masterLocationService.getAll().pipe(
+    return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
         this.allLocations = locations.filter((l) => l.active);
         console.log('Loaded all locations:', this.allLocations.length);
@@ -2205,7 +2207,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadBasisOptions() {
-    return this.basisService.getBasis().pipe(
+    return this.masterCache.getBasis().pipe(
       tap((basis: any[]) => {
         this.basisOptions = (basis || [])
           .filter((b) => b.status === 'Active')
@@ -2217,7 +2219,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadContainersOptions() {
-    return this.containerCodeService.getContainers().pipe(
+    return this.masterCache.getContainers().pipe(
       // @ts-ignore
       tap((containerCodes: any[]) => {
         this.containerTypeOptions = (containerCodes || [])
@@ -2227,7 +2229,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadCurrencyOptions() {
-    return this.currencyCodeService.getCurrencies().pipe(
+    return this.masterCache.getCurrencies().pipe(
       // @ts-ignore
       tap((currencyCodes: any[]) => {
         this.currencyOptions = (currencyCodes || [])
@@ -2237,7 +2239,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     );
   }
   loadItemOptions() {
-    return this.masterItemService.getAll().pipe(
+    return this.masterCache.getItems().pipe(
       // @ts-ignore
       tap((items: any[]) => {
         this.itemNameOptions = (items || [])
@@ -2248,7 +2250,7 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   loadServiceAreaOptions() {
-    return this.serviceAreaService.getServiceAreas().pipe(
+    return this.masterCache.getServiceAreas().pipe(
       tap((serviceAreas: any[]) => {
         // Store all service areas
         this.allServiceAreas = (serviceAreas || []).filter(
@@ -2269,7 +2271,7 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   // Load service area types
   loadServiceAreaTypeOptions() {
-    return this.masterTypeService.getUniqueServiceAreaTypes().pipe(
+    return this.masterCache.getMasterTypes('SERVICE_AREA_TYPE').pipe(
       tap((options: any[]) => {
         this.serviceAreaTypeOptions = options;
         console.log('Service area type options:', this.serviceAreaTypeOptions);
@@ -2305,7 +2307,7 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   loadVendorTypeOptions() {
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
         this.vendorTypeOptions = (types || [])
           .filter((t) => t.key === 'VENDOR' && t.status === 'Active')
@@ -2316,7 +2318,7 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   loadVendorOptions() {
-    return this.vendorService.getAll().pipe(
+    return this.masterCache.getVendors().pipe(
       tap((vendors: any[]) => {
         // Store all vendors for filtering
         this.allVendors = vendors || [];

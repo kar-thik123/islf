@@ -12,8 +12,10 @@ import { MessageService } from 'primeng/api';
 import { MasterItemService, MasterItem } from '../../services/master-item.service';
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { ConfigService } from '../../services/config.service';
+import { MasterCacheService } from '../../services/master-cache.service';
 import { MasterTypeComponent } from './mastertype';
 
 interface ItemTypeOption {
@@ -270,17 +272,38 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private contextService: ContextService,
     public configService: ConfigService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
-    this.refreshList();
-    this.loadItemTypeOptions();
+    console.log('Loading critical master item data...');
+
+    // 🚀 Critical Path: Load items and types
+    forkJoin({
+      items: this.masterCache.getMasterItems(),
+      types: this.masterCache.getAllMasterTypes().pipe(take(1))
+    }).subscribe({
+      next: (res) => {
+        // 1. Items
+        this.items = res.items || [];
+        console.log('Items loaded:', this.items.length);
+
+        // 2. Item Types
+        this.itemTypeOptions = (res.types as ItemTypeOption[]).filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
+        console.log('Item type options loaded:', this.itemTypeOptions.length);
+      },
+      error: (err) => {
+        console.error('Error loading critical item data:', err);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load item data' });
+      }
+    });
 
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
       console.log('Context changed in MasterItemComponent, reloading data...');
       this.refreshList();
+      this.loadItemTypeOptions();
     });
   }
 
@@ -298,7 +321,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
     console.log('Refreshing items list');
 
     // ❌ Remove context validation - let backend handle filtering
-    this.masterItemService.getAll().subscribe({
+    this.masterCache.getMasterItems().subscribe({
       next: (data) => {
         this.items = data || [];
         console.log('Items loaded:', this.items.length);
@@ -489,9 +512,9 @@ export class MasterItemComponent implements OnInit, OnDestroy {
   }
 
   private loadItemTypeOptions() {
-    this.masterTypeService.getAll().subscribe({
-      next: (types: ItemTypeOption[]) => {
-        this.itemTypeOptions = types.filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
+    this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe({
+      next: (types: any[]) => {
+        this.itemTypeOptions = (types as ItemTypeOption[]).filter(t => t.key === 'ITEM_TYPE' && t.status === 'Active');
         console.log('Item type options refreshed:', this.itemTypeOptions.length);
       },
       error: (error) => {

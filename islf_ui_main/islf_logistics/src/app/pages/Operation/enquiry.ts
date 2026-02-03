@@ -80,6 +80,7 @@ import { TabViewModule } from 'primeng/tabview';
 import { VendorService } from '@/services/vendor.service';
 import { ConfigService } from '../../services/config.service';
 import { ConfigDatePipe } from '../../pipes/config-date.pipe';
+import { MasterCacheService } from '../../services/master-cache.service';
 @Component({
   selector: 'app-enquiry',
   standalone: true,
@@ -3022,13 +3023,14 @@ export class EnquiryComponent implements OnInit {
     private sourceSalesService: SourceSalesService,
     private sourceService: SourceService,
     private masterItemService: MasterItemService,
-    public configService: ConfigService
+    public configService: ConfigService,
+    private masterCache: MasterCacheService
   ) {
     this.initializeForm();
   }
 
   ngOnInit() {
-    this.loadServiceAreaOptions().subscribe();
+    this.loadServiceAreaOptions(); // Now synchronous or cached
     // console.log("Debug: obtaining username from the auth service during enquiry on Init", this.authService.getUserName())
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
@@ -3059,33 +3061,38 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadInitialData() {
-    this.loading = true; // Use component-level loading flag
-    // Load any initial data needed from masters.
+    console.log('Loading critical enquiry data...');
+    this.loading = true;
+
+    // 🚀 Critical Path: Load only data needed for table display
     forkJoin({
       enquiries: this.loadEnquiries(),
       locations: this.loadLocations(),
       vendors: this.loadVendors(),
-      departments: this.loadDepartments(),
-      basis: this.loadBasisOptions(),
-      customers: this.loadCustomers(),
-      serviceTypes: this.loadServiceTypes(),
-      locationTypes: this.loadLocationTypes(),
-      serviceAreas: this.loadServiceAreaOptions(),
-      sourceSales: this.loadSourceSalesOptions(),
-      cargoType: this.loadCargoTypeOptions(),
-      currencyCode: this.loadCurrencyOptions(),
     }).subscribe({
       next: () => {
-        console.log('All initial data loaded successfully');
+        console.log('Critical data loaded, enquiries visible!');
         this.loading = false;
         this.cdr.detectChanges();
+
+        // 🔄 Background Hydration: Load dropdown data asynchronously
+        console.log('Hydrating dropdowns in background...');
+        this.loadDepartments().subscribe();
+        this.loadBasisOptions().subscribe();
+        this.loadCustomers().subscribe();
+        this.loadServiceTypes().subscribe();
+        this.loadLocationTypes().subscribe();
+        this.loadServiceAreaOptions().subscribe();
+        this.loadSourceSalesOptions().subscribe();
+        this.loadCargoTypeOptions().subscribe();
+        this.loadCurrencyOptions().subscribe();
       },
       error: (error) => {
-        console.error('Error loading initial data:', error);
+        console.error('Error loading critical data:', error);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load initial data',
+          detail: 'Failed to load enquiry data',
         });
         this.loading = false;
         this.cdr.detectChanges();
@@ -3095,7 +3102,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load locations from the location masters
   loadLocations() {
-    return this.masterLocationService.getAll().pipe(
+    return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
         this.allLocations = locations.filter((l) => l.active);
         console.log('Loaded all locations:', this.allLocations.length);
@@ -3124,7 +3131,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load vendors for mapping code -> display name
   loadVendors() {
-    return this.vendorService.getAll().pipe(
+    return this.masterCache.getVendors().pipe(
       tap((vendors: any[]) => {
         this.allVendors = vendors || [];
         console.log('Loaded all vendors:', this.allVendors.length);
@@ -3166,12 +3173,8 @@ export class EnquiryComponent implements OnInit {
 
   // Load departments from the department service
   loadDepartments() {
+    const departmentObservable = this.masterCache.getDepartments();
     const context = this.contextService.getContext();
-
-    const departmentObservable = context.branchCode
-      ? this.departmentService.getByBranch(context.branchCode)
-      : this.departmentService.getAll();
-
     return departmentObservable.pipe(
       tap((departments: any[]) => {
         console.log('Departments loaded for context:', context, departments);
@@ -3237,7 +3240,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load basis options from the basis service
   loadBasisOptions() {
-    return this.basisService.getAll().pipe(
+    return this.masterCache.getBasis().pipe(
       tap((basis: any[]) => {
         this.basisOptions = (basis || [])
           .filter((b) => b.status === 'Active')
@@ -3251,17 +3254,7 @@ export class EnquiryComponent implements OnInit {
     );
   }
   loadCargoTypeOptions() {
-    // return this.masterItemService.getAll().pipe(
-    //   tap((cargoTypes: any[]) => {
-    //     this.cargoTypeOptions = (cargoTypes || [])
-    //       .filter(
-    //         (cargoType) =>
-    //           cargoType.active === true && cargoType.item_type === 'CARGO_TYPE'
-    //       )
-    //       .map((CT) => ({ label: `${ CT.code } -${ CT.name } `, value: CT.name }));
-    //     console.log('Cargo Type options,', this.cargoTypeOptions);
-    //   }),
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((cargoMasterTypes: any[]) => {
         this.cargoTypeOptions = (cargoMasterTypes || [])
           .filter(
@@ -3283,7 +3276,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadCurrencyOptions() {
-    return this.currencyCodeService.getCurrencies().pipe(
+    return this.masterCache.getCurrencies().pipe(
       tap((currencyCodes: any[]) => {
         console.log('currencyCode service response,', currencyCodes);
         this.sellPriceCurrencyOptions = (currencyCodes || [])
@@ -3304,7 +3297,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadServiceAreaOptions() {
-    return this.serviceAreaService.getServiceAreas().pipe(
+    const obs = this.masterCache.getServiceAreas().pipe(
       tap((serviceAreas: any[]) => {
         this.serviceAreaOptionsRaw = (serviceAreas || []).filter((sa) => sa.status === 'active');
         this.serviceAreaDropdownOptions = this.serviceAreaOptionsRaw.map((sa) => ({ label: sa.service_area, value: sa.service_area, type: sa.type }));
@@ -3315,6 +3308,7 @@ export class EnquiryComponent implements OnInit {
         return of([]);
       })
     );
+    return obs;
   }
 
   getServiceAreasForType(type: string) {
@@ -3356,7 +3350,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadSourceSalesOptions() {
-    return this.sourceSalesService.getSourceSales().pipe(
+    return this.masterCache.getSourceSales().pipe(
       tap((sourceSales: any[]) => {
         this.sourceSalesOptions = (sourceSales || [])
           .filter((s) => s.status === 'active' || s.status === 'Active')
@@ -4568,7 +4562,7 @@ export class EnquiryComponent implements OnInit {
               this.isManualLandline = false;
             } else {
               // Data doesn't match, keep existing data and set manual flags
-
+  
               this.selectedContact = null;
               this.isManualName = !!this.selectedEnquiry.customer_name;
               this.isManualEmail = !!this.selectedEnquiry.email;
@@ -4707,7 +4701,7 @@ export class EnquiryComponent implements OnInit {
   ------------------------
    Line Items methods
   ------------------------
-*/
+  */
   addLineItem() {
     const add = () => {
       const newItem: EnquiryLineItem = {
@@ -4863,10 +4857,10 @@ export class EnquiryComponent implements OnInit {
   }
 
   /*
-
-  Sourcing and Tariff methods
   
-*/
+  Sourcing and Tariff methods
+   
+  */
   canGetSourcing(): boolean {
     const firstBasis = this.lineItems[0]?.basis;
     const enq = this.selectedEnquiry;

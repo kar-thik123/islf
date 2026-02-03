@@ -15,6 +15,8 @@ import { Subscription } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MasterCodeComponent } from './mastercode';
+import { MasterCacheService } from '../../services/master-cache.service';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'master-type',
@@ -264,7 +266,8 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private contextService: ContextService,
     public configService: ConfigService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private masterCache: MasterCacheService
   ) { }
 
   // Validation methods
@@ -356,7 +359,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     // Load master code options for the key dropdown
-    this.masterCodeService.getMasters().subscribe((codes: any[]) => {
+    this.masterCache.getCodes().subscribe((codes: any[]) => {
       this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
     });
 
@@ -385,7 +388,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
       // ❌ Remove this entire context validation block
       // The backend service should handle context filtering automatically
 
-      this.masterTypeService.getAll().subscribe({
+      this.masterCache.getAllMasterTypes().subscribe({
         next: (types) => {
           let filteredTypes = types || [];
 
@@ -575,7 +578,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
   }
 
   private loadMasterCodeOptions() {
-    this.masterCodeService.getMasters().subscribe({
+    this.masterCache.getCodes().subscribe({
       next: (codes: any[]) => {
         this.masterCodeOptions = (codes || []).map(c => ({ label: c.code, value: c.code }));
         console.log('Master code options refreshed:', this.masterCodeOptions.length);

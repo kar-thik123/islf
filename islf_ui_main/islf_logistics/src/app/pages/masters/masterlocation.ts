@@ -14,9 +14,10 @@ import { MasterLocationService, MasterLocation } from '../../services/master-loc
 import { MasterTypeService } from '../../services/mastertype.service';
 import { ContextService } from '../../services/context.service';
 import { ConfigService } from '../../services/config.service';
-import { Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators'; // Add this import
+import { Subscription, forkJoin } from 'rxjs';
+import { debounceTime, distinctUntilChanged, take } from 'rxjs/operators';
 import { Country, State, City } from 'country-state-city/lib';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 
 @Component({
@@ -371,39 +372,55 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private messageService: MessageService,
     private contextService: ContextService,
-    public configService: ConfigService
+    public configService: ConfigService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
-    this.refreshList();
+    console.log('Loading critical master location data...');
+
     this.loadCountryData();
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
-      this.locationTypeOptions = types.filter(t => t.key === 'LOCATION' && t.status === 'Active');
-      console.log('Location type options from master type:', this.locationTypeOptions);
-      this.updateLocationTypes();
+
+    // 🚀 Critical Path: Load locations and types
+    forkJoin({
+      locations: this.masterCache.getLocations(),
+      types: this.masterCache.getAllMasterTypes().pipe(take(1))
+    }).subscribe({
+      next: (res) => {
+        // 1. Locations
+        this.locations = (res.locations || []).map((l: any) => ({
+          ...l,
+          isEditing: false,
+          isNew: false
+        }));
+        console.log('Master locations loaded:', this.locations.length);
+
+        // 2. Location Types
+        this.locationTypeOptions = res.types.filter((t: any) => t.key === 'LOCATION' && t.status === 'Active');
+        console.log('Location types loaded:', this.locationTypeOptions.length);
+        this.updateLocationTypes();
+      },
+      error: (err) => {
+        console.error('Error loading critical location data:', err);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load location data' });
+      }
     });
 
-    // Subscribe to context changes to reload data - Updated with debouncing and proper refresh
+    // Subscribe to context changes
     this.contextSubscription.add(
       this.contextService.context$.pipe(
-        debounceTime(300), // Wait 300ms after the last context change
-        distinctUntilChanged() // Only emit when context actually changes
+        debounceTime(300),
+        distinctUntilChanged()
       ).subscribe(() => {
         console.log('Context changed in MasterLocationComponent, reloading data...');
-        // Clear existing data first
         this.locations = [];
+        this.refreshList();
 
-        // Reload master type data for tabs
-        this.masterTypeService.getAll().subscribe((types: any[]) => {
-          this.locationTypeOptions = types.filter(t => t.key === 'LOCATION' && t.status === 'Active');
-          console.log('Reloaded location type options from master type:', this.locationTypeOptions);
+        // Reload types as well if needed
+        this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe((types: any[]) => {
+          this.locationTypeOptions = types.filter((t: any) => t.key === 'LOCATION' && t.status === 'Active');
           this.updateLocationTypes();
         });
-
-        // Add small delay to ensure context propagation
-        setTimeout(() => {
-          this.refreshList();
-        }, 100);
       })
     );
   }
@@ -418,32 +435,22 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
 
   refreshList() {
     console.log('Refreshing master locations list');
+    this.locations = [];
 
-    try {
-      // Clear existing locations to ensure fresh data
-      this.locations = [];
-
-      this.masterLocationService.getAll().subscribe({
-        next: (locations) => {
-          this.locations = (locations || []).map((l: any) => ({
-            ...l,
-            isEditing: false,
-            isNew: false
-          }));
-          console.log('Master locations loaded successfully:', this.locations.length);
-        },
-        error: (error) => {
-          console.error('Error loading master locations:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to load master locations'
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Error in refreshList:', error);
-    }
+    this.masterCache.getLocations().subscribe({
+      next: (locations) => {
+        this.locations = (locations || []).map((l: any) => ({
+          ...l,
+          isEditing: false,
+          isNew: false
+        }));
+        console.log('Master locations refreshed:', this.locations.length);
+      },
+      error: (error) => {
+        console.error('Error refreshing master locations:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master locations' });
+      }
+    });
   }
 
   addRow() {

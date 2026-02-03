@@ -17,6 +17,8 @@ import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MasterTypeComponent } from './mastertype';
+import { MasterCacheService } from '../../services/master-cache.service';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'master-uom',
@@ -257,7 +259,8 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private contextService: ContextService,
-    public configService: ConfigService
+    public configService: ConfigService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -282,9 +285,9 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.masterUOMService.getAll().subscribe({
+    this.masterCache.getUOMs().subscribe({
       next: (data) => {
-        this.uoms = data.map(uom => ({ ...uom, isEditing: false, isNew: false }));
+        this.uoms = (data || []).map(uom => ({ ...uom, isEditing: false, isNew: false }));
       },
       error: () => {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load UOMs' });
@@ -560,7 +563,7 @@ export class MasterUOMComponent implements OnInit, OnDestroy {
   }
 
   private loadUomTypeOptions() {
-    this.masterTypeService.getAll().subscribe({
+    this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe({
       next: (types: any[]) => {
         this.uomTypeOptions = types.filter(t => t.key === 'UOM' && t.status === 'Active');
         console.log('UOM type options refreshed:', this.uomTypeOptions.length);

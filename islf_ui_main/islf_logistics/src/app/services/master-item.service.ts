@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
@@ -21,6 +22,8 @@ export interface MasterItem {
 @Injectable({ providedIn: 'root' })
 export class MasterItemService {
   private apiUrl = `${environment.apiUrl}/api/master_item`;
+  private cache: MasterItem[] | null = null;
+  private lastContextKey: string = '';
 
   constructor(
     private http: HttpClient,
@@ -29,7 +32,7 @@ export class MasterItemService {
     private configService: ConfigService
   ) { }
 
-  // 🔄 Updated getAll method to respect IT Setup validation/filter settings
+  // 🔄 Updated getAll method with in-memory caching
   getAll(): Observable<MasterItem[]> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
@@ -47,18 +50,37 @@ export class MasterItemService {
       params.departmentCode = context.departmentCode;
     }
 
-    return this.http.get<MasterItem[]>(this.apiUrl, { params });
+    const currentContextKey = JSON.stringify(params);
+    if (this.cache && this.lastContextKey === currentContextKey) {
+      console.log('Returning cached items');
+      return of(this.cache);
+    }
+
+    return this.http.get<MasterItem[]>(this.apiUrl, { params }).pipe(
+      tap(data => {
+        this.cache = data;
+        this.lastContextKey = currentContextKey;
+      })
+    );
+  }
+
+  clearCache() {
+    this.cache = null;
+    this.lastContextKey = '';
   }
 
   create(data: MasterItem): Observable<MasterItem> {
+    this.clearCache();
     return this.http.post<MasterItem>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   update(id: number, data: Partial<MasterItem>): Observable<MasterItem> {
+    this.clearCache();
     return this.http.put<MasterItem>(`${this.apiUrl}/${id}`, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   delete(id: number): Observable<any> {
+    this.clearCache();
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 }

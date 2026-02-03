@@ -18,6 +18,7 @@ import { ContextService } from '@/services/context.service';
 import { Subscription } from 'rxjs';
 import { MasterLocationComponent } from './masterlocation';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 interface FlagOption {
   label: string;
@@ -332,7 +333,8 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
     private masterLocationService: MasterLocationService,
     private messageService: MessageService,
     public configService: ConfigService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -356,7 +358,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   }
 
   loadFlagOptions() {
-    this.masterLocationService.getAll().subscribe({
+    this.masterCache.getLocations().subscribe({
       next: (locations) => {
         // Step 1: Filter valid country values
         const countries = locations
@@ -488,9 +490,9 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
 
   refreshList(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.masterVesselService.getAll().subscribe({
+      this.masterCache.getVessels().subscribe({
         next: (data) => {
-          this.vessels = data.map(vessel => ({
+          this.vessels = (data || []).map(vessel => ({
             ...vessel,
             status: vessel.active ? 'Active' : 'Inactive'
           }));

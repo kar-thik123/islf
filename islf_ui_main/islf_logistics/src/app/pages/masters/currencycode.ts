@@ -12,6 +12,7 @@ import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 @Component({
   selector: 'currency-code',
@@ -188,7 +189,8 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
     private currencyService: CurrencyCodeService,
     private messageService: MessageService,
     public configService: ConfigService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -213,31 +215,25 @@ export class CurrencyCodeComponent implements OnInit, OnDestroy {
   refreshList() {
     console.log('Refreshing currency codes list');
 
-    try {
-      // ❌ Remove context validation block
-
-      this.currencyService.getCurrencies().subscribe({
-        next: (res: any) => {
-          this.currencies = (res || []).map((item: any) => ({
-            ...item,
-            isEditing: false,
-            isNew: false
-          }));
-          console.log('Currencies loaded successfully:', this.currencies.length);
-        },
-        error: (error) => {
-          console.error('Error loading currencies:', error);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to load currency codes'
-          });
-          this.currencies = [];
-        }
-      });
-    } catch (error) {
-      console.error('Error in refreshList:', error);
-    }
+    this.masterCache.getCurrencies().subscribe({
+      next: (res: any) => {
+        this.currencies = (res || []).map((item: any) => ({
+          ...item,
+          isEditing: false,
+          isNew: false
+        }));
+        console.log('Currencies loaded successfully:', this.currencies.length);
+      },
+      error: (error) => {
+        console.error('Error loading currencies:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load currency codes'
+        });
+        this.currencies = [];
+      }
+    });
   }
 
   addRow() {

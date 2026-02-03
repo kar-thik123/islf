@@ -22,8 +22,9 @@ import { DepartmentService } from '../../services/department.service';
 import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
-import { Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCacheService } from '../../services/master-cache.service';
+import { Subscription, forkJoin } from 'rxjs';
+import { debounceTime, distinctUntilChanged, take } from 'rxjs/operators';
 import { Country, State, City } from 'country-state-city';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
@@ -780,7 +781,8 @@ export class CustomerComponent implements OnInit, OnDestroy {
     public configService: ConfigService,
     private contextService: ContextService,
     private accountDetailsService: AccountDetailsService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -808,25 +810,39 @@ export class CustomerComponent implements OnInit, OnDestroy {
   }
 
   loadOptions() {
-    // Load customer type options from master type where key === 'Customer' and status === 'Active'
-    this.masterTypeService.getAll().subscribe({
-      next: (types: any[]) => {
-        this.customerTypeOptions = (types || [])
-          .filter(t => t.key === 'CUSTOMER' && t.status === 'Active')
-          .map(t => ({ label: t.value, value: t.value }));
-        console.log('Customer type options loaded:', this.customerTypeOptions);
+    console.log('Loading critical customer data...');
+
+    // 🚀 Critical Path: Load only data needed for table display
+    forkJoin({
+      customers: this.masterCache.getCustomers(),
+      types: this.masterCache.getAllMasterTypes().pipe(take(1)),
+    }).subscribe({
+      next: (res) => {
+        // 1. Customers list (CRITICAL for table)
+        this.customers = res.customers;
+        this.billToCustomerOptions = res.customers.map(c => ({
+          label: `${c.customer_no} - ${c.name}`,
+          value: `${c.customer_no} - ${c.name}`
+        }));
+        console.log('Customers loaded:', this.customers.length);
+
+        // 2. Customer types (CRITICAL for dropdown)
+        this.customerTypeOptions = (res.types || [])
+          .filter((t: any) => t.key === 'CUSTOMER' && t.status === 'Active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
+        console.log('Customer type options loaded:', this.customerTypeOptions.length);
+
+        console.log('Critical customer data loaded, table ready!');
+
+        // 🔄 Background Hydration: Load locations asynchronously
+        console.log('Hydrating customer locations in background...');
+        this.loadLocations();
       },
       error: (error) => {
-        console.error('Error loading customer types:', error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customer types' });
+        console.error('Error loading critical customer data:', error);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customer data' });
       }
     });
-
-    // Load existing customers for bill-to customer dropdown
-    this.refreshList();
-
-    // Load locations for country, state, city dropdowns
-    this.loadLocations();
   }
 
   onGlobalFilter(event: Event, table: any) {
@@ -835,7 +851,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
 
   refreshList(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.customerService.getAll().subscribe({
+      this.masterCache.getCustomers().subscribe({
         next: (data) => {
           this.customers = data;
           this.billToCustomerOptions = data.map(c => ({

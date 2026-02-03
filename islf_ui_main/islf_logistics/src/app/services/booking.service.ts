@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
@@ -87,20 +87,24 @@ export class BookingService {
   }
 
   getByNo(bookingNo: string): Observable<BookingRecord> {
-    return this.http.get<BookingRecord>(`${this.baseUrl}/${bookingNo}`);
+    const headers = new HttpHeaders({ 'X-Show-Loading': 'true' });
+    return this.http.get<BookingRecord>(`${this.baseUrl}/${bookingNo}`, { headers });
   }
 
   // Quote Mapping Methods
   getBookingEnquiries(bookingNo: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/enquiries`);
+    const headers = new HttpHeaders({ 'X-Show-Loading': 'true' });
+    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/enquiries`, { headers });
   }
 
   getEnquiryLineItemTypes(bookingNo: string, enquiryNo: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/enquiry/${enquiryNo}/line-item-types`);
+    const headers = new HttpHeaders({ 'X-Show-Loading': 'true' });
+    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/enquiry/${enquiryNo}/line-item-types`, { headers });
   }
 
   getQuoteMappings(bookingNo: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/quote-mappings`);
+    const headers = new HttpHeaders({ 'X-Show-Loading': 'true' });
+    return this.http.get<any[]>(`${this.baseUrl}/${bookingNo}/quote-mappings`, { headers });
   }
 
   saveQuoteMappings(bookingNo: string, mappings: any[]): Observable<any> {

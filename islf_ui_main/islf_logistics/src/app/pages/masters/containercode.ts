@@ -12,6 +12,7 @@ import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCacheService } from '../../services/master-cache.service';
 @Component({
   selector: 'container-code',
   standalone: true,
@@ -201,7 +202,8 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
     private containerService: ContainerCodeService,
     private messageService: MessageService,
     public configService: ConfigService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -224,21 +226,9 @@ export class ContainerCodeComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    // Get the Validation settings
-    const config = this.configService.getConfig();
-    const containerFilter = config?.validation?.containerFilter || '';
+    console.log('Refreshing container codes list');
 
-    // Determine if we should filter by context based on validation settings
-    const filterByContext = containerFilter.includes('Company') ||
-      containerFilter.includes('Branch') ||
-      containerFilter.includes('Department');
-
-    console.log('Container filter:', containerFilter);
-    console.log('Filter by context:', filterByContext);
-
-    // The BaseMasterService automatically handles context filtering
-    // so we don't need to pass any parameters to getContainers()
-    this.containerService.getContainers().subscribe({
+    this.masterCache.getContainers().subscribe({
       next: (data) => {
         this.containers = data || [];
         console.log('Containers loaded:', this.containers.length);

@@ -17,6 +17,7 @@ import { ConfigService } from '../../services/config.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ContextService } from '../../services/context.service';
+import { MasterCacheService } from '../../services/master-cache.service';
 interface PageFieldOption {
   label: string;
   value: string;
@@ -251,7 +252,8 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
     private masterService: MasterCodeService,
     private messageService: MessageService,
     public configService: ConfigService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -277,7 +279,7 @@ export class MasterCodeComponent implements OnInit, OnDestroy {
     console.log('Refreshing master codes list...');
 
     // The service now handles context filtering automatically
-    this.masterService.getMasters().subscribe({
+    this.masterCache.getCodes().subscribe({
       next: (res: any) => {
         this.masters = (res || []).map((item: any) => ({
           ...item,

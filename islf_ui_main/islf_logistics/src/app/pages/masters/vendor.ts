@@ -37,9 +37,11 @@ import {
   AccountDetailsService,
   AccountDetail,
 } from '../../services/account-details.service';
+import { MasterCacheService } from '../../services/master-cache.service';
 // import {} from '@angular/material/'
 import { Country, State, City } from 'country-state-city';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
+import { take } from 'rxjs/operators';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
   const seen = new Set<string>();
@@ -1579,7 +1581,8 @@ export class VendorComponent implements OnInit, OnDestroy {
     public configService: ConfigService,
     private contextService: ContextService,
     private sanitizer: DomSanitizer,
-    private accountDetailsService: AccountDetailsService
+    private accountDetailsService: AccountDetailsService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -1604,29 +1607,44 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   loadOptions() {
-    // Load vendor type options from master type where key === 'Vendor' and status === 'Active'
-    this.masterTypeService.getAll().subscribe({
-      next: (types: any[]) => {
-        this.vendorTypeOptions = (types || [])
-          .filter((t) => t.key === 'VENDOR' && t.status === 'Active')
-          .map((t) => ({ label: t.value, value: t.value }));
-        console.log('Vendor type options loaded:', this.vendorTypeOptions);
+    console.log('Loading critical vendor data...');
+
+    // 🚀 Critical Path: Load only data needed for table display
+    forkJoin({
+      vendors: this.masterCache.getVendors(),
+      types: this.masterCache.getAllMasterTypes().pipe(take(1)),
+    }).subscribe({
+      next: (res) => {
+        // 1. Vendors list (CRITICAL for table)
+        this.vendors = res.vendors;
+        this.billToVendorOptions = res.vendors.map((c) => ({
+          label: `${c.vendor_no} - ${c.name}`,
+          value: `${c.vendor_no} - ${c.name}`,
+        }));
+        console.log('Vendors loaded:', this.vendors.length);
+
+        // 2. Vendor types (CRITICAL for dropdown)
+        this.vendorTypeOptions = (res.types || [])
+          .filter((t: any) => t.key === 'VENDOR' && t.status === 'Active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
+        this.duplicationVendorTypeOptions = this.vendorTypeOptions;
+        console.log('Vendor type options loaded:', this.vendorTypeOptions.length);
+
+        console.log('Critical vendor data loaded, table ready!');
+
+        // 🔄 Background Hydration: Load locations asynchronously
+        console.log('Hydrating vendor locations in background...');
+        this.loadLocations();
       },
       error: (error) => {
-        console.error('Error loading vendor types:', error);
+        console.error('Error loading critical vendor data:', error);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load vendor types',
+          detail: 'Failed to load vendor data',
         });
       },
     });
-
-    // Load existing vendors for bill-to vendor dropdown
-    this.refreshList();
-
-    // Load locations for country, state, city dropdowns
-    this.loadLocations();
   }
 
   onGlobalFilter(event: Event, table: any) {
@@ -1634,7 +1652,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   refreshList() {
-    this.vendorService.getAll().subscribe({
+    this.masterCache.getVendors().subscribe({
       next: (data) => {
         this.vendors = data;
         this.billToVendorOptions = data.map((c) => ({

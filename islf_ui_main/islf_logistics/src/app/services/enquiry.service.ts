@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
@@ -209,7 +209,8 @@ export class EnquiryService {
 
   /** Get enquiry by code (preferred) */
   getByCode(code: string): Observable<Enquiry> {
-    return this.http.get<Enquiry>(`${this.baseUrl}/${code}`);
+    const headers = new HttpHeaders({ 'X-Show-Loading': 'true' });
+    return this.http.get<Enquiry>(`${this.baseUrl}/${code}`, { headers });
   }
 
   /** Get enquiry by ID (deprecated – use getByCode) */
@@ -218,7 +219,8 @@ export class EnquiryService {
   }
 
   getEnquiryPreviewByCode(code: string): Observable<EnquiryPreviewResponse> {
-    return this.http.get<EnquiryPreviewResponse>(`${this.baseUrl}/${code}/preview`);
+    const headers = new HttpHeaders({ 'X-Show-Loading': 'true' });
+    return this.http.get<EnquiryPreviewResponse>(`${this.baseUrl}/${code}/preview`, { headers });
   }
 
   /** Aliases for backwards compatibility */

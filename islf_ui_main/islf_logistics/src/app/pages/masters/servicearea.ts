@@ -19,6 +19,8 @@ import { MasterTypeService } from '../../services/mastertype.service';
 import { DialogModule } from 'primeng/dialog';
 import { MappingService } from '@/services/mapping.service';
 import { NumberSeriesService } from '@/services/number-series.service';
+import { MasterCacheService } from '../../services/master-cache.service';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-service-area',
@@ -396,6 +398,7 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
     private masterTypeService: MasterTypeService,
     private mappingService: MappingService,
     private numberSeriesService: NumberSeriesService,
+    private masterCache: MasterCacheService
   ) { }
 
 
@@ -500,9 +503,10 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
   loadServiceAreas() {
     if (!this.contextId) return;
 
-    this.serviceAreaService.getServiceAreas().subscribe({
+    // Use MasterCacheService which handles context-based cache invalidation
+    this.masterCache.getServiceAreas().subscribe({
       next: (data) => {
-        this.serviceAreas = data.map(item => ({
+        this.serviceAreas = (data || []).map((item: any) => ({
           ...item,
           isEditing: false,
           isNew: false,
@@ -521,12 +525,12 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
   }
 
   loadServiceAreaTypes() {
-    this.masterTypeService.getAll().subscribe({
+    this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe({
       next: (types: any[]) => {
 
         this.serviceAreaTypes = types
-          .filter(t => t.key === 'SERVICE_AREA' && t.status === 'Active')
-          .map(t => ({
+          .filter((t: any) => t.key === 'SERVICE_AREA' && t.status === 'Active')
+          .map((t: any) => ({
             label: t.value,   // adjust based on actual field names
             value: t.value    // could also use t.id or t.code
           }));
@@ -720,8 +724,8 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
 
   deleteRow(serviceArea: any) {
     this.confirmationService.confirm({
-      message: serviceArea.isNew 
-        ? 'Are you sure you want to discard this new row?' 
+      message: serviceArea.isNew
+        ? 'Are you sure you want to discard this new row?'
         : 'Are you sure you want to delete this service area?',
       header: 'Confirm',
       icon: 'pi pi-exclamation-triangle',

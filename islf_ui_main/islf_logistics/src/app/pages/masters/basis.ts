@@ -12,6 +12,7 @@ import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 @Component({
   selector: 'basis-code',
@@ -183,7 +184,8 @@ export class BasisComponent implements OnInit, OnDestroy {
     private basisService: BasisService,
     private messageService: MessageService,
     public configService: ConfigService,
-    private contextService: ContextService
+    private contextService: ContextService,
+    private masterCache: MasterCacheService
   ) { }
 
   ngOnInit() {
@@ -206,22 +208,11 @@ export class BasisComponent implements OnInit, OnDestroy {
   }
 
   refreshList(skipLoading = false) {
-    // Get the Validation settings
-    const config = this.configService.getConfig();
-    const basisFilter = config?.validation?.basisFilter || '';
-
-    // Determine if we should filter by context based on validation settings
-    const filterByContext = basisFilter.includes('C') ||
-      basisFilter.includes('B') ||
-      basisFilter.includes('D');
-
-    console.log('Basis filter:', basisFilter);
-    console.log('Filter by context:', filterByContext);
+    console.log('Refreshing basis list');
 
     if (!skipLoading) this.loading.set(true);
 
-    // The BasisService with updated getAll() method handles context filtering
-    this.basisService.getAll(skipLoading).subscribe({
+    this.masterCache.getBasis().subscribe({
       next: (data) => {
         this.basis = data || [];
         console.log('Basis loaded:', this.basis.length);

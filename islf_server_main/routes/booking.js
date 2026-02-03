@@ -698,11 +698,33 @@ router.get('/:bookingNo', async (req, res) => {
     const booking = rows[0];
     const breakupRes = await pool.query('SELECT * FROM booking_breakup WHERE booking_id = $1 ORDER BY id', [booking.id]);
     const breakupRows = breakupRes.rows;
+
+    // BULK FETCH: Get all container and package breakups for this booking
+    const { rows: allContainers } = await pool.query(
+      'SELECT * FROM booking_container_breakup WHERE booking_id = $1',
+      [booking.id]
+    );
+    const { rows: allPackages } = await pool.query(
+      'SELECT * FROM booking_package_breakup WHERE booking_id = $1',
+      [booking.id]
+    );
+
+    // Grouping logic in memory
+    const containersByBreakup = allContainers.reduce((acc, c) => {
+      if (!acc[c.booking_breakup_id]) acc[c.booking_breakup_id] = [];
+      acc[c.booking_breakup_id].push(c);
+      return acc;
+    }, {});
+
+    const packagesByBreakup = allPackages.reduce((acc, p) => {
+      if (!acc[p.booking_breakup_id]) acc[p.booking_breakup_id] = [];
+      acc[p.booking_breakup_id].push(p);
+      return acc;
+    }, {});
+
     for (let row of breakupRows) {
-      const containerRes = await pool.query('SELECT * FROM booking_container_breakup WHERE booking_breakup_id = $1', [row.id]);
-      row.container_breakup = containerRes.rows;
-      const packageRes = await pool.query('SELECT * FROM booking_package_breakup WHERE booking_breakup_id = $1', [row.id]);
-      row.package_breakup = packageRes.rows;
+      row.container_breakup = containersByBreakup[row.id] || [];
+      row.package_breakup = packagesByBreakup[row.id] || [];
     }
     booking.booking_breakup = breakupRows;
 
