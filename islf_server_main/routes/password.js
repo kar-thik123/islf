@@ -9,7 +9,6 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 const pool = require('../db');
 const { sendEmail } = require('../email');
-const { logAuthEvent } = require('../log');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -40,7 +39,6 @@ router.post('/forgot', async (req, res) => {
         const resetUrl = `http://localhost:4200/auth/newpassword?token=${resetToken}`;
         const subject = 'Password Reset';
         const text = `Click the following link to reset your password: ${resetUrl}`;
-        await logAuthEvent({ username, action: 'FORGOT_PASSWORD_EMAIL_SENT', details: 'Password reset link sent' });
         await sendEmail(user.email, subject, text);
         res.json({ message: 'Password reset link sent to email' });
     } catch (err) {
@@ -56,26 +54,25 @@ router.post('/reset', async (req, res) => {
     }
     try {
         const payload = jwt.verify(token, JWT_SECRET);
-        
+
         // Get current password to validate it's different
         const userResult = await pool.query('SELECT password, username FROM users WHERE id = $1', [payload.id]);
         if (!userResult.rows[0]) {
             return res.status(404).json({ message: 'User not found' });
         }
-        
+
         const currentHashedPassword = userResult.rows[0].password;
         const username = userResult.rows[0].username || payload.email || 'unknown';
-        
+
         // Check if new password is the same as current password
         const isSamePassword = await bcrypt.compare(newPassword, currentHashedPassword);
         if (isSamePassword) {
             return res.status(400).json({ message: 'New password must be different from current password' });
         }
-        
+
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, payload.id]);
-        
-        await logAuthEvent({ username, action: 'RESET_PASSWORD_SUCCESS', details: 'Password updated successfully' });
+
         res.json({ message: 'Password updated successfully' });
     } catch (err) {
         res.status(400).json({ message: 'Invalid or expired token', error: err });

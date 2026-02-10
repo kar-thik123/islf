@@ -34,6 +34,7 @@ import { MasterVesselService } from '../../services/master-vessel.service';
 import { ConfigService } from '../../services/config.service';
 import { ConfigDatePipe } from '../../pipes/config-date.pipe';
 import { TextareaModule } from 'primeng/textarea';
+import { MasterCacheService } from '../../services/master-cache.service';
 
 @Component({
   selector: 'app-booking',
@@ -1290,6 +1291,7 @@ export class BookingComponent implements OnInit {
     return rev;
   }
   chargeCodeToName: Map<string, string> = new Map();
+  basisMasterOptions: any[] = [];
 
   constructor(
     private bookingService: BookingService,
@@ -1305,7 +1307,8 @@ export class BookingComponent implements OnInit {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private cdr: ChangeDetectorRef,
-    public configService: ConfigService
+    public configService: ConfigService,
+    private masterCache: MasterCacheService
   ) { }
 
   getStatusClass(status: string): string {
@@ -1357,22 +1360,22 @@ export class BookingComponent implements OnInit {
   }
 
   loadDropdowns() {
-    // Do NOT set this.loading = true here. 
+    // Do NOT set this.loading = true here.
     // We want the grid to load independently. Master data can arrive later.
-    const ctx = this.contextService.getContext();
 
-    // 🚀 Hydration Strategy: Load EVERYTHING critical before showing the UI
+    // 🚀 Cache-First Hydration Strategy: Load from MasterCacheService
     forkJoin({
-      departments: this.enquiryService.getDepartmentsDropdown(ctx.companyCode).pipe(take(1)),
-      locations: this.masterLocationService.getAll().pipe(take(1)),
-      bookingStatuses: this.masterTypeService.getAllByType('BOOKING_STATUS').pipe(take(1)),
-      cargoItems: this.masterItemService.getAll().pipe(take(1)),
-      vendors: this.vendorService.getAll().pipe(take(1)),
-      serviceTypes: this.serviceTypeService.getAll().pipe(take(1)),
-      airlines: this.masterAirlineService.getAll().pipe(take(1)),
-      vessels: this.masterVesselService.getAll().pipe(take(1)),
-      vendorTypes: this.masterTypeService.getAllByType('VENDOR').pipe(take(1)),
-      locationTypes: this.masterTypeService.getAll().pipe(take(1))
+      departments: this.masterCache.getDepartments().pipe(take(1)),
+      locations: this.masterCache.getLocations().pipe(take(1)),
+      bookingStatuses: this.masterCache.getMasterTypes('BOOKING_STATUS').pipe(take(1)),
+      cargoItems: this.masterCache.getItems().pipe(take(1)),
+      vendors: this.masterCache.getVendors().pipe(take(1)),
+      serviceTypes: this.masterCache.getServiceTypes().pipe(take(1)),
+      airlines: this.masterCache.getAirlines().pipe(take(1)),
+      vessels: this.masterCache.getVessels().pipe(take(1)),
+      vendorTypes: this.masterCache.getMasterTypes('VENDOR').pipe(take(1)),
+      locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1)),
+      basisMaster: this.masterCache.getBasis().pipe(take(1))
     }).subscribe({
       next: (res) => {
         // 1. Departments
@@ -1440,6 +1443,11 @@ export class BookingComponent implements OnInit {
         this.locationTypeOptions = (res.locationTypes || [])
           .filter((t: any) => (t.key || '').toString().toLowerCase() === 'location' && (t.status || '').toString().toLowerCase() === 'active')
           .map((t: any) => ({ label: t.value, value: t.value }));
+
+        // 10. Basis Master fallback
+        this.basisMasterOptions = (res.basisMaster || [])
+          .filter((b: any) => (b.status || '').toString().toLowerCase() === 'active')
+          .map((b: any) => ({ label: b.code, value: b.code }));
 
         // Masters are ready
         this.cdr.detectChanges();
@@ -2277,7 +2285,11 @@ export class BookingComponent implements OnInit {
 
   getBasisOptions() {
     const bases = (this.lineItemsRows || []).map(li => li.basis).filter(b => !!b);
-    return Array.from(new Set(bases)).map(b => ({ label: b, value: b }));
+    if (bases.length > 0) {
+      return Array.from(new Set(bases)).map(b => ({ label: b, value: b }));
+    }
+    // Fallback to master data if no enquiry line items provide basis
+    return this.basisMasterOptions;
   }
 
   openMasterLocation() { this.showMasterLocationDialog = true; }

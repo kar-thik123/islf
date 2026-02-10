@@ -31,7 +31,7 @@ import { ConfigService } from '../../services/config.service';
         </ng-template>
         <ng-template pTemplate="body" let-r>
           <tr>
-            <td>{{ r.description || r.carriage }}</td>
+            <td>{{ r.carriage }}</td>
             <td>
              <p-checkbox
               [binary]="true"

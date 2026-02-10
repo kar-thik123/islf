@@ -17,6 +17,132 @@ const safeJsonParse = (val) => {
   return [];
 };
 
+/**
+ * Bulk insert helper for booking child tables
+ */
+async function insertBookingRelatedData(client, bookingId, data) {
+  const { lineItemSnap, chargesSnap, cargo, schedules, carriage_map, booking_breakup } = data;
+
+  // 1. Bulk insert line items
+  const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
+  if (liArr.length > 0) {
+    const liValues = [];
+    const liPlaceholders = liArr.map((li, i) => {
+      const offset = i * 7;
+      liValues.push(bookingId, li.s_no || null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null);
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+    }).join(',');
+    await client.query(
+      `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) 
+       VALUES ${liPlaceholders} ON CONFLICT (booking_id, s_no) DO NOTHING`,
+      liValues
+    );
+  }
+
+  // 2. Bulk insert charges
+  const chArr = Array.isArray(chargesSnap) ? chargesSnap : (Array.isArray(chargesSnap?.list) ? chargesSnap.list : []);
+  if (chArr.length > 0) {
+    const chValues = [];
+    const chPlaceholders = chArr.map((ch, i) => {
+      const offset = i * 10;
+      chValues.push(bookingId, ch.charge_name || ch.name || null, ch.currency || null, ch.basis || null, ch.amount ?? ch.charges ?? null, ch.sell_rate_currency || null, ch.sell_rate || null, ch.gst_vat || ch.gst_rate || null, ch.remarks || null, JSON.stringify(ch));
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10})`;
+    }).join(',');
+    await client.query(
+      `INSERT INTO booking_charges (booking_id, charge_name, currency, basis, amount, sell_rate_currency, sell_rate, gst_vat, remarks, raw) 
+       VALUES ${chPlaceholders}`,
+      chValues
+    );
+  }
+
+  // 3. Bulk insert cargo
+  const cargoArr = Array.isArray(cargo) ? cargo : [];
+  if (cargoArr.length > 0) {
+    const cargoValues = [];
+    const cargoPlaceholders = cargoArr.map((cg, i) => {
+      const offset = i * 9;
+      cargoValues.push(bookingId, cg.cargo_type || cg.type || null, cg.description || null, cg.quantity || null, cg.unit || null, cg.weight || null, cg.volume || null, cg.remarks || null, JSON.stringify(cg));
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9})`;
+    }).join(',');
+    await client.query(
+      `INSERT INTO booking_cargo (booking_id, cargo_type, description, quantity, unit, weight, volume, remarks, raw) 
+       VALUES ${cargoPlaceholders}`,
+      cargoValues
+    );
+  }
+
+  // 4. Bulk insert schedules
+  const schArr = Array.isArray(schedules) ? schedules : [];
+  if (schArr.length > 0) {
+    const schValues = [];
+    const schPlaceholders = schArr.map((sc, i) => {
+      const offset = i * 6;
+      schValues.push(bookingId, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc));
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+    }).join(',');
+    await client.query(
+      `INSERT INTO booking_schedules (booking_id, schedule_date, milestone, location, remarks, raw) 
+       VALUES ${schPlaceholders}`,
+      schValues
+    );
+  }
+
+  // 5. Carriage Map (Special handling for sequence)
+  const cmArr = Array.isArray(carriage_map) ? carriage_map : [];
+  if (cmArr.length > 0) {
+    const cmValues = [];
+    const cmPlaceholders = cmArr.map((cm, i) => {
+      const offset = i * 10;
+      cmValues.push(bookingId, cm.sequence_no || (i + 1), cm.mode || null, cm.from_location || null, cm.to_location || null, cm.vendor_name || null, cm.vehicle_no || null, cm.transit_days || null, cm.remarks || null, JSON.stringify(cm));
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10})`;
+    }).join(',');
+    await client.query(
+      `INSERT INTO booking_carriage_map (booking_id, sequence_no, mode, from_location, to_location, vendor_name, vehicle_no, transit_days, remarks, raw) 
+       VALUES ${cmPlaceholders}`,
+      cmValues
+    );
+  }
+
+  // 6. Booking Breakup (Needs nested loop but can still be optimized)
+  const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
+  for (const bk of breakupArr) {
+    const bkRes = await client.query(
+      `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) 
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
+    );
+    const bkId = bkRes.rows[0].id;
+
+    if (bk.container_breakup && Array.isArray(bk.container_breakup) && bk.container_breakup.length > 0) {
+      const cbValues = [];
+      const cbPlaceholders = bk.container_breakup.map((cb, i) => {
+        const offset = i * 9;
+        cbValues.push(bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null);
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9})`;
+      }).join(',');
+      await client.query(
+        `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) 
+         VALUES ${cbPlaceholders}`,
+        cbValues
+      );
+    }
+
+    if (bk.package_breakup && Array.isArray(bk.package_breakup) && bk.package_breakup.length > 0) {
+      const pbValues = [];
+      const pbPlaceholders = bk.package_breakup.map((pb, i) => {
+        const offset = i * 13;
+        pbValues.push(bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null);
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13})`;
+      }).join(',');
+      await client.query(
+        `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) 
+         VALUES ${pbPlaceholders}`,
+        pbValues
+      );
+    }
+  }
+}
+
 
 router.get('/', async (req, res) => {
   try {
@@ -247,70 +373,14 @@ router.post('/', async (req, res) => {
         const bRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
         const bookingId = bRes.rows[0]?.id;
         if (bookingId) {
-          const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
-          for (const li of liArr) {
-            await client.query(
-              `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (booking_id, s_no) DO NOTHING`,
-              [bookingId, li.s_no || null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null]
-            );
-          }
-          const chArr = Array.isArray(chargesSnap) ? chargesSnap : (Array.isArray(chargesSnap?.list) ? chargesSnap.list : []);
-          for (const ch of chArr) {
-            const chargeName = ch.charge_name || ch.name || null;
-            const currencyVal = ch.currency || null;
-            const basisVal = ch.basis || null;
-            const amountVal = ch.amount ?? ch.charges ?? null;
-            const sellRateCur = ch.sell_rate_currency || null;
-            const sellRateVal = ch.sell_rate || null;
-            const gstVatVal = ch.gst_vat || ch.gst_rate || null;
-            const remarksVal = ch.remarks || null;
-            await client.query(
-              `INSERT INTO booking_charges (booking_id, charge_name, currency, basis, amount, sell_rate_currency, sell_rate, gst_vat, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-              [bookingId, chargeName, currencyVal, basisVal, amountVal, sellRateCur, sellRateVal, gstVatVal, remarksVal, JSON.stringify(ch)]
-            );
-          }
-          const cargoArr = Array.isArray(cargo) ? cargo : [];
-          for (const cg of cargoArr) {
-            await client.query(
-              `INSERT INTO booking_cargo (booking_id, cargo_type, description, quantity, unit, weight, volume, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-              [bookingId, cg.cargo_type || cg.type || null, cg.description || null, cg.quantity || null, cg.unit || null, cg.weight || null, cg.volume || null, cg.remarks || null, JSON.stringify(cg)]
-            );
-          }
-          const schArr = Array.isArray(schedules) ? schedules : [];
-          for (const sc of schArr) {
-            await client.query(
-              `INSERT INTO booking_schedules (booking_id, schedule_date, milestone, location, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6)`,
-              [bookingId, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc)]
-            );
-          }
-          const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
-          for (const bk of breakupArr) {
-            const bkRes = await client.query(
-              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
-            );
-            const bkId = bkRes.rows[0].id;
-
-            // Handle container breakup
-            if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
-              for (const cb of bk.container_breakup) {
-                await client.query(
-                  `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
-                );
-              }
-            }
-
-            // Handle package breakup
-            if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
-              for (const pb of bk.package_breakup) {
-                await client.query(
-                  `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
-                );
-              }
-            }
-          }
+          await insertBookingRelatedData(client, bookingId, {
+            lineItemSnap,
+            chargesSnap,
+            cargo,
+            schedules,
+            carriage_map: carriageMapSnap,
+            booking_breakup
+          });
         }
       } else if (booking_type === 'from_enquiry') {
         await client.query(
@@ -343,56 +413,14 @@ router.post('/', async (req, res) => {
         const bRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
         const bookingId = bRes.rows[0]?.id;
         if (bookingId) {
-          const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
-          for (const li of liArr) {
-            await client.query(
-              `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (booking_id, s_no) DO NOTHING`,
-              [bookingId, li.s_no || null, li.basis || null, li.remarks || null, li.status || 'Active']
-            );
-          }
-          const chArr = Array.isArray(chargesSnap) ? chargesSnap : (Array.isArray(chargesSnap?.list) ? chargesSnap.list : []);
-          for (const ch of chArr) {
-            const chargeName = ch.charge_name || ch.name || null;
-            const currencyVal = ch.currency || null;
-            const basisVal = ch.basis || null;
-            const amountVal = ch.amount ?? ch.charges ?? null;
-            const sellRateCur = ch.sell_rate_currency || null;
-            const sellRateVal = ch.sell_rate || null;
-            const gstVatVal = ch.gst_vat || ch.gst_rate || null;
-            const remarksVal = ch.remarks || null;
-            await client.query(
-              `INSERT INTO booking_charges (booking_id, charge_name, currency, basis, amount, sell_rate_currency, sell_rate, gst_vat, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-              [bookingId, chargeName, currencyVal, basisVal, amountVal, sellRateCur, sellRateVal, gstVatVal, remarksVal, JSON.stringify(ch)]
-            );
-          }
-          const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
-          for (const bk of breakupArr) {
-            const bkRes = await client.query(
-              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
-            );
-            const bkId = bkRes.rows[0].id;
-
-            // Handle container breakup
-            if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
-              for (const cb of bk.container_breakup) {
-                await client.query(
-                  `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
-                );
-              }
-            }
-
-            // Handle package breakup
-            if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
-              for (const pb of bk.package_breakup) {
-                await client.query(
-                  `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
-                );
-              }
-            }
-          }
+          await insertBookingRelatedData(client, bookingId, {
+            lineItemSnap,
+            chargesSnap,
+            cargo,
+            schedules,
+            carriage_map: carriageMapSnap,
+            booking_breakup
+          });
         }
       } else {
         await client.query(
@@ -430,78 +458,14 @@ router.post('/', async (req, res) => {
         const bRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
         const bookingId = bRes.rows[0]?.id;
         if (bookingId) {
-          const liArr = Array.isArray(lineItemSnap) ? lineItemSnap : [];
-          for (const li of liArr) {
-            await client.query(
-              `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (booking_id, s_no) DO NOTHING`,
-              [bookingId, (li.s_no ?? null) ?? null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null]
-            );
-          }
-          const chArr = Array.isArray(chargesSnap) ? chargesSnap : [];
-          for (const ch of chArr) {
-            const chargeName = ch.charge_name || ch.name || null;
-            const currencyVal = ch.currency || null;
-            const basisVal = ch.basis || null;
-            const amountVal = ch.amount ?? ch.charges ?? null;
-            const sellRateCur = ch.sell_rate_currency || null;
-            const sellRateVal = ch.sell_rate || null;
-            const gstVatVal = ch.gst_vat || ch.gst_rate || null;
-            const remarksVal = ch.remarks || null;
-            await client.query(
-              `INSERT INTO booking_charges (booking_id, charge_name, currency, basis, amount, sell_rate_currency, sell_rate, gst_vat, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-              [bookingId, chargeName, currencyVal, basisVal, amountVal, sellRateCur, sellRateVal, gstVatVal, remarksVal, JSON.stringify(ch)]
-            );
-          }
-          const cargoArr = Array.isArray(cargo) ? cargo : [];
-          for (const cg of cargoArr) {
-            await client.query(
-              `INSERT INTO booking_cargo (booking_id, cargo_type, description, quantity, unit, weight, volume, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-              [bookingId, cg.cargo_type || cg.type || null, cg.description || null, cg.quantity || null, cg.unit || null, cg.weight || null, cg.volume || null, cg.remarks || null, JSON.stringify(cg)]
-            );
-          }
-          const cmArr = Array.isArray(carriage_map) ? carriage_map : [];
-          let seq = 1;
-          for (const cm of cmArr) {
-            await client.query(
-              `INSERT INTO booking_carriage_map (booking_id, sequence_no, mode, from_location, to_location, vendor_name, vehicle_no, transit_days, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-              [bookingId, cm.sequence_no || seq++, cm.mode || null, cm.from_location || null, cm.to_location || null, cm.vendor_name || null, cm.vehicle_no || null, cm.transit_days || null, cm.remarks || null, JSON.stringify(cm)]
-            );
-          }
-          const schArr = Array.isArray(schedules) ? schedules : [];
-          for (const sc of schArr) {
-            await client.query(
-              `INSERT INTO booking_schedules (booking_id, schedule_date, milestone, location, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6)`,
-              [bookingId, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc)]
-            );
-          }
-          const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
-          for (const bk of breakupArr) {
-            const bkRes = await client.query(
-              `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-              [bookingId, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
-            );
-            const bkId = bkRes.rows[0].id;
-
-            // Handle container breakup
-            if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
-              for (const cb of bk.container_breakup) {
-                await client.query(
-                  `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
-                );
-              }
-            }
-
-            // Handle package breakup
-            if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
-              for (const pb of bk.package_breakup) {
-                await client.query(
-                  `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-                  [bookingId, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
-                );
-              }
-            }
-          }
+          await insertBookingRelatedData(client, bookingId, {
+            lineItemSnap,
+            chargesSnap,
+            cargo,
+            schedules,
+            carriage_map,
+            booking_breakup
+          });
         }
       }
       await client.query('COMMIT');
@@ -593,83 +557,22 @@ router.put('/:id', async (req, res) => {
         ]
       );
 
-      // Handle Booking Breakup
-      await client.query('DELETE FROM booking_breakup WHERE booking_id = $1', [id]);
-      const breakupArr = Array.isArray(booking_breakup) ? booking_breakup : [];
-      for (const bk of breakupArr) {
-        const bkRes = await client.query(
-          `INSERT INTO booking_breakup (booking_id, vendor_type, vendor_name, booking_ref_no, basis, valid_till, quantity, remarks, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-          [id, bk.vendor_type || null, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, bk.valid_till || null, bk.quantity || null, bk.remarks || null, bk.breakup_no || null]
-        );
-        const bkId = bkRes.rows[0].id;
-
-        // Handle container breakup
-        if (bk.container_breakup && Array.isArray(bk.container_breakup)) {
-          for (const cb of bk.container_breakup) {
-            await client.query(
-              `INSERT INTO booking_container_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, container_no, pickup_handover_date, empty_yard, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-              [id, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, cb.container_no || null, cb.pickup_handover_date || null, cb.empty_yard || null, bk.breakup_no || null]
-            );
-          }
-        }
-
-        // Handle package breakup
-        if (bk.package_breakup && Array.isArray(bk.package_breakup)) {
-          for (const pb of bk.package_breakup) {
-            await client.query(
-              `INSERT INTO booking_package_breakup (booking_id, booking_breakup_id, vendor_name, booking_ref_no, basis, package_no, length_cm, width_cm, height_cm, weight_kgs, handover_date, carting, breakup_no) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-              [id, bkId, bk.vendor_name || null, bk.booking_ref_no || null, bk.basis || null, pb.package_no || null, pb.length_cm || null, pb.width_cm || null, pb.height_cm || null, pb.weight_kgs || null, pb.handover_date || null, pb.carting || null, bk.breakup_no || null]
-            );
-          }
-        }
-      }
-
       // Handle Child Tables: Delete and Re-insert
+      await client.query('DELETE FROM booking_breakup WHERE booking_id = $1', [id]);
       await client.query('DELETE FROM booking_line_items WHERE booking_id = $1', [id]);
-      const liArr = Array.isArray(line_items) ? line_items : [];
-      for (const li of liArr) {
-        await client.query(
-          `INSERT INTO booking_line_items (booking_id, s_no, basis, remarks, status, enquiry_no, enquiry_expiry) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [id, (li.s_no ?? null) ?? null, li.basis || null, li.remarks || null, li.status || 'Active', li.enq_no || null, li.enq_exp || null]
-        );
-      }
-
       await client.query('DELETE FROM booking_charges WHERE booking_id = $1', [id]);
-      const chArr = Array.isArray(charges) ? charges : [];
-      for (const ch of chArr) {
-        await client.query(
-          `INSERT INTO booking_charges (booking_id, charge_name, currency, basis, amount, sell_rate_currency, sell_rate, gst_vat, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-          [id, ch.charge_name || ch.name || null, ch.currency || null, ch.basis || null, ch.amount ?? ch.charges ?? null, ch.sell_rate_currency || null, ch.sell_rate || null, ch.gst_vat || ch.gst_rate || null, ch.remarks || null, JSON.stringify(ch)]
-        );
-      }
-
       await client.query('DELETE FROM booking_cargo WHERE booking_id = $1', [id]);
-      const cargoArr = Array.isArray(cargo) ? cargo : [];
-      for (const cg of cargoArr) {
-        await client.query(
-          `INSERT INTO booking_cargo (booking_id, cargo_type, description, quantity, unit, weight, volume, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-          [id, cg.cargo_type || cg.type || null, cg.description || null, cg.quantity || null, cg.unit || null, cg.weight || null, cg.volume || null, cg.remarks || null, JSON.stringify(cg)]
-        );
-      }
-
       await client.query('DELETE FROM booking_carriage_map WHERE booking_id = $1', [id]);
-      const cmArr = Array.isArray(carriage_map) ? carriage_map : [];
-      let seq = 1;
-      for (const cm of cmArr) {
-        await client.query(
-          `INSERT INTO booking_carriage_map (booking_id, sequence_no, mode, from_location, to_location, vendor_name, vehicle_no, transit_days, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-          [id, cm.sequence_no || seq++, cm.mode || null, cm.from_location || null, cm.to_location || null, cm.vendor_name || null, cm.vehicle_no || null, cm.transit_days || null, cm.remarks || null, JSON.stringify(cm)]
-        );
-      }
-
       await client.query('DELETE FROM booking_schedules WHERE booking_id = $1', [id]);
-      const schArr = Array.isArray(schedules) ? schedules : [];
-      for (const sc of schArr) {
-        await client.query(
-          `INSERT INTO booking_schedules (booking_id, schedule_date, milestone, location, remarks, raw) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [id, sc.schedule_date || sc.date || null, sc.milestone || null, sc.location || null, sc.remarks || null, JSON.stringify(sc)]
-        );
-      }
+
+      await insertBookingRelatedData(client, id, {
+        lineItemSnap: line_items,
+        chargesSnap: charges,
+        cargo,
+        schedules,
+        carriage_map,
+        booking_breakup
+      });
 
       await client.query('COMMIT');
 

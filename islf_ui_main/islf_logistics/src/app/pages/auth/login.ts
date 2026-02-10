@@ -15,7 +15,6 @@ import { CommonModule } from '@angular/common';
 import { ToastService } from '@/services/toast.service';
 import { ToastModule } from 'primeng/toast'
 import { MessageService } from 'primeng/api';
-import { LogsComponent } from '../logs/logs';
 import { RouterModule } from '@angular/router';
 
 

@@ -1,7 +1,6 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
-const { logMasterEvent } = require('../log');
 const { getUsernameFromToken } = require('../utils/context-helper');
 
 async function findMappingByContext(code_type, company_code, branch_code, department_code, service_type_code) {
@@ -149,14 +148,6 @@ router.post('/', async (req, res) => {
             [code, airline_name, airline_no, active, company_code, branch_code, department_code, created_by]
         );
 
-        await logMasterEvent({
-            username: created_by,
-            action: 'CREATE',
-            masterType: 'Airline Master',
-            recordId: code,
-            details: `New Airline "${airline_name}" (${code}) created.`
-        });
-
         res.status(201).json(result.rows[0]);
     } catch (err) {
         console.error('Error creating airline:', err);
@@ -176,14 +167,6 @@ router.put('/:id', async (req, res) => {
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Airline not found' });
 
-        await logMasterEvent({
-            username: getUsernameFromToken(req),
-            action: 'UPDATE',
-            masterType: 'Airline Master',
-            recordId: result.rows[0].code,
-            details: `Airline "${airline_name}" updated.`
-        });
-
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Error updating airline:', err);
@@ -197,14 +180,6 @@ router.delete('/:id', async (req, res) => {
     try {
         const result = await pool.query('DELETE FROM master_airline WHERE id = $1 RETURNING *', [id]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'Airline not found' });
-
-        await logMasterEvent({
-            username: getUsernameFromToken(req),
-            action: 'DELETE',
-            masterType: 'Airline Master',
-            recordId: result.rows[0].code,
-            details: `Airline "${result.rows[0].airline_name}" deleted.`
-        });
 
         res.json({ success: true });
     } catch (err) {

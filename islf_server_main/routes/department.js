@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const { logSetupEvent } = require('../log');
 const router = express.Router();
 const { getUsernameFromToken } = require('../utils/context-helper');
 
@@ -48,15 +47,6 @@ router.post('/', async (req, res) => {
       [code, company_code, branch_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, gst, created_by]
     );
 
-    // Log the setup event
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'CREATE',
-      setupType: 'Department',
-      entityCode: code,
-      details: `Department created: ${name} (${code}) for branch ${branch_code}`
-    });
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating department:', err);
@@ -74,15 +64,6 @@ router.put('/:code', async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
-    // Log the setup event
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'UPDATE',
-      setupType: 'Department',
-      entityCode: req.params.code,
-      details: `Department updated: ${name} (${req.params.code}) for branch ${branch_code}`
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating department:', err);
@@ -95,15 +76,6 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM departments WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-
-    // Log the setup event
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'DELETE',
-      setupType: 'Department',
-      entityCode: req.params.code,
-      details: `Department deleted: ${result.rows[0]?.name || 'Unknown'} (${req.params.code})`
-    });
 
     res.json({ success: true });
   } catch (err) {

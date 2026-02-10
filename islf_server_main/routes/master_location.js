@@ -1,13 +1,13 @@
 const express = require('express');
 const pool = require('../db');
-const { logMasterEvent } = require('../log'); 
 const router = express.Router();
-const {getUsernameFromToken} = require('../utils/context-helper');
+const { getUsernameFromToken } = require('../utils/context-helper');
 
-// Get all master locations
+// Get all master locations with pagination
 router.get('/', async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode } = req.query;
+    const { companyCode, branchCode, departmentCode, page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
 
     let query = `
       SELECT *
@@ -37,10 +37,16 @@ router.get('/', async (req, res) => {
       }
     }
 
-    query += ` ORDER BY code ASC`;
+    // Capture count before ordering and limit/offset
+    const countQuery = `SELECT COUNT(*) FROM (${query}) AS total`;
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].count, 10);
+
+    query += ` ORDER BY code ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(Number(limit), Number(offset));
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    res.json({ data: result.rows, total });
   } catch (err) {
     console.error('Error fetching master locations:', err);
     res.status(500).json({ error: 'Failed to fetch master locations' });
@@ -49,37 +55,30 @@ router.get('/', async (req, res) => {
 
 // Create master location
 router.post('/', async (req, res) => {
-  const { type, code, name, country, state, city, gst_state_code, pin_code, active,company_code,branch_code,department_code } = req.body;
+  const { type, code, name, country, state, city, gst_state_code, pin_code, active, company_code, branch_code, department_code } = req.body;
 
   try {
     const created_by = getUsernameFromToken(req);
     const result = await pool.query(
       'INSERT INTO master_location (type, code, name, country, state, city, gst_state_code, pin_code, active,company_code,branch_code,department_code,created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11,$12,$13) RETURNING *',
-      [type, code, name, country, state, city, gst_state_code, pin_code, active,company_code,branch_code,department_code,created_by]
+      [type, code, name, country, state, city, gst_state_code, pin_code, active, company_code, branch_code, department_code, created_by]
     );
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      masterType: 'Master Location',
-      recordId: code,
-      details: `New MasterLocation "${code}" has been created successfully.`
-    });
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    
+
     // Handle specific database constraint errors
     if (err.code === '23505' && err.constraint === 'master_location_code_key') {
-      res.status(400).json({ 
-        error: 'Duplicate code', 
+      res.status(400).json({
+        error: 'Duplicate code',
         detail: `Location code "${code}" already exists. Please use a different code.`,
-        code: code 
+        code: code
       });
     } else if (err.code === '23505') {
-      res.status(400).json({ 
-        error: 'Duplicate entry', 
+      res.status(400).json({
+        error: 'Duplicate entry',
         detail: `A location with this information already exists.`,
-        code: code 
+        code: code
       });
     } else {
       res.status(500).json({ error: 'Failed to create master location' });
@@ -99,51 +98,25 @@ router.put('/:code', async (req, res) => {
       [type, name, country, state, city, gst_state_code, pin_code, active, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Location not found' });
-    const changedFields = [];
-    const fieldsToCheck = {
-      type, name, country, state, city, gst_state_code, pin_code, active
-    };
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValue = normalize(fieldsToCheck[field]);
-      const oldValue = normalize(oldLocation[field]);
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
-      }
-    }
-    const details = changedFields.length > 0
-      ? `Changes detected in the\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'UPDATE',
-      masterType: 'Master Location',
-      recordId: req.params.code,
-      details
-    });
+
     res.json(result.rows[0]);
   } catch (err) {
-    
+
     // Handle specific database constraint errors
     if (err.code === '23505' && err.constraint === 'master_location_code_key') {
-      res.status(400).json({ 
-        error: 'Duplicate code', 
+      res.status(400).json({
+        error: 'Duplicate code',
         detail: `Location code "${req.params.code}" already exists. Please use a different code.`,
-        code: req.params.code 
+        code: req.params.code
       });
     } else if (err.code === '23505') {
-      res.status(400).json({ 
-        error: 'Duplicate entry', 
+      res.status(400).json({
+        error: 'Duplicate entry',
         detail: `A location with this information already exists.`,
-        code: req.params.code 
+        code: req.params.code
       });
     } else {
-      res.status(500).json({ msg: 'Failed to update master location', error: err.msg  });
+      res.status(500).json({ msg: 'Failed to update master location', error: err.msg });
     }
   }
 });
@@ -153,14 +126,7 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM master_location WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'DELETE',
-      masterType: 'Master Location',
-      recordId: result.rows[0].code,
-      details: `MasterLocation "${result.rows[0].code}" has been deleted successfully.`
-    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete master location' });

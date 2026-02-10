@@ -1,8 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
-const { logMasterEvent } = require('../log');
-const {getUsernameFromToken}=require('../utils/context-helper')
+const { getUsernameFromToken } = require('../utils/context-helper')
 
 // Get all master UOMs with optional context filtering
 router.get('/', async (req, res) => {
@@ -42,7 +41,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
-    
+
     res.status(500).json({ error: 'Failed to fetch master UOMs' });
   }
 });
@@ -58,14 +57,7 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [uom_type, code, description, active, company_code, branch_code, department_code, created_by]
     );
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      masterType: 'Master UOM',
-      recordId: code,
-      details: `New MasterUOM "${code}" has been created successfully.`
-    });
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create master UOM' });
@@ -75,7 +67,7 @@ router.post('/', async (req, res) => {
 // Update master UOM by ID
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { uom_type, code, description, active} = req.body;
+  const { uom_type, code, description, active } = req.body;
   try {
     const oldResult = await pool.query('SELECT * FROM master_uom WHERE id = $1', [id]);
     if (oldResult.rows.length === 0) return res.status(404).json({ error: 'UOM not found' });
@@ -87,34 +79,9 @@ router.put('/:id', async (req, res) => {
        RETURNING *`,
       [uom_type, code, description, active, id]
     );
+
     if (result.rowCount === 0) return res.status(404).json({ error: 'UOM not found' });
-    const changedFields = [];
-    const fieldsToCheck = {
-      uom_type, code, description, active
-    };
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValue = normalize(fieldsToCheck[field]);
-      const oldValue = normalize(oldUOM[field]);
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
-      }
-    }
-    const details = changedFields.length > 0
-      ? `Changes detected in the\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'UPDATE',
-      masterType: 'Master UOM',
-      recordId: code,
-      details
-    });
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update master UOM' });
@@ -127,14 +94,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM master_uom WHERE id = $1 RETURNING *', [id]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'UOM not found' });
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'DELETE',
-      masterType: 'Master UOM',
-      recordId: result.rows[0].code,
-      details: `MasterUOM "${result.rows[0].code}" has been deleted successfully.`
-    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete master UOM' });

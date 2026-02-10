@@ -3,57 +3,56 @@ const router = express.Router();
 const pool = require('../db');
 const auth = require('../middleware/auth');
 const { getContextFromRequest, getUsernameFromToken } = require('../utils/context-helper');
-const { logMasterEvent } = require('../log');
 
 // Get all source sales with IT setup validation filtering
 router.get('/', async (req, res) => {
   try {
     const { company_code, branch_code, department_code, service_type_code } = req.query;
-    
+
     // Check IT setup validation for filtering
     const configResult = await pool.query(
       "SELECT value FROM settings WHERE key = $1",
       [`validation_source_filter`]
     );
-    
+
     const filter = configResult.rows[0]?.value || '';
-    
+
     let query = `
       SELECT mss.*
       FROM master_source_sales AS mss
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramIndex = 1;
-    
+
     // Apply context filtering based on IT setup
     if (filter.includes('C') && company_code) {
       query += ` AND mss.company_code = $${paramIndex}`;
       params.push(company_code);
       paramIndex++;
     }
-    
+
     if (filter.includes('B') && branch_code) {
       query += ` AND mss.branch_code = $${paramIndex}`;
       params.push(branch_code);
       paramIndex++;
     }
-    
+
     if (filter.includes('D') && department_code) {
       query += ` AND mss.department_code = $${paramIndex}`;
       params.push(department_code);
       paramIndex++;
     }
-    
+
     if (filter.includes('ST') && service_type_code) {
       query += ` AND mss.service_type_code = $${paramIndex}`;
       params.push(service_type_code);
       paramIndex++;
     }
-    
+
     query += ` ORDER BY mss.code`;
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -71,58 +70,58 @@ router.get('/:id', async (req, res) => {
     const isValidId = await pool.query(
       "SELECT * FROM master_source_sales WHERE id = $1", [id]
     )
-    if(isValidId.rows.length === 0 ){
-      return res.status(404).json({msg: "Invalid Source Sales ID"});
+    if (isValidId.rows.length === 0) {
+      return res.status(404).json({ msg: "Invalid Source Sales ID" });
     }
-    
+
     // Check IT setup validation for filtering
     const configResult = await pool.query(
       "SELECT value FROM settings WHERE key = $1",
       [`validation_source_filter`]
     );
-    
+
     const filter = configResult.rows[0]?.value || '';
-    
+
     let query = `
       SELECT mss.*
       FROM master_source_sales mss
       WHERE mss.id = $1
     `;
-    
+
     const params = [id];
     let paramIndex = 2;
-    
+
     // Apply context filtering based on IT setup
     if (filter.includes('C') && company_code) {
       query += ` AND mss.company_code = $${paramIndex}`;
       params.push(company_code);
       paramIndex++;
     }
-    
+
     if (filter.includes('B') && branch_code) {
       query += ` AND mss.branch_code = $${paramIndex}`;
       params.push(branch_code);
       paramIndex++;
     }
-    
+
     if (filter.includes('D') && department_code) {
       query += ` AND mss.department_code = $${paramIndex}`;
       params.push(department_code);
       paramIndex++;
     }
-    
+
     if (filter.includes('ST') && service_type_code) {
       query += ` AND mss.service_type_code = $${paramIndex}`;
       params.push(service_type_code);
       paramIndex++;
     }
-    
+
     const result = await pool.query(query, params);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Source sales not found' });
     }
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -285,15 +284,6 @@ router.post('/', async (req, res) => {
 
     console.log('✅ Source sales created successfully:', result.rows[0]);
 
-    // Log the event
-    await logMasterEvent({
-      masterType: 'source_sales',
-      username,
-      action: 'Create',
-      details: 'Created New Source Sales master',
-      recordId: finalCode
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error('❌ Server error:', err);
@@ -308,62 +298,62 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { code, name, commission_percentage, email, phone, status, company_code, branch_code, department_code, service_type_code } = req.body;
     const username = await getUsernameFromToken(req);
-    
+
     // Check if required fields are provided
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
-    
+
     // Check IT setup validation for context matching
     const configResult = await pool.query(
       "SELECT value FROM settings WHERE key = $1",
       [`validation_source_filter`]
     );
-    
+
     const filter = configResult.rows[0]?.value || '';
-    
+
     // Check if source sales exists
     const sourceSalesCheck = await pool.query(
       "SELECT * FROM master_source_sales WHERE id = $1",
       [id]
     );
-    
+
     if (sourceSalesCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Source sales not found' });
     }
-    
+
     // Context validation
     if (filter.includes('C') && company_code !== sourceSalesCheck.rows[0].company_code) {
       return res.status(400).json({ error: 'Cannot change company code based on IT setup' });
     }
-    
+
     if (filter.includes('B') && branch_code !== sourceSalesCheck.rows[0].branch_code) {
       return res.status(400).json({ error: 'Cannot change branch code based on IT setup' });
     }
-    
+
     if (filter.includes('D') && department_code !== sourceSalesCheck.rows[0].department_code) {
       return res.status(400).json({ error: 'Cannot change department code based on IT setup' });
     }
-    
+
     if (filter.includes('ST') && service_type_code !== sourceSalesCheck.rows[0].service_type_code) {
       return res.status(400).json({ error: 'Cannot change service type code based on IT setup' });
     }
-    
+
     // Check if code is being changed and if it already exists
     if (code !== sourceSalesCheck.rows[0].code) {
       const codeCheck = await pool.query(
         "SELECT * FROM master_source_sales WHERE code = $1",
         [code]
       );
-      
+
       if (codeCheck.rows.length > 0) {
         return res.status(400).json({ error: 'Source sales code already exists' });
       }
     }
-    
+
     // Get existing data for logging
     const oldData = sourceSalesCheck.rows[0];
-    
+
     // Update source sales
     const result = await pool.query(
       `UPDATE master_source_sales 
@@ -373,30 +363,21 @@ router.put('/:id', async (req, res) => {
        WHERE id = $11
        RETURNING *`,
       [
-        code, 
-        name, 
-        commission_percentage || null, 
-        email || null, 
-        phone || null, 
+        code,
+        name,
+        commission_percentage || null,
+        email || null,
+        phone || null,
         status || 'A',
-        company_code || null, 
-        branch_code || null, 
-        department_code || null, 
+        company_code || null,
+        branch_code || null,
+        department_code || null,
         service_type_code || null,
         id,
         username
       ]
     );
-    
-    // Log the event
-    await logMasterEvent({
-      masterType: 'source_sales',
-      action: 'update',
-      details: 'Source Sales Master updated',
-      username,
-      recordId: code
-    });
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err.message);
@@ -409,33 +390,24 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const username = await getUsernameFromToken(req);
-    
+
     // Check if source sales exists and get code for logging
     const sourceSalesCheck = await pool.query(
       "SELECT * FROM master_source_sales WHERE id = $1",
       [id]
     );
-    
+
     if (sourceSalesCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Source sales not found' });
     }
-    
+
     const sourceSalesCode = sourceSalesCheck.rows[0].code;
-    
+
     const result = await pool.query(
       'DELETE FROM master_source_sales WHERE id = $1 RETURNING *',
       [id]
     );
-    
-    // Log the event
-    await logMasterEvent({
-      masterType: 'source_sales',
-      action: 'delete',
-      details: 'Source Sales Master deleted',
-      username,
-      recordId: sourceSalesCode
-    });
-    
+
     res.json({ message: 'Source sales deleted successfully' });
   } catch (err) {
     console.error(err.message);

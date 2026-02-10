@@ -1,13 +1,12 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
-const { logMasterEvent } = require('../log');
 const { getUsernameFromToken } = require('../utils/context-helper');
 
 // GET mapping (fetch most recent mapping relation)
 router.get('/', async (req, res) => {
   try {
-    
+
     const result = await pool.query('SELECT * FROM mapping_relations ORDER BY id DESC LIMIT 1');
     if (result.rows.length === 0) {
       // Return default empty mapping if not set
@@ -57,7 +56,7 @@ router.post('/', async (req, res) => {
       [codeType, mapping, companyCode, branchCode, departmentCode, serviceTypeCode, created_by]
     );
     res.status(201).json(result.rows[0]);
-    
+
   } catch (err) {
     console.error('Error saving mapping:', err);
     res.status(500).json({ error: 'Failed to save mapping' });
@@ -69,7 +68,7 @@ router.post('/', async (req, res) => {
 router.get('/relations', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
+
     // Build dynamic query with context filtering
     let query = `
       SELECT 
@@ -86,36 +85,36 @@ router.get('/relations', async (req, res) => {
       LEFT JOIN departments d ON mr.department_code = d.code
       LEFT JOIN service_types st ON mr.service_type_code = st.code
     `;
-    
+
     const conditions = [];
     const params = [];
     let paramIndex = 1;
-    
+
     // Add context-based filtering
     if (companyCode) {
       conditions.push(`mr.company_code = $${paramIndex}`);
       params.push(companyCode);
       paramIndex++;
     }
-    
+
     if (branchCode) {
       conditions.push(`mr.branch_code = $${paramIndex}`);
       params.push(branchCode);
       paramIndex++;
     }
-    
+
     if (departmentCode) {
       conditions.push(`mr.department_code = $${paramIndex}`);
       params.push(departmentCode);
       paramIndex++;
     }
-    
+
     if (conditions.length > 0) {
       query += ` WHERE ${conditions.join(' AND ')}`;
     }
-    
+
     query += ` ORDER BY mr.id DESC`;
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -134,7 +133,7 @@ router.post('/relations', async (req, res) => {
     departmentCode,
     serviceTypeCode
   } = req.body;
-  
+
   try {
     const result = await pool.query(
       `INSERT INTO mapping_relations (code_type, mapping, company_code, branch_code, department_code, service_type_code)
@@ -160,7 +159,7 @@ router.put('/relations/:id', async (req, res) => {
     departmentCode,
     serviceTypeCode
   } = req.body;
-  
+
   try {
     const result = await pool.query(
       `UPDATE mapping_relations 
@@ -169,11 +168,11 @@ router.put('/relations/:id', async (req, res) => {
        RETURNING *`,
       [codeType, mapping, companyCode, branchCode, departmentCode, serviceTypeCode, id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Mapping relation not found' });
     }
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating mapping relation:', err);
@@ -184,14 +183,14 @@ router.put('/relations/:id', async (req, res) => {
 // DELETE mapping relation
 router.delete('/relations/:id', async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     const result = await pool.query('DELETE FROM mapping_relations WHERE id = $1 RETURNING *', [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Mapping relation not found' });
     }
-    
+
     res.json({ message: 'Mapping relation deleted successfully' });
   } catch (err) {
     console.error('Error deleting mapping relation:', err);
@@ -205,23 +204,23 @@ router.delete('/relations/:id', async (req, res) => {
 // FLEXIBLE mapping lookup with IT setup validation
 router.get('/find', async (req, res) => {
   const { codeType, companyCode, branchCode, departmentCode, serviceTypeCode } = req.query;
-  
+
   try {
     // Get IT setup configuration for this code type
     const configResult = await pool.query(
       "SELECT value FROM settings WHERE key = $1",
       [`validation_${codeType.toLowerCase().replace('code', '')}_filter`]
     );
-    
+
     const filter = configResult.rows[0]?.value || '';
     console.log(`IT Setup filter for ${codeType}:`, filter);
-    
+
     // Build context parameters based on IT setup validation
     let contextParams = { codeType };
     let whereClauses = ['code_type = $1'];
     let params = [codeType];
     let idx = 2;
-    
+
     // Only include context parameters that are required by IT setup
     if (filter.includes('C') && companyCode) {
       contextParams.companyCode = companyCode;
@@ -229,30 +228,30 @@ router.get('/find', async (req, res) => {
       params.push(companyCode);
       idx++;
     }
-    
+
     if (filter.includes('B') && branchCode) {
       contextParams.branchCode = branchCode;
       whereClauses.push(`(branch_code = $${idx} OR branch_code IS NULL)`);
       params.push(branchCode);
       idx++;
     }
-    
+
     if (filter.includes('D') && departmentCode) {
       contextParams.departmentCode = departmentCode;
       whereClauses.push(`(department_code = $${idx} OR department_code IS NULL)`);
       params.push(departmentCode);
       idx++;
     }
-    
+
     if (filter.includes('ST') && serviceTypeCode) {
       contextParams.serviceTypeCode = serviceTypeCode;
       whereClauses.push(`(service_type_code = $${idx} OR service_type_code IS NULL)`);
       params.push(serviceTypeCode);
       idx++;
     }
-    
+
     const where = whereClauses.join(' AND ');
-    
+
     // Order by specificity: exact matches first, then wildcards
     const orderBy = `
       ORDER BY 
@@ -263,20 +262,20 @@ router.get('/find', async (req, res) => {
         id DESC
       LIMIT 1
     `;
-    
+
     const result = await pool.query(
       `SELECT * FROM mapping_relations WHERE ${where} ${orderBy}`,
       params
     );
-    
+
     if (result.rows.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'No mapping found',
         context: contextParams,
         filter: filter
       });
     }
-    
+
     console.log('Found mapping:', result.rows[0]);
     res.json(result.rows[0]);
   } catch (err) {

@@ -1,7 +1,6 @@
 const express = require("express");
 const pool = require("../db");
 const router = express.Router();
-const { logMasterEvent } = require("../log");
 const { getUsernameFromToken } = require("../utils/context-helper");
 
 // GET all master items
@@ -249,16 +248,6 @@ router.post("/", async (req, res) => {
       ]
     );
 
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "CREATE",
-      masterType: masterType || "Master Item",
-      recordId: code,
-      details: `New ${
-        masterType || "Master Item"
-      } "${code}" has been created successfully.`,
-    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("Error creating master item:", err);
@@ -348,15 +337,6 @@ router.put("/:id", async (req, res) => {
         ? `Changes detected in the\n` + changedFields.join("\n")
         : "No actual changes detected.";
 
-    // Log the UPDATE action
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "UPDATE",
-      masterType: masterType || "Master Item",
-      recordId: code,
-      details,
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error("Error updating master item:", err);
@@ -382,15 +362,6 @@ router.delete("/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Item not found" });
     }
-
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "DELETE",
-      masterType: req.body.masterType || "Master Item",
-      recordId: result.rows[0].code,
-      details: `MasterItem "${result.rows[0].code}" has been deleted successfully.`,
-    });
 
     res.json({ success: true });
   } catch (err) {

@@ -2,7 +2,6 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const pool = require("../db");
 const router = express.Router();
-const { logSetupEvent } = require("../log");
 const {
   getUsernameFromToken,
   fieldChangeDetection,
@@ -302,13 +301,6 @@ router.post("/", async (req, res) => {
 
           await client.query("COMMIT");
           client.release();
-          await logSetupEvent({
-            username: getUsernameFromToken(req) || "System",
-            action: "CREATE",
-            setupType: "User Management",
-            entityCode: company_code,
-            details: `User ${username} created Successfully.`,
-          });
         } catch (error) {
           await client.query("ROLLBACK");
           client.release();
@@ -367,13 +359,6 @@ router.post("/", async (req, res) => {
 
       ]
     );
-    await logSetupEvent({
-      username: getUsernameFromToken(req) || "System",
-      action: "CREATE",
-      setupType: "User Management",
-      entityCode: company_code,
-      details: `User ${username} created Successfully.`,
-    });
 
     res.status(201).json({ user: result.rows[0] });
   } catch (err) {
@@ -564,13 +549,6 @@ router.put("/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-    await logSetupEvent({
-      username: getUsernameFromToken(req) || "System",
-      action: "UPDATE",
-      setupType: "User Management",
-      entityCode: result.rows[0]["company_code"],
-      details: `User ${username} Updated Successfully.`,
-    });
 
     res.json({ user: result.rows[0] });
   } catch (err) {

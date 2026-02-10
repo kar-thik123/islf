@@ -1,7 +1,6 @@
 const express = require("express");
 const pool = require("../db");
 const router = express.Router();
-const { logMasterEvent } = require("../log");
 const { getUsernameFromToken } = require("../utils/context-helper");
 
 // Get all master types
@@ -93,7 +92,7 @@ router.get("/type/:type", async (req, res) => {
         paramIndex++;
 
         if (departmentCode) {
-          query += ` AND (department_code = $${paramIndex} OR department_code IS NULL )`; ;
+          query += ` AND (department_code = $${paramIndex} OR department_code IS NULL )`;;
           params.push(departmentCode);
           paramIndex++;
         }
@@ -149,14 +148,7 @@ router.post("/", async (req, res) => {
         created_by,
       ]
     );
-    // log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "CREATE",
-      masterType: "Master Type",
-      recordId: key,
-      details: `New MasterType "${key}" has been created successfully.`,
-    });
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: "Failed to create master type" });
@@ -178,47 +170,6 @@ router.put("/:id", async (req, res) => {
       "UPDATE master_type SET value = $1, description = $2, status = $3 WHERE id = $4 RETURNING *",
       [value, description, status, req.params.id]
     );
-    if (result.rows.length === 0)
-      return res.status(404).json({ error: "Not found" });
-    const changedFields = [];
-    const fieldsToCheck = {
-      value,
-      description,
-      status,
-    };
-    const normalize = (value) => {
-      if (value === null || value === undefined) return "";
-      if (value instanceof Date) return value.toISOString().split("T")[0];
-      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value))
-        return value;
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValueRaw = fieldsToCheck[field];
-      const oldValueRaw = oldResult.rows[0][field];
-      const newValue = normalize(newValueRaw);
-      const oldValue = normalize(oldValueRaw);
-
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(
-          `Field "${field}" changed from "${oldValue}" to "${newValue}".`
-        );
-      }
-    }
-    const details =
-      changedFields.length > 0
-        ? `Changes detected in the\n` + changedFields.join("\n")
-        : "No actual changes detected.";
-
-    // Log the setup event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "UPDATE",
-      masterType: "Master Type",
-      recordId: oldResult.rows[0].key,
-      details,
-    });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -236,14 +187,6 @@ router.delete("/:id", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Master type not found" });
     }
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "DELETE",
-      masterType: "Master Type",
-      recordId: req.params.id,
-      details: `Master type with ID ${req.params.id} has been deleted.`,
-    });
 
     res.json({ success: true });
   } catch (err) {

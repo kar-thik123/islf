@@ -18,6 +18,7 @@ import { ContainerCodeService } from './containercode.service';
 import { MasterUOMService } from './master-uom.service';
 import { MasterCodeService } from './mastercode.service';
 import { CustomerService } from './customer.service';
+import { CarriageService } from './carriage.service';
 
 @Injectable({
     providedIn: 'root'
@@ -43,7 +44,8 @@ export class MasterCacheService {
         private itemService: MasterItemService,
         private uomService: MasterUOMService,
         private masterCodeService: MasterCodeService,
-        private customerService: CustomerService
+        private customerService: CustomerService,
+        private carriageService: CarriageService
     ) { }
 
     private getContextKey(): string {
@@ -153,5 +155,13 @@ export class MasterCacheService {
 
     getCustomers(): Observable<any[]> {
         return this.getCachedObservable('customers', () => this.customerService.getAll());
+    }
+
+    getCustomersDropdown(): Observable<any[]> {
+        return this.getCachedObservable('customersDropdown', () => this.enquiryService.getCustomersDropdown(''));
+    }
+
+    getCarriageDirections(): Observable<any[]> {
+        return this.getCachedObservable('carriageDirections', () => this.carriageService.getCarriageDirection());
     }
 }

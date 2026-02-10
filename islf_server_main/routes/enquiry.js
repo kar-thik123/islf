@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
 const { getUsernameFromToken } = require("../utils/context-helper");
-const { logMasterEvent } = require("../log");
 // GET /enquiry - Fetch all enquiries with context filtering
 // router.get('/', async (req, res) => {
 //     try {
@@ -183,51 +182,46 @@ router.get("/", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY e.created_at DESC`;
-    // params.push(limit, offset);
+    const offset = (Number(page) - 1) * Number(limit);
+    query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(Number(limit), Number(offset));
 
     console.log("📝 [DEBUG] Final query:", query);
     console.log("📊 [DEBUG] Query params:", params);
 
     const result = await pool.query(query, params);
-    console.log("✅ [DEBUG] Enquiry result count:", result.rows.length);
 
-    // // Get total count for pagination
-    // let countQuery = `
-    //         SELECT COUNT(*)
-    //         FROM enquiry e
-    //         LEFT JOIN customer c ON e.customer_id = c.id
-    //         WHERE 1=1
-    //     `;
+    // Get total count for pagination
+    let countQuery = `
+            SELECT COUNT(*)
+            FROM enquiry e
+            LEFT JOIN customer c ON e.customer_id = c.id
+            WHERE 1=1
+        `;
 
-    // const countParams = params.slice(0, -2); // Remove limit and offset
-    // console.log("🧮 [DEBUG] Count query params:", countParams);
+    const countParams = params.slice(0, -2); // Remove limit and offset
 
-    // if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
-    // if (userContext.branch_code)
-    //   countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
-    // if (userContext.department_code)
-    //   countQuery += ` AND e.department_code = $${
-    //     (userContext.company_code ? 1 : 0) +
-    //     (userContext.branch_code ? 1 : 0) +
-    //     1
-    //   }`;
-    // if (search)
-    //   countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
-    // if (status) countQuery += ` AND e.status = $${countParams.length}`;
+    if (companyCode) {
+      countQuery += ` AND e.company_code = $1`;
+      if (branchCode) {
+        countQuery += ` AND e.branch_code = $2`;
+        if (departmentCode) {
+          countQuery += ` AND e.department_code = $3`;
+        }
+      }
+    }
 
-    // console.log("🧮 [DEBUG] Count query:", countQuery);
-    // console.log("🧮 [DEBUG] Count params:", countParams);
+    let cIdx = (companyCode ? 1 : 0) + (branchCode ? 1 : 0) + (departmentCode ? 1 : 0) + 1;
+    if (serviceTypeCode) { countQuery += ` AND e.service_type_code = $${cIdx}`; cIdx++; }
+    if (search) { countQuery += ` AND (e.enquiry_no ILIKE $${cIdx} OR e.customer_name ILIKE $${cIdx} OR c.name ILIKE $${cIdx})`; cIdx++; }
+    if (status) { countQuery += ` AND e.status = $${cIdx}`; }
 
-    // const countResult = await pool.query(countQuery, countParams);
-    // const totalRecords = parseInt(countResult.rows[0].count);
-    // console.log("📦 [DEBUG] Total records:", totalRecords);
+    const countResult = await pool.query(countQuery, countParams);
+    const totalRecords = parseInt(countResult.rows[0].count);
 
     res.json({
       data: result.rows,
-      // pagination: {
-      //   total: totalRecords,
-      // },
+      total: totalRecords
     });
   } catch (error) {
     console.error("❌ [ERROR] Fetching enquiries failed:", error);
@@ -463,7 +457,7 @@ router.get("/:code/preview", async (req, res) => {
 
     const detailedLineItems = lineItems.map((item) => {
       const vendorCards = cardsByLineItem[item.s_no] || [];
-      
+
       const vendorsWithCharges = vendorCards.map(vendor => ({
         ...vendor,
         sub_charges: subChargesByCardId[vendor.id] || []
@@ -900,15 +894,6 @@ router.post("/", async (req, res) => {
 
       await client.query("COMMIT");
 
-      // Log the creation
-      await logMasterEvent({
-        username: name,
-        action: "CREATE",
-        masterType: "Enquiry",
-        recordId: enquiryCode,
-        details: `New Enquiry "${enquiryCode}" has been created successfully.`,
-      });
-
       res.status(201).json({
         message: "Enquiry created successfully",
         id: enquiryId,
@@ -1265,15 +1250,6 @@ router.put("/:code", async (req, res) => {
       }
       await client.query("COMMIT");
 
-      // Log the update
-      await logMasterEvent({
-        username: username,
-        action: "UPDATE",
-        masterType: "Enquiry",
-        recordId: enquiryCode,
-        details: `Enquiry "${enquiryCode}" has been updated successfully.`,
-      });
-
       res.json({ message: "Enquiry updated successfully" });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1309,15 +1285,6 @@ router.delete("/:code", async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Enquiry not found" });
     }
-
-    // Log the deletion
-    await logMasterEvent({
-      username: username,
-      action: "DELETE",
-      masterType: "Enquiry",
-      recordId: code,
-      details: `Enquiry "${code}" has been deleted successfully.`,
-    });
 
     res.json({ message: "Enquiry deleted successfully" });
   } catch (error) {

@@ -1,6 +1,5 @@
 const express = require("express");
 const pool = require("../db");
-const { logMasterEvent } = require("../log");
 const router = express.Router();
 const { getUsernameFromToken } = require("../utils/context-helper");
 
@@ -49,14 +48,24 @@ router.get("/", async (req, res) => {
 
     const result = await pool.query(query, params);
 
-    // Fetch contacts for each vendor
+    // Fetch contacts for all vendors in a single batch query (Eliminating N+1)
     const vendors = result.rows;
-    for (const vendor of vendors) {
+    if (vendors.length > 0) {
+      const vendorIds = vendors.map(v => v.id);
       const contactsResult = await pool.query(
-        "SELECT * FROM vendor_contacts WHERE vendor_id = $1 AND is_active = true ORDER BY is_primary DESC, id ASC",
-        [vendor.id]
+        "SELECT * FROM vendor_contacts WHERE vendor_id = ANY($1) AND is_active = true ORDER BY is_primary DESC, id ASC",
+        [vendorIds]
       );
-      vendor.contacts = contactsResult.rows;
+
+      const contactMap = contactsResult.rows.reduce((acc, contact) => {
+        if (!acc[contact.vendor_id]) acc[contact.vendor_id] = [];
+        acc[contact.vendor_id].push(contact);
+        return acc;
+      }, {});
+
+      vendors.forEach(vendor => {
+        vendor.contacts = contactMap[vendor.id] || [];
+      });
     }
 
     res.json(vendors);
@@ -285,15 +294,6 @@ router.post("/", async (req, res) => {
 
       await client.query("COMMIT");
       client.release();
-
-      // Log the master event
-      await logMasterEvent({
-        username: getUsernameFromToken(req),
-        action: "CREATE",
-        masterType: "Vendor",
-        recordId: vendor_no,
-        details: `New Vendor ${vendor_no}-${name} has been created successfully.`,
-      });
 
       res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -695,15 +695,6 @@ router.put("/:id", async (req, res) => {
         ? `Changes detected in the\n` + changedFields.join("\n")
         : "No actual changes detected.";
 
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "UPDATE",
-      masterType: "Vendor",
-      recordId: vendor_no,
-      details,
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error("Error updating vendor:", err);
@@ -753,22 +744,12 @@ router.delete("/:id", async (req, res) => {
       client.release();
       throw error;
     }
-
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "DELETE",
-      masterType: "Vendor",
-      recordId: result.rows[0].vendor_no,
-      recordName: result.rows[0].name,
-      details: `Vendor deleted: ${result.rows[0].name} (${result.rows[0].vendor_no})`,
-    });
-
     res.json({ success: true });
   } catch (err) {
     console.error("Error deleting vendor:", err);
     res.status(500).json({ error: "Failed to delete vendor" });
   }
 });
+
 
 module.exports = router;

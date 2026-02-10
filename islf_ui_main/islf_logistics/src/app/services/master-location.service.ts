@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
@@ -59,10 +59,13 @@ export class MasterLocationService {
       return of(this.cache);
     }
 
-    return this.http.get<any[]>(this.apiUrl, { params }).pipe(
-      tap(data => {
+    return this.http.get<{ data: any[], total: number }>(this.apiUrl, { params }).pipe(
+      map(response => {
+        // Extract the data array from the paginated response
+        const data = response.data || [];
         this.cache = data;
         this.lastContextKey = currentContextKey;
+        return data;
       })
     );
   }

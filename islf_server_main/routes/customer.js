@@ -1,8 +1,7 @@
 const express = require('express');
 const pool = require('../db');
-const { logMasterEvent } = require('../log');
 const router = express.Router();
-  const { getUsernameFromToken } = require('../utils/context-helper');
+const { getUsernameFromToken } = require('../utils/context-helper');
 
 // GET all customers with optional context-based filtering
 router.get('/', async (req, res) => {
@@ -48,17 +47,27 @@ router.get('/', async (req, res) => {
     query += ` ORDER BY id ASC`;
 
     const result = await pool.query(query, params);
-    
-    // Fetch contacts for each customer
+
+    // Fetch contacts for all customers in a single batch query (Eliminating N+1)
     const customers = result.rows;
-    for (const customer of customers) {
+    if (customers.length > 0) {
+      const customerIds = customers.map(c => c.id);
       const contactsResult = await pool.query(
-        'SELECT * FROM customer_contacts WHERE customer_id = $1 AND is_active = true ORDER BY is_primary DESC, id ASC',
-        [customer.id]
+        'SELECT * FROM customer_contacts WHERE customer_id = ANY($1) AND is_active = true ORDER BY is_primary DESC, id ASC',
+        [customerIds]
       );
-      customer.contacts = contactsResult.rows;
+
+      const contactMap = contactsResult.rows.reduce((acc, contact) => {
+        if (!acc[contact.customer_id]) acc[contact.customer_id] = [];
+        acc[contact.customer_id].push(contact);
+        return acc;
+      }, {});
+
+      customers.forEach(customer => {
+        customer.contacts = contactMap[customer.id] || [];
+      });
     }
-    
+
     res.json(customers);
   } catch (err) {
     console.error('Error fetching customers:', err);
@@ -108,7 +117,7 @@ router.post('/', async (req, res) => {
           ['customerCode', company_code, branch_code, department_code]
         );
       }
-      
+
       // Debug: log mapping result
       console.log('MAPPING RESULT:', mappingRes.rows);
       if (mappingRes.rows.length > 0) {
@@ -142,18 +151,18 @@ router.post('/', async (req, res) => {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
-          
+
           const relResult = await client.query(
             'SELECT * FROM number_relation WHERE number_series = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE',
             [seriesCode]
           );
-          
+
           if (relResult.rows.length === 0) {
             await client.query('ROLLBACK');
             client.release();
             return res.status(400).json({ error: 'Number series relation not found' });
           }
-          
+
           const rel = relResult.rows[0];
           let nextNo;
           if (rel.last_no_used === 0) {
@@ -163,16 +172,16 @@ router.post('/', async (req, res) => {
             // Otherwise, increment from last_no_used
             nextNo = Number(rel.last_no_used) + Number(rel.increment_by);
           }
-          
+
           customer_no = `${rel.prefix || ''}${nextNo}`;
           console.log('Generated customer code:', customer_no);
-          
+
           // Update the last_no_used within the same transaction
           await client.query(
             'UPDATE number_relation SET last_no_used = $1 WHERE id = $2',
             [nextNo, rel.id]
           );
-          
+
           await client.query('COMMIT');
           client.release();
         } catch (error) {
@@ -201,12 +210,12 @@ router.post('/', async (req, res) => {
         [
           customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
           bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no,
-          company_code, branch_code, department_code, service_type_code,created_by
+          company_code, branch_code, department_code, service_type_code, created_by
         ]
       );
-      
+
       const customerId = result.rows[0].id;
-      
+
       // Insert contacts if provided
       if (contacts && Array.isArray(contacts) && contacts.length > 0) {
         for (const contact of contacts) {
@@ -228,19 +237,10 @@ router.post('/', async (req, res) => {
           );
         }
       }
-      
+
       await client.query('COMMIT');
       client.release();
-      
-      // Log the master event
-      await logMasterEvent({
-        username: getUsernameFromToken(req),
-        action: 'CREATE',
-        masterType: 'Customer',
-        recordId: customer_no,
-        details: `New Customer ${customer_no}-${name} has been created successfully.`
-      });
-      
+
       res.status(201).json(result.rows[0]);
     } catch (error) {
       await client.query('ROLLBACK');
@@ -275,7 +275,7 @@ router.put('/:id', async (req, res) => {
     let result;
     try {
       await client.query('BEGIN');
-      
+
       result = await client.query(
         `UPDATE customer SET
           customer_no = $1, type = $2, name = $3, name2 = $4, blocked = $5, address = $6, address1 = $7, country = $8, state = $9, city = $10, postal_code = $11, website = $12,
@@ -286,12 +286,12 @@ router.put('/:id', async (req, res) => {
           bill_to_customer_name, vat_gst_no, place_of_supply, pan_no, tan_no, id
         ]
       );
-      
+
       // Update contacts if provided
       if (contacts && Array.isArray(contacts)) {
         // Delete existing contacts
         await client.query('DELETE FROM customer_contacts WHERE customer_id = $1', [id]);
-        
+
         // Insert new contacts
         for (const contact of contacts) {
           await client.query(
@@ -312,7 +312,7 @@ router.put('/:id', async (req, res) => {
           );
         }
       }
-      
+
       await client.query('COMMIT');
       client.release();
     } catch (error) {
@@ -320,44 +320,11 @@ router.put('/:id', async (req, res) => {
       client.release();
       throw error;
     }
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Customer not found' });
     }
-    const changedFields = [];
-    const fieldsToCheck = {
-      customer_no, type, name, name2, blocked, address, address1, country, state, city, postal_code, website,
-      vat_gst_no, place_of_supply, pan_no, tan_no, contacts
-    };  
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      if (value instanceof Date) return value.toISOString().split('T')[0];
-      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValue = normalize(fieldsToCheck[field]);
-      const oldValue = normalize(oldCustomer[field]);
-      
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
-      }
-    }
-    const details = changedFields.length > 0
-      ? `Changes detected in the \n` + changedFields.join('\n')
-      :  'No actual changes detected.';
-    
-    
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'UPDATE',
-      masterType: 'Customer',
-      recordId: customer_no,
-      details
-    });
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating customer:', err);
@@ -377,7 +344,7 @@ router.delete('/:id', async (req, res) => {
     let result;
     try {
       await client.query('BEGIN');
-      
+
       // First get customer details for logging
       const customerResult = await client.query('SELECT * FROM customer WHERE id = $1', [id]);
       if (customerResult.rows.length === 0) {
@@ -385,16 +352,16 @@ router.delete('/:id', async (req, res) => {
         client.release();
         return res.status(404).json({ error: 'Customer not found' });
       }
-      
+
       // Delete related contacts first
       await client.query('DELETE FROM customer_contacts WHERE customer_id = $1', [id]);
-      
+
       // Then delete the customer
       result = await client.query(
         `DELETE FROM customer WHERE id = $1 RETURNING *`,
         [id]
       );
-      
+
       await client.query('COMMIT');
       client.release();
     } catch (error) {
@@ -402,17 +369,7 @@ router.delete('/:id', async (req, res) => {
       client.release();
       throw error;
     }
-    
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'DELETE',
-      masterType: 'Customer',
-      recordId: result.rows[0].customer_no,
-      recordName: result.rows[0].name,
-      details: `Customer deleted: ${result.rows[0].name} (${result.rows[0].customer_no})`
-    });
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting customer:', err);

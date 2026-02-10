@@ -6,6 +6,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { authenticateToken } = require('./middleware/auth');
+// Enhanced audit logging with field-level change tracking
+const enhancedAuditLogMiddleware = require('./middleware/enhancedAuditLogMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +25,10 @@ app.use((req, res, next) => {
 // Apply authentication middleware to all routes after body parsers
 app.use(authenticateToken);
 
+// Apply enhanced audit logging middleware after authentication
+// This captures field-level changes and generates business-friendly summaries
+app.use(enhancedAuditLogMiddleware);
+
 //  auth and password    routers
 
 const authRouter = require('./routes/auth');
@@ -37,6 +43,10 @@ app.use('/api/password', passwordRouter);
 
 const logsRouter = require('./routes/logs');
 app.use('/api/logs', logsRouter);
+
+// Enhanced audit logs routes (business-friendly)
+const auditLogsRouter = require('./routes/audit_logs');
+app.use('/api/audit_logs', auditLogsRouter);
 
 //settings routes
 

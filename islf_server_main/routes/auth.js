@@ -3,7 +3,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const router = express.Router();
 const pool = require("../db");
-const { logAuthEvent } = require("../log");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
@@ -88,11 +87,6 @@ router.post("/login", async (req, res) => {
       email: user.email,
       name: user.full_name || user.username,
     });
-    await logAuthEvent({
-      username: user.username,
-      action: "LOGIN_SUCCESS",
-      details: "User logged in successfully",
-    });
     res.json({ token, name: user.username });
   } catch (err) {
     res.status(500).json({ message: "Database error", error: err.message });
@@ -139,11 +133,6 @@ router.post("/verify-password", async (req, res) => {
       { expiresIn: expiresIn }
     );
 
-    await logAuthEvent({
-      username: logUsername,
-      action: "UNLOCK_SUCCESS",
-      details: "Screen unlocked successfully",
-    });
     res.json({
       success: true,
       token: token,

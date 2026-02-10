@@ -1,41 +1,40 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
-const { logMasterEvent } = require('../log');
 const { getUsernameFromToken } = require('../utils/context-helper');
 
 // GET all currency codes
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
+
     let query = `
       SELECT *
       FROM currency_code
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramIndex = 1;
-    
+
     if (companyCode) {
       query += ` AND company_code = $${paramIndex}`;
       params.push(companyCode);
       paramIndex++;
     }
-    
+
     if (branchCode) {
       query += ` AND branch_code = $${paramIndex}`;
       params.push(branchCode);
       paramIndex++;
     }
-    
+
     if (departmentCode) {
       query += ` AND department_code = $${paramIndex}`;
       params.push(departmentCode);
       paramIndex++;
     }
-    
+
     query += ` ORDER BY code ASC`;
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -57,22 +56,15 @@ router.get('/:code', async (req, res) => {
 
 // CREATE new currency code
 router.post('/', async (req, res) => {
-  const { code, description, status ,company_code,branch_code,department_code } = req.body;
+  const { code, description, status, company_code, branch_code, department_code } = req.body;
 
   try {
     const created_by = getUsernameFromToken(req);
     const result = await pool.query(
-      'INSERT INTO currency_code (code, description, status,company_code,branch_code,department_code,created_by) VALUES ($1, $2, $3,$4,$5,$6,$7) RETURNING *',
-      [code, description, status || 'Active',company_code,branch_code,department_code,created_by]
+      'INSERT INTO currency_code (code, description, status, company_code, branch_code, department_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [code, description, status || 'Active', company_code, branch_code, department_code, created_by]
     );
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      masterType: 'Currency Code',
-      recordId: code,
-      details: `New Currency Code "${code}" has been created successfully.`
-    });
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create currency code' });
@@ -91,33 +83,7 @@ router.put('/:code', async (req, res) => {
       [description, status, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    const changedFields = [];
-    const fieldsToCheck = {
-      description, status
-    };
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValue = normalize(fieldsToCheck[field]);
-      const oldValue = normalize(oldCurrency[field]);
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
-      }
-    }
-    const details = changedFields.length > 0
-      ? `Changes detected in the\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'UPDATE',
-      masterType: 'Currency Code',
-      recordId: req.params.code,
-      details
-    });
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update currency code' });
@@ -129,14 +95,7 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM currency_code WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'DELETE',
-      masterType: 'Currency Code',
-      recordId: req.params.code,
-      details: `Currency Code "${req.params.code}" has been deleted successfully.`
-    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete currency code' });

@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const { logSetupEvent } = require('../log');
 const router = express.Router();
 const { getUsernameFromToken } = require('../utils/context-helper');
 
@@ -62,14 +61,6 @@ router.post('/', async (req, res) => {
       [code, company_code, branch_code, department_code, name, description, incharge_name, incharge_from, status, start_date, close_date, remarks, created_by, schedule_type, booking_breakup]
     );
 
-    await logSetupEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      setupType: 'ServiceType',
-      entityCode: code,
-      details: `Service type created: ${name} (${code}) for department ${department_code}`
-    });
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating service type:', err);
@@ -111,56 +102,6 @@ router.put('/:code', async (req, res) => {
         start_date, close_date, remarks, schedule_type, booking_breakup, req.params.code]
     );
 
-    // Build detailed change log
-    const changedFields = [];
-    const fieldsToCheck = {
-      name,
-      department_code,
-      description,
-      incharge_name,
-      incharge_from,
-      status,
-      start_date,
-      close_date,
-      remarks,
-      schedule_type,
-      booking_breakup
-    };
-
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      if (value instanceof Date) return value.toISOString().split('T')[0];
-      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
-      return value.toString().trim();
-    };
-
-    for (const field in fieldsToCheck) {
-      const newValueRaw = fieldsToCheck[field];
-      const oldValueRaw = oldServiceType[field];
-
-      const newValue = normalize(newValueRaw);
-      const oldValue = normalize(oldValueRaw);
-
-      const bothEmpty = newValue === '' && oldValue === '';
-      const isDifferent = newValue !== oldValue;
-
-      if (!bothEmpty && isDifferent) {
-        changedFields.push(`${field}: "${oldValue}" → "${newValue}"`);
-      }
-    }
-
-    const details = changedFields.length > 0
-      ? `Service type updated:\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
-
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'UPDATE',
-      setupType: 'ServiceType',
-      entityCode: req.params.code,
-      details
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating service type:', err);
@@ -177,17 +118,6 @@ router.delete('/:code', async (req, res) => {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'DELETE',
-      setupType: 'ServiceType',
-      entityCode: req.params.code,
-      details: `Service type deleted: ${JSON.stringify({
-        name: result.rows[0]?.name || 'Unknown',
-        code: req.params.code
-      })}`
-    });
 
     res.json({ success: true });
   } catch (err) {

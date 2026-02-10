@@ -89,7 +89,6 @@ async function buildUpdateQuery(tableName, data, whereClause, whereParams) {
  */
 function getUsernameFromToken(req) {
   if (!req.user) {
-    console.error("❌ Critical: No req.user found in protected context");
     return null;
   }
 

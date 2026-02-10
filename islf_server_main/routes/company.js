@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const { logSetupEvent } = require('../log');
 const router = express.Router();
 const { getUsernameFromToken } = require('../utils/context-helper');
 // Get all companies
@@ -49,14 +48,6 @@ router.post('/', async (req, res) => {
       [code, name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo, company_type, created_by]
     );
 
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'CREATE',
-      setupType: 'Company',
-      entityCode: code,
-      details: `Company created: ${name} (${code})`
-    });
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating company:', err);
@@ -77,48 +68,6 @@ router.put('/:code', async (req, res) => {
       [name, name2, gst, phone, landline, email, website, pan_number, register_number, register_address, head_office_address, logo, company_type, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    const changedFields = [];
-    const fieldsToCheck = {
-      name,
-      name2,
-      gst,
-      phone,
-      landline,
-      email,
-      website,
-      pan_number,
-      register_number,
-      register_address,
-      head_office_address
-    };
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      if (value instanceof Date) return value.toISOString().split('T')[0];
-      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValueRaw = fieldsToCheck[field];
-      const oldValueRaw = oldCompany[field];
-      const newValue = normalize(newValueRaw);
-      const oldValue = normalize(oldValueRaw);
-
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(`${field}: " Old:${oldValue}" → "New:${newValue}\"`);
-      }
-    }
-    const details = changedFields.length > 0
-      ? `Company updated:\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
-
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'UPDATE',
-      setupType: 'Company',
-      entityCode: req.params.code,
-      details
-    });
 
     res.json(result.rows[0]);
     // End of try block
@@ -134,17 +83,6 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM companies WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'DELETE',
-      setupType: 'Company',
-      entityCode: req.params.code,
-      details: `Company deleted: ${JSON.stringify({
-        name: result.rows[0]?.name || 'Unknown',
-        code: req.params.code
-      })}`
-    });
 
     res.json({ success: true });
   } catch (err) {

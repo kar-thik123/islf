@@ -1,7 +1,6 @@
 const express = require("express");
-const pool = require("../db");
 const router = express.Router();
-const { logMasterEvent } = require("../log");
+const pool = require("../db");
 const { getUsernameFromToken } = require("../utils/context-helper");
 
 // 🔹 Enforce hierarchy: company → branch → department
@@ -34,11 +33,13 @@ function buildWhereClause(filters) {
   };
 }
 
-// GET all sources
+// GET all sources with pagination
 router.get("/", async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode } = req.query;
+    const { companyCode, branchCode, departmentCode, page = 1, limit = 10 } = req.query;
     enforceHierarchy(companyCode, branchCode, departmentCode);
+
+    const offset = (Number(page) - 1) * Number(limit);
 
     const filters = {
       company_code: companyCode,
@@ -46,19 +47,23 @@ router.get("/", async (req, res) => {
       department_code: departmentCode,
     };
 
-    console.log("source filter:", filters);
     const { clause, values } = buildWhereClause(filters);
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) FROM sourcing ${clause}`;
+    const countResult = await pool.query(countQuery, values);
+    const total = parseInt(countResult.rows[0].count, 10);
 
     const query = `
       SELECT *
       FROM sourcing
       ${clause}
       ORDER BY id DESC
+      LIMIT $${values.length + 1} OFFSET $${values.length + 2}
     `;
-    console.log("sourcing table query:", query, "source Value:", values);
 
-    const result = await pool.query(query, values);
-    res.json(result.rows);
+    const result = await pool.query(query, [...values, Number(limit), Number(offset)]);
+    res.json({ data: result.rows, total });
   } catch (err) {
     console.error("Error fetching source:", err);
     res.status(400).json({ error: err.message || "Failed to fetch source" });
@@ -312,14 +317,6 @@ router.post("/", async (req, res) => {
       ]
     );
 
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "CREATE",
-      masterType: "Sourcing",
-      recordId: code,
-      details: `New Source "${code}" has been created successfully.`,
-    });
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("Error creating source:", err);
@@ -384,83 +381,6 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ error: "Source not found" });
     }
 
-    const changedFields = [];
-    const fieldMap = {
-      code: { newVal: cleanData.code, db: "code" },
-      mode: { newVal: cleanData.mode, db: "mode" },
-      shipping_type: { newVal: cleanData.shippingType, db: "shipping_type" },
-      cargo_type: { newVal: cleanData.cargoType, db: "cargo_type" },
-      basis: { newVal: cleanData.basis, db: "basis" },
-      item_name: { newVal: cleanData.itemName, db: "item_name" },
-      currency: { newVal: cleanData.currency, db: "currency" },
-      location_type_from: {
-        newVal: cleanData.locationTypeFrom,
-        db: "location_type_from",
-      },
-      location_type_to: {
-        newVal: cleanData.locationTypeTo,
-        db: "location_type_to",
-      },
-      from_location: { newVal: cleanData.from, db: "from_location" },
-      to_location: { newVal: cleanData.to, db: "to_location" },
-      vendor_type: { newVal: cleanData.vendorType, db: "vendor_type" },
-      vendor_name: { newVal: cleanData.vendorName, db: "vendor_name" },
-      charges: { newVal: cleanData.charges, db: "charges" },
-      effective_date: { newVal: cleanData.effectiveDate, db: "effective_date" },
-      period_start_date: {
-        newVal: cleanData.periodStartDate,
-        db: "period_start_date",
-      },
-      period_end_date: {
-        newVal: cleanData.periodEndDate,
-        db: "period_end_date",
-      },
-      is_mandatory: {
-        newVal: cleanData.isMandatory || false,
-        db: "is_mandatory",
-      },
-      service_area: { newVal: cleanData.serviceArea, db: "service_area" },
-      source_sales_code: {
-        newVal: cleanData.sourceSalesCode,
-        db: "source_sales_code",
-      },
-      gst_vat: { newVal: cleanData.gstVat, db: "gst_vat" },
-      remarks: { newVal: cleanData.remarks, db: "remarks" },
-      type: { newVal: cleanData.type, db: "type" },
-    };
-
-    const normalize = (value) => {
-      if (value === null || value === undefined) return "";
-      if (value instanceof Date) return value.toISOString();
-      if (typeof value === "number")
-        return Number.isNaN(value) ? "" : String(value);
-      return String(value).trim();
-    };
-
-    for (const label in fieldMap) {
-      const mapping = fieldMap[label];
-      const newValue = normalize(mapping.newVal);
-      const oldValue = normalize(oldTariff[mapping.db]);
-      if (newValue !== oldValue) {
-        changedFields.push(
-          `Field "${label}" changed from "${oldValue}" to "${newValue}".`
-        );
-      }
-    }
-
-    const details =
-      changedFields.length > 0
-        ? `Changes detected:\n` + changedFields.join("\n")
-        : "No actual changes detected.";
-
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: "UPDATE",
-      masterType: "Source",
-      recordId: cleanData.code,
-      details,
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     console.error("Error updating source:", err);
@@ -487,9 +407,9 @@ router.post("/sub-charges", async (req, res) => {
       return res.status(400).json({ error: "Charge name is required" });
     }
 
-    if (cleanData.charges=== undefined || cleanData.charges=== null
+    if (cleanData.charges === undefined || cleanData.charges === null
       //  || cleanData.charges <= 0
-      ) {
+    ) {
       return res
         .status(400)
         .json({ error: "Charges must be a positive number" });

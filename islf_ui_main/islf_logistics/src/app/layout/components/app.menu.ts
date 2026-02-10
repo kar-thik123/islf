@@ -82,18 +82,33 @@ export class AppMenu {
             items: [
               {
                 label: 'Auth Logs',
-                icon: 'fa-solid fa-list',
+                icon: 'fa-solid fa-shield-halved',
                 routerLink: ['/logs/auth_logs'],
               },
               {
                 label: 'Masters Logs',
-                icon: 'fa-solid fa-list',
+                icon: 'fa-solid fa-database',
                 routerLink: ['/logs/masters_logs'],
               },
               {
+                label: 'Master Type Logs',
+                icon: 'fa-solid fa-tags',
+                routerLink: ['/logs/master_types_logs'],
+              },
+              {
+                label: 'Operations Logs',
+                icon: 'fa-solid fa-briefcase',
+                routerLink: ['/logs/operations_logs'],
+              },
+              {
                 label: 'Setup Logs',
-                icon: 'fa-solid fa-list',
+                icon: 'fa-solid fa-cog',
                 routerLink: ['/logs/setup_logs'],
+              },
+              {
+                label: 'System Logs',
+                icon: 'fa-solid fa-code',
+                routerLink: ['/logs/system_logs'],
               },
             ],
           },
@@ -137,8 +152,8 @@ export class AppMenu {
                 routerLink: ['/master/vessel'],
               },
               {
-                label:'Airline',
-                icon:'fa-solid fa-plane',
+                label: 'Airline',
+                icon: 'fa-solid fa-plane',
                 routerLink: ['/master/airline'],
               },
               {

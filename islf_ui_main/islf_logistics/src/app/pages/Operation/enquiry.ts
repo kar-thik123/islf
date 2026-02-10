@@ -132,6 +132,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
         [value]="enquiries"
         dataKey="code"
         [paginator]="true"
+        [totalRecords]="totalRecords"
+        [lazy]="true"
+        (onLazyLoad)="onLazyLoad($event)"
         [rows]="configService.getSystemConfig().maxRecordsPerPage"
         [rowsPerPageOptions]="[5, 10, 20, 50]"
         [showGridlines]="true"
@@ -3158,15 +3161,36 @@ export class EnquiryComponent implements OnInit {
     return this.locName(locationCode);
   }
 
+  totalRecords: number = 0;
+
+  onLazyLoad(event: any) {
+    console.log('Lazy Loading Enquiries:', event);
+    const page = (event.first / event.rows) + 1;
+    const limit = event.rows;
+    this.refreshEnquiries(page, limit);
+  }
+
+  refreshEnquiries(page: number = 1, limit: number = 10) {
+    this.loading = true;
+    this.enquiryService.getAll(page, limit).subscribe({
+      next: (res) => {
+        this.enquiries = res.data;
+        this.totalRecords = res.total;
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   loadEnquiries() {
-    return this.enquiryService.getAllEnquiries().pipe(
-      tap((enquiries: Enquiry[]) => {
-        console.log('Debug: Enquiry response from initial data', enquiries);
-        this.enquiries = (enquiries as any)['data'];
-        console.log(
-          'this.enquiry property value after assignment',
-          this.enquiries
-        );
+    return this.enquiryService.getAll(1, this.configService.getSystemConfig().maxRecordsPerPage || 10).pipe(
+      tap((res: any) => {
+        this.enquiries = res.data;
+        this.totalRecords = res.total;
       })
     );
   }
@@ -3326,7 +3350,7 @@ export class EnquiryComponent implements OnInit {
   }
 
   loadCarriageDirectionOptions() {
-    this.carriageService.getCarriageDirection().subscribe({
+    this.masterCache.getCarriageDirections().subscribe({
       next: (rows: any[]) => {
         this.carriageOptionsFrom = (rows || [])
           .filter((r) => r.is_from)
@@ -3392,7 +3416,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load customers from the enquiry service
   loadCustomers() {
-    return this.enquiryService.getCustomersDropdown('').pipe(
+    return this.masterCache.getCustomersDropdown().pipe(
       tap((customers: CustomerDropdown[]) => {
         this.customerOptions = customers || [];
         console.log('Customer options loaded:', this.customerOptions.length);
@@ -3402,7 +3426,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load service types
   loadServiceTypes() {
-    return this.serviceTypeService.getAll().pipe(
+    return this.masterCache.getServiceTypes().pipe(
       tap((serviceTypes: any[]) => {
         this.allServiceTypes = serviceTypes || [];
         this.filterServiceType();
@@ -3414,8 +3438,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load location types
   loadLocationTypes() {
-    const context = this.contextService.getContext();
-    return this.masterTypeService.getAll().pipe(
+    return this.masterCache.getAllMasterTypes().pipe(
       tap((locationTypes: any[]) => {
         console.log(
           'DEBUG: Loading the initial value from the location types,',
@@ -3424,11 +3447,11 @@ export class EnquiryComponent implements OnInit {
         // Fix: Use 'key' instead of 'type' and add status filter
         this.allLocationTypes =
           locationTypes?.filter(
-            (lt) => lt.key === 'LOCATION' && lt.status === 'Active'
+            (lt: any) => lt.key === 'LOCATION' && lt.status === 'Active'
           ) || [];
         console.log('DEBUG: Filtered location types:', this.allLocationTypes);
 
-        this.locationTypeFromOptions = this.allLocationTypes.map((lt) => ({
+        this.locationTypeFromOptions = this.allLocationTypes.map((lt: any) => ({
           label: lt.value, // Use 'value' field for display
           value: lt.value, // Use 'value' field for the actual value
         }));
@@ -3514,7 +3537,7 @@ export class EnquiryComponent implements OnInit {
 
   // Load master type options
   loadMasterTypeOptions() {
-    this.masterTypeService.getAll().subscribe((types: any[]) => {
+    this.masterCache.getAllMasterTypes().subscribe((types: any[]) => {
       // Filter by SERVICE_AREA key
       this.masterTypeOptions = (types || [])
         .filter((t) => t.key === 'SERVICE_AREA')

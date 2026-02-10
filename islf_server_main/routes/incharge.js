@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db');
-const { logSetupEvent } = require('../log');
 const router = express.Router();
 const { getUsernameFromToken } = require('../utils/context-helper');
 
@@ -57,17 +56,6 @@ router.post('/', async (req, res) => {
     );
 
     await client.query('COMMIT');
-
-    // Log the setup event
-    await logSetupEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      setupType: 'Incharge',
-      entityType: entity_type,
-      entityCode: entity_code,
-      entityName: incharge_name,
-      details: `Incharge created: ${incharge_name} for ${entity_type} ${entity_code}`
-    });
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -131,17 +119,6 @@ router.put('/:id', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Log the setup event
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'UPDATE',
-      setupType: 'Incharge',
-      entityType: currentRecord.entity_type,
-      entityCode: currentRecord.entity_code,
-      entityName: incharge_name,
-      details: `Incharge updated: ${incharge_name} for ${currentRecord.entity_type} ${currentRecord.entity_code}`
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -161,17 +138,6 @@ router.delete('/:id', async (req, res) => {
     }
 
     const deletedRecord = result.rows[0];
-
-    // Log the setup event
-    await logSetupEvent({
-      username: req.user?.username,
-      action: 'DELETE',
-      setupType: 'Incharge',
-      entityType: deletedRecord.entity_type,
-      entityCode: deletedRecord.entity_code,
-      entityName: deletedRecord.incharge_name,
-      details: `Incharge deleted: ${deletedRecord.incharge_name} for ${deletedRecord.entity_type} ${deletedRecord.entity_code}`
-    });
 
     res.json({ success: true });
   } catch (err) {

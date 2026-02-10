@@ -1,14 +1,13 @@
 const express = require('express');
 const pool = require('../db');
 const router = express.Router();
-const { logMasterEvent } = require('../log');
 const { getUsernameFromToken } = require('../utils/context-helper');
 
 // Get all container codes with optional context filtering
 router.get('/', async (req, res) => {
   try {
     const { companyCode, branchCode, departmentCode } = req.query;
-    
+
     // If context parameters are provided, filter by their context
     if (companyCode || branchCode || departmentCode) {
       let query = `
@@ -16,30 +15,30 @@ router.get('/', async (req, res) => {
         FROM container_code
         WHERE 1=1
       `;
-      
+
       const params = [];
       let paramIndex = 1;
-      
+
       if (companyCode) {
         query += ` AND company_code = $${paramIndex}`;
         params.push(companyCode);
         paramIndex++;
       }
-      
+
       if (branchCode) {
         query += ` AND branch_code = $${paramIndex}`;
         params.push(branchCode);
         paramIndex++;
       }
-      
+
       if (departmentCode) {
         query += ` AND department_code = $${paramIndex}`;
         params.push(departmentCode);
         paramIndex++;
       }
-      
+
       query += ` ORDER BY code ASC`;
-      
+
       const result = await pool.query(query, params);
       res.json(result.rows);
     } else {
@@ -75,14 +74,6 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [code, description, teus || 0, status || 'Active', company_code, branch_code, department_code, created_by]
     );
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'CREATE',
-      masterType: 'Container Code',
-      recordId: code,
-      details: `New Container Code "${code}" has been created successfully.`
-    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating container code:', err);
@@ -102,35 +93,7 @@ router.put('/:code', async (req, res) => {
       [description, teus || 0, status, req.params.code]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    const changedFields = [];
-    const fieldsToCheck = {
-      description, 
-      teus, // ← Add teus here
-      status
-    };
-    const normalize = (value) => {
-      if (value === null || value === undefined) return '';
-      return value.toString().trim();
-    };
-    for (const field in fieldsToCheck) {
-      const newValue = normalize(fieldsToCheck[field]);
-      const oldValue = normalize(oldContainer[field]);
-      const valuesAreEqual = newValue === oldValue;
-      if (!valuesAreEqual) {
-        changedFields.push(`Field "${field}" changed from "${oldValue}" to "${newValue}".`);
-      }
-    }
-    const details = changedFields.length > 0
-      ? `Changes detected in the\n` + changedFields.join('\n')
-      : 'No actual changes detected.';
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'UPDATE',
-      masterType: 'Container Code',
-      recordId: req.params.code,
-      details
-    });
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update container code' });
@@ -141,14 +104,7 @@ router.delete('/:code', async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM container_code WHERE code = $1 RETURNING *', [req.params.code]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    // Log the master event
-    await logMasterEvent({
-      username: getUsernameFromToken(req),
-      action: 'DELETE',
-      masterType: 'Container Code',
-      recordId: req.params.code,
-      details: `Container Code "${req.params.code}" has been deleted successfully.`
-    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete container code' });

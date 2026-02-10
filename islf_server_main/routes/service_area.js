@@ -6,7 +6,6 @@ const {
   getContextFromRequest,
   getUsernameFromToken,
 } = require("../utils/context-helper");
-const { logMasterEvent } = require("../log");
 
 // Get all service areas with IT setup validation filtering
 router.get("/", async (req, res) => {
@@ -417,15 +416,6 @@ router.post("/", async (req, res) => {
 
     console.log("✅ Service area created successfully:", result.rows[0]);
 
-    // Log the event
-    await logMasterEvent({
-      masterType: "service_area",
-      username,
-      action: "Create",
-      details: "Created New Service area master",
-      recordId: finalCode,
-    });
-
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === "23505") {
@@ -609,15 +599,6 @@ router.put("/:code", async (req, res) => {
         username,
       ]
     );
-
-    // Log the event
-    await logMasterEvent({
-      masterType: "service_area",
-      action: "update",
-      details: "Service Are Master updated",
-      username,
-      recordId: code,
-    });
 
     res.json(result.rows[0]);
   } catch (err) {

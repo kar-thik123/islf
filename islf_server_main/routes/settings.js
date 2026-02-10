@@ -417,6 +417,7 @@ module.exports = router;
 // Carriage Direction APIs
 router.get('/carriage-direction', async (req, res) => {
   try {
+    // 1. Ensure table exists
     await pool.query(`CREATE TABLE IF NOT EXISTS carriage_direction (
       id SERIAL PRIMARY KEY,
       carriage VARCHAR(150) UNIQUE NOT NULL,
@@ -424,30 +425,32 @@ router.get('/carriage-direction', async (req, res) => {
       is_to BOOLEAN DEFAULT false
     )`);
 
-    const { rows: carriageCodes } = await pool.query(
-      `SELECT value, description FROM master_type WHERE key = 'CARRIAGE' AND status IN ('Active','active') ORDER BY value`
+    // 2. Fetch Active Master Type Carriage values (Source of Truth)
+    const { rows: masterCarriages } = await pool.query(
+      `SELECT DISTINCT value FROM master_type 
+       WHERE key = 'CARRIAGE' AND (status = 'Active' OR status = 'active') 
+       ORDER BY value`
     );
 
-    for (const c of carriageCodes) {
-      const existing = await pool.query(
-        'SELECT id FROM carriage_direction WHERE carriage = $1',
-        [c.value]
-      );
-      if (existing.rows.length === 0) {
-        await pool.query(
-          'INSERT INTO carriage_direction (carriage, is_from, is_to) VALUES ($1, false, false)',
-          [c.value]
-        );
-      }
-    }
+    // 3. Fetch existing configurations
+    const { rows: configRows } = await pool.query('SELECT * FROM carriage_direction');
+    const configMap = configRows.reduce((acc, row) => {
+      acc[row.carriage] = row;
+      return acc;
+    }, {});
 
-    const { rows } = await pool.query(
-      `SELECT cd.id, cd.carriage, cd.is_from, cd.is_to, mt.description 
-       FROM carriage_direction cd 
-       LEFT JOIN master_type mt ON mt.value = cd.carriage AND mt.key = 'CARRIAGE' 
-       ORDER BY cd.carriage`
-    );
-    res.json(rows);
+    // 4. Merge: Only show if exists in Master Type, but keep flags if exists in carriage_direction
+    const finalRows = masterCarriages.map(mc => {
+      const existing = configMap[mc.value];
+      return {
+        id: existing?.id || null,
+        carriage: mc.value,
+        is_from: existing?.is_from || false,
+        is_to: existing?.is_to || false
+      };
+    });
+
+    res.json(finalRows);
   } catch (err) {
     console.error('Error fetching carriage-direction:', err);
     res.status(500).json({ error: 'Failed to fetch carriage-direction' });
