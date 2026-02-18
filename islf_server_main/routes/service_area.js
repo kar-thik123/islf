@@ -57,7 +57,7 @@ router.get("/", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY msa.code`;
+    query += ` ORDER BY msa.id DESC`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);

@@ -8,6 +8,11 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+// import { InputTextareaModule } from 'primeng/inputtextarea'; // Removed incorrect import
+import { TextareaModule } from 'primeng/textarea'; // Correct import based on enquiry.ts
+import { CalendarModule } from 'primeng/calendar';
+import { KeyFilterModule } from 'primeng/keyfilter';
+import { TooltipModule } from 'primeng/tooltip';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CustomerService, Customer, CustomerContact } from '../../services/customer.service';
@@ -58,6 +63,10 @@ function toTitleCase(str: string): string {
     ToastModule,
     DialogModule,
     ConfirmDialogModule,
+    TextareaModule,
+    CalendarModule,
+    KeyFilterModule,
+    TooltipModule,
     MasterTypeComponent,
     MasterLocationComponent
   ],
@@ -239,7 +248,7 @@ function toTitleCase(str: string): string {
             <div class="grid-item">
               <label for="type">Customer Type <span class="text-red-500">*</span></label>
               <div class="flex align-items-center gap-2">
-                <p-dropdown id="type" [options]="customerTypeOptions" [(ngModel)]="selectedCustomer.type" optionLabel="label" optionValue="value" placeholder="Select Customer Type" (onChange)="onFieldChange('type', $event.value)" (onBlur)="onFieldBlur('type')" required class="flex-1"></p-dropdown>
+                <p-dropdown id="type" [options]="customerTypeOptions" [(ngModel)]="selectedCustomer.type" optionLabel="label" optionValue="value" placeholder="Select Customer Type" (onChange)="onFieldChange('type', $event.value)" (onBlur)="onFieldBlur('type')" required class="flex-1" [showClear]="true"></p-dropdown>
                 <button pButton type="button" icon="pi pi-ellipsis-h" class="p-button-sm" (click)="openMaster('customerType')" [loading]="masterDialogLoading['customerType']" title="Open Customer Type Master"></button>
               </div>
               <small class="p-error text-red-500 text-xs ml-2" *ngIf="getFieldError('type')">{{ getFieldError('type') }}</small>
@@ -359,10 +368,10 @@ function toTitleCase(str: string): string {
                 <td>   
                 <input pInputText  [(ngModel)]="contact.department" />
                 </td>
-                <td><input pInputText [(ngModel)]="contact.mobile" /></td>
-                <td><input pInputText [(ngModel)]="contact.landline" /></td>
-                <td><input pInputText [(ngModel)]="contact.email" /></td>
-                <td><input pInputText [(ngModel)]="contact.remarks" /></td>
+                <td><input pInputText [ngModel]="contact.mobile" (ngModelChange)="contact.mobile=$event" pKeyFilter="int" maxlength="15" placeholder="Numbers only" /></td>
+                <td><input pInputText [ngModel]="contact.landline" (ngModelChange)="contact.landline=$event" pKeyFilter="int" maxlength="15" placeholder="Numbers only" /></td>
+                <td><input pInputText [(ngModel)]="contact.email" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$" placeholder="email@example.com" /></td>
+                <td><textarea pInputTextarea [(ngModel)]="contact.remarks" rows="1" autoResize="autoResize" class="w-full"></textarea></td>
                 <td>
                   <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeContact(rowIndex)"></button>
                 </td>
@@ -404,10 +413,10 @@ function toTitleCase(str: string): string {
                     <input pInputText [(ngModel)]="document.document_number" placeholder="Document Number" />
                   </td>
                   <td>
-                    <input pInputText type="date" [(ngModel)]="document.valid_from" />
+                    <p-calendar [(ngModel)]="document.valid_from" [dateFormat]="configService.calendarDateFormat" [showIcon]="true" appendTo="body" placeholder="Select Date"></p-calendar>
                   </td>
                   <td>
-                    <input pInputText type="date" [(ngModel)]="document.valid_till" />
+                    <p-calendar [(ngModel)]="document.valid_till" [dateFormat]="configService.calendarDateFormat" [showIcon]="true" appendTo="body" placeholder="Select Date"></p-calendar>
                   </td>
                   <td>
                     <input type="file" (change)="onFileSelected($event, rowIndex)" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" class="block w-full text-sm text-gray-500
@@ -827,9 +836,19 @@ export class CustomerComponent implements OnInit, OnDestroy {
         console.log('Customers loaded:', this.customers.length);
 
         // 2. Customer types (CRITICAL for dropdown)
-        this.customerTypeOptions = (res.types || [])
-          .filter((t: any) => t.key === 'CUSTOMER' && t.status === 'Active')
+        // Store all types for lookup
+        const allTypes = (res.types || []).filter((t: any) => t.key === 'CUSTOMER');
+        // Initial options: Only active
+        this.customerTypeOptions = allTypes
+          .filter((t: any) => t.status === 'Active')
           .map((t: any) => ({ label: t.value, value: t.value }));
+
+        // Store all types in a separate property if needed for edit logic, or better:
+        // We can just query masterTypeService again if needed, but easier to keep them.
+        // For now, let's keep all potential options in a cache if possible, or just rely on status.
+        // Actually, let's keep allTypes in a private property for edit logic
+        (this as any).allCustomerTypes = allTypes;
+
         console.log('Customer type options loaded:', this.customerTypeOptions.length);
 
         console.log('Critical customer data loaded, table ready!');
@@ -1198,6 +1217,21 @@ export class CustomerComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Fix: Ensure the customer's type is in the options list even if inactive
+    if (this.selectedCustomer.type) {
+      const exists = this.customerTypeOptions.find(opt => opt.value === this.selectedCustomer!.type);
+      if (!exists && (this as any).allCustomerTypes) {
+        const typeObj = (this as any).allCustomerTypes.find((t: any) => t.value === this.selectedCustomer!.type);
+        if (typeObj) {
+          // Add it to options temporarily
+          this.customerTypeOptions = [...this.customerTypeOptions, { label: typeObj.value + ' (Inactive)', value: typeObj.value }];
+        } else {
+          // Type doesn't exist in master at all? Add as is
+          this.customerTypeOptions = [...this.customerTypeOptions, { label: this.selectedCustomer.type, value: this.selectedCustomer.type }];
+        }
+      }
+    }
+
     // Load customer documents
     if (customer.id) {
       this.loadCustomerDocuments(customer.customer_no);
@@ -1206,38 +1240,41 @@ export class CustomerComponent implements OnInit, OnDestroy {
   }
 
   // Add these helper methods
-  populateStateOptions(country: string) {
-    if (!country) {
+  populateStateOptions(countryName: string) {
+    if (!countryName) {
       this.stateOptions = [];
       return;
     }
 
-    const matchingLocations = this.allLocations.filter(l =>
-      l.country && l.country.toLowerCase() === country.toLowerCase()
-    );
-
-    const states = matchingLocations
-      .map(l => l.state)
-      .filter(Boolean);
-
-    this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
+    const country = Country.getAllCountries().find(c => c.name === countryName);
+    if (country) {
+      this.stateOptions = State.getStatesOfCountry(country.isoCode).map(s => ({
+        label: s.name,
+        value: s.name
+      }));
+    } else {
+      this.stateOptions = [];
+    }
   }
 
-  populateCityOptions(country: string, state: string) {
-    if (!country || !state) {
+  populateCityOptions(countryName: string, stateName: string) {
+    if (!countryName || !stateName) {
       this.cityOptions = [];
       return;
     }
 
-    const cities = this.allLocations
-      .filter(l =>
-        l.country && l.country.toLowerCase() === country.toLowerCase() &&
-        l.state && l.state.toLowerCase() === state.toLowerCase()
-      )
-      .map(l => l.city)
-      .filter(Boolean);
-
-    this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
+    const country = Country.getAllCountries().find(c => c.name === countryName);
+    if (country) {
+      const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === stateName);
+      if (state) {
+        this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(c => ({
+          label: c.name,
+          value: c.name
+        }));
+      } else {
+        this.cityOptions = [];
+      }
+    }
   }
 
   async saveRow() {
@@ -1819,6 +1856,10 @@ export class CustomerComponent implements OnInit, OnDestroy {
           valid_till: doc.valid_till
         }).toPromise();
       });
+
+    if (uploadPromises.length === 0 && updatePromises.length === 0) {
+      return; // Nothing to save, don't show success message
+    }
 
     await Promise.all([...uploadPromises, ...updatePromises]);
     this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Documents saved successfully' });

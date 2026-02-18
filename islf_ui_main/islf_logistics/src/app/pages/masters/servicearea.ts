@@ -609,6 +609,7 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
       to_location: false,
       sourcing: 'match_all',
       local_tariff: 'match_all',
+      status: 'active',
       isNew: true,
       isEditing: false,
       errors: {}
@@ -686,6 +687,7 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
             };
           }
 
+          this.masterCache.clearCache();
           this.loadServiceAreas(); // Refresh the list
         },
         error: (error) => {
@@ -709,6 +711,8 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
           serviceArea.isEditing = false;
           delete serviceArea._originalData;
           delete serviceArea.errors;
+          this.masterCache.clearCache();
+          this.loadServiceAreas();
         },
         error: (error) => {
           this.messageService.add({
@@ -749,6 +753,8 @@ export class ServiceAreaComponent implements OnInit, OnDestroy {
           detail: 'Service Area deleted successfully'
         });
         this.serviceAreas = this.serviceAreas.filter(item => item.code !== serviceArea.code);
+        this.masterCache.clearCache();
+        this.loadServiceAreas();
       },
       error: (error) => {
         this.messageService.add({

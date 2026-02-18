@@ -12,6 +12,9 @@ import { NgSelectComponent, NgOptionComponent } from '@ng-select/ng-select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService, MenuItem } from 'primeng/api';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { TextareaModule } from 'primeng/textarea';
+import { CalendarModule } from 'primeng/calendar';
+import { KeyFilterModule } from 'primeng/keyfilter';
 import {
   VendorService,
   Vendor,
@@ -81,6 +84,9 @@ function toTitleCase(str: string): string {
     MasterLocationComponent,
     NgSelectComponent,
     NgOptionComponent,
+    TextareaModule,
+    CalendarModule,
+    KeyFilterModule
   ],
   template: `
     <p-toast></p-toast>
@@ -544,6 +550,7 @@ function toTitleCase(str: string): string {
                 (ngModelChange)="onFieldChange('vat_gst_no', vatGstInput.value)"
                 (blur)="onFieldBlur('vat_gst_no')"
                 required
+                maxlength="15"
               />
               <small
                 class="p-error text-red-500 text-xs ml-2"
@@ -769,12 +776,21 @@ function toTitleCase(str: string): string {
             </ng-template>
             <ng-template pTemplate="body" let-contact let-rowIndex="rowIndex">
               <tr>
-                <td><input pInputText [(ngModel)]="contact.name" /></td>
-                <td><input pInputText [(ngModel)]="contact.department" /></td>
-                <td><input pInputText [(ngModel)]="contact.mobile" /></td>
-                <td><input pInputText [(ngModel)]="contact.landline" /></td>
-                <td><input pInputText [(ngModel)]="contact.email" /></td>
-                <td><input pInputText [(ngModel)]="contact.remarks" /></td>
+                <td><input pInputText [(ngModel)]="contact.name" placeholder="Name" /></td>
+                <td><input pInputText [(ngModel)]="contact.department" placeholder="Department" /></td>
+                <td><input pInputText [ngModel]="contact.mobile" (ngModelChange)="contact.mobile=$event" placeholder="Mobile" pKeyFilter="int" maxlength="15" /></td>
+                <td><input pInputText [ngModel]="contact.landline" (ngModelChange)="contact.landline=$event" placeholder="Landline" pKeyFilter="int" maxlength="15" /></td>
+                <td><input pInputText [(ngModel)]="contact.email" placeholder="Email" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,4}$" /></td>
+                <td>
+                  <textarea 
+                    pInputTextarea 
+                    [(ngModel)]="contact.remarks" 
+                    placeholder="Remarks"
+                    [rows]="1"
+                    [autoResize]="true"
+                    class="w-full"
+                  ></textarea>
+                </td>
                 <td>
                   <button
                     pButton
@@ -852,18 +868,22 @@ function toTitleCase(str: string): string {
                     />
                   </td>
                   <td>
-                    <input
-                      pInputText
-                      type="date"
-                      [(ngModel)]="document.valid_from"
-                    />
+                    <p-calendar 
+                      [(ngModel)]="document.valid_from" 
+                      [dateFormat]="configService.calendarDateFormat" 
+                      [showIcon]="true" 
+                      appendTo="body" 
+                      placeholder="Select Date">
+                    </p-calendar>
                   </td>
                   <td>
-                    <input
-                      pInputText
-                      type="date"
-                      [(ngModel)]="document.valid_till"
-                    />
+                    <p-calendar 
+                      [(ngModel)]="document.valid_till" 
+                      [dateFormat]="configService.calendarDateFormat" 
+                      [showIcon]="true" 
+                      appendTo="body" 
+                      placeholder="Select Date">
+                    </p-calendar>
                   </td>
                   <td>
                     <input
@@ -1616,7 +1636,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (res) => {
         // 1. Vendors list (CRITICAL for table)
-        this.vendors = res.vendors;
+        this.vendors = (res.vendors || []).sort((a, b) => (b.id || 0) - (a.id || 0));
         this.billToVendorOptions = res.vendors.map((c) => ({
           label: `${c.vendor_no} - ${c.name}`,
           value: `${c.vendor_no} - ${c.name}`,
@@ -1625,8 +1645,8 @@ export class VendorComponent implements OnInit, OnDestroy {
 
         // 2. Vendor types (CRITICAL for dropdown)
         this.vendorTypeOptions = (res.types || [])
-          .filter((t: any) => t.key === 'VENDOR' && t.status === 'Active')
-          .map((t: any) => ({ label: t.value, value: t.value }));
+          .filter((t: any) => t.key === 'VENDOR')
+          .map((t: any) => ({ label: t.value, value: t.value, disabled: t.status !== 'Active' }));
         this.duplicationVendorTypeOptions = this.vendorTypeOptions;
         console.log('Vendor type options loaded:', this.vendorTypeOptions.length);
 
@@ -1654,7 +1674,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   refreshList() {
     this.masterCache.getVendors().subscribe({
       next: (data) => {
-        this.vendors = data;
+        this.vendors = (data || []).sort((a, b) => (b.id || 0) - (a.id || 0));
         this.billToVendorOptions = data.map((c) => ({
           label: `${c.vendor_no} - ${c.name}`,
           value: `${c.vendor_no} - ${c.name}`,
@@ -1996,45 +2016,41 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   // Add these helper methods
-  populateStateOptions(country: string) {
-    if (!country) {
+  populateStateOptions(countryName: string) {
+    if (!countryName) {
       this.stateOptions = [];
       return;
     }
 
-    const matchingLocations = this.allLocations.filter(
-      (l) => l.country && l.country.toLowerCase() === country.toLowerCase()
-    );
-
-    const states = matchingLocations.map((l) => l.state).filter(Boolean);
-
-    this.stateOptions = uniqueCaseInsensitive(states).map((s) => ({
-      label: toTitleCase(s),
-      value: s,
-    }));
+    const country = Country.getAllCountries().find(c => c.name === countryName);
+    if (country) {
+      this.stateOptions = State.getStatesOfCountry(country.isoCode).map(s => ({
+        label: s.name,
+        value: s.name
+      }));
+    } else {
+      this.stateOptions = [];
+    }
   }
 
-  populateCityOptions(country: string, state: string) {
-    if (!country || !state) {
+  populateCityOptions(countryName: string, stateName: string) {
+    if (!countryName || !stateName) {
       this.cityOptions = [];
       return;
     }
 
-    const cities = this.allLocations
-      .filter(
-        (l) =>
-          l.country &&
-          l.country.toLowerCase() === country.toLowerCase() &&
-          l.state &&
-          l.state.toLowerCase() === state.toLowerCase()
-      )
-      .map((l) => l.city)
-      .filter(Boolean);
-
-    this.cityOptions = uniqueCaseInsensitive(cities).map((c) => ({
-      label: toTitleCase(c),
-      value: c,
-    }));
+    const country = Country.getAllCountries().find(c => c.name === countryName);
+    if (country) {
+      const state = State.getStatesOfCountry(country.isoCode).find(s => s.name === stateName);
+      if (state) {
+        this.cityOptions = City.getCitiesOfState(country.isoCode, state.isoCode).map(c => ({
+          label: c.name,
+          value: c.name
+        }));
+      } else {
+        this.cityOptions = [];
+      }
+    }
   }
 
   // displays show confirmation dialog if the duplicate vendor type is selected
@@ -2470,7 +2486,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.masterTypeService.getAll().subscribe({
       next: (types: any[]) => {
         this.documentTypeOptions = (types || [])
-          .filter((t) => t.key === 'VEN_DOCUMENT' && t.status === 'Active')
+          .filter((t) => t.key === 'VEN_DOC_TYPE' && t.status === 'Active')
           .map((t) => ({ label: t.value, value: t.value }));
         console.log('Document type options loaded:', this.documentTypeOptions);
       },
@@ -2754,11 +2770,11 @@ export class VendorComponent implements OnInit, OnDestroy {
       });
 
     await Promise.all([...uploadPromises, ...updatePromises]);
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Documents saved successfully',
-    });
+    // this.messageService.add({
+    //   severity: 'success',
+    //   summary: 'Success',
+    //   detail: 'Documents saved successfully',
+    // });
     this.loadVendorDocuments(vendor.vendor_no);
   }
 
@@ -2783,7 +2799,7 @@ export class VendorComponent implements OnInit, OnDestroy {
       next: (data: any[]) => {
         this.vendorTypeOptions = data
           .filter((item: any) => item.key === 'VENDOR')
-          .map((item: any) => ({ label: item.value, value: item.value }));
+          .map((item: any) => ({ label: item.value, value: item.value, disabled: item.status !== 'Active' }));
       },
       error: (error: any) => {
         console.error('Error loading customer type options:', error);

@@ -33,13 +33,11 @@ function buildWhereClause(filters) {
   };
 }
 
-// GET all tariffs with pagination
+// GET all tariffs
 router.get("/", async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode, page = 1, limit = 10 } = req.query;
+    const { companyCode, branchCode, departmentCode } = req.query;
     enforceHierarchy(companyCode, branchCode, departmentCode);
-
-    const offset = (Number(page) - 1) * Number(limit);
 
     const filters = {
       company_code: companyCode,
@@ -49,21 +47,15 @@ router.get("/", async (req, res) => {
 
     const { clause, values } = buildWhereClause(filters);
 
-    // Get total count
-    const countQuery = `SELECT COUNT(*) FROM tariff ${clause}`;
-    const countResult = await pool.query(countQuery, values);
-    const total = parseInt(countResult.rows[0].count, 10);
-
     const query = `
       SELECT *
       FROM tariff
       ${clause}
       ORDER BY id DESC
-      LIMIT $${values.length + 1} OFFSET $${values.length + 2}
     `;
 
-    const result = await pool.query(query, [...values, Number(limit), Number(offset)]);
-    res.json({ data: result.rows, total });
+    const result = await pool.query(query, values);
+    res.json(result.rows);
   } catch (err) {
     console.error("Error fetching tariffs:", err);
     res.status(400).json({ error: err.message || "Failed to fetch tariffs" });

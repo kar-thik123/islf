@@ -675,6 +675,7 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
             };
           }
 
+          this.masterCache.clearCache();
           this.loadSourceSales(); // Refresh the list
         },
         error: (error: any) => {
@@ -700,6 +701,8 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
             sourceSale.isEditing = false;
             delete sourceSale._originalData;
             delete sourceSale.errors;
+            this.masterCache.clearCache();
+            this.loadSourceSales();
           },
           error: (error: any) => {
             this.messageService.add({
@@ -781,6 +784,8 @@ export class SourceSalesComponent implements OnInit, OnDestroy {
         this.sourceSales = this.sourceSales.filter(
           (item) => item.id !== sourceSale.id
         );
+        this.masterCache.clearCache();
+        this.loadSourceSales();
       },
       error: (error: any) => {
         this.messageService.add({

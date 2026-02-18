@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY mss.code`;
+    query += ` ORDER BY mss.id DESC`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -359,7 +359,7 @@ router.put('/:id', async (req, res) => {
       `UPDATE master_source_sales 
        SET code = $1, name = $2, commission_percentage = $3, email = $4, phone = $5, status = $6, 
            company_code = $7, branch_code = $8, department_code = $9, service_type_code = $10, 
-           updated_by = $12, updated_at = NOW()
+           updated_by = $12
        WHERE id = $11
        RETURNING *`,
       [

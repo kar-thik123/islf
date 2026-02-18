@@ -535,10 +535,34 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
     this.isDialogVisible = true;
 
     // Load state and city options for existing location
+    // Preserve the original values before calling change handlers
+    const originalState = loc.state;
+    const originalCity = loc.city;
+
     if (loc.country) {
+      // Add custom country option if it doesn't exist
+      this.addCustomOption('country', loc.country);
+
       this.onCountryChange();
-      if (loc.state) {
+      // Restore the original state value after loading state options
+      if (this.selectedLocation) {
+        this.selectedLocation.state = originalState;
+      }
+
+      if (originalState) {
+        // Add custom state option if it doesn't exist
+        this.addCustomOption('state', originalState);
+
         this.onStateChange();
+        // Restore the original city value after loading city options
+        if (this.selectedLocation) {
+          this.selectedLocation.city = originalCity;
+        }
+
+        if (originalCity) {
+          // Add custom city option if it doesn't exist
+          this.addCustomOption('city', originalCity);
+        }
       }
     }
   }

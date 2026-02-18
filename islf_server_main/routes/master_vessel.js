@@ -116,7 +116,7 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY id ASC`;
+    query += ` ORDER BY id DESC`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);

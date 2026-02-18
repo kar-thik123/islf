@@ -142,7 +142,13 @@ async function captureOldData(req) {
 
     try {
         // Attempt to fetch old data from database
-        const tableName = moduleName;
+        const tableMapping = {
+            'source_sales': 'master_source_sales',
+            'service_area': 'master_service_area',
+            'source': 'sourcing',
+            'vessel': 'master_vessel'
+        };
+        const tableName = tableMapping[moduleName] || moduleName;
         const idField = req.params.code ? 'code' : 'id';
 
         const result = await pool.query(

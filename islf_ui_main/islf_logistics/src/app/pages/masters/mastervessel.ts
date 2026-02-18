@@ -211,7 +211,10 @@ interface FlagOption {
                 pInputText 
                 [(ngModel)]="selectedVessel.imo_number" 
                 placeholder="Enter IMO number" 
+                (ngModelChange)="onFieldChange('imo_number', selectedVessel.imo_number)"
+                [ngClass]="{'ng-invalid ng-dirty': getFieldError('imo_number')}"
               />
+              <small *ngIf="getFieldError('imo_number')" class="p-error">{{getFieldError('imo_number')}}</small>
             </div>
             <div class="grid-item">
               <label for="flag">Flag</label>
@@ -578,7 +581,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
         flag: '',
         vessel_type: '',
         year_build: '',
-        active: 'active',
+        active: true,
         isNew: true
       };
       this.isDialogVisible = true;
@@ -617,6 +620,16 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
 
       case 'year_build':
         if (!value) return 'Year Build is required';
+        const year = value instanceof Date ? value.getFullYear() : parseInt(value);
+        if (isNaN(year) || year < 1900 || year > 2100) return 'Invalid 4-digit year';
+        break;
+      case 'imo_number':
+        if (value && typeof value === 'string' && value.trim() !== '') {
+          const isDuplicate = this.vessels.some(v =>
+            v.imo_number === value.trim() && v.id !== this.selectedVessel?.id
+          );
+          if (isDuplicate) return 'IMO number already exists';
+        }
         break;
     }
     return '';
@@ -707,15 +720,23 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
       next: (createdVessel) => {
         const msg = this.selectedVessel?.isNew ? 'Vessel created' : 'Vessel updated';
         this.messageService.add({ severity: 'success', summary: 'Success', detail: msg });
+        this.masterCache.clearCache();
         this.refreshList();
         this.hideDialog();
       },
       error: (err) => {
         console.error('Operation failed:', err);
+        const errorDetail = err.error?.error || 'Operation failed';
+
+        if (errorDetail.includes('IMO number already exists')) {
+          this.fieldErrors['imo_number'] = 'IMO number already exists';
+          this.touchedFields['imo_number'] = true;
+        }
+
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: err.error?.error || 'Operation failed'
+          detail: errorDetail
         });
       }
     });
