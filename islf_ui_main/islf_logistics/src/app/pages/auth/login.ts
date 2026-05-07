@@ -228,6 +228,16 @@ export class Login {
         this.loginService.login(this.identifier, this.password).subscribe({
             next: (res) => {
                 console.log('Login successful, setting auth data');
+                if (res.permissions) {
+                    localStorage.setItem('userPermissions', JSON.stringify(res.permissions));
+                } else {
+                    localStorage.removeItem('userPermissions');
+                }
+                if (res.role) {
+                    localStorage.setItem('userRole', res.role);
+                } else {
+                    localStorage.removeItem('userRole');
+                }
                 this.authService.login(res.token, res.name || '', this.rememberMe);
                 this.messageService.add({ severity: 'success', summary: 'Login Successful', detail: 'You have logged in successfully.', life: 2000 });
 

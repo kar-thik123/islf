@@ -9,6 +9,7 @@ import {  UserListComponent } from './userManagement/userlist';
 import { Title } from '@angular/platform-browser';
 import { CarriageDirectionSettingsComponent } from './carriage-direction';
 import {  UserCreateComponent } from './userManagement/usercreate';
+import { AuthorizationComponent } from './authorization';
 
 
 export default [
@@ -23,10 +24,8 @@ export default [
     {path:'user_management',component:UserListComponent,data:{ breadcrumb: 'Settings >>> User management',title:'User_management - ISLF'}},
     {path:'create_user',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Create User',title:'Create_User - ISLF'}},
     {path:'create_user/:id',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Edit User',title:'Edit_User - ISLF'}},
-    {path:'carriage_direction',component:CarriageDirectionSettingsComponent,data:{ breadcrumb: 'Settings >>> Carriage Configuration',title:'Carriage_Configuration - ISLF'}}
-
-    
-
+    {path:'carriage_direction',component:CarriageDirectionSettingsComponent,data:{ breadcrumb: 'Settings >>> Carriage Configuration',title:'Carriage_Configuration - ISLF'}},
+    {path:'authorization',component:AuthorizationComponent,data:{ breadcrumb: 'Settings >>> Authorization',title:'Authorization - ISLF'}}
 ] as Routes;
 
 

@@ -80,14 +80,25 @@ router.post("/login", async (req, res) => {
       { expiresIn: expiresIn }
     );
 
+    // Fetch permissions based on user role
+    let permissions = [];
+    if (user.role) {
+      const permResult = await pool.query(
+        "SELECT module_name, sub_module_name, can_read, can_write, can_delete FROM role_module_permissions WHERE role_name = $1",
+        [user.role]
+      );
+      permissions = permResult.rows;
+    }
+
     // Debug: log token payload
     console.log("JWT token payload:", {
       userId: user.id,
       username: user.username,
       email: user.email,
       name: user.full_name || user.username,
+      role: user.role
     });
-    res.json({ token, name: user.username });
+    res.json({ token, name: user.username, role: user.role, permissions });
   } catch (err) {
     res.status(500).json({ message: "Database error", error: err.message });
   }
@@ -133,10 +144,22 @@ router.post("/verify-password", async (req, res) => {
       { expiresIn: expiresIn }
     );
 
+    // Fetch permissions
+    let permissions = [];
+    if (user.role) {
+      const permResult = await pool.query(
+        "SELECT module_name, sub_module_name, can_read, can_write, can_delete FROM role_module_permissions WHERE role_name = $1",
+        [user.role]
+      );
+      permissions = permResult.rows;
+    }
+
     res.json({
       success: true,
       token: token,
       name: user.name || user.username,
+      role: user.role,
+      permissions
     });
   } catch (err) {
     res.status(500).json({ message: "Database error", error: err });

@@ -9,8 +9,8 @@ export class LoginService {
 
   constructor(private http: HttpClient) {}
 
-  login(identifier: string, password: string): Observable<{ token: string, name?: string }> {
-    return this.http.post<{ token: string, name?: string }>(`${this.apiUrl}/login`, { identifier, password });
+  login(identifier: string, password: string): Observable<{ token: string, name?: string, role?: string, permissions?: any[] }> {
+    return this.http.post<{ token: string, name?: string, role?: string, permissions?: any[] }>(`${this.apiUrl}/login`, { identifier, password });
   }
 
   setToken(token: string, rememberMe: boolean): void {

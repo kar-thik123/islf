@@ -67,6 +67,9 @@ app.use('/api/settings', settingsRouter);
 const userRouter = require('./routes/user');
 app.use('/api/user', userRouter);
 
+const authorizationRouter = require('./routes/authorization');
+app.use('/api/authorization', authorizationRouter);
+
 
 //masters routes
 

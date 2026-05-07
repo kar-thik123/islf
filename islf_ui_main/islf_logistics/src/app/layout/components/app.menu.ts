@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { RouterLink, RouterModule } from '@angular/router';
 import { AppMenuitem } from './app.menuitem';
 import { last } from 'rxjs';
+import { inject } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
 
 @Component({
   selector: 'app-menu',
@@ -25,6 +27,7 @@ import { last } from 'rxjs';
 })
 export class AppMenu {
   model: any[] = [];
+  permissionService = inject(PermissionService);
 
   ngOnInit() {
     this.model = [
@@ -69,6 +72,11 @@ export class AppMenu {
                 label: 'Carriage Direction',
                 icon: 'fa-solid fa-sort-numeric-up',
                 routerLink: ['/settings/carriage_direction'],
+              },
+              {
+                label: 'Authorization',
+                icon: 'fa-solid fa-shield-halved',
+                routerLink: ['/settings/authorization'],
               },
             ],
           },
@@ -321,5 +329,20 @@ export class AppMenu {
         ],
       },
     ];
+
+    // Filter menu based on permissions
+    this.model = this.model.map(group => {
+      if (group.items) {
+        group.items = group.items.map((moduleMenu: any) => {
+          if (moduleMenu.items) {
+            moduleMenu.items = moduleMenu.items.filter((subModule: any) => {
+               return this.permissionService.canRead(moduleMenu.label, subModule.label);
+            });
+          }
+          return moduleMenu;
+        }).filter((moduleMenu: any) => !moduleMenu.items || moduleMenu.items.length > 0);
+      }
+      return group;
+    }).filter(group => !group.items || group.items.length > 0);
   }
 }
