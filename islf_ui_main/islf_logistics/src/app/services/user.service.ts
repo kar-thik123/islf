@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { ConfigService } from './config.service';
@@ -11,6 +11,7 @@ import { environment } from '../../environments/environment';
 })
 export class UserService {
   private apiUrl = `${environment.apiUrl}/api/user`;
+  private profileCache$?: Observable<any>;
 
   constructor(
     private http: HttpClient, 
@@ -57,5 +58,18 @@ export class UserService {
 
   getUserByUsername(username: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/by-username/${username}`);
+  }
+
+  getMyProfile(): Observable<any> {
+    if (!this.profileCache$) {
+      this.profileCache$ = this.http.get<any>(`${this.apiUrl}/me`).pipe(
+        shareReplay(1)
+      );
+    }
+    return this.profileCache$;
+  }
+
+  clearProfileCache() {
+    this.profileCache$ = undefined;
   }
 }

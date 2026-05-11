@@ -22,7 +22,7 @@ import { Subscription } from 'rxjs';
       (onHide)="onDialogHide()"
     >
       <div class="p-fluid p-3 space-y-3">
-        <div>
+        <div *ngIf="isBypass || ((contextService.companyOptions$ | async)?.length !== 1)">
           <label for="company" class="block mb-2 font-medium">Company</label>
           <p-dropdown
             id="company"
@@ -36,7 +36,7 @@ import { Subscription } from 'rxjs';
           ></p-dropdown>
         </div>
 
-        <div>
+        <div *ngIf="isBypass || ((contextService.branchOptions$ | async)?.length !== 1)">
           <label for="branch" class="block mb-2 font-medium">Branch</label>
           <p-dropdown
             id="branch"
@@ -50,7 +50,7 @@ import { Subscription } from 'rxjs';
           ></p-dropdown>
         </div>
 
-        <div>
+        <div *ngIf="isBypass || ((contextService.departmentOptions$ | async)?.length !== 1)">
           <label for="department" class="block mb-2 font-medium">Department</label>
           <p-dropdown
             id="department"
@@ -102,12 +102,14 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   selectedBranch?: string;
   selectedDepartment?: string;
   selectedServiceType?: string;
+  isBypass: boolean = true;
 
   private subscriptions: Subscription[] = [];
  
   constructor(public contextService: ContextService) {}
  
   ngOnInit() {
+    this.isBypass = this.contextService.isBypassRolePublic();
     // Initialize context values if already set
     this.initializeContextValues();
     this.setupAutoSelection();
@@ -130,31 +132,34 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   setupAutoSelection() {
     // Auto-select company if only one option
     const companySub = this.contextService.companyOptions$.subscribe(options => {
-      if (options.length === 1 && !this.selectedCompany) {
+      if (!this.isBypass && options && options.length === 1 && !this.selectedCompany) {
         this.selectedCompany = options[0].value;
         this.onCompanyChange();
+        this.checkAndAutoSave();
       }
     });
 
     // Auto-select branch if only one option
     const branchSub = this.contextService.branchOptions$.subscribe(options => {
-      if (options.length === 1 && !this.selectedBranch && this.selectedCompany) {
+      if (!this.isBypass && options && options.length === 1 && !this.selectedBranch && this.selectedCompany) {
         this.selectedBranch = options[0].value;
         this.onBranchChange();
+        this.checkAndAutoSave();
       }
     });
 
     // Auto-select department if only one option
     const departmentSub = this.contextService.departmentOptions$.subscribe(options => {
-      if (options.length === 1 && !this.selectedDepartment && this.selectedBranch) {
+      if (!this.isBypass && options && options.length === 1 && !this.selectedDepartment && this.selectedBranch) {
         this.selectedDepartment = options[0].value;
         this.onDepartmentChange();
+        this.checkAndAutoSave();
       }
     });
 
     // Auto-select service type if only one option
     const serviceTypeSub = this.contextService.serviceTypeOptions$.subscribe(options => {
-      if (options.length === 1 && !this.selectedServiceType && this.selectedDepartment) {
+      if (!this.isBypass && options && options.length === 1 && !this.selectedServiceType && this.selectedDepartment) {
         this.selectedServiceType = options[0].value;
       }
     });
@@ -200,6 +205,17 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
     
     if (this.selectedDepartment) {
       this.contextService.loadServiceTypesForDepartment(this.selectedDepartment);
+      this.checkAndAutoSave();
+    }
+  }
+
+  checkAndAutoSave() {
+    if (!this.isBypass && this.selectedCompany && this.selectedBranch && this.selectedDepartment) {
+      setTimeout(() => {
+        if (this.canSave()) {
+          this.saveContext();
+        }
+      });
     }
   }
  

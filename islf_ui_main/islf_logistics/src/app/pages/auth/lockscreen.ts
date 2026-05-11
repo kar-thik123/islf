@@ -152,9 +152,18 @@ export class LockScreen {
             return;
         }
         this.loginService.verifyPassword(this.userName, this.password).subscribe({
-            next: (response) => {
+            next: (response: any) => {
                 // Restore authentication with the new token
                 this.authService.login(response.token, response.name, true); // Use rememberMe=true for session restore
+
+                // Restore RBAC permissions and role in localStorage
+                // The verify-password endpoint returns permissions and role just like login
+                if (response.permissions) {
+                    localStorage.setItem('userPermissions', JSON.stringify(response.permissions));
+                }
+                if (response.role) {
+                    localStorage.setItem('userRole', response.role);
+                }
                 
                 this.messageService.add({severity: 'success', summary: 'Unlocked', detail: 'Welcome back!'});
                 setTimeout(() => {

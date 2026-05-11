@@ -515,12 +515,14 @@ router.post("/", async (req, res) => {
       service_type_code: bodyServiceTypeCode,
     } = req.body;
 
-    // Cleaned up duplicate lines
+    // Phase I: created_by is stamped by ownershipStamper middleware (req.ownerUsername).
+    // Fallback to body.created_by which the stamper also sets as a safety net.
+    const enquiryCreatedBy = req.ownerUsername || req.body.created_by || null;
 
-    // Get user context
+    // Get user context for number series / org-unit scoping
     const userResult = await pool.query(
       "SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1",
-      [name]
+      [enquiryCreatedBy || name]
     );
 
     let userContext = userResult.rows[0] || {};
@@ -830,8 +832,8 @@ router.post("/", async (req, res) => {
       const enquiryResult = await client.query(
         `INSERT INTO enquiry (enquiry_no, code, date, customer_id, customer_name, email, mobile, landline,
                  company_name, contact_department, from_location, to_location, location_type_from, location_type_to, effective_date_from, effective_date_to, department,
-                 service_type, status, remarks, enquiry_type, company_code, branch_code, department_code, service_type_code, source_sales_code, cargo_type)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING id`,
+                 service_type, status, remarks, enquiry_type, company_code, branch_code, department_code, service_type_code, source_sales_code, cargo_type, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) RETURNING id`,
         [
           enquiryNo,
           enquiryCode,
@@ -860,6 +862,7 @@ router.post("/", async (req, res) => {
           userContext.service_type_code,
           source_sales_code,
           cargo_type,
+          enquiryCreatedBy,  // Phase I: stamped by ownershipStamper
         ]
       );
 

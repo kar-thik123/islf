@@ -25,7 +25,7 @@ export default [
     {path:'create_user',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Create User',title:'Create_User - ISLF'}},
     {path:'create_user/:id',component:UserCreateComponent,data:{ breadcrumb: 'Settings >>> Edit User',title:'Edit_User - ISLF'}},
     {path:'carriage_direction',component:CarriageDirectionSettingsComponent,data:{ breadcrumb: 'Settings >>> Carriage Configuration',title:'Carriage_Configuration - ISLF'}},
-    {path:'authorization',component:AuthorizationComponent,data:{ breadcrumb: 'Settings >>> Authorization',title:'Authorization - ISLF'}}
+    {path:'authorization',component:AuthorizationComponent,data:{ breadcrumb: 'Settings >>> Roles & Permissions',title:'Role & Permissions - ISLF'}}
 ] as Routes;
 
 

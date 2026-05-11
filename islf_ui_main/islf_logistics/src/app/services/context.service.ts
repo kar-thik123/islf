@@ -75,6 +75,40 @@ export class ContextService {
     return !!this.context.companyCode;
   }
 
+  private getUserAssignments() {
+    const authService = this.injector.get(AuthService);
+    const token = authService.getToken();
+    if (!token) return null;
+
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload);
+      
+      return {
+        role: payload.role,
+        company_code: payload.company_code ? payload.company_code.split(',').map((s: string) => s.trim()) : null,
+        branch: payload.branch ? payload.branch.split(',').map((s: string) => s.trim()) : null,
+        department: payload.department ? payload.department.split(',').map((s: string) => s.trim()) : null
+      };
+    } catch (e) {
+      console.error('Failed to decode token for context filtering', e);
+      return null;
+    }
+  }
+
+  private isBypassRole(role: string): boolean {
+    return ['SYSTEM_ADMIN', 'ADMIN'].includes(role);
+  }
+
+  isBypassRolePublic(): boolean {
+    const assignments = this.getUserAssignments();
+    return assignments ? this.isBypassRole(assignments.role) : true;
+  }
+
   loadOptions() {
     const authService = this.injector.get(AuthService);
     if (!authService.isAuthenticated()) {
@@ -82,41 +116,68 @@ export class ContextService {
       return;
     }
 
+    const assignments = this.getUserAssignments();
+    const bypass = assignments ? this.isBypassRole(assignments.role) : true;
+
     const companyService = this.injector.get(CompanyService);
     const branchService = this.injector.get(BranchService);
     const departmentService = this.injector.get(DepartmentService);
 
     companyService.getAll().pipe(
       map(companies => companies?.map(c => ({ label: c.name, value: c.code })) || []),
+      map(options => {
+        if (bypass || !assignments?.company_code) return options;
+        return options.filter(o => assignments.company_code!.includes(o.value));
+      }),
       catchError(() => of([]))
     ).subscribe(options => this.companyOptions.next(options));
 
     // Load all branches and departments initially
     branchService.getAll().pipe(
       map(branches => branches?.map(b => ({ label: b.name, value: b.code })) || []),
+      map(options => {
+        if (bypass || !assignments?.branch) return options;
+        return options.filter(o => assignments.branch!.includes(o.value));
+      }),
       catchError(() => of([]))
     ).subscribe(options => this.branchOptions.next(options));
 
     departmentService.getAll().pipe(
       map(depts => depts?.map(d => ({ label: d.name, value: d.code })) || []),
+      map(options => {
+        if (bypass || !assignments?.department) return options;
+        return options.filter(o => assignments.department!.includes(o.value));
+      }),
       catchError(() => of([]))
     ).subscribe(options => this.departmentOptions.next(options));
   }
 
   loadBranchesForCompany(companyCode: string) {
     const branchService = this.injector.get(BranchService);
+    const assignments = this.getUserAssignments();
+    const bypass = assignments ? this.isBypassRole(assignments.role) : true;
 
     branchService.getByCompany(companyCode).pipe(
       map(branches => branches?.map(b => ({ label: b.name, value: b.code })) || []),
+      map(options => {
+        if (bypass || !assignments?.branch) return options;
+        return options.filter(o => assignments.branch!.includes(o.value));
+      }),
       catchError(() => of([]))
     ).subscribe(options => this.branchOptions.next(options));
   }
 
   loadDepartmentsForBranch(branchCode: string) {
     const departmentService = this.injector.get(DepartmentService);
+    const assignments = this.getUserAssignments();
+    const bypass = assignments ? this.isBypassRole(assignments.role) : true;
 
     departmentService.getByBranch(branchCode).pipe(
       map(depts => depts?.map(d => ({ label: d.name, value: d.code })) || []),
+      map(options => {
+        if (bypass || !assignments?.department) return options;
+        return options.filter(o => assignments.department!.includes(o.value));
+      }),
       catchError(() => of([]))
     ).subscribe(options => this.departmentOptions.next(options));
   }
@@ -147,9 +208,15 @@ export class ContextService {
   }
 
   /**
-   * Trigger the context selector to be shown
+   * Trigger the context selector to be shown.
+   * For dynamic roles, if context is already fully set, this is a no-op.
+   * For bypass roles, always shows the selector.
    */
   showContextSelector() {
+    if (!this.isBypassRolePublic() && this.isContextSet()) {
+      // Dynamic user already has context set — skip the dialog
+      return;
+    }
     this.showContextSelectorSubject.next(true);
   }
 
@@ -158,5 +225,15 @@ export class ContextService {
    */
   hideContextSelector() {
     this.showContextSelectorSubject.next(false);
+  }
+
+  /**
+   * Called on initial dashboard load to trigger progressive context setup.
+   * Loads options. For dynamic roles, auto-selection happens in ContextSelectorComponent
+   * subscriptions once options emit. For bypass roles, nothing extra is needed
+   * (they always use the manual selector).
+   */
+  triggerProgressiveContextSetup() {
+    this.loadOptions();
   }
 }

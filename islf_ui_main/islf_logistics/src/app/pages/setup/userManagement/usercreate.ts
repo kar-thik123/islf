@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { UserService } from '../../../services/user.service';
-import { HttpClientModule } from '@angular/common/http';
+// Phase 4: HttpClientModule removed from standalone imports to prevent interceptor bypass.
 import { ToastService } from '../../../services/toast.service';
 import { BranchService } from '../../../services/branch.service';
 import { DepartmentService } from '@/services/department.service';
@@ -58,7 +58,7 @@ import { ConfigService } from '../../../services/config.service';
     MultiSelectModule,
     FormsModule,
     CommonModule,
-    HttpClientModule,
+    // HttpClientModule removed (Phase 4 — interceptor bypass fix)
     ConfirmDialogModule,
     TableModule,
     DialogModule,
@@ -312,17 +312,8 @@ import { ConfigService } from '../../../services/config.service';
           >
           </p-dropdown>
         </div>
-        <div class="col-span-12 md:col-span-6">
-          <label class="block font-semibold mb-1">Permissions</label>
-          <p-multiSelect
-            [options]="permissions"
-            [(ngModel)]="selectedPermissions"
-            defaultLabel="Select Permissions"
-            [disabled]="!selectedRole"
-            class="w-full"
-          >
-          </p-multiSelect>
-        </div>
+        <!-- Phase 2: Per-user permissions removed. Permissions are now configured
+             per-role via the Roles & Permissions screen (Settings > Roles & Permissions). -->
         <div class="col-span-12 md:col-span-6">
           <label class="block font-semibold mb-1">Status</label>
           <p-dropdown
@@ -791,9 +782,7 @@ import { ConfigService } from '../../../services/config.service';
 })
 export class UserCreateComponent implements OnInit {
   avatarPreview: string | ArrayBuffer | null = null;
-  selectedRole = '';
-  permissions: any[] = [];
-  selectedPermissions: any[] = [];
+  // Phase 2: selectedRole, permissions, selectedPermissions removed — permissions are role-based only.
   isManualSeries: boolean = false;
   mappedEmployeeSeriesCode: string = '';
   user = {
@@ -830,12 +819,7 @@ export class UserCreateComponent implements OnInit {
 
   departments: any[] = [];
 
-  roles = [
-    { label: 'Admin', value: 'admin' },
-    { label: 'Manager', value: 'manager' },
-    { label: 'Staff', value: 'staff' },
-    { label: 'Driver', value: 'driver' },
-  ];
+  // Phase 1: Hardcoded roles array removed. Roles loaded dynamically from master_types (key=USER_ROLE).
 
   statuses = [
     { label: 'Active', value: 'Active' },
@@ -854,26 +838,8 @@ export class UserCreateComponent implements OnInit {
     { label: 'No', value: 'No' },
   ];
 
-  rolePermissionsMap: { [key: string]: any[] } = {
-    admin: [
-      { label: 'Manage Users', value: 'manage_users' },
-      { label: 'View Reports', value: 'view_reports' },
-      { label: 'Approve Invoices', value: 'approve_invoices' },
-      { label: 'Assign Roles', value: 'assign_roles' },
-    ],
-    manager: [
-      { label: 'Approve Invoices', value: 'approve_invoices' },
-      { label: 'View Reports', value: 'view_reports' },
-    ],
-    staff: [
-      { label: 'View Shipments', value: 'view_shipments' },
-      { label: 'Update Records', value: 'update_records' },
-    ],
-    driver: [
-      { label: 'View Route', value: 'view_route' },
-      { label: 'Confirm Delivery', value: 'confirm_delivery' },
-    ],
-  };
+  // Phase 2: rolePermissionsMap removed. Per-user permissions are deprecated.
+  // Permissions are now configured per-role via the Roles & Permissions screen.
 
   usernameManuallyEdited = false;
   isEditMode = false;
@@ -903,9 +869,8 @@ export class UserCreateComponent implements OnInit {
   sourceSalesPersonName: string = '';
 
   onRoleChange(event: any) {
-    this.selectedRole = event.value;
-    this.permissions = this.rolePermissionsMap[this.selectedRole] || [];
-    this.selectedPermissions = [];
+    // Phase 2: Permission population removed — role assignment only.
+    // Permissions are configured via Settings > Roles & Permissions screen.
   }
 
   onAvatarChange(event: any) {
@@ -955,9 +920,6 @@ export class UserCreateComponent implements OnInit {
       avatar: null,
     };
     this.avatarPreview = null;
-    this.selectedRole = '';
-    this.selectedPermissions = [];
-    this.permissions = [];
     this.usernameManuallyEdited = false;
     this.isEditMode = false;
     this.userId = null;
@@ -1110,13 +1072,8 @@ export class UserCreateComponent implements OnInit {
                 if (res.user.avatar_url) {
                   this.avatarPreview = res.user.avatar_url;
                 }
-                // Set role and permissions options before assigning selectedPermissions
-                this.selectedRole = this.user.role;
-                this.permissions =
-                  this.rolePermissionsMap[this.selectedRole] || [];
-                this.selectedPermissions = res.user.permission
-                  ? res.user.permission.split(',')
-                  : [];
+                // Phase 2: Per-user permission loading removed.
+                // Role is set on the user; permissions are managed via Roles & Permissions screen.
                 // Set department options and selected departments after branch is set
                 const departmentCodes =
                   typeof res.user.department === 'string'
@@ -1302,7 +1259,7 @@ export class UserCreateComponent implements OnInit {
 
         // Role
         if (activeRoleCode && activeRoleCode.code) {
-          this.roleOptions = (types || []).filter(
+          let roles = (types || []).filter(
             (t: any) =>
               t.key &&
               t.key.trim().toLowerCase() ===
@@ -1310,6 +1267,14 @@ export class UserCreateComponent implements OnInit {
               t.status &&
               t.status.trim().toLowerCase() === 'active'
           );
+          
+          // Phase K4: Hide SYSTEM_ADMIN if current user is not SYSTEM_ADMIN
+          const currentRole = localStorage.getItem('userRole');
+          if (currentRole !== 'SYSTEM_ADMIN') {
+            roles = roles.filter((r: any) => r.value !== 'SYSTEM_ADMIN');
+          }
+          
+          this.roleOptions = roles;
         } else {
           this.roleOptions = [];
           console.log('DEBUG: No active USER_ROLE master code found');
@@ -1366,7 +1331,7 @@ export class UserCreateComponent implements OnInit {
           (this.user.employmentType as any).label
           ? (this.user.employmentType as any).label
           : this.user.employmentType,
-      permission: this.selectedPermissions.join(','),
+      permission: '', // Phase 2: deprecated — permissions are role-based, not user-based
       // Add context information for backend number series generation
       seriesCode: this.mappedEmployeeSeriesCode,
       companyCode: context.companyCode,
@@ -1450,7 +1415,7 @@ export class UserCreateComponent implements OnInit {
           (this.user.employmentType as any).label
           ? (this.user.employmentType as any).label
           : this.user.employmentType,
-      permission: this.selectedPermissions.join(','), // <-- send as comma-separated string
+      permission: '', // Phase 2: deprecated — permissions are role-based, not user-based
     };
 
     try {

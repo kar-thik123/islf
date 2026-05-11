@@ -11,8 +11,4 @@ export default [
     { path: 'forgotpassword', component: ForgotPassword, data: { title: 'Forgot Password - ISLF' }, canActivate: [NoAuthGuard] },
     { path: 'newpassword', component: NewPassword, data: { title: 'Set New Password - ISLF' }, canActivate: [NoAuthGuard] },
     { path: 'lockscreen', component: LockScreen, data: { title: 'Lock Screen - ISLF' }, canActivate: [NoAuthGuard] }
-] as Routes; 
-
-function component(arg0: { Standalone: boolean; import: (typeof CommonModule)[]; }) {
-    throw new Error('Function not implemented.');
-}
+] as Routes;

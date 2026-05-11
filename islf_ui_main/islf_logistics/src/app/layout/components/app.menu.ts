@@ -74,7 +74,7 @@ export class AppMenu {
                 routerLink: ['/settings/carriage_direction'],
               },
               {
-                label: 'Authorization',
+                label: 'Roles & Permissions',
                 icon: 'fa-solid fa-shield-halved',
                 routerLink: ['/settings/authorization'],
               },

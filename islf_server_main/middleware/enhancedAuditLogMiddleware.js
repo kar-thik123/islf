@@ -12,6 +12,26 @@ const { generateSummary } = require('../utils/summaryGenerator');
 const { getFieldSchema } = require('../config/fieldSchemas');
 
 /**
+ * Phase F — Audit Log Sanitization
+ * Replaces sensitive field values with [REDACTED] before any logging.
+ * Never modifies req.body itself — only the copy passed to log functions.
+ */
+const SENSITIVE_FIELDS = new Set([
+    'password', 'confirmPassword', 'newPassword', 'oldPassword',
+    'smtp_password', 'api_key', 'api_secret', 'token',
+    'resetToken', 'secret', 'jwt_secret', 'privateKey',
+]);
+
+function sanitizePayload(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+    const clean = {};
+    for (const [key, value] of Object.entries(obj)) {
+        clean[key] = SENSITIVE_FIELDS.has(key) ? '[REDACTED]' : value;
+    }
+    return clean;
+}
+
+/**
  * Enhanced middleware for audit logging with field-level change tracking
  */
 function enhancedAuditLogMiddleware(req, res, next) {
@@ -82,8 +102,11 @@ function enhancedAuditLogMiddleware(req, res, next) {
         // Extract record ID and name
         const recordInfo = extractRecordInfo(req, responseBody, moduleName);
 
+        // Sanitize body before passing to change detection or logging
+        const sanitizedBody = req.method !== 'GET' ? sanitizePayload(req.body) : null;
+
         // Detect changes for UPDATE/CREATE
-        const newData = req.method !== 'GET' ? req.body : null;
+        const newData = sanitizedBody;
         const fieldSchema = getFieldSchema(moduleName);
         const changes = await detectChanges(oldData, newData, fieldSchema);
 
@@ -110,14 +133,14 @@ function enhancedAuditLogMiddleware(req, res, next) {
             });
         }
 
-        // Log to system_logs (technical) - Super Admin only
+        // Log to system_logs (technical) - sanitized payload only
         await logSystemLog({
             username,
             moduleName,
             action,
             endpoint: req.originalUrl || req.url,
             method: req.method,
-            payload: req.method !== 'GET' ? req.body : req.query,
+            payload: req.method !== 'GET' ? sanitizePayload(req.body) : req.query,
             response: res.statusCode < 400 ? responseBody : null,
             status: res.statusCode >= 400 ? 'ERROR' : 'SUCCESS',
             statusCode: res.statusCode,

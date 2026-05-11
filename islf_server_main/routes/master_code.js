@@ -6,7 +6,12 @@ const { getUsernameFromToken } = require('../utils/context-helper')
 // Get all master codes
 router.get('/', async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode } = req.query;
+    const { companyCode, branchCode, departmentCode, page = 1, limit = 50 } = req.query;
+
+    // Convert to numbers and apply safe bounds
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offset = (pageNum - 1) * limitNum;
 
     let query = `
       SELECT *
@@ -36,7 +41,9 @@ router.get('/', async (req, res) => {
       }
     }
 
-    query += ` ORDER BY code ASC`;
+    // Add pagination safely
+    query += ` ORDER BY code ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limitNum, offset);
 
     const result = await pool.query(query, params);
     res.json(result.rows);

@@ -72,24 +72,27 @@ export class AppTopbar implements OnInit {
         public contextService: ContextService
     ) {
         this.userName = this.authService.getUserName();
-        this.userAvatar = '/layout/images/avatar.png'; // Default avatar
+        this.userAvatar = 'assets/layout/images/avatar.svg'; // Default avatar
         this.showContextDialog$ = this.contextService.showContextSelector$;
 
-        if (this.userName && /^[a-zA-Z0-9_-]+$/.test(this.userName)) {
-            this.userService.getUserByUsername(this.userName).subscribe({
+        if (this.userName) {
+            this.userService.getMyProfile().subscribe({
                 next: (res) => {
-                    this.userAvatar = res.user.avatar_url || '/layout/images/avatar.png';
+                    this.userAvatar = res.user.avatar_url || 'assets/layout/images/avatar.svg';
                 },
                 error: () => {
-                    this.userAvatar = '/layout/images/avatar.png';
+                    this.userAvatar = 'assets/layout/images/avatar.svg';
                 }
             });
         }
     }
 
     ngOnInit() {
-        // Initialize context options
-        this.contextService.loadOptions();
+        // Trigger progressive context setup:
+        // - Loads all context options
+        // - For dynamic roles, auto-selection fires via ContextSelectorComponent subscriptions
+        // - For bypass roles, the manual selector is always available
+        this.contextService.triggerProgressiveContextSetup();
     }
 
     onMenuButtonClick() {

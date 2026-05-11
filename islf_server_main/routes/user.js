@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const pool = require("../db");
 const router = express.Router();
+const selfProfileRouter = express.Router();
 const {
   getUsernameFromToken,
   fieldChangeDetection,
@@ -97,6 +98,11 @@ async function findMappingByContext(
 
 // Create user
 router.post("/", async (req, res) => {
+  // Phase K4: Protect SYSTEM_ADMIN role assignment
+  if (req.body.role === 'SYSTEM_ADMIN' && req.user.role !== 'SYSTEM_ADMIN') {
+    return res.status(403).json({ message: "Access denied: Only SYSTEM_ADMIN can assign SYSTEM_ADMIN role." });
+  }
+
   const {
     fullName,
     employeeId,
@@ -122,6 +128,7 @@ router.post("/", async (req, res) => {
     company_code,
     branch_code,
     department_code,
+    source_sales_code,
   } = req.body;
 
   try {
@@ -376,7 +383,12 @@ router.post("/", async (req, res) => {
 // Get all users
 router.get("/", async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode } = req.query;
+    const { companyCode, branchCode, departmentCode, page = 1, limit = 50 } = req.query;
+    
+    // Convert to numbers and apply safe bounds
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offset = (pageNum - 1) * limitNum;
 
     let query = `
       SELECT id, full_name, employee_id, designation, joining_date, status, bio, permission
@@ -405,7 +417,9 @@ router.get("/", async (req, res) => {
       }
     }
 
-    query += ` ORDER BY id ASC`;
+    // Add pagination safely
+    query += ` ORDER BY id ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryParams.push(limitNum, offset);
 
     const result = await pool.query(query, queryParams);
     const users = result.rows.map((user) => ({
@@ -464,8 +478,30 @@ router.get("/by-username/:username", async (req, res) => {
 
 // Update user by ID
 router.put("/:id", async (req, res) => {
+  // Phase K4: Protect SYSTEM_ADMIN role assignment
+  if (req.body.role === 'SYSTEM_ADMIN' && req.user.role !== 'SYSTEM_ADMIN') {
+    return res.status(403).json({ message: "Access denied: Only SYSTEM_ADMIN can assign SYSTEM_ADMIN role." });
+  }
+
   try {
     const { id } = req.params;
+
+    // Phase K6: Protect bootstrap accounts (islf_root, islf_admin)
+    const currentUserRes = await pool.query("SELECT username, role, status FROM users WHERE id = $1", [id]);
+    if (currentUserRes.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const currentUser = currentUserRes.rows[0];
+
+    if (currentUser.username === 'islf_root' || currentUser.username === 'islf_admin') {
+      if (req.body.role && req.body.role !== currentUser.role) {
+        return res.status(403).json({ message: `Access denied: Cannot change role of protected account ${currentUser.username}.` });
+      }
+      if (req.body.status && req.body.status !== 'Active') {
+        return res.status(403).json({ message: `Access denied: Cannot deactivate protected account ${currentUser.username}.` });
+      }
+    }
+
     const {
       fullName,
       employeeId,
@@ -557,4 +593,25 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+// Phase N2: Self-Profile endpoint
+selfProfileRouter.get("/", async (req, res) => {
+  try {
+    const username = req.user.username;
+    const result = await pool.query(
+      "SELECT id, username, email, full_name, role, avatar_url, branch, department, company_code FROM users WHERE username = $1",
+      [username]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ user: result.rows[0] });
+  } catch (err) {
+    console.error("Error fetching self profile:", err);
+    res.status(500).json({ message: "Database error", error: err });
+  }
+});
+
+module.exports = {
+  userRouter: router,
+  selfProfileRouter
+};

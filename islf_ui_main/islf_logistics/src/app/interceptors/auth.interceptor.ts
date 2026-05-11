@@ -33,8 +33,8 @@ export const AuthInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: any) => {
-      if (error && (error.status === 401 || error.status === 403)) {
-        console.warn(`AuthInterceptor: ${error.status} error for ${req.url}`);
+      if (error && error.status === 401) {
+        console.warn(`AuthInterceptor: 401 error for ${req.url}`);
         const hasToken = !!authService.getToken();
         authService.logout(true); // Clear credentials but keep username for lockscreen
 
@@ -44,6 +44,8 @@ export const AuthInterceptor: HttpInterceptorFn = (req, next) => {
         } else {
           router.navigate(['/auth/login']);
         }
+      } else if (error && error.status === 403) {
+        console.warn(`AuthInterceptor: 403 Forbidden for ${req.url} - keeping session intact`);
       }
       return throwError(() => error);
     })

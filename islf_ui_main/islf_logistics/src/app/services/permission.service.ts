@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AuthService } from './auth.service';
+import { isAdminBypassRole } from '../constants/roles';
 
 export interface ModulePermission {
   module_name: string;
@@ -28,9 +29,18 @@ export class PermissionService {
     return [];
   }
 
-  canRead(moduleName: string, subModuleName: string): boolean {
+  /**
+   * Phase K1: Admin bypass uses centralized isAdminBypassRole() instead of
+   * hardcoded string comparisons. This supports SYSTEM_ADMIN, ADMIN, and
+   * legacy 'admin' roles transparently.
+   */
+  private hasAdminBypass(): boolean {
     const role = localStorage.getItem('userRole');
-    if (role && role.toLowerCase() === 'admin') return true;
+    return isAdminBypassRole(role);
+  }
+
+  canRead(moduleName: string, subModuleName: string): boolean {
+    if (this.hasAdminBypass()) return true;
 
     const perms = this.getPermissions();
     if (perms.length === 0) return false;
@@ -40,8 +50,7 @@ export class PermissionService {
   }
 
   canWrite(moduleName: string, subModuleName: string): boolean {
-    const role = localStorage.getItem('userRole');
-    if (role && role.toLowerCase() === 'admin') return true;
+    if (this.hasAdminBypass()) return true;
 
     const perms = this.getPermissions();
     if (perms.length === 0) return false;
@@ -51,8 +60,7 @@ export class PermissionService {
   }
 
   canDelete(moduleName: string, subModuleName: string): boolean {
-    const role = localStorage.getItem('userRole');
-    if (role && role.toLowerCase() === 'admin') return true;
+    if (this.hasAdminBypass()) return true;
 
     const perms = this.getPermissions();
     if (perms.length === 0) return false;

@@ -81,8 +81,8 @@ export class AppProfileSidebar implements OnInit {
     }
 
     ngOnInit() {
-        if (this.userName && /^[a-zA-Z0-9_-]+$/.test(this.userName)) {
-            this.userService.getUserByUsername(this.userName).subscribe({
+        if (this.userName) {
+            this.userService.getMyProfile().subscribe({
                 next: (res) => {
                     this.fullName = res.user.full_name;
                     this.userId = res.user.id;

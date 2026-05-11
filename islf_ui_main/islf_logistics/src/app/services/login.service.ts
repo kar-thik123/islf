@@ -45,6 +45,10 @@ export class LoginService {
     localStorage.removeItem('jwt_token');
     sessionStorage.removeItem('jwt_token');
     
+    // Clear RBAC permissions and role — must not persist across sessions
+    localStorage.removeItem('userPermissions');
+    localStorage.removeItem('userRole');
+
     // Only clear username if not preserving it (for session timeout)
     if (!preserveUsername) {
       localStorage.removeItem('user_name');

@@ -30,7 +30,7 @@ router.get('/:roleName', async (req, res) => {
   const { roleName } = req.params;
   try {
     const result = await pool.query(
-      "SELECT module_name, sub_module_name, can_read, can_write, can_delete FROM role_module_permissions WHERE role_name = $1",
+      "SELECT module_name, sub_module_name, can_read, can_write, can_delete FROM role_module_permissions WHERE role_name = $1 ORDER BY module_name ASC, sub_module_name ASC",
       [roleName]
     );
     res.json({ permissions: result.rows });
@@ -47,6 +47,14 @@ router.post('/:roleName', async (req, res) => {
 
   if (!roleName || !Array.isArray(permissions)) {
     return res.status(400).json({ error: "Invalid request body" });
+  }
+
+  // Phase K4: Protect IT Setup permissions from non-SYSTEM_ADMIN users
+  if (req.user.role !== 'SYSTEM_ADMIN') {
+    const hasITSetup = permissions.some(p => p.module_name === 'Settings' && p.sub_module_name === 'IT Setup');
+    if (hasITSetup) {
+      return res.status(403).json({ message: "Access denied: Only SYSTEM_ADMIN can configure IT Setup." });
+    }
   }
 
   const client = await pool.connect();

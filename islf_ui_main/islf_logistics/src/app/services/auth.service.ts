@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, ReplaySubject } from 'rxjs';
 import { LoginService } from './login.service';
 import { ContextService } from './context.service';
+import { UserService } from './user.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +15,7 @@ export class AuthService {
   public isReady$ = this.isReadySubject.asObservable();
 
   public isLoggingOut = false;
+  private userService = inject(UserService);
 
   constructor(private loginService: LoginService, private contextService: ContextService) {
     // Check initial authentication state
@@ -41,6 +43,9 @@ export class AuthService {
     this.contextService.clearContext();
     this.contextService.hideContextSelector();
 
+    // Clear user profile cache on logout
+    this.userService.clearProfileCache();
+
     // Then clear the token
     this.loginService.logout(preserveUsername);
 
@@ -55,6 +60,7 @@ export class AuthService {
 
   login(token: string, name: string, rememberMe: boolean): void {
     this.isLoggingOut = false;
+    this.userService.clearProfileCache(); // Ensure fresh profile on login
     this.loginService.setToken(token, rememberMe);
     this.loginService.setUserName(name, rememberMe);
     console.log('User logged in, setting auth state to true');

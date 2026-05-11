@@ -69,16 +69,21 @@ async function seedAdmin() {
 
     // 3. Create or update admin user
     const hashed = await bcrypt.hash(passwordRaw, 10);
-    const userExist = await client.query("SELECT * FROM users WHERE username = $1", ["admin"]);
-    
+    // Check by both username AND email to avoid duplicate key errors
+    const userExist = await client.query(
+      "SELECT * FROM users WHERE username = $1 OR email = $2",
+      ["admin", "admin@example.com"]
+    );
+
     if (userExist.rows.length > 0) {
-      console.log("Admin user already exists. Updating role and asserting permissions.");
-      await client.query("UPDATE users SET role = $1 WHERE username = 'admin'", [roleName]);
+      const existingUser = userExist.rows[0];
+      console.log(`Admin user already exists (username: ${existingUser.username}, email: ${existingUser.email}). Updating username, password and role.`);
+      await client.query(
+        "UPDATE users SET username = $1, password = $2, role = $3 WHERE id = $4",
+        ["admin", hashed, roleName, existingUser.id]
+      );
     } else {
       console.log("Creating new admin user: admin / admin123");
-      // Check user table columns
-      // If we don't have enough defaults, just an insert.
-      // Will insert basic requirements.
       const timestampId = "EMP-ADMIN";
       await client.query(`
         INSERT INTO users (username, password, email, full_name, role, status, employee_id) 

@@ -621,7 +621,7 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
       case 'year_build':
         if (!value) return 'Year Build is required';
         const year = value instanceof Date ? value.getFullYear() : parseInt(value);
-        if (isNaN(year) || year < 1900 || year > 2100) return 'Invalid 4-digit year';
+        if (isNaN(year) || year < 1700 || year > 2500) return 'Invalid 4-digit year';
         break;
       case 'imo_number':
         if (value && typeof value === 'string' && value.trim() !== '') {

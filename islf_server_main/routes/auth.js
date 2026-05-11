@@ -4,13 +4,27 @@ const bcrypt = require("bcryptjs");
 const router = express.Router();
 const pool = require("../db");
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+// SECURITY: JWT_SECRET is validated at startup in middleware/auth.js.
+// By the time this module loads, the process would have exited if it were missing.
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// Debug: log the JWT secret being used
-console.log("Auth JWT_SECRET loaded:", JWT_SECRET);
+// Phase F — Rate limiting (D12 closure)
+const { loginLimiter } = require('../middleware/rateLimiters');
 
-// Register user
+// Phase K1: centralized role constants (replaces hardcoded 'admin' checks)
+const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
+
+// POST /register — Phase F: requires authenticated admin.
+// Public registration is disabled (D8 closure). Use POST /api/user for user creation.
 router.post("/register", async (req, res) => {
+  // Defence-in-depth: even if whitelist is misconfigured, only admin-tier roles may call this.
+  // Phase K1: uses ADMIN_BYPASS_ROLES set instead of hardcoded 'admin' string.
+  if (!req.user || !ADMIN_BYPASS_ROLES.has(req.user.role)) {
+    return res.status(403).json({
+      message: "Access denied: user registration is not publicly available. Contact your administrator."
+    });
+  }
+
   const { username, email, phone, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ message: "Username and password required" });
@@ -41,8 +55,8 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login user
-router.post("/login", async (req, res) => {
+// POST /login — Phase F: rate limited (10 req / 15 min per IP).
+router.post("/login", loginLimiter, async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) {
     return res
@@ -59,10 +73,6 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Debug: log user data
-    console.log("User data from database:", user);
-    console.log("Full name:", user.full_name);
-    console.log("Username:", user.username);
 
     // Fetch session timeout from settings
     const timeoutResult = await pool.query("SELECT value FROM settings WHERE key = 'session_timeout'");
@@ -75,6 +85,13 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
         name: user.full_name || user.username,
+        // Phase E: role embedded in JWT — eliminates per-request DB lookup in rbacEnforcer.
+        // Old tokens without this field continue to work via the DB fallback.
+        role: user.role || null,
+        // Phase M1: Context embedded in JWT
+        branch: user.branch || null,
+        department: user.department || null,
+        company_code: user.company_code || null,
       },
       JWT_SECRET,
       { expiresIn: expiresIn }
@@ -90,14 +107,6 @@ router.post("/login", async (req, res) => {
       permissions = permResult.rows;
     }
 
-    // Debug: log token payload
-    console.log("JWT token payload:", {
-      userId: user.id,
-      username: user.username,
-      email: user.email,
-      name: user.full_name || user.username,
-      role: user.role
-    });
     res.json({ token, name: user.username, role: user.role, permissions });
   } catch (err) {
     res.status(500).json({ message: "Database error", error: err.message });
@@ -139,8 +148,14 @@ router.post("/verify-password", async (req, res) => {
         username: user.username,
         email: user.email,
         name: user.full_name || user.username,
+        // Phase E: role embedded — keeps lockscreen token consistent with login token.
+        role: user.role || null,
+        // Phase M1: Context embedded in JWT
+        branch: user.branch || null,
+        department: user.department || null,
+        company_code: user.company_code || null,
       },
-      process.env.JWT_SECRET || "your_jwt_secret",
+      process.env.JWT_SECRET,
       { expiresIn: expiresIn }
     );
 
@@ -166,5 +181,47 @@ router.post("/verify-password", async (req, res) => {
   }
 });
 
+// Phase J — Token revocation on logout
+const { revokeToken, evictTokenCache } = require('../utils/tokenRevocation');
+
+// POST /logout — Phase J: revoke the current token.
+// The token is hashed and stored in revoked_tokens. Raw token is NEVER persisted.
+// Also whitelisted in middleware/auth.js so expired tokens can be revoked.
+router.post("/logout", async (req, res) => {
+  const rawToken = req.rawToken; // populated by authenticateToken even for whitelisted paths
+  if (!rawToken) {
+    // Already logged out or no token sent — treat as success
+    return res.json({ message: "Logged out successfully." });
+  }
+
+  try {
+    // Extract exp claim (may be undefined for tokens without expiry)
+    let expiresAt = null;
+    try {
+      const decoded = jwt.decode(rawToken);
+      if (decoded && decoded.exp) {
+        expiresAt = new Date(decoded.exp * 1000);
+      }
+    } catch { /* leave expiresAt null */ }
+
+    const userId = req.user?.userId || null;
+
+    // Evict from in-memory cache before DB update to ensure next check hits DB
+    evictTokenCache(rawToken);
+
+    await revokeToken(rawToken, userId, expiresAt, pool);
+    console.log(`🔒 [Logout] Token revoked for user_id=${userId} expires=${expiresAt}`);
+    return res.json({ message: "Logged out successfully. Session revoked." });
+  } catch (err) {
+    if (err.code === '42P01') {
+      // Table doesn't exist — still allow the logout response so client clears its token
+      console.warn('[Logout] revoked_tokens table missing — logout acknowledged without server-side revocation.');
+      return res.json({ message: "Logged out (server-side revocation unavailable — table not ready)." });
+    }
+    console.error('[Logout] Error revoking token:', err.message);
+    // Return 200 anyway — client should still discard its local token
+    return res.json({ message: "Logged out. Token revocation encountered an error." });
+  }
+});
 
 module.exports = router;
