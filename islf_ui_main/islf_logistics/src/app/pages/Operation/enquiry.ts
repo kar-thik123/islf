@@ -1,4 +1,5 @@
 import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -119,7 +120,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
     TreeTableModule,
     TabViewModule,
     ConfigDatePipe,
-  ],
+  
+    HasPermissionDirective
+],
   providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
@@ -156,13 +159,15 @@ import { MasterCacheService } from '../../services/master-cache.service';
             class="flex justify-between items-center flex-col sm:flex-row gap-2"
           >
             <div class="flex gap-2">
-              <button
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                 pButton
                 type="button"
                 label="Create Enquiry"
                 icon="pi pi-plus"
                 (click)="addEnquiry()"
               ></button>
+</ng-container>
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
@@ -302,12 +307,14 @@ import { MasterCacheService } from '../../services/master-cache.service';
               </span>
             </td>
             <td>
-              <button
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                 pButton
                 icon="pi pi-pencil"
                 (click)="editEnquiry(enquiry)"
                 class="p-button-sm"
               ></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>
@@ -910,7 +917,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 <h3>Carriage List</h3>
               </div>
               <div class="mb-3 flex items-center gap-2">
-                <button
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                   pButton
                   type="button"
                   label="Add carriage"
@@ -918,6 +926,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   (click)="addCarriageRow()"
                   class="p-button-sm"
                 ></button>
+</ng-container>
               </div>
               <p-table
                 [value]="carriageMappings"
@@ -968,13 +977,15 @@ import { MasterCacheService } from '../../services/master-cache.service';
                       ></p-dropdown>
                     </td>
                     <td>
-                      <button
+                      <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'delete' }">
+<button
                         pButton
                         type="button"
                         icon="pi pi-trash"
                         class="p-button-danger p-button-text"
                         (click)="removeCarriageRow(i)"
                       ></button>
+</ng-container>
                     </td>
                   </tr>
                 </ng-template>
@@ -995,7 +1006,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
           </div>
           <div class="grid-container">
             <div class="mb-3 flex items-center gap-2">
-              <button
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                 pButton
                 type="button"
                 label="Add Line Item"
@@ -1003,6 +1015,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 (click)="addLineItem()"
                 class="p-button-sm"
               ></button>
+</ng-container>
               <button
                 pButton
                 type="button"
@@ -1173,7 +1186,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
                         pTooltip="Query Sourcing Table with matching conditions"
                       ></button>
 
-                      <button
+                      <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'delete' }">
+<button
                         pButton
                         type="button"
                         label="Delete"
@@ -1182,21 +1196,26 @@ import { MasterCacheService } from '../../services/master-cache.service';
                         class="p-button-danger"
                         pTooltip="Delete line item and its selected vendors"
                       ></button>
+</ng-container>
 
-                      <!--<button
+                      <!--<ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                         pButton
                         icon="pi pi-pencil"
                         (click)="editLineItem(i)"
                         class="p-button-warning p-button-sm p-button-text"
                         pTooltip="Edit Row"
                       ></button>
-                      <button
+</ng-container>
+                      <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'delete' }">
+<button
                         pButton
                         icon="pi pi-trash"
                         (click)="deleteLineItem(i)"
                         class="p-button-danger p-button-sm p-button-text"
                         pTooltip="Delete Row"
-                      ></button> -->
+                      ></button>
+</ng-container> -->
                     </div>
                   </td>
                 </tr>
@@ -1253,7 +1272,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 class="p-button-sm"
                 pTooltip="Generate Mail Template based on Active Vendor Card + Customer Details"
               ></button>
-              <button
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                 pButton
                 type="button"
                 label="Save"
@@ -1262,6 +1282,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 class="p-button-success"
                 pTooltip="Save enquiry to Enquiry Table"
               ></button>
+</ng-container>
               <button
                 pButton
                 type="button"
@@ -1581,7 +1602,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
             >
               <div class="flex justify-between items-center">
                 <h4>{{ getVendorName(vendor.vendor_name) }} - Charges</h4>
-                <button
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'delete' }">
+<button
                   pButton
                   type="button"
                   icon="pi pi-trash"
@@ -1589,7 +1611,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   (click)="removeSelectedSourcingVendor(vendor)"
                   pTooltip="Remove Vendor"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'write' }">
+<button
                   pButton
                   type="button"
                   label="Get Tariff"
@@ -1598,6 +1622,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   (click)="getTariffForVendor(vendor)"
                   pTooltip="Fetch tariff for this vendor"
                 ></button>
+</ng-container>
               </div>
 
               <p-table [value]="vendor.sub_charges || []">
@@ -1996,7 +2021,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
                        <strong>Route:</strong> {{ getLocationName(vendor.from_location) }} <strong>&rarr;</strong> {{ getLocationName(vendor.to_location)  }}
                     </span>
                 </h4>
-                <button
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Enquiry', action: 'delete' }">
+<button
                   pButton
                   type="button"
                   icon="pi pi-trash"
@@ -2004,6 +2030,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   (click)="removeSelectedTariffVendor(vendor)"
                   pTooltip="Remove Vendor"
                 ></button>
+</ng-container>
               </div>
 
               <p-table [value]="vendor.selected_subcharges || []">

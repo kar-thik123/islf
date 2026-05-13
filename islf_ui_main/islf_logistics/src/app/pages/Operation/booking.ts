@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -61,7 +62,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
     TabViewModule,
     InputNumberModule,
 
-  ],
+  
+    HasPermissionDirective
+],
   providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
@@ -90,7 +93,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
             <div class="flex gap-2">
-              <button pButton label="Create Booking" icon="pi pi-plus" (click)="openCreateDialog()"></button>
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'write' }">
+<button pButton label="Create Booking" icon="pi pi-plus" (click)="openCreateDialog()"></button>
+</ng-container>
             </div>
             <div class="flex gap-2">
               <span class="p-input-icon-left">
@@ -162,7 +167,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
             
             <td>
             <div style="display:flex;gap:6px;justify-content:center">
-              <button pButton  icon="pi pi-pencil" class="p-button-sm" (click)="openBooking(row.booking_no)" pTooltip="Edit Booking" tooltipPosition="top"></button>
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'write' }">
+<button pButton  icon="pi pi-pencil" class="p-button-sm" (click)="openBooking(row.booking_no)" pTooltip="Edit Booking" tooltipPosition="top"></button>
+</ng-container>
               <button pButton icon="pi pi-link" class="p-button-sm" (click)="openLinkEnquiryDialog(row)" pTooltip="Link Enquiry" tooltipPosition="top"></button>
             </div>
             </td>
@@ -242,7 +249,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
       </div>
 
       <ng-template pTemplate="footer">
-        <button pButton [label]="linkTargetBooking ? 'Append' : 'Save'" icon="pi pi-check" (click)="saveFromEnquiries()"></button>
+        <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'write' }">
+<button pButton [label]="linkTargetBooking ? 'Append' : 'Save'" icon="pi pi-check" (click)="saveFromEnquiries()"></button>
+</ng-container>
         <button pButton label="Cancel" class="p-button-secondary" (click)="onCreateBookingCancel()"></button>
       </ng-template>
     </p-dialog>
@@ -339,7 +348,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
             <td>
               <p-dropdown [(ngModel)]="cg.hs_code" [options]="cg._hsCodeOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"  appendTo="body" class="w-60" [style]="{'width':'150px'}"></p-dropdown>
             </td>
-            <td><button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCargoRow(i)"></button></td>
+            <td><ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCargoRow(i)"></button>
+</ng-container></td>
           </tr>
         </ng-template>
       </p-table>
@@ -622,7 +633,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 <p-calendar [(ngModel)]="trn.eta" [showIcon]="true" [dateFormat]="configService.calendarDateFormat" appendTo="body" class="w-60" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-calendar>
               </td>
               <td>
-                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeTransitRow(i)"></button>
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeTransitRow(i)"></button>
+</ng-container>
               </td>
             </tr>
           </ng-template>
@@ -674,7 +687,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
               <textarea pInputTextarea [rows]="1" [autoResize]="true" [(ngModel)]="bk.remarks" placeholder="Remarks" class="w-full"></textarea>
             </td>
             <td>
-              <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBreakupRow(i)"></button>
+              <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBreakupRow(i)"></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>
@@ -721,7 +736,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 <p-dropdown [(ngModel)]="cb.empty_yard" [options]="subVendorOptions" placeholder="Select Vendor" (onShow)="triggerSubVendorTypeSelection()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}" class="bg-orange-50"></p-dropdown>
               </td>
               <td>
-                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'container')"></button>
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'container')"></button>
+</ng-container>
               </td>
             </tr>
           </ng-template>
@@ -777,7 +794,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 <p-dropdown [(ngModel)]="pb.carting" [options]="subVendorOptions" placeholder="Select Vendor" (onShow)="triggerSubVendorTypeSelection()" appendTo="body" [filter]="true" filterBy="label" [style]="{'width':'100%'}" class="bg-orange-50"></p-dropdown>
               </td>
               <td>
-                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'package')"></button>
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeSubBreakupRow(i, 'package')"></button>
+</ng-container>
               </td>
             </tr>
           </ng-template>
@@ -819,7 +838,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
           </div>
           <ng-template pTemplate="footer">
             <button pButton label="Cancel" class="p-button-text" icon="pi pi-times" (click)="showBulkApplyDialog = false"></button>
-            <button pButton label="Apply" class="p-button-sm" icon="pi pi-check" (click)="applyBulkQuoteMapping(); showBulkApplyDialog = false"></button>
+            <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'write' }">
+<button pButton label="Apply" class="p-button-sm" icon="pi pi-check" (click)="applyBulkQuoteMapping(); showBulkApplyDialog = false"></button>
+</ng-container>
           </ng-template>
         </p-dialog>
 
@@ -882,7 +903,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 ></p-dropdown>
               </td>
               <td>
-                <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeQuoteMappingRow(i)"></button>
+                <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeQuoteMappingRow(i)"></button>
+</ng-container>
               </td>
             </tr>
           </ng-template>
@@ -897,7 +920,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
       </p-dialog>
       <div class="flex justify-end gap-2 mt-4">
         <button pButton icon="pi pi-times" label="Cancel" class="p-button-text" (click)="showBookingForm=false"></button>
-        <button pButton label="Save" icon="pi pi-save" class="p-button-sm" (click)="finalSave()"></button>
+        <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'write' }">
+<button pButton label="Save" icon="pi pi-save" class="p-button-sm" (click)="finalSave()"></button>
+</ng-container>
       </div>
       </div>
       </ng-template>
@@ -1179,7 +1204,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
       </ng-template>
       <ng-template pTemplate="footer">
         <button pButton label="Cancel" class="p-button-secondary" (click)="closeBulkEntryDialog()"></button>
-        <button pButton label="Apply" icon="pi pi-check" (click)="submitBulkEntry()"></button>
+        <ng-container *appHasPermission="{ module: 'Operations', subModule: 'Booking', action: 'write' }">
+<button pButton label="Apply" icon="pi pi-check" (click)="submitBulkEntry()"></button>
+</ng-container>
       </ng-template>
     </p-dialog>
   `,

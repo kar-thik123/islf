@@ -18,6 +18,7 @@ import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ContextService } from '../../services/context.service';
 import { MasterCacheService } from '../../services/master-cache.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 interface PageFieldOption {
   label: string;
   value: string;
@@ -39,7 +40,8 @@ interface PageFieldOption {
     InputSwitchModule,
     ToastModule,
     IconFieldModule,
-    InputIconModule
+    InputIconModule,
+    HasPermissionDirective
   ],
   template: `
     <p-toast></p-toast>
@@ -60,7 +62,9 @@ interface PageFieldOption {
         <!-- 🔍 Global Filter + Clear -->
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Master" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Master Code', action: 'write' }">
+              <button pButton type="button" label="Add Master" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            </ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <p-iconfield iconPosition="left" class="ml-auto">
               <p-inputicon>
@@ -177,32 +181,36 @@ interface PageFieldOption {
             </td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button
-                  pButton
-                  icon="pi pi-pencil"
-                  class="p-button-sm"
-                  (click)="editRow(master)"
-                  title="Edit"
-                  *ngIf="!master.isEditing && !master.isNew"
-                ></button>
-                <button
-                  pButton
-                  icon="pi pi-check"
-                  class="p-button-sm"
-                  (click)="saveRow(master)"
-                  title="Save"
-                  [disabled]="!isMasterValid(master)"
-                  *ngIf="master.isEditing || master.isNew"
-                ></button>
-                <button
-                *ngIf="master.isNew"
-                  pButton
-                  icon="pi pi-trash"
-                  class="p-button-sm"
-                  severity="danger"
-                  (click)="deleteRow(master)"
-                  title="Delete"
-                ></button>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Master Code', action: 'write' }">
+                  <button
+                    pButton
+                    icon="pi pi-pencil"
+                    class="p-button-sm"
+                    (click)="editRow(master)"
+                    title="Edit"
+                    *ngIf="!master.isEditing && !master.isNew"
+                  ></button>
+                  <button
+                    pButton
+                    icon="pi pi-check"
+                    class="p-button-sm"
+                    (click)="saveRow(master)"
+                    title="Save"
+                    [disabled]="!isMasterValid(master)"
+                    *ngIf="master.isEditing || master.isNew"
+                  ></button>
+                </ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Master Code', action: 'delete' }">
+                  <button
+                  *ngIf="master.isNew"
+                    pButton
+                    icon="pi pi-trash"
+                    class="p-button-sm"
+                    severity="danger"
+                    (click)="deleteRow(master)"
+                    title="Delete"
+                  ></button>
+                </ng-container>
               </div>
             </td>
           </tr>

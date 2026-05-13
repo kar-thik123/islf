@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
@@ -13,7 +14,9 @@ import { ConfigService } from '../../services/config.service';
 @Component({
   selector: 'carriage-direction-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, CheckboxModule, ButtonModule, ToastModule, InputTextModule],
+  imports: [CommonModule, FormsModule, TableModule, CheckboxModule, ButtonModule, ToastModule, InputTextModule,
+    HasPermissionDirective
+],
   providers: [MessageService],
   template: `
     <div class="card">
@@ -57,7 +60,9 @@ import { ConfigService } from '../../services/config.service';
               <div class="flex justify-between items-center w-full">
                 <span class="text-sm">Total Carriage: {{ rows?.length || 0 }}</span>
                 <div>
-                  <button pButton label="Save" icon="pi pi-save" (click)="save()" class="p-button-primary"></button>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Carriage Direction', action: 'write' }">
+<button pButton label="Save" icon="pi pi-save" (click)="save()" class="p-button-primary"></button>
+</ng-container>
                 </div>
               </div>
             </td>

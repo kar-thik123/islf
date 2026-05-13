@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { HasPermissionDirective } from '../../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -29,7 +30,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
 @Component({
   selector: 'app-company-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TableModule, DropdownModule, ToastModule, TabsModule, ConfirmDialogModule, ConfigDatePipe, CalendarModule],
+  imports: [CommonModule, FormsModule, DialogModule, InputTextModule, ButtonModule, TableModule, DropdownModule, ToastModule, TabsModule, ConfirmDialogModule, ConfigDatePipe, CalendarModule,
+    HasPermissionDirective
+],
   providers: [ConfirmationService, MessageService],
   template: `
     <div class="md:w-full">
@@ -124,7 +127,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                           <div class="text-xs text-gray-500">Incharge: {{ branch.incharge_name }}</div>
                         </div>
                       </div>
-                      <button pButton icon="pi pi-plus" label="Add Department" class="p-button-sm p-button-success" (click)="openDepartmentDialog(branch)"></button>
+                      <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-plus" label="Add Department" class="p-button-sm p-button-success" (click)="openDepartmentDialog(branch)"></button>
+</ng-container>
                     </div>
                   </div>
                   
@@ -195,7 +200,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                               <div class="text-xs text-gray-500">Incharge: {{ dept.incharge_name }}</div>
                             </div>
                           </div>
-                          <button pButton icon="pi pi-plus" label="Add Service Type" class="p-button-sm p-button-success" (click)="openServiceTypeDialog(dept)"></button>
+                          <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-plus" label="Add Service Type" class="p-button-sm p-button-success" (click)="openServiceTypeDialog(dept)"></button>
+</ng-container>
                         </div>
                       </div>
                       
@@ -298,7 +305,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <ng-template pTemplate="footer">
             <div class="text-right">
               <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeCompanyDialog()"></button>
-              <button pButton label="Save" class="p-button-primary" type="button" (click)="saveCompany()"></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" type="button" (click)="saveCompany()"></button>
+</ng-container>
             </div>
           </ng-template>
         </p-dialog>
@@ -373,7 +382,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <ng-template pTemplate="footer">
             <div class="text-right">
               <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeBranchDialog()"></button>
-              <button pButton label="Save" class="p-button-primary" type="button" (click)="saveBranch()"></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" type="button" (click)="saveBranch()"></button>
+</ng-container>
             </div>
           </ng-template>
         </p-dialog>
@@ -449,7 +460,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <ng-template pTemplate="footer">
             <div class="text-right">
               <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeDepartmentDialog()"></button>
-              <button pButton label="Save" class="p-button-primary" type="button" (click)="saveDepartment()"></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" type="button" (click)="saveDepartment()"></button>
+</ng-container>
             </div>
           </ng-template>
         </p-dialog>
@@ -517,7 +530,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
           <ng-template pTemplate="footer">
             <div class="text-right">
               <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeServiceTypeDialog()"></button>
-              <button pButton label="Save" class="p-button-primary" type="button" (click)="saveServiceType()"></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" type="button" (click)="saveServiceType()"></button>
+</ng-container>
             </div>
           </ng-template>
         </p-dialog>
@@ -568,8 +583,12 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>
                   <div class="flex gap-1">
                     <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
-                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
-                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCompanyDocument(rowIndex)" pTooltip="Delete Document"></button>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+</ng-container>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeCompanyDocument(rowIndex)" pTooltip="Delete Document"></button>
+</ng-container>
                   </div>
                 </td>
               </tr>
@@ -577,7 +596,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
             <ng-template pTemplate="footer">
               <tr>
                 <td colspan="6">
-                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addCompanyDocument()"></button>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Add Document" icon="pi pi-plus" (click)="addCompanyDocument()"></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
@@ -636,8 +657,12 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>
                   <div class="flex gap-1">
                     <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
-                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
-                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBranchDocument(rowIndex)" pTooltip="Delete Document"></button>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+</ng-container>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeBranchDocument(rowIndex)" pTooltip="Delete Document"></button>
+</ng-container>
                   </div>
                 </td>
               </tr>
@@ -645,7 +670,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
             <ng-template pTemplate="footer">
               <tr>
                 <td colspan="6">
-                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addBranchDocument()"></button>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Add Document" icon="pi pi-plus" (click)="addBranchDocument()"></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
@@ -704,8 +731,12 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>
                   <div class="flex gap-1">
                     <button pButton icon="pi pi-eye" class="p-button-sm p-button-outlined" (click)="viewDocument(document)" *ngIf="document.id" pTooltip="View Document"></button>
-                    <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
-                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDepartmentDocument(rowIndex)" pTooltip="Delete Document"></button>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" (click)="downloadDocument(document)" *ngIf="document.id" pTooltip="Download Document"></button>
+</ng-container>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="removeDepartmentDocument(rowIndex)" pTooltip="Delete Document"></button>
+</ng-container>
                   </div>
                 </td>
               </tr>
@@ -713,7 +744,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
             <ng-template pTemplate="footer">
               <tr>
                 <td colspan="6">
-                  <button pButton label="Add Document" icon="pi pi-plus" (click)="addDepartmentDocument()"></button>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Add Document" icon="pi pi-plus" (click)="addDepartmentDocument()"></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
@@ -775,14 +808,20 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>{{ account.rtgs_neft_code }}</td>
                 <td>{{ account.swift_code }}</td> 
                 <td>
-                  <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode, account)"></button>
-                  <button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger" (click)="deleteAccountDetail(account)"></button>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-pencil" class="p-button-text p-button-sm mr-1" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode, account)"></button>
+</ng-container>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-text p-button-sm p-button-danger" (click)="deleteAccountDetail(account)"></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
           </p-table>
           
-          <button pButton label="Add Account Detail" icon="pi pi-plus" class="p-button-primary mt-4" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode)"></button>
+          <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Add Account Detail" icon="pi pi-plus" class="p-button-primary mt-4" (click)="openAccountDetailFormDialog(currentEntityType, currentEntityCode)"></button>
+</ng-container>
         </div>
         
         <ng-template pTemplate="footer">
@@ -966,7 +1005,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
         <ng-template pTemplate="footer">
           <div class="text-right">
             <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeAccountDetailFormDialog()"></button>
-            <button pButton label="Save" class="p-button-primary" type="button" (click)="saveAccountDetail()"></button>
+            <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" type="button" (click)="saveAccountDetail()"></button>
+</ng-container>
           </div>
         </ng-template>
       </p-dialog>
@@ -988,9 +1029,11 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
               {{ selectedDocument?.file_name }}
             </h5>
             <div class="flex gap-2">
-              <button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-download" class="p-button-sm p-button-outlined" 
                       (click)="downloadDocument(selectedDocument!)" 
                       pTooltip="Download Document"></button>
+</ng-container>
               <button pButton icon="pi pi-times" class="p-button-sm p-button-outlined" 
                       (click)="hideDocumentViewer()" 
                       pTooltip="Close"></button>
@@ -1031,9 +1074,11 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <h4>PDF Loading Failed</h4>
                 <p class="text-muted">Unable to display PDF in browser.</p>
                 <div class="flex gap-2">
-                  <button pButton label="Download PDF" icon="pi pi-download" 
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Download PDF" icon="pi pi-download" 
                           (click)="downloadDocument(selectedDocument!)" 
                           class="p-button-primary"></button>
+</ng-container>
                   <button pButton label="Open in New Tab" icon="pi pi-external-link" 
                           (click)="openDocumentInNewTab()" 
                           class="p-button-outlined"></button>
@@ -1067,9 +1112,11 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <i class="pi pi-file" style="font-size: 4rem; color: #6c757d;"></i>
                 <h4>Document Preview</h4>
                 <p class="text-muted">This file type requires download for viewing.</p>
-                <button pButton label="Download File" icon="pi pi-download" 
+                <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Download File" icon="pi pi-download" 
                         (click)="downloadDocument(selectedDocument!)" 
                         class="p-button-primary"></button>
+</ng-container>
               </div>
             </div>
             
@@ -1096,7 +1143,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
         <div class="space-y-4">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold">Incharge Records</h3>
-            <button pButton label="Add Incharge" icon="pi pi-plus" class="p-button-primary" (click)="openInchargeFormDialog()"></button>
+            <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Add Incharge" icon="pi pi-plus" class="p-button-primary" (click)="openInchargeFormDialog()"></button>
+</ng-container>
           </div>
           
           <p-table [value]="inchargeRecords" [showGridlines]="true" [responsiveLayout]="'scroll'">
@@ -1125,8 +1174,12 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 <td>{{ incharge.to_date | configDate }}</td>
                 <td>
                   <div class="flex gap-1">
-                    <button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openInchargeFormDialog(incharge)" pTooltip="Edit"></button>
-                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="deleteIncharge(incharge)" pTooltip="Delete"></button>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openInchargeFormDialog(incharge)" pTooltip="Edit"></button>
+</ng-container>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="deleteIncharge(incharge)" pTooltip="Delete"></button>
+</ng-container>
                   </div>
                 </td>
               </tr>
@@ -1203,7 +1256,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
         <ng-template pTemplate="footer">
           <div class="text-right">
             <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeInchargeFormDialog()"></button>
-            <button pButton label="Save" class="p-button-primary" (click)="saveIncharge()"></button>
+            <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" (click)="saveIncharge()"></button>
+</ng-container>
           </div>
         </ng-template>
       </p-dialog>
@@ -1218,7 +1273,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
         <div class="space-y-4">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold">Directors / Partners Records</h3>
-            <button pButton label="Add Director/Partner" icon="pi pi-plus" class="p-button-primary" (click)="openDirectorPartnerFormDialog()"></button>
+            <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Add Director/Partner" icon="pi pi-plus" class="p-button-primary" (click)="openDirectorPartnerFormDialog()"></button>
+</ng-container>
           </div>
           
           <p-table [value]="directorsPartners" [showGridlines]="true" [responsiveLayout]="'scroll'">
@@ -1247,8 +1304,12 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
                 </td>
                 <td>
                   <div class="flex gap-1">
-                    <button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openDirectorPartnerFormDialog(director)" pTooltip="Edit"></button>
-                    <button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="deleteDirectorPartner(director)" pTooltip="Delete"></button>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton icon="pi pi-pencil" class="p-button-sm p-button-outlined" (click)="openDirectorPartnerFormDialog(director)" pTooltip="Edit"></button>
+</ng-container>
+                    <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-danger p-button-sm" (click)="deleteDirectorPartner(director)" pTooltip="Delete"></button>
+</ng-container>
                   </div>
                 </td>
               </tr>
@@ -1325,7 +1386,9 @@ import { InchargeService, Incharge } from '../../../services/incharge.service';
         <ng-template pTemplate="footer">
           <div class="text-right">
             <button pButton label="Cancel" class="p-button-secondary mr-2" (click)="closeDirectorPartnerFormDialog()"></button>
-            <button pButton label="Save" class="p-button-primary" (click)="saveDirectorPartner()"></button>
+            <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Company Mgmt', action: 'write' }">
+<button pButton label="Save" class="p-button-primary" (click)="saveDirectorPartner()"></button>
+</ng-container>
           </div>
         </ng-template>
       </p-dialog>

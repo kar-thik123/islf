@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -35,7 +36,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
     ToastModule,
     DialogModule,
     TabsModule
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -63,7 +66,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
             >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Location" icon="pi pi-plus" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Location', action: 'write' }">
+<button pButton type="button" label="Add Location" icon="pi pi-plus" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -159,7 +164,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
           </td>
 
             <td>
-              <button pButton type="button" icon="pi pi-pencil" (click)="editRow(loc)" class="p-button-sm"></button>
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Location', action: 'write' }">
+<button pButton type="button" icon="pi pi-pencil" (click)="editRow(loc)" class="p-button-sm"></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>
@@ -293,7 +300,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedLocation?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+          <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Location', action: 'write' }">
+<button pButton label="{{ selectedLocation?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+</ng-container>
         </div>
       </ng-template>
     </p-dialog>
@@ -617,6 +626,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
         next: () => {
           this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location created successfully' });
           this.onSave.emit();
+          this.masterCache.clearLocationCache();
           this.refreshList();
           this.hideDialog();
         },
@@ -650,6 +660,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
         next: () => {
           this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Location updated successfully' });
           this.onSave.emit();
+          this.masterCache.clearLocationCache();
           this.refreshList();
           this.hideDialog();
         },

@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { HasPermissionDirective } from '../../../directives/has-permission.directive';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { FileUploadModule } from 'primeng/fileupload';
@@ -64,7 +65,9 @@ import { ConfigService } from '../../../services/config.service';
     DialogModule,
     ToastModule,
     SourceSalesComponent,
-  ],
+  
+    HasPermissionDirective
+],
   providers: [ConfirmationService],
   template: `
     <p-toast></p-toast>
@@ -484,7 +487,8 @@ import { ConfigService } from '../../../services/config.service';
                     *ngIf="document.id"
                     pTooltip="View Document"
                   ></button>
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }">
+<button
                     pButton
                     icon="pi pi-download"
                     class="p-button-sm p-button-outlined"
@@ -492,13 +496,16 @@ import { ConfigService } from '../../../services/config.service';
                     *ngIf="document.id"
                     pTooltip="Download Document"
                   ></button>
-                  <button
+</ng-container>
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'delete' }">
+<button
                     pButton
                     icon="pi pi-trash"
                     class="p-button-danger p-button-sm"
                     (click)="removeDocument(rowIndex)"
                     pTooltip="Delete Document"
                   ></button>
+</ng-container>
                 </div>
               </td>
             </tr>
@@ -506,12 +513,14 @@ import { ConfigService } from '../../../services/config.service';
           <ng-template pTemplate="footer">
             <tr>
               <td colspan="6">
-                <button
+                <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }">
+<button
                   pButton
                   label="Add Document"
                   icon="pi pi-plus"
                   (click)="addDocument()"
                 ></button>
+</ng-container>
               </td>
             </tr>
           </ng-template>
@@ -575,13 +584,15 @@ import { ConfigService } from '../../../services/config.service';
               {{ selectedDocument?.file_name }}
             </h5>
             <div class="flex gap-2">
-              <button
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }">
+<button
                 pButton
                 icon="pi pi-download"
                 class="p-button-sm p-button-outlined"
                 (click)="downloadDocument(selectedDocument!)"
                 pTooltip="Download Document"
               ></button>
+</ng-container>
               <button
                 pButton
                 icon="pi pi-times"
@@ -661,13 +672,15 @@ import { ConfigService } from '../../../services/config.service';
                 <h4>PDF Loading Failed</h4>
                 <p class="text-muted">Unable to display PDF in browser.</p>
                 <div class="flex gap-2">
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }">
+<button
                     pButton
                     label="Download PDF"
                     icon="pi pi-download"
                     (click)="downloadDocument(selectedDocument!)"
                     class="p-button-primary"
                   ></button>
+</ng-container>
                   <button
                     pButton
                     label="Open in New Tab"
@@ -725,13 +738,15 @@ import { ConfigService } from '../../../services/config.service';
                 <p class="text-muted">
                   This file type requires download for viewing.
                 </p>
-                <button
+                <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }">
+<button
                   pButton
                   label="Download File"
                   icon="pi pi-download"
                   (click)="downloadDocument(selectedDocument!)"
                   class="p-button-primary"
                 ></button>
+</ng-container>
               </div>
             </div>
 

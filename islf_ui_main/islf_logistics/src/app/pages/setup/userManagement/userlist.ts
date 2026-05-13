@@ -14,6 +14,7 @@ import { ContextService } from '../../../services/context.service';
 import { MessageService } from 'primeng/api';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { HasPermissionDirective } from '../../../directives/has-permission.directive';
 
 @Component({
   selector: 'user-list',
@@ -27,7 +28,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     InputIcon,
     FormsModule,
     DropdownModule,
-
+    HasPermissionDirective
   ],
   template: `
     <div class="card">
@@ -49,7 +50,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         <!-- 🔍 Global Filter + Clear -->
         <ng-template #caption>
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-             <button pButton type="button" label="Add User" icon="pi pi-plus" class="p-button" (click)="navigateToCreateUser()"></button>
+             <button *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }" pButton type="button" label="Add User" icon="pi pi-plus" class="p-button" (click)="navigateToCreateUser()"></button>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <p-iconfield iconPosition="left" class="ml-auto">
               <p-inputicon>
@@ -132,13 +133,15 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             </td>
             <td>
               <div class="flex justify-center items-center h-full">
-              <button
-                pButton
-                icon="pi pi-pencil"
-                class="p-button-sm"
-                (click)="editUser(user)"
-                title="Edit"
-              ></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'User Mgmt', action: 'write' }">
+                <button
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-sm"
+                  (click)="editUser(user)"
+                  title="Edit"
+                ></button>
+              </ng-container>
               </div>
             </td>
           </tr>

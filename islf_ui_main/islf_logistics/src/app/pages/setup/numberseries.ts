@@ -39,6 +39,8 @@ interface NumberSeries {
   has_used_relation?: boolean; // Added for disabling edit/delete
 }
 
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+
 @Component({
   selector: 'app-number-series',
   standalone: true,
@@ -54,7 +56,8 @@ interface NumberSeries {
     IconFieldModule,
     InputIconModule,
     DropdownModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    HasPermissionDirective
     // Remove InputSwitchModule
   ],
   providers: [MessageService, ConfirmationService],
@@ -89,7 +92,7 @@ interface NumberSeries {
         <!-- 🔍 Global Filter + Clear -->
         <ng-template #caption>
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Series" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <button *appHasPermission="{ module: 'Settings', subModule: 'No. Series', action: 'write' }" pButton type="button" label="Add Series" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             
             <p-iconfield iconPosition="left" class="ml-auto">
@@ -222,33 +225,37 @@ interface NumberSeries {
 
             <td>
             <div class="flex items-center space-x-[8px]">
-              <button
-                pButton
-                icon="pi pi-pencil"
-                class="p-button-sm"
-                (click)="editRow(ser)"
-                [disabled]="ser.has_used_relation"
-                title="Edit"
-                *ngIf="!ser.isEditing"
-              ></button>
-              <button
-                pButton
-                icon="pi pi-check"
-                class="p-button-sm"
-                (click)="saveRow(ser)"
-                title="Save"
-                [disabled]="!isRowValid(ser)"
-                *ngIf="ser.isEditing"
-              ></button>
-              <button
-                pButton
-                icon="pi pi-trash"
-                class="p-button-sm"
-                severity="danger"
-                (click)="deleteRow(ser)"
-                [disabled]="ser.has_used_relation"
-                title="Delete"
-              ></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series', action: 'write' }">
+                <button
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-sm"
+                  (click)="editRow(ser)"
+                  [disabled]="ser.has_used_relation"
+                  title="Edit"
+                  *ngIf="!ser.isEditing"
+                ></button>
+                <button
+                  pButton
+                  icon="pi pi-check"
+                  class="p-button-sm"
+                  (click)="saveRow(ser)"
+                  title="Save"
+                  [disabled]="!isRowValid(ser)"
+                  *ngIf="ser.isEditing"
+                ></button>
+              </ng-container>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series', action: 'delete' }">
+                <button
+                  pButton
+                  icon="pi pi-trash"
+                  class="p-button-sm"
+                  severity="danger"
+                  (click)="deleteRow(ser)"
+                  [disabled]="ser.has_used_relation"
+                  title="Delete"
+                ></button>
+              </ng-container>
               </div>
             </td>
           </tr>

@@ -1,4 +1,5 @@
 import { Component, signal, OnInit, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PanelModule } from 'primeng/panel';
@@ -52,7 +53,9 @@ interface NumberSeries {
     InputIconModule,
     DialogModule,
     ConfirmDialogModule,
-  ],
+  
+    HasPermissionDirective
+],
   providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
@@ -74,7 +77,9 @@ interface NumberSeries {
       >
         <ng-template #caption>
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Mapping Relation" icon="pi pi-plus" class="p-button" (click)="showAddMappingDialog()"></button>
+            <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series Mapping', action: 'write' }">
+<button pButton type="button" label="Add Mapping Relation" icon="pi pi-plus" class="p-button" (click)="showAddMappingDialog()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <p-iconfield iconPosition="left" class="ml-auto">
               <p-inputicon>
@@ -135,8 +140,12 @@ interface NumberSeries {
             <td>{{ row.serviceType }}</td>
             <td>
              <div class="flex items-center space-x-[8px]">
-              <button pButton icon="pi pi-pencil" class="p-button-sm" (click)="editMappingRelation(i)"></button>
-              <button pButton icon="pi pi-trash" class="p-button-sm p-button-danger" (click)="deleteMappingRelation(i)"></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series Mapping', action: 'write' }">
+<button pButton icon="pi pi-pencil" class="p-button-sm" (click)="editMappingRelation(i)"></button>
+</ng-container>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series Mapping', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-sm p-button-danger" (click)="deleteMappingRelation(i)"></button>
+</ng-container>
              </div>
             </td>
           </tr>
@@ -186,7 +195,9 @@ interface NumberSeries {
           </div>
         </div>
         <div class="flex justify-content-end gap-2 mt-4">
-          <button pButton type="button" label="Save" icon="pi pi-save" (click)="saveMappingRelation()"></button>
+          <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series Mapping', action: 'write' }">
+<button pButton type="button" label="Save" icon="pi pi-save" (click)="saveMappingRelation()"></button>
+</ng-container>
           <button pButton type="button" label="Cancel" icon="pi pi-times" class="p-button-secondary" (click)="showMappingDialog = false; resetMappingForm()"></button>
         </div>
       </p-dialog>

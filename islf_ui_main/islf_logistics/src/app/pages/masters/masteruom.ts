@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -36,7 +37,9 @@ import { take } from 'rxjs/operators';
     CalendarModule,
     MasterTypeComponent,
     ConfirmDialogModule
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
@@ -57,7 +60,9 @@ import { take } from 'rxjs/operators';
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add UOM" icon="pi pi-plus" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Unit of Measure', action: 'write' }">
+<button pButton type="button" label="Add UOM" icon="pi pi-plus" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -183,7 +188,8 @@ import { take } from 'rxjs/operators';
             </td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Unit of Measure', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-pencil"
                   class="p-button-sm"
@@ -191,7 +197,9 @@ import { take } from 'rxjs/operators';
                   title="Edit"
                   *ngIf="!uom.isEditing && !uom.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Unit of Measure', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-check"
                   class="p-button-sm"
@@ -200,7 +208,9 @@ import { take } from 'rxjs/operators';
                   [disabled]="!isUOMValid(uom)"
                   *ngIf="uom.isEditing || uom.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Unit of Measure', action: 'delete' }">
+<button
                   *ngIf="uom.isNew"
                   pButton
                   icon="pi pi-trash"
@@ -209,6 +219,7 @@ import { take } from 'rxjs/operators';
                   (click)="deleteRow(uom)"
                   title="Delete"
                 ></button>
+</ng-container>
               </div>
             </td>
           </tr>

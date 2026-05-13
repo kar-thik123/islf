@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -40,7 +41,9 @@ interface FlagOption {
     DialogModule,
     CalendarModule,
     MasterLocationComponent
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -62,7 +65,9 @@ interface FlagOption {
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Vessel" icon="pi pi-plus" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vessel', action: 'write' }">
+<button pButton type="button" label="Add Vessel" icon="pi pi-plus" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -149,7 +154,9 @@ interface FlagOption {
             </td>
 
             <td>
-              <button pButton icon="pi pi-pencil" (click)="editRow(vessel)" class="p-button-sm"></button>
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vessel', action: 'write' }">
+<button pButton icon="pi pi-pencil" (click)="editRow(vessel)" class="p-button-sm"></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>
@@ -272,7 +279,9 @@ interface FlagOption {
       <ng-template pTemplate="footer">
         <div class="flex justify-content-end gap-2 px-3 pb-2">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-outlined p-button-secondary" (click)="hideDialog()"></button>
-          <button pButton label="{{ selectedVessel?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+          <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vessel', action: 'write' }">
+<button pButton label="{{ selectedVessel?.isNew ? 'Add' : 'Update' }}" icon="pi pi-check" (click)="saveRow()"></button>
+</ng-container>
         </div>
       </ng-template>
     </p-dialog>

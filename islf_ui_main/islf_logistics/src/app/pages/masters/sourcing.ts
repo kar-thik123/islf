@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { TableModule } from 'primeng/table';
@@ -94,7 +95,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
     ChargeTypeMasterComponent,
     ServiceAreaComponent,
     SourceSalesComponent, ConfigDatePipe,
-  ],
+  
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
@@ -134,27 +137,33 @@ import { MasterCacheService } from '../../services/master-cache.service';
             class="flex justify-between items-center flex-col sm:flex-row gap-2"
           >
             <div class="flex gap-2">
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'write' }">
+<button
                 pButton
                 type="button"
                 label="Add Source"
                 icon="pi pi-plus"
                 (click)="addRow()"
               ></button>
-              <button
+</ng-container>
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'write' }">
+<button
                 pButton
                 type="button"
                 label="Import"
                 icon="pi pi-download"
                 (click)="importData()"
               ></button>
-              <button
+</ng-container>
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'write' }">
+<button
                 pButton
                 type="button"
                 label="Export"
                 icon="pi pi-upload"
                 (click)="exportData()"
               ></button>
+</ng-container>
             </div>
             <button
               pButton
@@ -394,12 +403,14 @@ import { MasterCacheService } from '../../services/master-cache.service';
               </span>
             </td>
             <td>
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'write' }">
+<button
                 pButton
                 icon="pi pi-pencil"
                 (click)="editRow(source)"
                 class="p-button-sm"
               ></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>
@@ -1096,7 +1107,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   ></button>
                 </td>
                 <td>
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'delete' }">
+<button
                     pButton
                     type="button"
                     icon="pi pi-trash"
@@ -1104,11 +1116,13 @@ import { MasterCacheService } from '../../services/master-cache.service';
                     class="p-button-danger"
                     (click)="removeSubCharge(i)"
                   ></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
           </p-table>
-          <button
+          <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'write' }">
+<button
             pButton
             type="button"
             label="Add Charge"
@@ -1116,6 +1130,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
             (click)="addSubCharge()"
             class="mt-2"
           ></button>
+</ng-container>
         </div>
       </ng-template>
       <ng-template pTemplate="footer">
@@ -1127,13 +1142,15 @@ import { MasterCacheService } from '../../services/master-cache.service';
             class="p-button-outlined p-button-secondary"
             (click)="hideDialog()"
           ></button>
-          <button
+          <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Sourcing', action: 'write' }">
+<button
             pButton
             label="{{ selectedTariff?.isNew ? 'Add' : 'Update' }}"
             icon="pi pi-check"
             (click)="saveRow().subscribe()"
             [disabled]="!isFormValid"
           ></button>
+</ng-container>
         </div>
       </ng-template>
     </p-dialog>

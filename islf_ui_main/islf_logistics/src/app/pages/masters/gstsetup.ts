@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ViewChild, signal } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule, Table } from 'primeng/table';
@@ -47,7 +48,9 @@ interface GstRule {
     MasterLocationComponent,
     DialogModule,
     ConfirmDialogModule
-  ],
+  ,
+    HasPermissionDirective
+],
   providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>
@@ -68,7 +71,9 @@ interface GstRule {
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add GST Rule" icon="pi pi-plus" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'GST Setup', action: 'write' }">
+<button pButton type="button" label="Add GST Rule" icon="pi pi-plus" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" class="ml-auto" />
           </div>
@@ -142,9 +147,15 @@ interface GstRule {
             </td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button pButton icon="pi pi-pencil" class="p-button-sm" (click)="editRow(rule)" *ngIf="!rule.isEditing"></button>
-                <button pButton icon="pi pi-check" class="p-button-sm" (click)="saveRow(rule)" [disabled]="!isValid(rule)" *ngIf="rule.isEditing"></button>
-                <button pButton icon="pi pi-trash" class="p-button-sm" severity="danger" (click)="deleteRow(rule)"></button>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'GST Setup', action: 'write' }">
+<button pButton icon="pi pi-pencil" class="p-button-sm" (click)="editRow(rule)" *ngIf="!rule.isEditing"></button>
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'GST Setup', action: 'write' }">
+<button pButton icon="pi pi-check" class="p-button-sm" (click)="saveRow(rule)" [disabled]="!isValid(rule)" *ngIf="rule.isEditing"></button>
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'GST Setup', action: 'delete' }">
+<button pButton icon="pi pi-trash" class="p-button-sm" severity="danger" (click)="deleteRow(rule)"></button>
+</ng-container>
               </div>
             </td>
           </tr>

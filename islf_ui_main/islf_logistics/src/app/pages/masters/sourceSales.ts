@@ -6,6 +6,7 @@ import {
   ChangeDetectorRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { TableModule, Table } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
@@ -42,7 +43,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
     CheckboxModule,
     DialogModule,
     InputNumberModule,
-  ],
+  
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
@@ -71,7 +74,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
           <div
             class="flex justify-between items-center flex-col sm:flex-row gap-2"
           >
-            <button
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Source Sales', action: 'write' }">
+<button
               pButton
               type="button"
               label="Add Person"
@@ -79,6 +83,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
               class="p-button"
               (click)="addRow()"
             ></button>
+</ng-container>
             <button
               pButton
               label="Clear"
@@ -335,7 +340,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
               </ng-template>
             </td>
             <td class="actions-column flex items-center space-x-[8px]">
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Source Sales', action: 'write' }">
+<button
                 pButton
                 icon="pi pi-pencil"
                 class="p-button-sm"
@@ -343,9 +349,11 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 title="Edit"
                 *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
               ></button>
+</ng-container>
 
               <!-- Save button (only show when editing or adding new) -->
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Source Sales', action: 'write' }">
+<button
                 pButton
                 icon="pi pi-check"
                 class="p-button-sm"
@@ -353,9 +361,11 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 title="Save"
                 *ngIf="sourceSale.isEditing || sourceSale.isNew"
               ></button>
+</ng-container>
 
               <!-- Cancel button (only show when editing or adding new) -->
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Source Sales', action: 'delete' }">
+<button
                 pButton
                 icon="pi pi-trash"
                 class="p-button-sm"
@@ -364,9 +374,11 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 title="Cancel"
                 *ngIf="sourceSale.isEditing || sourceSale.isNew"
               ></button>
+</ng-container>
 
               <!-- Delete button (only show when not editing or adding new) -->
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Source Sales', action: 'delete' }">
+<button
                 pButton
                 icon="pi pi-trash"
                 class="p-button-sm p-button-danger"
@@ -374,6 +386,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 title="Delete"
                 *ngIf="!sourceSale.isEditing && !sourceSale.isNew"
               ></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>

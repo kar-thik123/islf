@@ -66,6 +66,13 @@ export class MasterCacheService {
         console.log('🔄 Master Cache Cleared');
     }
 
+    public clearLocationCache() {
+        if (this.cache.has('locations')) {
+            this.cache.delete('locations');
+            console.log('🔄 Locations Cache Cleared');
+        }
+    }
+
     private getCachedObservable(key: string, fetchFn: () => Observable<any>): Observable<any> {
         this.checkContextRefresh();
         if (!this.cache.has(key)) {

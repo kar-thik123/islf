@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule, Table } from 'primeng/table';
@@ -38,7 +39,9 @@ import { take } from 'rxjs/operators';
     CheckboxModule,
     MasterTypeComponent,
     DialogModule,
-  ],
+  
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
@@ -58,7 +61,9 @@ import { take } from 'rxjs/operators';
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Service Area" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Service Area', action: 'write' }">
+<button pButton type="button" label="Add Service Area" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" />
@@ -286,7 +291,8 @@ import { take } from 'rxjs/operators';
             </td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Service Area', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-pencil"
                   class="p-button-sm"
@@ -294,7 +300,9 @@ import { take } from 'rxjs/operators';
                   title="Edit"
                   *ngIf="!serviceArea.isEditing && !serviceArea.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Service Area', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-check"
                   class="p-button-sm"
@@ -303,7 +311,9 @@ import { take } from 'rxjs/operators';
                   
                   *ngIf="serviceArea.isEditing || serviceArea.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Service Area', action: 'delete' }">
+<button
                 *ngIf="serviceArea.isNew"
                   pButton
                   icon="pi pi-trash"
@@ -312,6 +322,7 @@ import { take } from 'rxjs/operators';
                   (click)="deleteRow(serviceArea)"
                   title="Delete"
                 ></button>
+</ng-container>
               </div>
             </td>
             </tr>

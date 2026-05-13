@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -35,7 +36,9 @@ interface ExtendedMasterAirline extends MasterAirline {
     ButtonModule,
     DropdownModule,
     ToastModule
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -55,7 +58,9 @@ interface ExtendedMasterAirline extends MasterAirline {
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Airline" icon="pi pi-plus" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Airline', action: 'write' }">
+<button pButton type="button" label="Add Airline" icon="pi pi-plus" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <span class="ml-auto">
               <input pInputText type="text" (input)="onGlobalFilter($event, dt)" placeholder="Search keyword" />
@@ -147,10 +152,16 @@ interface ExtendedMasterAirline extends MasterAirline {
             </td>
             <td>
               <div class="flex gap-2">
-                <button *ngIf="!airline.isEditing && !airline.isNew" pButton icon="pi pi-pencil" (click)="editRow(airline)" class="p-button-sm" title="Edit"></button>
-                <button *ngIf="airline.isEditing || airline.isNew" pButton icon="pi pi-check" (click)="saveRow(airline)" class="p-button-sm" title="Save"></button>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Airline', action: 'write' }">
+<button *ngIf="!airline.isEditing && !airline.isNew" pButton icon="pi pi-pencil" (click)="editRow(airline)" class="p-button-sm" title="Edit"></button>
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Airline', action: 'write' }">
+<button *ngIf="airline.isEditing || airline.isNew" pButton icon="pi pi-check" (click)="saveRow(airline)" class="p-button-sm" title="Save"></button>
+</ng-container>
                 <button *ngIf="airline.isEditing && !airline.isNew" pButton icon="pi pi-times" (click)="cancelEdit(airline)" class="p-button-sm p-button-secondary" title="Cancel"></button>
-                <button *ngIf="airline.isNew" pButton icon="pi pi-trash" (click)="deleteRow(airline)" class="p-button-sm p-button-danger" title="Delete"></button>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Airline', action: 'delete' }">
+<button *ngIf="airline.isNew" pButton icon="pi pi-trash" (click)="deleteRow(airline)" class="p-button-sm p-button-danger" title="Delete"></button>
+</ng-container>
               </div>
             </td>
           </tr>

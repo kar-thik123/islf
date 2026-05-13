@@ -1,4 +1,5 @@
 import { Component, signal, OnInit } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -45,7 +46,9 @@ interface DocumentPaths {
     DividerModule,
     ToastModule,
     ConfirmDialogModule
-  ],
+  ,
+    HasPermissionDirective
+],
   providers: [MessageService, ConfirmationService],
   template: `
     <p-toast></p-toast>

@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { HasPermissionDirective } from '../../../directives/has-permission.directive';
 import { CommonModule, TitleCasePipe } from '@angular/common';
 import { TreeModule } from 'primeng/tree';
 import { ButtonModule } from 'primeng/button';
@@ -15,7 +16,9 @@ import { firstValueFrom } from 'rxjs';
 @Component({
   selector: 'app-company-tree',
   standalone: true,
-  imports: [CommonModule, TreeModule, ButtonModule, DialogModule, ConfigDatePipe, TitleCasePipe],
+  imports: [CommonModule, TreeModule, ButtonModule, DialogModule, ConfigDatePipe, TitleCasePipe,
+    HasPermissionDirective
+],
   template: `
     <div class="md:w-full">
       <div class="card">

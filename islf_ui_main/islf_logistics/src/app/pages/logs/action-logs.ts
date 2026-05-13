@@ -1,4 +1,5 @@
 import { Component, OnInit, signal, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
@@ -34,7 +35,9 @@ import * as XLSX from 'xlsx';
     TooltipModule,
     FormsModule,
     ToastModule
-  ],
+  ,
+    HasPermissionDirective
+],
   providers: [MessageService],
   template: `
     <p-toast></p-toast>
@@ -43,7 +46,9 @@ import * as XLSX from 'xlsx';
         <div class="font-semibold text-2xl text-primary">{{ getDomainTitle() }} Logs</div>
         <div class="flex gap-2">
             <button pButton label="Clear Filters" class="p-button-outlined p-button-secondary" icon="pi pi-filter-slash" (click)="clearFilters()"></button>
-            <button pButton label="Export Excel" class="p-button-success" icon="pi pi-file-excel" (click)="exportExcel()"></button>
+            <ng-container *appHasPermission="{ module: 'Logs', subModule: 'System Logs', action: 'write' }">
+<button pButton label="Export Excel" class="p-button-success" icon="pi pi-file-excel" (click)="exportExcel()"></button>
+</ng-container>
         </div>
       </div>
 

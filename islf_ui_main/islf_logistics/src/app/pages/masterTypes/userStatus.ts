@@ -6,6 +6,7 @@ import {
   ChangeDetectorRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { InputTextModule } from 'primeng/inputtext';
@@ -34,7 +35,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     DropdownModule,
     ToastModule,
     DialogModule,
-  ],
+  
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -57,7 +60,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
           <div
             class="flex justify-between items-center flex-col sm:flex-row gap-2"
           >
-            <button
+            <ng-container *appHasPermission="{ module: 'Master Types', subModule: 'User Status', action: 'write' }">
+<button
               pButton
               type="button"
               label="Add Type"
@@ -65,6 +69,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
               class="p-button"
               (click)="addRow()"
             ></button>
+</ng-container>
             <button
               pButton
               label="Clear"
@@ -209,7 +214,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             </td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button
+                <ng-container *appHasPermission="{ module: 'Master Types', subModule: 'User Status', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-pencil"
                   class="p-button-sm"
@@ -217,7 +223,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   title="Edit"
                   *ngIf="!type.isEditing && !type.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Master Types', subModule: 'User Status', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-check"
                   class="p-button-sm"
@@ -226,7 +234,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   *ngIf="type.isEditing || type.isNew"
                   [disabled]="!isTypeValid(type)"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Master Types', subModule: 'User Status', action: 'delete' }">
+<button
                   *ngIf="type.isNew"
                   pButton
                   icon="pi pi-trash"
@@ -235,6 +245,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   (click)="deleteRow(type)"
                   title="Delete"
                 ></button>
+</ng-container>
               </div>
             </td>
           </tr>

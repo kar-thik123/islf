@@ -20,6 +20,7 @@ import { InputIconModule } from 'primeng/inputicon';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-number-series-relation',
@@ -39,7 +40,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     InputIconModule,
     InputSwitchModule,
     ConfirmDialogModule,
-    ConfigDatePipe
+    ConfigDatePipe,
+    HasPermissionDirective
   ],
   providers: [MessageService, ConfirmationService],
   template: `
@@ -63,7 +65,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
         <!-- 🔍 Global Filter + Clear -->
         <ng-template #caption>
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Relation" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <button *appHasPermission="{ module: 'Settings', subModule: 'No. Series Relation', action: 'write' }" pButton type="button" label="Add Relation" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <p-iconfield iconPosition="left" class="ml-auto">
               <p-inputicon>
@@ -153,23 +155,27 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             <td>{{ rel.incrementBy }}</td>
             <td>
             <div class="flex items-center space-x-[8px]">
-              <button
-                pButton
-                icon="pi pi-pencil"
-                class="p-button-sm"
-                (click)="editRow(rel)"
-                [disabled]="rel.lastNoUsed > 0 || isRelationStopped(rel)"
-                title="Edit"
-              ></button>
-              <button
-                pButton
-                icon="pi pi-trash"
-                class="p-button-sm"
-                severity="danger"
-                (click)="deleteRow(rel)"
-                [disabled]="rel.lastNoUsed > 0 || isRelationStopped(rel)"
-                title="Delete"
-              ></button>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series Relation', action: 'write' }">
+                <button
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-sm"
+                  (click)="editRow(rel)"
+                  [disabled]="rel.lastNoUsed > 0 || isRelationStopped(rel)"
+                  title="Edit"
+                ></button>
+              </ng-container>
+              <ng-container *appHasPermission="{ module: 'Settings', subModule: 'No. Series Relation', action: 'delete' }">
+                <button
+                  pButton
+                  icon="pi pi-trash"
+                  class="p-button-sm"
+                  severity="danger"
+                  (click)="deleteRow(rel)"
+                  [disabled]="rel.lastNoUsed > 0 || isRelationStopped(rel)"
+                  title="Delete"
+                ></button>
+              </ng-container>
               </div>
             </td>
           </tr>

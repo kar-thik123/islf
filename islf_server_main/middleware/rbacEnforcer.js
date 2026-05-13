@@ -184,4 +184,12 @@ function requirePermission(moduleName, subModuleName) {
   };
 }
 
-module.exports = { requirePermission };
+function invalidateRolePermissionCache(roleName) {
+  for (const key of permissionCache.keys()) {
+    if (key.startsWith(`${roleName}:`)) {
+      permissionCache.delete(key);
+    }
+  }
+}
+
+module.exports = { requirePermission, invalidateRolePermissionCache };

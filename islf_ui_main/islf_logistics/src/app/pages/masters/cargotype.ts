@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -53,7 +54,9 @@ interface CargoType {
     ToastModule,
     DialogModule,
     MasterTypeComponent,
-  ],
+  
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -81,13 +84,15 @@ interface CargoType {
           <div
             class="flex justify-between items-center flex-col sm:flex-row gap-2"
           >
-            <button
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Cargo', action: 'write' }">
+<button
               pButton
               type="button"
               label="Add Cargo Type"
               icon="pi pi-plus"
               (click)="addRow()"
             ></button>
+</ng-container>
             <button
               pButton
               label="Clear"
@@ -208,12 +213,14 @@ interface CargoType {
             </td>
 
             <td>
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Cargo', action: 'write' }">
+<button
                 pButton
                 icon="pi pi-pencil"
                 (click)="editRow(cargoType)"
                 class="p-button-sm"
               ></button>
+</ng-container>
             </td>
           </tr>
         </ng-template>
@@ -349,13 +356,15 @@ interface CargoType {
             class="p-button-outlined p-button-secondary"
             (click)="hideDialog()"
           ></button>
-          <button
+          <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Cargo', action: 'write' }">
+<button
             pButton
             label="{{ selectedCargoType?.isNew ? 'Add' : 'Update' }}"
             icon="pi pi-check"
             (click)="saveRow()"
             [disabled]="!isFormValid()"
           ></button>
+</ng-container>
         </div>
       </ng-template>
     </p-dialog>

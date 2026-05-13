@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DropdownModule } from 'primeng/dropdown';
@@ -30,7 +31,9 @@ export interface ModulePermission {
     ToastModule,
     ToggleSwitchModule,
     TableModule
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -55,7 +58,9 @@ export interface ModulePermission {
             [showClear]="true">
           </p-dropdown>
         </div>
-        <button pButton label="Save Changes" icon="pi pi-check" class="p-button" (click)="savePermissions()" [disabled]="!selectedRole"></button>
+        <ng-container *appHasPermission="{ module: 'Settings', subModule: 'Authorization', action: 'write' }">
+<button pButton label="Save Changes" icon="pi pi-check" class="p-button" (click)="savePermissions()" [disabled]="!selectedRole"></button>
+</ng-container>
       </div>
 
       <small *ngIf="roleOptions.length === 0" class="text-orange-500 block mb-3">

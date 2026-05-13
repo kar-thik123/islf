@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -26,7 +27,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
     ButtonModule,
     DropdownModule,
     ToastModule
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <div class="card">
@@ -45,7 +48,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
       >
         <ng-template pTemplate="caption">
           <div class="flex justify-between items-center flex-col sm:flex-row gap-2">
-            <button pButton type="button" label="Add Currency" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Currency Code', action: 'write' }">
+<button pButton type="button" label="Add Currency" icon="pi pi-plus" class="p-button" (click)="addRow()"></button>
+</ng-container>
             <button pButton label="Clear" class="p-button-outlined" icon="pi pi-filter-slash" (click)="clear(dt)"></button>
             <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search keyword" class="ml-auto" />
           </div>
@@ -134,7 +139,8 @@ import { MasterCacheService } from '../../services/master-cache.service';
             </td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Currency Code', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-pencil"
                   class="p-button-sm"
@@ -142,7 +148,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   title="Edit"
                   *ngIf="!currency.isEditing && !currency.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Currency Code', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-check"
                   class="p-button-sm"
@@ -151,7 +159,9 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   [disabled]="!isCurrencyValid(currency)"
                   *ngIf="currency.isEditing || currency.isNew"
                 ></button>
-                <button
+</ng-container>
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Currency Code', action: 'delete' }">
+<button
                   *ngIf="currency.isNew"
                   pButton
                   icon="pi pi-trash"
@@ -160,6 +170,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
                   (click)="deleteRow(currency)"
                   title="Delete"
                 ></button>
+</ng-container>
               </div>
             </td>
           </tr>

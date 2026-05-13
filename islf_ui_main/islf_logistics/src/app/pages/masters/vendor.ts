@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
@@ -87,7 +88,9 @@ function toTitleCase(str: string): string {
     TextareaModule,
     CalendarModule,
     KeyFilterModule
-  ],
+  ,
+    HasPermissionDirective
+],
   template: `
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
@@ -116,13 +119,15 @@ function toTitleCase(str: string): string {
           <div
             class="flex justify-between items-center flex-col sm:flex-row gap-2"
           >
-            <button
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
               pButton
               type="button"
               label="Add Vendor"
               icon="pi pi-plus"
               (click)="addRow()"
             ></button>
+</ng-container>
             <button
               pButton
               label="Clear"
@@ -222,12 +227,14 @@ function toTitleCase(str: string): string {
             <td>{{ vendor.type }}</td>
             <td>
               <div class="flex items-center space-x-[8px]">
-                <button
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                   pButton
                   icon="pi pi-pencil"
                   (click)="editRow(vendor)"
                   class="p-button-sm"
                 ></button>
+</ng-container>
                 <!-- <p-menu #menu [model]="getMenuItems(vendor)" [popup]="true" />
                 <p-button
                   class="p-button-sm"
@@ -408,12 +415,14 @@ function toTitleCase(str: string): string {
               class="p-button-outlined p-button-secondary"
               (click)="closeAccountDetailDialog()"
             ></button>
-            <button
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
               pButton
               label="{{ selectedAccountDetail?.id ? 'Update' : 'Add' }}"
               icon="pi pi-check"
               (click)="saveAccountDetail()"
             ></button>
+</ng-container>
           </div>
         </ng-template>
       </p-dialog>
@@ -792,24 +801,28 @@ function toTitleCase(str: string): string {
                   ></textarea>
                 </td>
                 <td>
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'delete' }">
+<button
                     pButton
                     icon="pi pi-trash"
                     class="p-button-danger p-button-sm"
                     (click)="removeContact(rowIndex)"
                   ></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
             <ng-template pTemplate="footer">
               <tr *ngIf="!isDuplicate">
                 <td colspan="7">
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                     pButton
                     label="Add Contact"
                     icon="pi pi-plus"
                     (click)="addContact()"
                   ></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
@@ -911,7 +924,8 @@ function toTitleCase(str: string): string {
                         *ngIf="document.id"
                         pTooltip="View Document"
                       ></button>
-                      <button
+                      <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                         pButton
                         icon="pi pi-download"
                         class="p-button-sm p-button-outlined"
@@ -919,13 +933,16 @@ function toTitleCase(str: string): string {
                         *ngIf="document.id || !isDuplicate"
                         pTooltip="Download Document"
                       ></button>
-                      <button
+</ng-container>
+                      <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'delete' }">
+<button
                         pButton
                         icon="pi pi-trash"
                         class="p-button-danger p-button-sm"
                         (click)="removeDocument(rowIndex)"
                         pTooltip="Delete Document"
                       ></button>
+</ng-container>
                     </div>
                   </td>
                 </tr>
@@ -933,13 +950,15 @@ function toTitleCase(str: string): string {
               <ng-template pTemplate="footer">
                 <tr *ngIf="!isDuplicate">
                   <td colspan="6">
-                    <button
+                    <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                       [disabled]="isDuplicate"
                       pButton
                       label="Add Document"
                       icon="pi pi-plus"
                       (click)="addDocument()"
                     ></button>
+</ng-container>
                   </td>
                 </tr>
               </ng-template>
@@ -989,7 +1008,8 @@ function toTitleCase(str: string): string {
                 <td>{{ account.rtgs_neft_code }}</td>
                 <td>{{ account.swift_code }}</td>
                 <td>
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                     pButton
                     icon="pi pi-pencil"
                     class="p-button-text p-button-sm mr-1"
@@ -1001,19 +1021,23 @@ function toTitleCase(str: string): string {
                       )
                     "
                   ></button>
-                  <button
+</ng-container>
+                  <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'delete' }">
+<button
                     pButton
                     icon="pi pi-trash"
                     class="p-button-text p-button-sm p-button-danger"
                     (click)="deleteAccountDetail(account)"
                   ></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
             <ng-template pTemplate="footer">
               <tr *ngIf="!isDuplicate">
                 <td colspan="8">
-                  <button
+                  <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                     pButton
                     label="Add Account Detail"
                     icon="pi pi-plus"
@@ -1024,6 +1048,7 @@ function toTitleCase(str: string): string {
                       )
                     "
                   ></button>
+</ng-container>
                 </td>
               </tr>
             </ng-template>
@@ -1039,7 +1064,8 @@ function toTitleCase(str: string): string {
             class="p-button-outlined p-button-secondary"
             (click)="hideDialog()"
           ></button>
-          <button
+          <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
             pButton
             label="{{
               isDuplicate
@@ -1052,6 +1078,7 @@ function toTitleCase(str: string): string {
             (click)="saveRow()"
             [disabled]="!isFormValid()"
           ></button>
+</ng-container>
         </div>
       </ng-template>
     </p-dialog>
@@ -1073,13 +1100,15 @@ function toTitleCase(str: string): string {
             {{ selectedDocument?.file_name }}
           </h5>
           <div class="flex gap-2">
-            <button
+            <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
               pButton
               icon="pi pi-download"
               class="p-button-sm p-button-outlined"
               (click)="downloadDocument(selectedDocument!)"
               pTooltip="Download Document"
             ></button>
+</ng-container>
             <button
               pButton
               icon="pi pi-times"
@@ -1159,13 +1188,15 @@ function toTitleCase(str: string): string {
               <h4>PDF Loading Failed</h4>
               <p class="text-muted">Unable to display PDF in browser.</p>
               <div class="flex gap-2">
-                <button
+                <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                   pButton
                   label="Download PDF"
                   icon="pi pi-download"
                   (click)="downloadDocument(selectedDocument!)"
                   class="p-button-primary"
                 ></button>
+</ng-container>
                 <button
                   pButton
                   label="Open in New Tab"
@@ -1222,13 +1253,15 @@ function toTitleCase(str: string): string {
               <p class="text-muted">
                 This file type requires download for viewing.
               </p>
-              <button
+              <ng-container *appHasPermission="{ module: 'Masters', subModule: 'Vendor', action: 'write' }">
+<button
                 pButton
                 label="Download File"
                 icon="pi pi-download"
                 (click)="downloadDocument(selectedDocument!)"
                 class="p-button-primary"
               ></button>
+</ng-container>
             </div>
           </div>
 
@@ -2241,7 +2274,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     }));
     this.stateOptions = [];
     this.cityOptions = [];
-    this.masterLocationService.getAll().subscribe({
+    this.masterCache.getLocations().subscribe({
       next: (locations) => {
         this.allLocations = locations.filter((l) => l.active);
 
@@ -2808,7 +2841,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   private loadStateOptions() {
-    this.masterLocationService.getAll().subscribe({
+    this.masterCache.getLocations().subscribe({
       next: (data: any[]) => {
         this.stateOptions = data
           .filter((item: any) => item.type === 'STATE')
