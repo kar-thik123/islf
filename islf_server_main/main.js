@@ -94,16 +94,44 @@ app.use('/api/number_series',   requirePermission('Settings', 'No. Series'),    
 const numberRelationRouter = require('./routes/number_relation');
 app.use('/api/number_relation', requirePermission('Settings', 'No. Series Relation'), numberRelationRouter);
 const departmentRouter = require('./routes/department');
-app.use('/api/department',      requirePermission('Settings', 'Company Mgmt'),        departmentRouter);
+app.use('/api/department', requirePermission([
+  { module: 'Settings', subModule: 'Company Mgmt' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' },
+  { module: 'Setup', subModule: 'User Mgmt', action: 'read' }
+]), departmentRouter);
+
 const serviceTypesRouter = require('./routes/service_types');
-app.use('/api/service_types',   requirePermission('Settings', 'Company Mgmt'),        serviceTypesRouter);
+app.use('/api/service_types', requirePermission([
+  { module: 'Settings', subModule: 'Company Mgmt' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' }
+]), serviceTypesRouter);
+
 const companyRouter = require('./routes/company');
-app.use('/api/company',         requirePermission('Settings', 'Company Mgmt'),        companyRouter);
+app.use('/api/company', requirePermission([
+  { module: 'Settings', subModule: 'Company Mgmt' },
+  { module: 'Setup', subModule: 'User Mgmt', action: 'read' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' }
+]), companyRouter);
+
 const branchRouter = require('./routes/branch');
-app.use('/api/branch',          requirePermission('Settings', 'Company Mgmt'),        branchRouter);
+app.use('/api/branch', requirePermission([
+  { module: 'Settings', subModule: 'Company Mgmt' },
+  { module: 'Setup', subModule: 'User Mgmt', action: 'read' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' }
+]), branchRouter);
+
 const settingsRouter = require('./routes/settings');
 // Phase C enforced (Batch 1) — only admin may read or write IT Setup configuration.
-app.use('/api/settings',       requirePermission('Settings', 'IT Setup'),       settingsRouter);
+app.use('/api/settings', requirePermission([
+  { module: 'Settings', subModule: 'IT Setup' },
+  { module: 'Settings', subModule: 'Carriage Direction', action: 'read' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' }
+]), settingsRouter);
 const { userRouter, selfProfileRouter } = require('./routes/user');
 
 // Phase N2: Allow self-profile access before applying strict RBAC/Ownership
@@ -127,14 +155,29 @@ app.use('/api/authorization',  requirePermission('Settings', 'Authorization'),  
 
 // --- Masters: Master Types module — Phase D enforced (Batch 2) ---
 const masterCodeRouter = require('./routes/master_code');
-app.use('/api/master_code', requirePermission('Master Types', 'User Status'),  masterCodeRouter);
+app.use('/api/master_code', requirePermission([
+  { module: 'Master Types', subModule: 'User Status' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Setup', subModule: 'User Mgmt', action: 'read' },
+  { module: 'Settings', subModule: 'Company Mgmt', action: 'read' }
+]),  masterCodeRouter);
 
 const masterTypeRouter = require('./routes/master_type');
-app.use('/api/master_type', requirePermission('Master Types', 'User Status'),  masterTypeRouter);
+app.use('/api/master_type', requirePermission([
+  { module: 'Master Types', subModule: 'User Status' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Setup', subModule: 'User Mgmt', action: 'read' },
+  { module: 'Settings', subModule: 'Company Mgmt', action: 'read' }
+]),  masterTypeRouter);
 
 // --- Masters module — Phase D enforced (Batch 2) ---
 const masterLocationRouter = require('./routes/master_location');
-app.use('/api/master_location', requirePermission('Masters', 'Location'),       masterLocationRouter);
+app.use('/api/master_location', requirePermission([
+  { module: 'Masters', subModule: 'Location' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' },
+  { module: 'Masters', subModule: 'Local Tariff', action: 'read' }
+]),       masterLocationRouter);
 
 const masterUOMRoutes = require('./routes/master_uom');
 app.use('/api/master_uom',      requirePermission('Masters', 'Unit of Measure'), masterUOMRoutes);
@@ -149,14 +192,23 @@ const masterAirlineRouter = require('./routes/master_airline');
 app.use('/api/master_airline',  requirePermission('Masters', 'Airline'),         masterAirlineRouter);
 
 const mappingRouter = require('./routes/mapping');
-app.use('/api/mapping',         requirePermission('Settings', 'No. Series Mapping'), mappingRouter);
+app.use('/api/mapping', requirePermission([
+  { module: 'Settings', subModule: 'No. Series Mapping' },
+  { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+  { module: 'Operations', subModule: 'Booking', action: 'read' },
+  { module: 'Setup', subModule: 'User Mgmt', action: 'read' }
+]), mappingRouter);
 
 // Add customer route
 // Phase H Batch 2: Ownership — only creator or admin may mutate a customer record.
 // Rollback: remove requireOwnership(...) line.
 const customerRouter = require('./routes/customer');
 app.use('/api/customer',
-  requirePermission('Masters', 'Customer'),
+  requirePermission([
+    { module: 'Masters', subModule: 'Customer' },
+    { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+    { module: 'Operations', subModule: 'Booking', action: 'read' }
+  ]),
   requireContext(),
   requireOwnership({ table: 'customer', ownerField: 'created_by', ownerType: 'username', adminBypass: true }),
   customerRouter
@@ -165,7 +217,11 @@ app.use('/api/customer',
 // Add entity documents route (linked to Customer master)
 try {
   const entityDocumentsRouter = require('./routes/entity_documents');
-  app.use('/api/entity_documents', requirePermission('Masters', 'Customer'),    entityDocumentsRouter);
+  app.use('/api/entity_documents', requirePermission([
+    { module: 'Masters', subModule: 'Customer' },
+    { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+    { module: 'Operations', subModule: 'Booking', action: 'read' }
+  ]),    entityDocumentsRouter);
   console.log('Entity documents route registered successfully');
 } catch (error) {
   console.error('Error loading entity documents route:', error);
@@ -174,7 +230,12 @@ try {
 // Phase H Batch 2: Ownership on vendor.
 const vendorRouter = require('./routes/vendor');
 app.use('/api/vendor',
-  requirePermission('Masters', 'Vendor'),
+  requirePermission([
+    { module: 'Masters', subModule: 'Vendor' },
+    { module: 'Operations', subModule: 'Enquiry', action: 'read' },
+    { module: 'Operations', subModule: 'Booking', action: 'read' },
+    { module: 'Masters', subModule: 'Local Tariff', action: 'read' }
+  ]),
   requireContext(),
   requireOwnership({ table: 'vendor', ownerField: 'created_by', ownerType: 'username', adminBypass: true }),
   vendorRouter

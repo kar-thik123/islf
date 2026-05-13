@@ -86,8 +86,8 @@ router.post('/:roleName', async (req, res) => {
     await client.query("COMMIT");
     
     // Phase R1: Invalidate the enforcer cache immediately after update
-    const { invalidateRolePermissionCache } = require('../middleware/rbacEnforcer');
-    invalidateRolePermissionCache(roleName);
+    const { invalidatePermissionCache } = require('../middleware/rbacEnforcer');
+    invalidatePermissionCache(roleName);
     
     res.json({ success: true, message: "Permissions updated successfully" });
   } catch (err) {

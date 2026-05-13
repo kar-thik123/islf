@@ -45,11 +45,10 @@
 'use strict';
 
 const pool = require('../db');
+const { PROTECTED_ROLES, ADMIN_BYPASS_ROLES } = require('../constants/roles');
 
 // ---------------------------------------------------------------------------
 // Simple in-process role cache (per-userId, TTL 60 seconds).
-// Avoids a DB round-trip on every request for the same user.
-// This is request-level caching only — no shared state between workers.
 // ---------------------------------------------------------------------------
 const roleCache = new Map();
 const ROLE_CACHE_TTL_MS = 60_000;
@@ -63,7 +62,7 @@ const PERM_CACHE_TTL_MS = 60_000;
 async function getRoleForUser(userId) {
   const cached = roleCache.get(userId);
   if (cached && Date.now() - cached.ts < ROLE_CACHE_TTL_MS) {
-    return cached.role; // may be null — that's valid (user has no role)
+    return cached.role;
   }
 
   try {
@@ -71,13 +70,33 @@ async function getRoleForUser(userId) {
       'SELECT role FROM users WHERE id = $1 LIMIT 1',
       [userId]
     );
-    // Explicitly null for unknown userId OR user with no role
     const role = result.rows[0]?.role ?? null;
     roleCache.set(userId, { role, ts: Date.now() });
     return role;
   } catch (err) {
     console.error('[RBAC Enforcer] DB error resolving role for userId', userId, ':', err.message);
     return null;
+  }
+}
+
+/**
+ * Invalidate caches. Called on role/permission updates.
+ */
+function invalidateRoleCache(userId) {
+  if (userId) roleCache.delete(userId);
+  else roleCache.clear();
+}
+
+function invalidatePermissionCache(role) {
+  if (role) {
+    // Delete all entries for this role
+    for (const key of permissionCache.keys()) {
+      if (key.startsWith(`${role}:`)) {
+        permissionCache.delete(key);
+      }
+    }
+  } else {
+    permissionCache.clear();
   }
 }
 
@@ -100,7 +119,7 @@ function resolveRequiredFlag(method) {
 // Returns { allowed: boolean, found: boolean }
 // ---------------------------------------------------------------------------
 async function checkPermission(role, moduleName, subModuleName, permFlag) {
-  // No role → deny immediately. This is not a transient error; it's a data integrity issue.
+  // No role → deny immediately.
   if (!role || role.trim() === '') {
     return { allowed: false, found: false };
   }
@@ -124,7 +143,6 @@ async function checkPermission(role, moduleName, subModuleName, permFlag) {
     );
 
     if (result.rows.length === 0) {
-      // Role exists but has no permission row for this module — deny.
       return { allowed: false, found: false };
     }
 
@@ -134,39 +152,89 @@ async function checkPermission(role, moduleName, subModuleName, permFlag) {
     return { allowed: !!permissions[permFlag], found: true };
   } catch (err) {
     console.error('[RBAC Enforcer] DB error checking permission:', err.message);
-    // Phase C: fail open ONLY on transient DB errors (role IS known but lookup failed).
-    // Phase D will change this to fail-closed.
-    return { allowed: true, found: false };
+    return { allowed: false, found: false }; // Phase D: fail closed
   }
 }
 
 // ---------------------------------------------------------------------------
-// Middleware factory
-// Call once per route group: requirePermission(moduleName, subModuleName)
+// Normalize action strings (read -> can_read, etc.)
 // ---------------------------------------------------------------------------
-function requirePermission(moduleName, subModuleName) {
+function normalizeAction(action) {
+  if (!action) return null;
+  const a = action.toLowerCase();
+  if (a === 'read')   return 'can_read';
+  if (a === 'write')  return 'can_write';
+  if (a === 'delete') return 'can_delete';
+  return action;
+}
+
+// ---------------------------------------------------------------------------
+// Middleware factory
+// ---------------------------------------------------------------------------
+function requirePermission(moduleOrArray, subModuleName) {
+  const requirements = Array.isArray(moduleOrArray) 
+    ? moduleOrArray 
+    : [{ module: moduleOrArray, subModule: subModuleName }];
+
   return async function rbacEnforce(req, res, next) {
-    // Should never happen (authenticateToken runs before this), but be safe
     if (!req.user) {
-      console.warn('[RBAC Enforcer] req.user missing — authenticateToken may not have run');
       return res.status(401).json({ message: 'Authentication required' });
     }
 
     const userId   = req.user.userId;
     const username = req.user.username || 'unknown';
-
-    // Resolve role: from JWT if present, else DB
-    const role = req.user.role || await getRoleForUser(userId);
-
-    const permFlag = resolveRequiredFlag(req.method);
+    const rawRole  = req.user.role || await getRoleForUser(userId);
+    const role     = rawRole ? rawRole.toUpperCase() : null; // Normalize for constant checks
+    const method   = req.method.toUpperCase();
     const endpoint = (req.originalUrl || req.url || '').split('?')[0].substring(0, 500);
 
-    const { allowed, found } = await checkPermission(role, moduleName, subModuleName, permFlag);
+    // 1. SYSTEM_ADMIN bypasses everything
+    if (role === PROTECTED_ROLES.SYSTEM_ADMIN) {
+      console.log(`[RBAC Enforcer] user="${username}" role="${role}" endpoint="${endpoint}" → SYSTEM_ADMIN BYPASS ALLOW`);
+      return next();
+    }
 
-    // Structured enforcement log (grep-friendly)
-    const logLine = `[RBAC Enforcer] user="${username}" role="${role}" ` +
-      `module="${moduleName}/${subModuleName}" ` +
-      `action="${permFlag}" endpoint="${endpoint}" ` +
+    // 2. ADMIN bypasses everything EXCEPT IT Setup and Authorization
+    if (role === PROTECTED_ROLES.ADMIN) {
+      const isRestricted = requirements.some(r => 
+        r.module === 'Settings' && (r.subModule === 'IT Setup' || r.subModule === 'Authorization')
+      );
+      if (isRestricted) {
+        console.warn(`[RBAC Enforcer] user="${username}" role="${role}" endpoint="${endpoint}" → ADMIN RESTRICTED DENY (403)`);
+        return res.status(403).json({ message: "Access denied: Only SYSTEM_ADMIN can access this module." });
+      }
+      console.log(`[RBAC Enforcer] user="${username}" role="${role}" endpoint="${endpoint}" → ADMIN BYPASS ALLOW`);
+      return next();
+    }
+
+    // 3. Inheritance & Standard RBAC
+    const isGet = method === 'GET';
+    const checkList = isGet ? requirements : [requirements[0]];
+
+    let lastDecision = { allowed: false, found: false };
+    let matchingRequirement = null;
+
+    for (const reqInfo of checkList) {
+      const targetFlag = normalizeAction(reqInfo.action) || resolveRequiredFlag(method);
+      const decision = await checkPermission(rawRole, reqInfo.module, reqInfo.subModule, targetFlag);
+      
+      if (decision.allowed) {
+        lastDecision = decision;
+        matchingRequirement = reqInfo;
+        break;
+      }
+      // Update lastDecision with the latest failure info
+      lastDecision = decision;
+      matchingRequirement = reqInfo;
+    }
+
+    const { allowed, found } = lastDecision;
+    const finalModule = matchingRequirement ? `${matchingRequirement.module}/${matchingRequirement.subModule}` : 'None';
+    const finalAction = normalizeAction(matchingRequirement?.action) || resolveRequiredFlag(method);
+
+    const logLine = `[RBAC Enforcer] user="${username}" role="${rawRole}" ` +
+      `module="${finalModule}" action="${finalAction}" ` +
+      `method="${method}" endpoint="${endpoint}" ` +
       `found=${found} allowed=${allowed}`;
 
     if (allowed) {
@@ -177,19 +245,15 @@ function requirePermission(moduleName, subModuleName) {
     console.warn(logLine + ' → DENY (403)');
     return res.status(403).json({
       message: 'Access denied: you do not have permission to perform this action.',
-      module: moduleName,
-      sub_module: subModuleName,
-      required: permFlag,
+      module: matchingRequirement?.module || requirements[0].module,
+      sub_module: matchingRequirement?.subModule || requirements[0].subModule,
+      required: finalAction,
     });
   };
 }
 
-function invalidateRolePermissionCache(roleName) {
-  for (const key of permissionCache.keys()) {
-    if (key.startsWith(`${roleName}:`)) {
-      permissionCache.delete(key);
-    }
-  }
-}
-
-module.exports = { requirePermission, invalidateRolePermissionCache };
+module.exports = { 
+  requirePermission, 
+  invalidateRoleCache, 
+  invalidatePermissionCache 
+};
