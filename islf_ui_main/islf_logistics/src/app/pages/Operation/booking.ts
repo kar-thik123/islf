@@ -1415,7 +1415,7 @@ export class BookingComponent implements OnInit {
 
         // 2. Locations Map (CRITICAL for locName pipe/function)
         // Filter only active locations
-        this.allLocations = (res.locations || []).filter((loc: any) => loc.active === true);
+        this.allLocations = (res.locations || []).filter((loc: any) => this.masterLocationService.isActiveLocation(loc));
         this.locationMap = {};
         this.allLocations.forEach(loc => {
           this.locationMap[loc.code] = loc.name;

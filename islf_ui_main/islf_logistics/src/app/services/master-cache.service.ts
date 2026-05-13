@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { shareReplay } from 'rxjs/operators';
+import { Observable, BehaviorSubject } from 'rxjs';
+import { shareReplay, switchMap } from 'rxjs/operators';
 import { MasterLocationService } from './master-location.service';
 import { VendorService } from './vendor.service';
 import { EnquiryService } from './enquiry.service';
@@ -26,6 +26,15 @@ import { CarriageService } from './carriage.service';
 export class MasterCacheService {
     private cache = new Map<string, Observable<any>>();
     private lastContextStr = '';
+
+    // Reactive Refresh Trigger for Locations
+    private refreshLocations$ = new BehaviorSubject<void>(undefined);
+
+    // One source of truth for locations with reactive invalidation
+    private locations$ = this.refreshLocations$.pipe(
+        switchMap(() => this.getCachedObservable('locations', () => this.locationService.getAll())),
+        shareReplay(1)
+    );
 
     constructor(
         private locationService: MasterLocationService,
@@ -69,8 +78,9 @@ export class MasterCacheService {
     public clearLocationCache() {
         if (this.cache.has('locations')) {
             this.cache.delete('locations');
-            console.log('🔄 Locations Cache Cleared');
         }
+        this.refreshLocations$.next();
+        console.log('🔄 Locations Cache Cleared & Refresh Triggered');
     }
 
     private getCachedObservable(key: string, fetchFn: () => Observable<any>): Observable<any> {
@@ -90,7 +100,7 @@ export class MasterCacheService {
     // --- Public Cache Accessors ---
 
     getLocations(): Observable<any[]> {
-        return this.getCachedObservable('locations', () => this.locationService.getAll());
+        return this.locations$;
     }
 
     getVendors(): Observable<any[]> {

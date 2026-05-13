@@ -2104,7 +2104,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   loadLocationOptions() {
     return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
-        this.allLocations = locations.filter((l) => l.active);
+        this.allLocations = (locations || []).filter((l) => this.masterLocationService.isActiveLocation(l));
         console.log('Loaded all locations:', this.allLocations.length);
 
         // Debug: Log the first few locations to see their structure
@@ -2119,7 +2119,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         const uniqueCities = Array.from(
           new Set(
             (locations || [])
-              .filter((l) => l.active && l.city)
+              .filter((l) => this.masterLocationService.isActiveLocation(l) && l.city)
               .map((l) => l.city.trim())
               .filter(Boolean)
           )

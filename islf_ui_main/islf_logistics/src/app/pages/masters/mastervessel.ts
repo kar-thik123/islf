@@ -372,8 +372,9 @@ export class MasterVesselComponent implements OnInit, OnDestroy {
   loadFlagOptions() {
     this.masterCache.getLocations().subscribe({
       next: (locations) => {
-        // Step 1: Filter valid country values
-        const countries = locations
+        // Step 1: Filter valid country values from active locations
+        const countries = (locations || [])
+          .filter(loc => this.masterLocationService.isActiveLocation(loc))
           .map(loc => loc.country?.trim())
           .filter(country => !!country); // remove null/empty
 

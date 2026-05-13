@@ -24,8 +24,6 @@ export interface MasterLocation {
 @Injectable({ providedIn: 'root' })
 export class MasterLocationService {
   private apiUrl = `${environment.apiUrl}/api/master_location`;
-  private cache: any[] | null = null;
-  private lastContextKey: string = '';
 
   constructor(
     private http: HttpClient,
@@ -34,13 +32,26 @@ export class MasterLocationService {
     private configService: ConfigService
   ) { }
 
-  // Enhanced getAll method with in-memory caching
+  /**
+   * Centralized Active Filter
+   * Accepts: true, 'true', 1, '1'
+   * Rejects: false, 'false', 0, null, undefined
+   */
+  isActiveLocation(loc: any): boolean {
+    if (!loc) return false;
+    const active = loc.active;
+    return active === true || active === 'true' || active === 1 || active === '1';
+  }
+
+  // Stateless getAll method
   getAll(): Observable<any[]> {
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const locationFilter = config?.validation?.locationFilter || '';
 
-    let params: any = {};
+    let params: any = {
+      limit: 5000 // Large dataset safety
+    };
 
     // Only send context parameters based on the validation/filter settings
     if (locationFilter.includes('C') && context.companyCode) {
@@ -53,41 +64,20 @@ export class MasterLocationService {
       params.departmentCode = context.departmentCode;
     }
 
-    const currentContextKey = JSON.stringify(params);
-    if (this.cache && this.lastContextKey === currentContextKey) {
-      console.log('Returning cached locations');
-      return of(this.cache);
-    }
-
     return this.http.get<{ data: any[], total: number }>(this.apiUrl, { params }).pipe(
-      map(response => {
-        // Extract the data array from the paginated response
-        const data = response.data || [];
-        this.cache = data;
-        this.lastContextKey = currentContextKey;
-        return data;
-      })
+      map(response => response.data || [])
     );
   }
 
-  clearCache() {
-    this.cache = null;
-    this.lastContextKey = '';
-  }
-
   create(data: MasterLocation): Observable<MasterLocation> {
-    this.clearCache();
     return this.http.post<MasterLocation>(this.apiUrl, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
   update(code: string, data: Partial<MasterLocation>): Observable<MasterLocation> {
-    this.clearCache();
     return this.http.put<MasterLocation>(`${this.apiUrl}/${code}`, this.contextPayload.withContext(data, this.contextService.getContext()));
   }
 
-
   delete(code: string): Observable<any> {
-    this.clearCache();
     return this.http.delete(`${this.apiUrl}/${code}`);
   }
 }

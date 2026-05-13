@@ -3134,7 +3134,7 @@ export class EnquiryComponent implements OnInit {
   loadLocations() {
     return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
-        this.allLocations = locations.filter((l) => l.active);
+        this.allLocations = (locations || []).filter((l) => this.masterLocationService.isActiveLocation(l));
         console.log('Loaded all locations:', this.allLocations.length);
 
         // Populate locationMap for quick lookup

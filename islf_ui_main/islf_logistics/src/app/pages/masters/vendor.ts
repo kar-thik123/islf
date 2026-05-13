@@ -2276,7 +2276,7 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.cityOptions = [];
     this.masterCache.getLocations().subscribe({
       next: (locations) => {
-        this.allLocations = locations.filter((l) => l.active);
+        this.allLocations = (locations || []).filter((l) => this.masterLocationService.isActiveLocation(l));
 
         {
           /* // Unique countries - show ALL active locations regardless of type

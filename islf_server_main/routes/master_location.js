@@ -2,11 +2,28 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { getUsernameFromToken } = require('../utils/context-helper');
+const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
 
 // Get all master locations with pagination
 router.get('/', async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode, page = 1, limit = 10 } = req.query;
+    let { companyCode, branchCode, departmentCode, page = 1, limit = 1000 } = req.query;
+
+    // Phase T4.1: Enforced Context Isolation
+    // If not admin, enforce context from JWT if missing in query
+    const isBypass = req.user && ADMIN_BYPASS_ROLES.has(req.user.role);
+    if (!isBypass) {
+      companyCode = companyCode || req.user.company_code;
+      branchCode = branchCode || req.user.branch;
+      departmentCode = departmentCode || req.user.department;
+
+      // Safety: If no company context is found for a non-admin, restrict access
+      if (!companyCode) {
+        console.warn(`⚠️ [Context Leakage Prevention] No company context for user: ${req.user?.username}`);
+        return res.json({ data: [], total: 0 });
+      }
+    }
+
     const offset = (Number(page) - 1) * Number(limit);
 
     let query = `

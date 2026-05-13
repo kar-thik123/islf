@@ -715,7 +715,9 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
   }
 
   getLocationsByType(type: string): MasterLocation[] {
-    return this.locations.filter(loc => loc.type === type);
+    if (!type) return [];
+    const normalizedType = type.trim().toUpperCase();
+    return this.locations.filter(loc => loc.type?.trim().toUpperCase() === normalizedType);
   }
 
   onTabChange(event: any) {
