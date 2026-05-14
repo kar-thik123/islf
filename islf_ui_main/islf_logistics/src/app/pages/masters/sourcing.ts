@@ -36,6 +36,7 @@ import {
   debounceTime,
   distinctUntilChanged,
   catchError,
+  take,
 } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { VendorService } from '@/services/vendor.service';
@@ -1582,6 +1583,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     { label: 'Buy  Rate', value: 'Buy  Rate' },
   ];
   isDialogVisible = false;
+  isLoadingDialogData = false;
   selectedTariff: any = null;
   originalTariffData: any = null; // Backup of original data for cancel functionality
   showCurrencyDialog = false;
@@ -2625,8 +2627,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
       isNew: true,
     };
     this.selectedTariff.sub_charges = []; // Initialize sub_charges
-    this.isDialogVisible = true;
     this.fieldErrors = {};
+    this.isLoadingDialogData = true;
 
     // Initialize masterDialogLoading state for ellipsis buttons
     this.masterDialogLoading = {};
@@ -2634,27 +2636,44 @@ export class SourcingComponent implements OnInit, OnDestroy {
     // Load mapped tariff series code for automatic generation
     this.loadMappedTariffSeriesCode();
 
-    // Force immediate change detection to show dialog quickly
-    this.cdr.detectChanges();
+    // 🚀 Performance Optimization: Split into Critical (Blocking) and Lazy (Background) paths
+    // Critical: Essential data for first view and filtering
+    const criticalObs = forkJoin([
+      this.loadModeOptions().pipe(take(1)),
+      this.loadShippingTypeOptions().pipe(take(1)),
+      this.loadTariffTypeOptions().pipe(take(1)),
+      this.loadLocationOptions().pipe(take(1)),
+      this.loadLocationTypeOptions().pipe(take(1))
+    ]);
 
-    // Load options using forkJoin
-    forkJoin([
-      this.loadModeOptions(),
-      this.loadShippingTypeOptions(),
-      this.loadCargoTypeOptions(),
-      this.loadTariffTypeOptions(),
-      this.loadLocationOptions(),
-      this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
-      this.loadItemOptions(),
-      this.loadVendorTypeOptions(),
-      this.loadVendorOptions(),
-      this.loadServiceAreaOptions(),
-      this.loadSourceSalesOptions(),
-    ]).subscribe(() => {
-      this.updateFormValidity();
-      this.cdr.detectChanges();
+    criticalObs.subscribe({
+      next: () => {
+        // Show dialog immediately after critical data is ready
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        this.updateFormValidity();
+        this.cdr.detectChanges();
+
+        // 🔄 Background Hydration: Load non-critical data without blocking the UI
+        this.loadCargoTypeOptions().pipe(take(1)).subscribe();
+        this.loadBasisOptions().pipe(take(1)).subscribe();
+        this.loadContainersOptions().pipe(take(1)).subscribe();
+        this.loadCurrencyOptions().pipe(take(1)).subscribe();
+        this.loadItemOptions().pipe(take(1)).subscribe();
+        this.loadVendorTypeOptions().pipe(take(1)).subscribe();
+        this.loadVendorOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaOptions().pipe(take(1)).subscribe();
+        this.loadSourceSalesOptions().pipe(take(1)).subscribe();
+      },
+      error: (err) => {
+        console.error('Error loading critical dialog data:', err);
+        this.isLoadingDialogData = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load master data',
+        });
+      },
     });
   }
 
@@ -2940,31 +2959,50 @@ export class SourcingComponent implements OnInit, OnDestroy {
     this.filterFromLocations();
     this.filterToLocations();
 
-    this.isDialogVisible = true;
     this.fieldErrors = {};
+    this.isLoadingDialogData = true;
 
     // Initialize masterDialogLoading state for ellipsis buttons
     this.masterDialogLoading = {};
 
-    // Force immediate change detection to show dialog quickly
-    this.cdr.detectChanges();
+    // 🚀 Performance Optimization: Split into Critical (Blocking) and Lazy (Background) paths
+    // Critical: Essential data for first view and filtering
+    const criticalObs = forkJoin([
+      this.loadModeOptions().pipe(take(1)),
+      this.loadShippingTypeOptions().pipe(take(1)),
+      this.loadTariffTypeOptions().pipe(take(1)),
+      this.loadLocationOptions().pipe(take(1)),
+      this.loadLocationTypeOptions().pipe(take(1))
+    ]);
 
-    // Load all options using forkJoin for consistent performance with addRow
-    forkJoin([
-      this.loadModeOptions(),
-      this.loadShippingTypeOptions(),
-      this.loadCargoTypeOptions(),
-      this.loadTariffTypeOptions(),
-      this.loadLocationOptions(),
-      this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
-      this.loadItemOptions(),
-      this.loadVendorTypeOptions(),
-      this.loadVendorOptions(),
-    ]).subscribe(() => {
-      this.updateFormValidity();
-      this.cdr.detectChanges();
+    criticalObs.subscribe({
+      next: () => {
+        // Show dialog immediately after critical data is ready
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        this.updateFormValidity();
+        this.cdr.detectChanges();
+
+        // 🔄 Background Hydration: Load non-critical data without blocking the UI
+        this.loadCargoTypeOptions().pipe(take(1)).subscribe();
+        this.loadBasisOptions().pipe(take(1)).subscribe();
+        this.loadContainersOptions().pipe(take(1)).subscribe();
+        this.loadCurrencyOptions().pipe(take(1)).subscribe();
+        this.loadItemOptions().pipe(take(1)).subscribe();
+        this.loadVendorTypeOptions().pipe(take(1)).subscribe();
+        this.loadVendorOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaOptions().pipe(take(1)).subscribe();
+        this.loadSourceSalesOptions().pipe(take(1)).subscribe();
+      },
+      error: (err) => {
+        console.error('Error loading critical dialog data:', err);
+        this.isLoadingDialogData = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load master data',
+        });
+      },
     });
   }
 

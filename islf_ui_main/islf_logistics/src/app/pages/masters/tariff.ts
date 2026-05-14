@@ -26,12 +26,15 @@ import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
-import { forkJoin, Subscription, of, Observable } from 'rxjs';
+import { forkJoin, Subscription, of, Observable, BehaviorSubject, combineLatest } from 'rxjs';
 import {
   tap,
   debounceTime,
   distinctUntilChanged,
   catchError,
+  map,
+  startWith,
+  take,
 } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { VendorService } from '@/services/vendor.service';
@@ -1475,6 +1478,12 @@ import { MasterCacheService } from '../../services/master-cache.service';
 })
 export class TariffComponent implements OnInit, OnDestroy {
   private contextSubscription: Subscription | undefined;
+  private destroy$ = new BehaviorSubject<void>(undefined);
+  
+  // Reactive Trigger for Form Changes
+  private selectedTariffTrigger$ = new BehaviorSubject<any>(null);
+  
+  public isLoadingDialogData = false;
   tariffs: Tariff[] = [];
 
   statusOptions = [
@@ -1749,18 +1758,10 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   onDeptModeChange() {
-    console.log(
-      'Selected Tariff value from the onDept Mode Change',
-      this.selectedTariff
-    );
-
-    console.log('locations: from on dept mode change:', this.allLocations);
-    // console.log("shipping Types from on dept mode change:",this.shippingTypeOptions)
     if (this.selectedTariff) {
       this.selectedTariff.shippingType = '';
       this.fieldErrors['shippingType'] = '';
-
-      this.filterServiceType();
+      this.selectedTariffTrigger$.next(this.selectedTariff);
     }
   }
 
@@ -1769,9 +1770,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     if (this.selectedTariff) {
       this.selectedTariff.from = '';
       this.fieldErrors['from'] = '';
-
-      // Filter from locations based on selected location type
-      this.filterFromLocations();
+      this.selectedTariffTrigger$.next(this.selectedTariff);
     }
   }
 
@@ -1780,9 +1779,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     if (this.selectedTariff) {
       this.selectedTariff.to = '';
       this.fieldErrors['to'] = '';
-
-      // Filter to locations based on selected location type
-      this.filterToLocations();
+      this.selectedTariffTrigger$.next(this.selectedTariff);
     }
   }
   filterServiceType() {
@@ -1964,11 +1961,15 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     console.log('TariffComponent ngOnInit - Initial load');
-    // Load data immediately
+    
+    // 1. Initial critical data load
     this.loadAllData();
     this.loadMappedTariffSeriesCode();
 
-    // Subscribe to context changes to reload data
+    // 2. Setup Reactive Dropdown Streams
+    this.setupReactiveDropdowns();
+
+    // 3. Subscribe to context changes to reload data
     this.contextSubscription = this.contextService.context$
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((context) => {
@@ -1994,10 +1995,59 @@ export class TariffComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Implements Reactive Dropdown Stabilization.
+   * Replaces imperative filter methods with reactive streams.
+   */
+  private setupReactiveDropdowns() {
+    // A. Shipping Type (Depends on Mode)
+    combineLatest([
+      this.masterCache.getServiceTypes().pipe(startWith([])),
+      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+    ]).subscribe(([serviceTypes, selectedTariff]) => {
+      this.allShippingType = (serviceTypes || []).filter(st => st.status === 'active');
+      this.filterServiceType();
+      this.cdr.detectChanges();
+    });
+
+    // B. From/To Locations (Depends on Location Type)
+    combineLatest([
+      this.masterCache.getLocations().pipe(startWith([])),
+      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+    ]).subscribe(([locations, selectedTariff]) => {
+      this.allLocations = (locations || []).filter(l => this.masterLocationService.isActiveLocation(l));
+      this.filterFromLocations();
+      this.filterToLocations();
+      this.cdr.detectChanges();
+    });
+
+    // C. Vendors (Depends on Vendor Type)
+    combineLatest([
+      this.masterCache.getVendors().pipe(startWith([])),
+      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+    ]).subscribe(([vendors, selectedTariff]) => {
+      this.allVendors = vendors || [];
+      this.onVendorTypeChange();
+      this.cdr.detectChanges();
+    });
+
+    // D. Service Areas (Depends on Service Area Type)
+    combineLatest([
+      this.masterCache.getServiceAreas().pipe(startWith([])),
+      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+    ]).subscribe(([serviceAreas, selectedTariff]) => {
+      this.allServiceAreas = (serviceAreas || []).filter(sa => sa.status === 'active');
+      this.filterServiceAreasByType();
+      this.cdr.detectChanges();
+    });
+  }
+
   ngOnDestroy() {
     if (this.contextSubscription) {
       this.contextSubscription.unsubscribe();
     }
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private loadAllData() {
@@ -2594,7 +2644,7 @@ export class TariffComponent implements OnInit, OnDestroy {
 
     console.log('Context validation passed - proceeding with add tariff');
 
-    // Existing addRow logic
+    // Set up initial tariff object
     this.selectedTariff = {
       code: this.isManualSeries ? '' : this.mappedTariffSeriesCode || '',
       mode: '',
@@ -2617,36 +2667,48 @@ export class TariffComponent implements OnInit, OnDestroy {
       periodStartDate: '',
       periodEndDate: '',
       isNew: true,
+      sub_charges: []
     };
-    this.selectedTariff.sub_charges = []; // Initialize sub_charges
-    this.isDialogVisible = true;
+
     this.fieldErrors = {};
-
-    // Initialize masterDialogLoading state for ellipsis buttons
     this.masterDialogLoading = {};
+    this.isLoadingDialogData = true; // New flag to show a global loader if needed
 
-    // Load mapped tariff series code for automatic generation
-    this.loadMappedTariffSeriesCode();
+    // 🚀 Performance Optimization: Split into Critical (Blocking) and Lazy (Background) paths
+    // Critical: Data user sees immediately or needs for initial filtering
+    const criticalObs = forkJoin([
+      this.loadModeOptions().pipe(take(1)),
+      this.loadShippingTypeOptions().pipe(take(1)),
+      this.loadTariffTypeOptions().pipe(take(1)),
+      this.loadLocationOptions().pipe(take(1)),
+      this.loadLocationTypeOptions().pipe(take(1))
+    ]);
 
-    // Force immediate change detection to show dialog quickly
-    this.cdr.detectChanges();
+    criticalObs.subscribe({
+      next: () => {
+        // Show dialog immediately after critical data is ready
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        this.selectedTariffTrigger$.next(this.selectedTariff);
+        this.updateFormValidity();
+        this.cdr.detectChanges();
 
-    // Load options using forkJoin
-    forkJoin([
-      this.loadModeOptions(),
-      this.loadShippingTypeOptions(),
-      this.loadCargoTypeOptions(),
-      this.loadTariffTypeOptions(),
-      this.loadLocationOptions(),
-      this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
-      this.loadItemOptions(),
-      this.loadVendorTypeOptions(),
-      this.loadVendorOptions(),
-    ]).subscribe(() => {
-      this.updateFormValidity();
-      this.cdr.detectChanges();
+        // 🔄 Background Hydration: Load non-critical data without blocking the UI
+        this.loadCargoTypeOptions().pipe(take(1)).subscribe();
+        this.loadBasisOptions().pipe(take(1)).subscribe();
+        this.loadContainersOptions().pipe(take(1)).subscribe();
+        this.loadCurrencyOptions().pipe(take(1)).subscribe();
+        this.loadItemOptions().pipe(take(1)).subscribe();
+        this.loadVendorTypeOptions().pipe(take(1)).subscribe();
+        this.loadVendorOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaTypeOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaOptions().pipe(take(1));
+      },
+      error: (err) => {
+        console.error('Error loading critical dialog data:', err);
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master data' });
+      }
     });
   }
 
@@ -3000,102 +3062,80 @@ export class TariffComponent implements OnInit, OnDestroy {
 
     // Store original data for cancel functionality
     this.originalTariffData = JSON.parse(JSON.stringify(tariff));
-
     this.selectedTariff = { ...tariff, isNew: false, isEdit: true };
-    // Fetch and load sub-charges
-    if (this.selectedTariff.id) {
-      this.tariffService.getCharges(this.selectedTariff.id).subscribe({
-        next: (subCharges) => {
-          this.selectedTariff.sub_charges = subCharges;
-          // Map created_at -> date_time for display; fallback to existing date_time if present
-          this.selectedTariff.sub_charges.forEach((subCharge: any) => {
-            subCharge.date_time = subCharge?.created_at
-              ? new Date(subCharge.created_at)
-              : subCharge?.date_time
-                ? this.formatDateTime(subCharge.date_time)
-                : null;
-          });
-          // Map backend snake_case period dates to UI camelCase and parse to Date
-          this.selectedTariff.sub_charges.forEach((subCharge: any) => {
-            const startRaw =
-              subCharge.periodStartDate ?? subCharge.period_start_date ?? null;
-            const endRaw =
-              subCharge.periodEndDate ?? subCharge.period_end_date ?? null;
-            subCharge.periodStartDate = startRaw
-              ? this.parseDate(startRaw)
-              : null;
-            subCharge.periodEndDate = endRaw ? this.parseDate(endRaw) : null;
-            // Ensure UI 'charges' is present from backend 'charge'
-            subCharge.charges = subCharge.charges ?? subCharge.charge ?? null;
-          });
-          this.updateFormValidity(); // Re-validate form after loading sub-charges
-          this.recalculateGeneralPeriodFromCharges();
-          this.cdr.detectChanges(); // Manually trigger change detection
-        },
-        error: (err) => {
-          console.error('Failed to load sub-charges:', err);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to load tariff charges.',
-          });
-        },
-      });
-    } else {
-      this.selectedTariff.sub_charges = [];
-    }
-
-    // Convert date strings to Date objects for the calendar components
-    // Use proper date parsing to avoid timezone issues
-    if (this.selectedTariff.effectiveDate) {
-      this.selectedTariff.effectiveDate = this.parseDate(
-        this.selectedTariff.effectiveDate
-      );
-    }
-    if (this.selectedTariff.periodStartDate) {
-      this.selectedTariff.periodStartDate = this.parseDate(
-        this.selectedTariff.periodStartDate
-      );
-    }
-    if (this.selectedTariff.periodEndDate) {
-      this.selectedTariff.periodEndDate = this.parseDate(
-        this.selectedTariff.periodEndDate
-      );
-    }
-
-    // Filter locations based on existing location types
-    this.filterFromLocations();
-    this.filterToLocations();
-
-    this.isDialogVisible = true;
     this.fieldErrors = {};
-
-    // Initialize masterDialogLoading state for ellipsis buttons
     this.masterDialogLoading = {};
+    this.isLoadingDialogData = true;
 
-    // Force immediate change detection to show dialog quickly
-    this.cdr.detectChanges();
+    // 1. Prepare observables for data loading
+    const chargesObs = this.selectedTariff.id 
+      ? this.tariffService.getCharges(this.selectedTariff.id).pipe(catchError(() => of([])))
+      : of([]);
 
-    console.log('Selected tariff for editing:', this.selectedTariff);
+    const mastersObs = forkJoin([
+      this.loadModeOptions().pipe(take(1)),
+      this.loadShippingTypeOptions().pipe(take(1)),
+      this.loadTariffTypeOptions().pipe(take(1)),
+      this.loadLocationOptions().pipe(take(1)),
+      this.loadLocationTypeOptions().pipe(take(1))
+    ]);
 
-    // Load all options using forkJoin for consistent performance with addRow
-    forkJoin([
-      this.loadModeOptions(),
-      this.loadShippingTypeOptions(),
-      this.loadCargoTypeOptions(),
-      this.loadTariffTypeOptions(),
-      this.loadLocationOptions(),
-      this.loadBasisOptions(),
-      this.loadContainersOptions(),
-      this.loadCurrencyOptions(),
-      this.loadItemOptions(),
-      this.loadVendorTypeOptions(),
-      this.loadVendorOptions(),
-      this.loadSourceSalesOptions(),
-      this.loadServiceAreaOptions(),
-    ]).subscribe(() => {
-      this.updateFormValidity();
-      this.cdr.detectChanges();
+    // 2. Wait for EVERYTHING before showing the dialog
+    combineLatest([chargesObs, mastersObs]).subscribe({
+      next: ([subCharges, _]) => {
+        // Process sub-charges
+        this.selectedTariff.sub_charges = subCharges;
+        this.selectedTariff.sub_charges.forEach((subCharge: any) => {
+          subCharge.date_time = subCharge?.created_at
+            ? new Date(subCharge.created_at)
+            : subCharge?.date_time
+              ? this.formatDateTime(subCharge.date_time)
+              : null;
+          
+          const startRaw = subCharge.periodStartDate ?? subCharge.period_start_date ?? null;
+          const endRaw = subCharge.periodEndDate ?? subCharge.period_end_date ?? null;
+          subCharge.periodStartDate = startRaw ? this.parseDate(startRaw) : null;
+          subCharge.periodEndDate = endRaw ? this.parseDate(endRaw) : null;
+          subCharge.charges = subCharge.charges ?? subCharge.charge ?? null;
+        });
+
+        // Parse main tariff dates
+        if (this.selectedTariff.effectiveDate) {
+          this.selectedTariff.effectiveDate = this.parseDate(this.selectedTariff.effectiveDate);
+        }
+        if (this.selectedTariff.periodStartDate) {
+          this.selectedTariff.periodStartDate = this.parseDate(this.selectedTariff.periodStartDate);
+        }
+        if (this.selectedTariff.periodEndDate) {
+          this.selectedTariff.periodEndDate = this.parseDate(this.selectedTariff.periodEndDate);
+        }
+
+        // Finalize UI state
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        this.selectedTariffTrigger$.next(this.selectedTariff); // Trigger reactive filters
+        this.updateFormValidity();
+        this.recalculateGeneralPeriodFromCharges();
+        this.cdr.detectChanges();
+
+        // 🔄 Background Hydration: Load non-critical data without blocking the UI
+        this.loadCargoTypeOptions().pipe(take(1)).subscribe();
+        this.loadBasisOptions().pipe(take(1)).subscribe();
+        this.loadContainersOptions().pipe(take(1)).subscribe();
+        this.loadCurrencyOptions().pipe(take(1)).subscribe();
+        this.loadItemOptions().pipe(take(1)).subscribe();
+        this.loadVendorTypeOptions().pipe(take(1)).subscribe();
+        this.loadVendorOptions().pipe(take(1)).subscribe();
+        this.loadLocationTypeOptions().pipe(take(1)).subscribe();
+        this.loadSourceSalesOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaTypeOptions().pipe(take(1)).subscribe();
+      },
+      error: (err) => {
+        console.error('Error loading edit dialog data:', err);
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load tariff data' });
+      }
     });
   }
 

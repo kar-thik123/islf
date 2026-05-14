@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import {
@@ -63,14 +63,12 @@ import { AuthService } from '../../services/auth.service';
 import { MasterLocationComponent } from '../masters/masterlocation';
 import { BasisComponent } from '../masters/basis';
 import { MasterTypeComponent } from '../masters/mastertype';
-import { forkJoin, from, Observable } from 'rxjs';
-import { tap, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   ServiceAreaService,
   ServiceArea,
 } from '../../services/service-area.service';
-import { catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { forkJoin, from, Observable, BehaviorSubject, combineLatest, Subject, of } from 'rxjs';
+import { tap, debounceTime, distinctUntilChanged, takeUntil, map, startWith, take, catchError } from 'rxjs/operators';
 import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceService } from '../../services/sourcing.service';
@@ -2695,8 +2693,12 @@ import { MasterCacheService } from '../../services/master-cache.service';
     `,
   ],
 })
-export class EnquiryComponent implements OnInit {
+export class EnquiryComponent implements OnInit, OnDestroy {
   loading = false;
+  isLoadingDialogData = false;
+  private destroy$ = new Subject<void>();
+  private selectedEnquiryTrigger$ = new BehaviorSubject<Enquiry | null>(null);
+  
   showServiceAreaDialog = false;
   serviceAreaDropdownOptions: { label: string; value: string }[] = [];
   // Tree Table Properties
@@ -3060,13 +3062,50 @@ export class EnquiryComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.loadServiceAreaOptions(); // Now synchronous or cached
-    // console.log("Debug: obtaining username from the auth service during enquiry on Init", this.authService.getUserName())
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
-    this.loadMasterTypeOptions();
-    this.loadCarriageDirectionOptions();
     this.loadChargeTypeNames().subscribe();
+    this.setupReactiveDropdowns();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Implements Reactive Dropdown Stabilization for Enquiry.
+   */
+  private setupReactiveDropdowns() {
+    // 1. Service Type (Depends on Department)
+    combineLatest([
+      this.masterCache.getServiceTypes().pipe(startWith([])),
+      this.selectedEnquiryTrigger$.pipe(distinctUntilChanged())
+    ]).pipe(takeUntil(this.destroy$)).subscribe(([serviceTypes, enquiry]) => {
+      this.allServiceTypes = serviceTypes || [];
+      this.filterServiceType();
+      this.cdr.detectChanges();
+    });
+
+    // 2. From/To Locations (Depends on Location Type)
+    combineLatest([
+      this.masterCache.getLocations().pipe(startWith([])),
+      this.selectedEnquiryTrigger$.pipe(distinctUntilChanged())
+    ]).pipe(takeUntil(this.destroy$)).subscribe(([locations, enquiry]) => {
+      this.allLocations = (locations || []).filter(l => this.masterLocationService.isActiveLocation(l));
+      // Update location options
+      this.fromLocationOptions = this.allLocations.map(l => ({ label: `${l.code} - ${l.name}`, value: l.code }));
+      this.toLocationOptions = [...this.fromLocationOptions];
+      this.cdr.detectChanges();
+    });
+
+    // 3. Departments
+    this.masterCache.getDepartments().pipe(takeUntil(this.destroy$)).subscribe(depts => {
+      this.departmentOptions = (depts || [])
+        .filter(d => d.status === 'Active' || !d.status)
+        .map(d => ({ label: d.name, value: d.name }));
+      this.cdr.detectChanges();
+    });
   }
 
   initializeForm() {
@@ -3096,9 +3135,9 @@ export class EnquiryComponent implements OnInit {
 
     // 🚀 Critical Path: Load only data needed for table display
     forkJoin({
-      enquiries: this.loadEnquiries(),
-      locations: this.loadLocations(),
-      vendors: this.loadVendors(),
+      enquiries: this.loadEnquiries().pipe(take(1)),
+      locations: this.loadLocations().pipe(take(1)),
+      vendors: this.loadVendors().pipe(take(1)),
     }).subscribe({
       next: () => {
         console.log('Critical data loaded, enquiries visible!');
@@ -3107,15 +3146,15 @@ export class EnquiryComponent implements OnInit {
 
         // 🔄 Background Hydration: Load dropdown data asynchronously
         console.log('Hydrating dropdowns in background...');
-        this.loadDepartments().subscribe();
-        this.loadBasisOptions().subscribe();
-        this.loadCustomers().subscribe();
-        this.loadServiceTypes().subscribe();
-        this.loadLocationTypes().subscribe();
-        this.loadServiceAreaOptions().subscribe();
-        this.loadSourceSalesOptions().subscribe();
-        this.loadCargoTypeOptions().subscribe();
-        this.loadCurrencyOptions().subscribe();
+        this.loadDepartments().pipe(take(1)).subscribe();
+        this.loadBasisOptions().pipe(take(1)).subscribe();
+        this.loadCustomers().pipe(take(1)).subscribe();
+        this.loadServiceTypes().pipe(take(1)).subscribe();
+        this.loadLocationTypes().pipe(take(1)).subscribe();
+        this.loadServiceAreaOptions().pipe(take(1)).subscribe();
+        this.loadSourceSalesOptions().pipe(take(1)).subscribe();
+        this.loadCargoTypeOptions().pipe(take(1)).subscribe();
+        this.loadCurrencyOptions().pipe(take(1)).subscribe();
       },
       error: (error) => {
         console.error('Error loading critical data:', error);
@@ -3838,12 +3877,15 @@ export class EnquiryComponent implements OnInit {
   }
 
   addEnquiry() {
+    this.isLoadingDialogData = true;
     const today = new Date();
+    
+    // Set up initial enquiry object
     this.selectedEnquiry = {
       id: undefined,
       enquiry_no: '',
       code: this.isManualSeries ? '' : this.mappedEnquirySeriesCode || '',
-      date: today.toISOString().split('T')[0], // Default today's date as specified
+      date: today.toISOString().split('T')[0],
       customer_name: '',
       company_name: '',
       email: '',
@@ -3867,42 +3909,70 @@ export class EnquiryComponent implements OnInit {
       isNew: true,
     };
 
-    // Initializing currentEnquiry to prevent undefined errors in functions like getSourcing()
-    this.currentEnquiry = { ...this.selectedEnquiry };
+    // 🚀 Performance Optimization: Split into Critical (Blocking) and Lazy (Background) paths
+    // Critical: Data user sees immediately or needs for initial view
+    const criticalObs = forkJoin({
+      depts: this.loadDepartments().pipe(take(1)),
+      serviceTypes: this.loadServiceTypes().pipe(take(1)),
+      locationTypes: this.loadLocationTypes().pipe(take(1)),
+      locations: this.loadLocations().pipe(take(1)),
+      customers: this.loadCustomers().pipe(take(1))
+    });
 
+    criticalObs.subscribe({
+      next: (results: any) => {
+        // Show dialog immediately after critical data is ready
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        this.selectedEnquiryTrigger$.next(this.selectedEnquiry);
+        this.cdr.detectChanges();
+
+        // 🔄 Background Hydration: Load non-critical data without blocking the UI
+        this.loadVendors().pipe(take(1)).subscribe();
+        this.loadBasisOptions().pipe(take(1)).subscribe();
+        this.loadServiceAreaOptions().pipe(take(1)).subscribe();
+        this.loadSourceSalesOptions().pipe(take(1)).subscribe();
+        this.loadCargoTypeOptions().pipe(take(1)).subscribe();
+        this.loadCurrencyOptions().pipe(take(1)).subscribe();
+        this.masterCache.getAllMasterTypes().pipe(take(1)).subscribe(types => {
+          this.masterTypeOptions = (types || [])
+            .filter((t: any) => t.key === 'SERVICE_AREA')
+            .map((t: any) => ({ label: t.value, value: t.value }));
+          this.cdr.detectChanges();
+        });
+        this.masterCache.getCarriageDirections().pipe(take(1)).subscribe(() => {
+          this.loadCarriageDirectionOptions();
+          this.cdr.detectChanges();
+        });
+      },
+      error: (err) => {
+        console.error('Error loading critical enquiry dialog data:', err);
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master data' });
+      }
+    });
+
+    // Reset UI flags
+    this.currentEnquiry = { ...this.selectedEnquiry };
     this.lineItems = [];
     this.vendorCards = [];
     this.activeVendorIndex = -1;
     this.isNewCustomer = false;
     this.fieldErrors = {};
-
-    // Initialize customer selection
     this.selectedCustomer = null;
     this.customerContacts = [];
     this.selectedContact = null;
     this.showContactDropdown = false;
-
-    // Reset manual entry flags
     this.isManualCompanyName = false;
     this.isManualName = false;
     this.isManualEmail = false;
     this.isManualMobile = false;
     this.isManualLandline = false;
-
-    // Initialize masterDialogLoading state for ellipsis buttons
     this.masterDialogLoading = {};
-
-    // Initialize date objects for calendar components
     this.selectedDate = today;
     this.selectedEffectiveDateFrom = today;
     this.selectedEffectiveDateTo = today;
-
-    // Reset carriage mappings to prevent persistence from previous enquiry
     this.carriageMappings = [];
-
-    this.isDialogVisible = true;
-
-    this.loadCarriageDirectionOptions();
   }
 
   editEnquiry(enquiry: Enquiry) {
@@ -3959,25 +4029,50 @@ export class EnquiryComponent implements OnInit {
 
   // load Line of Items for respective Enquiry
   loadEnquiry(enquiryCode: string, targetLineItemId?: number) {
-    this.enquiryService.getEnquiryByCode(enquiryCode).subscribe({
-      next: (enquiry: Enquiry) => {
-        console.log(
-          'Debug Loaded Enquiry value for the enquiry code:',
-          enquiryCode,
-          'enquiry response',
-          enquiry
-        );
-        this.selectedEnquiry = { ...enquiry };
-        this.currentEnquiry = { ...enquiry };
+    this.isLoadingDialogData = true;
+
+    // 1. Prepare observables for data loading
+    const enquiryObs = this.enquiryService.getEnquiryByCode(enquiryCode).pipe(take(1));
+    const mastersObs = forkJoin({
+      locations: this.loadLocations().pipe(take(1)),
+      vendors: this.loadVendors().pipe(take(1)),
+      depts: this.loadDepartments().pipe(take(1)),
+      basis: this.loadBasisOptions().pipe(take(1)),
+      customers: this.loadCustomers().pipe(take(1)),
+      serviceTypes: this.loadServiceTypes().pipe(take(1)),
+      locationTypes: this.loadLocationTypes().pipe(take(1)),
+      serviceAreas: this.loadServiceAreaOptions().pipe(take(1)),
+      sourceSales: this.loadSourceSalesOptions().pipe(take(1)),
+      cargoTypes: this.loadCargoTypeOptions().pipe(take(1)),
+      currencies: this.loadCurrencyOptions().pipe(take(1)),
+      masterTypes: this.masterCache.getAllMasterTypes().pipe(take(1)),
+      carriage: this.masterCache.getCarriageDirections().pipe(take(1))
+    });
+
+    // 2. Wait for EVERYTHING before showing the dialog
+    combineLatest([enquiryObs, mastersObs]).subscribe({
+      next: ([enquiry, results]: [any, any]) => {
+        console.log('Loaded Enquiry and Masters for code:', enquiryCode);
+        
+        // Setup masters
+        this.masterTypeOptions = (results.masterTypes || [])
+          .filter((t: any) => t.key === 'SERVICE_AREA')
+          .map((t: any) => ({ label: t.value, value: t.value }));
+        this.loadCarriageDirectionOptions();
+
+        this.selectedEnquiry = { ...enquiry } as any;
+        this.currentEnquiry = { ...enquiry } as any;
 
         // Set Date objects for calendar components (timezone-aware parsing)
-        this.selectedDate = this.parseDate(this.selectedEnquiry.date);
-        this.selectedEffectiveDateFrom = this.parseDate(
-          this.selectedEnquiry.effective_date_from
-        );
-        this.selectedEffectiveDateTo = this.parseDate(
-          this.selectedEnquiry.effective_date_to
-        );
+        if (this.selectedEnquiry) {
+          this.selectedDate = this.parseDate(this.selectedEnquiry.date);
+          this.selectedEffectiveDateFrom = this.parseDate(
+            this.selectedEnquiry.effective_date_from
+          );
+          this.selectedEffectiveDateTo = this.parseDate(
+            this.selectedEnquiry.effective_date_to
+          );
+        }
 
         this.lineItems = enquiry.line_items || [];
         console.log(
@@ -4034,18 +4129,12 @@ export class EnquiryComponent implements OnInit {
             .subscribe({
               next: (rows) => {
                 this.carriageMappings = Array.isArray(rows) ? rows : [];
+                this.cdr.detectChanges();
               },
             });
         }
 
-        // Ensure context-filtered dropdowns contain the saved values when editing
-        forkJoin({
-          sourceSales: this.loadSourceSalesOptions(),
-          serviceAreas: this.loadServiceAreaOptions(),
-        }).subscribe({
-          next: () => this.cdr.detectChanges(),
-          error: () => this.cdr.detectChanges(),
-        });
+        // Removed forkJoin here as it's now part of the top-level combineLatest
 
         this.selectedSourcingVendors = [];
         this.selectedTariffVendors = [];
@@ -4108,14 +4197,24 @@ export class EnquiryComponent implements OnInit {
           this.hydrateSubCharges(this.selectedTariffVendors);
         }
         this.refreshSelectedVendorCaches();
+
+        // Finalize UI state
+        this.isLoadingDialogData = false;
         this.isDialogVisible = true;
+        this.selectedEnquiryTrigger$.next(this.selectedEnquiry); // Trigger reactive filters
+        this.cdr.detectChanges();
+
+        if (targetLineItemId) {
+          setTimeout(() => this.getSourcing(targetLineItemId), 100);
+        }
       },
-      error: (error: any) => {
-        console.error('Error fetching enquiry:', error);
+      error: (err: any) => {
+        console.error('Error loading enquiry:', err);
+        this.isLoadingDialogData = false;
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to fetch enquiry details',
+          detail: 'Failed to load enquiry details',
         });
       },
     });

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -9,8 +9,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-// import { InputTextareaModule } from 'primeng/inputtextarea'; // Removed incorrect import
-import { TextareaModule } from 'primeng/textarea'; // Correct import based on enquiry.ts
+import { TextareaModule } from 'primeng/textarea'; 
 import { CalendarModule } from 'primeng/calendar';
 import { KeyFilterModule } from 'primeng/keyfilter';
 import { TooltipModule } from 'primeng/tooltip';
@@ -29,8 +28,8 @@ import { ConfigService } from '../../services/config.service';
 import { ContextService } from '../../services/context.service';
 import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
 import { MasterCacheService } from '../../services/master-cache.service';
-import { Subscription, forkJoin } from 'rxjs';
-import { debounceTime, distinctUntilChanged, take } from 'rxjs/operators';
+import { Subscription, forkJoin, BehaviorSubject, combineLatest, Subject, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, take, takeUntil, startWith, map, catchError } from 'rxjs/operators';
 import { Country, State, City } from 'country-state-city';
 
 function uniqueCaseInsensitive(arr: string[]): string[] {
@@ -747,6 +746,11 @@ function toTitleCase(str: string): string {
   `]
 })
 export class CustomerComponent implements OnInit, OnDestroy {
+  loading = false;
+  isLoadingDialogData = false;
+  private destroy$ = new Subject<void>();
+  private selectedCustomerTrigger$ = new BehaviorSubject<any>(null);
+
   customers: Customer[] = [];
   customerTypeOptions: any[] = [];
   blockedOptions = [
@@ -824,7 +828,8 @@ export class CustomerComponent implements OnInit, OnDestroy {
     private contextService: ContextService,
     private accountDetailsService: AccountDetailsService,
     private sanitizer: DomSanitizer,
-    private masterCache: MasterCacheService
+    private masterCache: MasterCacheService,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit() {
@@ -832,6 +837,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
     this.loadMappedCustomerSeriesCode();
     this.loadDocumentUploadPath();
     this.loadDocumentTypeOptions();
+    this.setupReactiveDropdowns();
 
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.pipe(
@@ -849,6 +855,25 @@ export class CustomerComponent implements OnInit, OnDestroy {
     if (this.contextSubscription) {
       this.contextSubscription.unsubscribe();
     }
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Implements Reactive Dropdown Stabilization for Customer.
+   */
+  private setupReactiveDropdowns() {
+    // 1. Country/State/City (Depends on country-state-city library)
+    this.selectedCustomerTrigger$.pipe(
+      takeUntil(this.destroy$),
+      distinctUntilChanged()
+    ).subscribe(customer => {
+      if (customer) {
+        this.onCountryChange();
+        this.onStateChange();
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   loadOptions() {
@@ -856,7 +881,7 @@ export class CustomerComponent implements OnInit, OnDestroy {
 
     // 🚀 Critical Path: Load only data needed for table display
     forkJoin({
-      customers: this.masterCache.getCustomers(),
+      customers: this.masterCache.getCustomers().pipe(take(1)),
       types: this.masterCache.getAllMasterTypes().pipe(take(1)),
     }).subscribe({
       next: (res) => {
@@ -954,59 +979,24 @@ export class CustomerComponent implements OnInit, OnDestroy {
     const config = this.configService.getConfig();
     const customerFilter = config?.validation?.customerFilter || '';
 
-    console.log('Customer filter:', customerFilter);
-
-    // Check if we need to validate context
+    // Check context validity...
     if (customerFilter) {
-      // Get the current context
       const context = this.contextService.getContext();
-
-      console.log('Current context:', context);
-
-      // Check if the required context is set based on the filter
       let contextValid = true;
       let missingContexts = [];
+      if (customerFilter.includes('C') && !context.companyCode) { contextValid = false; missingContexts.push('Company'); }
+      if (customerFilter.includes('B') && !context.branchCode) { contextValid = false; missingContexts.push('Branch'); }
+      if (customerFilter.includes('D') && !context.departmentCode) { contextValid = false; missingContexts.push('Department'); }
+      if (customerFilter.includes('ST') && !context.serviceType) { contextValid = false; missingContexts.push('Service Type'); }
 
-      if (customerFilter.includes('C') && !context.companyCode) {
-        contextValid = false;
-        missingContexts.push('Company');
-      }
-
-      if (customerFilter.includes('B') && !context.branchCode) {
-        contextValid = false;
-        missingContexts.push('Branch');
-      }
-
-      if (customerFilter.includes('D') && !context.departmentCode) {
-        contextValid = false;
-        missingContexts.push('Department');
-      }
-
-      if (customerFilter.includes('ST') && !context.serviceType) {
-        contextValid = false;
-        missingContexts.push('Service Type');
-      }
-
-      console.log('Context valid:', contextValid);
-      console.log('Missing contexts:', missingContexts);
-
-      // If context is not valid, show an error message and trigger the context selector
       if (!contextValid) {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Context Required',
-          detail: `Please select ${missingContexts.join(', ')} in the context selector.`
-        });
-
-        // Show the context selector dialog
+        this.messageService.add({ severity: 'error', summary: 'Context Required', detail: `Please select ${missingContexts.join(', ')} in the context selector.` });
         this.contextService.showContextSelector();
         return;
       }
     }
 
-    console.log('Validation passed, proceeding with adding customer');
-
-    // If validation passes, proceed with adding the customer
+    this.isLoadingDialogData = true;
     this.selectedCustomer = {
       customer_no: '',
       type: '',
@@ -1029,94 +1019,43 @@ export class CustomerComponent implements OnInit, OnDestroy {
       isNew: true
     };
     this.customerAccountDetails = [];
+    this.customerDocuments = [];
 
-    // Load the mapped customer series code to determine if manual series is enabled
-    // Wait for the mapping to load before showing the dialog
-    // Get current context and find mapping relation
-    const context = this.contextService.getContext();
-    console.log('Current context for mapping:', context);
-
-    // Find mapping relation based on context
-    this.mappingService.findMappingByContext(
-      'customerCode',
-      context.companyCode,
-      context.branchCode,
-      context.departmentCode,
-      context.serviceType || undefined
-    ).subscribe({
-      next: (mappingRelation) => {
-        console.log('Mapping relation response:', mappingRelation);
-        this.mappedCustomerSeriesCode = mappingRelation.mapping;
+    // Load ALL required masters BEFORE showing the dialog
+    forkJoin({
+      types: this.masterCache.getAllMasterTypes().pipe(take(1)),
+      locations: this.masterCache.getLocations().pipe(take(1)),
+      docTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'CUS_DOC_TYPE'))),
+      series: this.numberSeriesService.getAll().pipe(take(1)),
+      mapping: this.mappingService.findMappingByContext('customerCode', this.contextService.getContext().companyCode, this.contextService.getContext().branchCode, this.contextService.getContext().departmentCode, this.contextService.getContext().serviceType || undefined).pipe(take(1), catchError(() => of({ mapping: null })))
+    }).subscribe({
+      next: (res: any) => {
+        // Setup options
+        const allTypes = (res.types || []).filter((t: any) => t.key === 'CUSTOMER');
+        this.customerTypeOptions = allTypes.filter((t: any) => t.status === 'Active').map((t: any) => ({ label: t.value, value: t.value }));
+        this.documentTypeOptions = res.docTypes.map((t: any) => ({ label: t.value, value: t.value }));
+        this.allLocations = res.locations || [];
+        
+        // Setup series
+        this.mappedCustomerSeriesCode = res.mapping.mapping;
         if (this.mappedCustomerSeriesCode) {
-          this.numberSeriesService.getAll().subscribe({
-            next: (seriesList) => {
-              const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
-              this.isManualSeries = !!(found && found.is_manual);
-              console.log('Customer series code mapped:', this.mappedCustomerSeriesCode, 'Manual:', this.isManualSeries);
-
-              // Now show the dialog after the series mapping is loaded
-              this.isDialogVisible = true;
-              this.updateBillToCustomerNameDefault();
-            },
-            error: (error) => {
-              console.error('Error loading number series:', error);
-              // Show dialog anyway with default behavior
-              this.isManualSeries = false;
-              this.isDialogVisible = true;
-              this.updateBillToCustomerNameDefault();
-            }
-          });
+          const found = res.series.find((s: any) => s.code === this.mappedCustomerSeriesCode);
+          this.isManualSeries = !!(found && found.is_manual);
         } else {
-          this.isManualSeries = false;
-          console.log('No customer series code mapped from relation');
-          // Show dialog with manual series disabled
-          this.isDialogVisible = true;
-          this.updateBillToCustomerNameDefault();
+          this.isManualSeries = true; // Default to manual if no mapping found
         }
+
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        this.selectedCustomerTrigger$.next(this.selectedCustomer);
+        this.cdr.detectChanges();
       },
-      error: (error) => {
-        console.error('Error loading mapping relation:', error);
-        // Fallback to old method if context-based mapping fails
-        console.log('Falling back to generic mapping method');
-        this.mappingService.getMapping().subscribe({
-          next: (mapping) => {
-            console.log('Fallback mapping response:', mapping);
-            this.mappedCustomerSeriesCode = mapping.customerCode;
-            if (this.mappedCustomerSeriesCode) {
-              this.numberSeriesService.getAll().subscribe({
-                next: (seriesList) => {
-                  const found = seriesList.find((s: any) => s.code === this.mappedCustomerSeriesCode);
-                  this.isManualSeries = !!(found && found.is_manual);
-                  console.log('Customer series code mapped (fallback):', this.mappedCustomerSeriesCode, 'Manual:', this.isManualSeries);
-                  this.isDialogVisible = true;
-                  this.updateBillToCustomerNameDefault();
-                },
-                error: (error) => {
-                  console.error('Error loading number series (fallback):', error);
-                  this.isManualSeries = false;
-                  this.isDialogVisible = true;
-                  this.updateBillToCustomerNameDefault();
-                }
-              });
-            } else {
-              this.isManualSeries = false;
-              console.log('No customer series code mapped (fallback)');
-              this.isDialogVisible = true;
-              this.updateBillToCustomerNameDefault();
-            }
-          },
-          error: (error) => {
-            console.error('Error loading mapping (fallback):', error);
-            // Show dialog anyway with default behavior
-            this.isManualSeries = false;
-            this.isDialogVisible = true;
-            this.updateBillToCustomerNameDefault();
-          }
-        });
+      error: () => {
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master data' });
       }
     });
   }
-  // ... existing code ...
 
   // Account Details methods
   loadAccountDetails(entityType: string, entityCode: string) {
@@ -1235,41 +1174,67 @@ export class CustomerComponent implements OnInit, OnDestroy {
   }
 
   editRow(customer: Customer) {
+    this.isLoadingDialogData = true;
     this.selectedCustomer = { ...customer, isNew: false };
+    
     // Always set Bill-to Customer Name to the real value on edit
     if (this.selectedCustomer.customer_no && this.selectedCustomer.name) {
       this.selectedCustomer.bill_to_customer_name = `${this.selectedCustomer.customer_no} - ${this.selectedCustomer.name}`;
     }
-    this.isDialogVisible = true;
 
-    // Populate state and city options based on existing values
-    if (this.selectedCustomer.country) {
-      this.populateStateOptions(this.selectedCustomer.country);
-      if (this.selectedCustomer.state) {
-        this.populateCityOptions(this.selectedCustomer.country, this.selectedCustomer.state);
-      }
-    }
-
-    // Fix: Ensure the customer's type is in the options list even if inactive
-    if (this.selectedCustomer.type) {
-      const exists = this.customerTypeOptions.find(opt => opt.value === this.selectedCustomer!.type);
-      if (!exists && (this as any).allCustomerTypes) {
-        const typeObj = (this as any).allCustomerTypes.find((t: any) => t.value === this.selectedCustomer!.type);
-        if (typeObj) {
-          // Add it to options temporarily
-          this.customerTypeOptions = [...this.customerTypeOptions, { label: typeObj.value + ' (Inactive)', value: typeObj.value }];
-        } else {
-          // Type doesn't exist in master at all? Add as is
-          this.customerTypeOptions = [...this.customerTypeOptions, { label: this.selectedCustomer.type, value: this.selectedCustomer.type }];
+    // Load ALL required masters BEFORE showing the dialog
+    forkJoin({
+      types: this.masterCache.getAllMasterTypes().pipe(take(1)),
+      locations: this.masterCache.getLocations().pipe(take(1)),
+      docTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'CUS_DOC_TYPE'))),
+      docs: this.entityDocumentService.getByEntityCode('customer', customer.customer_no || '').pipe(catchError(() => of([]))),
+      accounts: this.accountDetailsService.getByEntity('customer', customer.customer_no || '').pipe(catchError(() => of([])))
+    }).subscribe({
+      next: (res: any) => {
+        // Setup options
+        const allTypes = (res.types || []).filter((t: any) => t.key === 'CUSTOMER');
+        (this as any).allCustomerTypes = allTypes;
+        this.customerTypeOptions = allTypes.filter((t: any) => t.status === 'Active').map((t: any) => ({ label: t.value, value: t.value }));
+        
+        // Ensure the customer's type is in the options list even if inactive
+        if (this.selectedCustomer?.type) {
+          const exists = this.customerTypeOptions.find(opt => opt.value === this.selectedCustomer!.type);
+          if (!exists) {
+            const typeObj = allTypes.find((t: any) => t.value === this.selectedCustomer!.type);
+            if (typeObj) {
+              this.customerTypeOptions = [...this.customerTypeOptions, { label: typeObj.value + ' (Inactive)', value: typeObj.value }];
+            } else {
+              this.customerTypeOptions = [...this.customerTypeOptions, { label: this.selectedCustomer.type, value: this.selectedCustomer.type }];
+            }
+          }
         }
-      }
-    }
 
-    // Load customer documents
-    if (customer.id) {
-      this.loadCustomerDocuments(customer.customer_no);
-      this.loadAccountDetails('customer', customer.customer_no);
-    }
+        this.documentTypeOptions = res.docTypes.map((t: any) => ({ label: t.value, value: t.value }));
+        this.allLocations = res.locations || [];
+        
+        // Setup data
+        this.customerDocuments = res.docs;
+        this.customerAccountDetails = res.accounts;
+
+        this.isLoadingDialogData = false;
+        this.isDialogVisible = true;
+        
+        // Populate state and city options based on existing values
+        if (this.selectedCustomer?.country) {
+          this.populateStateOptions(this.selectedCustomer.country);
+          if (this.selectedCustomer.state) {
+            this.populateCityOptions(this.selectedCustomer.country, this.selectedCustomer.state);
+          }
+        }
+
+        this.selectedCustomerTrigger$.next(this.selectedCustomer);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load customer data' });
+      }
+    });
   }
 
   // Add these helper methods

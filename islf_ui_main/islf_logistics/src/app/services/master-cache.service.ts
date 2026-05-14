@@ -27,14 +27,8 @@ export class MasterCacheService {
     private cache = new Map<string, Observable<any>>();
     private lastContextStr = '';
 
-    // Reactive Refresh Trigger for Locations
-    private refreshLocations$ = new BehaviorSubject<void>(undefined);
-
-    // One source of truth for locations with reactive invalidation
-    private locations$ = this.refreshLocations$.pipe(
-        switchMap(() => this.getCachedObservable('locations', () => this.locationService.getAll())),
-        shareReplay(1)
-    );
+    // Global Reactive Refresh Trigger
+    private refreshTrigger$ = new BehaviorSubject<void>(undefined);
 
     constructor(
         private locationService: MasterLocationService,
@@ -70,24 +64,39 @@ export class MasterCacheService {
         }
     }
 
+    /**
+     * Clears the entire cache and triggers a refresh for all active subscribers.
+     */
     public clearCache() {
         this.cache.clear();
-        console.log('🔄 Master Cache Cleared');
+        this.refreshTrigger$.next();
+        console.log('🔄 Master Cache Cleared & Global Refresh Triggered');
     }
 
+    /**
+     * Specifically clears location cache and triggers refresh.
+     */
     public clearLocationCache() {
         if (this.cache.has('locations')) {
             this.cache.delete('locations');
         }
-        this.refreshLocations$.next();
-        console.log('🔄 Locations Cache Cleared & Refresh Triggered');
+        this.refreshTrigger$.next();
+        console.log('🔄 Locations Cache Cleared & Global Refresh Triggered');
     }
 
+    /**
+     * Centralized caching logic using RxJS shareReplay(1) and a refresh trigger.
+     */
     private getCachedObservable(key: string, fetchFn: () => Observable<any>): Observable<any> {
         this.checkContextRefresh();
         if (!this.cache.has(key)) {
-            console.log(`📡 Fetching and Caching Master Data: ${key}`);
-            const obs = fetchFn().pipe(
+            console.log(`📡 Initializing Reactive Cache for: ${key}`);
+            // Use switchMap from refreshTrigger so all subscribers are updated when refresh is called
+            const obs = this.refreshTrigger$.pipe(
+                switchMap(() => {
+                    console.log(`🚀 API Call for: ${key}`);
+                    return fetchFn();
+                }),
                 shareReplay(1)
             );
             this.cache.set(key, obs);
@@ -97,10 +106,10 @@ export class MasterCacheService {
         return this.cache.get(key)!;
     }
 
-    // --- Public Cache Accessors ---
+    // --- Public Reactive Cache Accessors ---
 
     getLocations(): Observable<any[]> {
-        return this.locations$;
+        return this.getCachedObservable('locations', () => this.locationService.getAll());
     }
 
     getVendors(): Observable<any[]> {

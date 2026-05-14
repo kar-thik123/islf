@@ -1,10 +1,10 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Observable, forkJoin, of } from 'rxjs';
-import { take, tap, catchError } from 'rxjs/operators';
+import { Observable, forkJoin, of, BehaviorSubject, combineLatest, Subject } from 'rxjs';
+import { take, tap, catchError, takeUntil, distinctUntilChanged, startWith, map } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
@@ -1211,7 +1211,11 @@ import { MasterCacheService } from '../../services/master-cache.service';
     </p-dialog>
   `,
 })
-export class BookingComponent implements OnInit {
+export class BookingComponent implements OnInit, OnDestroy {
+  isLoadingDialogData = false;
+  private destroy$ = new Subject<void>();
+  private selectedBookingTrigger$ = new BehaviorSubject<any>(null);
+
   bookings: any[] = [];
   search = '';
   statusFilter = '';
@@ -1358,8 +1362,37 @@ export class BookingComponent implements OnInit {
     this.loadChargeTypeNames().subscribe();
     // Load grid immediately so user sees something
     this.loadBookings();
-    // Load masters in background
-    this.loadDropdowns();
+    
+    // Setup reactive dropdown listeners
+    this.setupReactiveDropdowns();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Implements Reactive Dropdown Stabilization for Booking.
+   */
+  private setupReactiveDropdowns() {
+    // 1. Service Type (Depends on Department)
+    combineLatest([
+      this.masterCache.getServiceTypes().pipe(startWith([])),
+      this.selectedBookingTrigger$.pipe(distinctUntilChanged())
+    ]).pipe(takeUntil(this.destroy$)).subscribe(([serviceTypes, booking]) => {
+      this.allServiceTypes = serviceTypes || [];
+      this.onDepartmentChange();
+      this.cdr.detectChanges();
+    });
+
+    // 2. Locations
+    this.masterCache.getLocations().pipe(takeUntil(this.destroy$)).subscribe(locations => {
+      this.allLocations = (locations || []).filter(l => this.masterLocationService.isActiveLocation(l));
+      this.locationMap = {};
+      this.allLocations.forEach(l => this.locationMap[l.code] = l.name);
+      this.cdr.detectChanges();
+    });
   }
 
   loadBookings(event?: any) {
@@ -1489,14 +1522,41 @@ export class BookingComponent implements OnInit {
   }
 
   openCreateDialog() {
+    this.isLoadingDialogData = true;
     this.dialog = { department: '', service_type: '', from_location_type: '', from_location: '', to_location_type: '', to_location: '' };
-    this.matchingEnquiries = []; this.selectedEnquiries = [];
+    this.matchingEnquiries = []; 
+    this.selectedEnquiries = [];
     this.linkedEnquiryCodes.clear();
-    this.showCreateDialog = true;
     this.isSelectingForExisting = false;
-    this.onLocationTypeChange('from');
-    this.onLocationTypeChange('to');
-    this.searchEnquiries();
+
+    // Load ALL required masters BEFORE showing the dialog
+    forkJoin({
+      depts: this.masterCache.getDepartments().pipe(take(1)),
+      locations: this.masterCache.getLocations().pipe(take(1)),
+      serviceTypes: this.masterCache.getServiceTypes().pipe(take(1)),
+      locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'LOCATION')))
+    }).subscribe({
+      next: (results: any) => {
+        this.isLoadingDialogData = false;
+        this.showCreateDialog = true;
+        
+        // Setup initial options
+        this.allLocations = results.locations || [];
+        this.allServiceTypes = results.serviceTypes || [];
+        this.departmentOptions = (results.depts || []).map((d: any) => ({ label: d.name, value: d.name }));
+        this.locationTypeOptions = results.locationTypes.map((t: any) => ({ label: t.value, value: t.value }));
+        
+        this.selectedBookingTrigger$.next(this.dialog);
+        this.onLocationTypeChange('from');
+        this.onLocationTypeChange('to');
+        this.searchEnquiries();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master data' });
+      }
+    });
   }
 
   openEnquirySelection() {
@@ -1778,17 +1838,36 @@ export class BookingComponent implements OnInit {
     return type || '';
   }
   openBooking(bookingNo: string) {
-    this.loading = true;
-    console.log("Vendors list when open booking,", this.allVendors);
-    // 🚀 Only load vendors if not already loaded to save an API call
-    const vendors$ = this.allVendors.length > 0 ? of(this.allVendors) : this.vendorService.getAll().pipe(take(1));
+    this.isLoadingDialogData = true;
+    
+    // 1. Prepare observables for all required masters
+    const mastersObs = forkJoin({
+      vendors: this.masterCache.getVendors().pipe(take(1)),
+      depts: this.masterCache.getDepartments().pipe(take(1)),
+      locations: this.masterCache.getLocations().pipe(take(1)),
+      serviceTypes: this.masterCache.getServiceTypes().pipe(take(1)),
+      customers: this.masterCache.getCustomers().pipe(take(1)),
+      currencies: this.masterCache.getCurrencies().pipe(take(1)),
+      basis: this.masterCache.getBasis().pipe(take(1)),
+      items: this.masterCache.getItems().pipe(take(1)),
+      containers: this.masterCache.getContainers().pipe(take(1)),
+      locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'LOCATION')))
+    });
 
-    forkJoin({
-      vendors: vendors$,
-      booking: this.bookingService.getByNo(bookingNo).pipe(take(1))
-    }).subscribe({
-      next: ({ vendors, booking }) => {
-        this.allVendors = vendors || [];
+    const bookingObs = this.bookingService.getByNo(bookingNo).pipe(take(1));
+
+    // 2. Wait for EVERYTHING
+    combineLatest([bookingObs, mastersObs]).subscribe({
+      next: ([booking, results]: [any, any]) => {
+        this.isLoadingDialogData = false;
+        
+        // Setup masters
+        this.allVendors = results.vendors || [];
+        this.allLocations = results.locations || [];
+        this.allServiceTypes = results.serviceTypes || [];
+        this.departmentOptions = (results.depts || []).map((d: any) => ({ label: d.name, value: d.name }));
+        this.locationTypeOptions = results.locationTypes.map((t: any) => ({ label: t.value, value: t.value }));
+
         const b = booking;
         this.currentBooking = b as any;
 
@@ -2003,13 +2082,14 @@ export class BookingComponent implements OnInit {
         this.loadQuoteMappings();
         this.initializeQuoteMappings();
 
-        this.loading = false;
+        this.isLoadingDialogData = false;
         this.showBookingForm = true;
+        this.selectedBookingTrigger$.next(this.currentBooking); // Trigger reactive filters
         this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load booking:', err);
-        this.loading = false;
+        this.isLoadingDialogData = false;
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load booking details' });
       }
     });

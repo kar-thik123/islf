@@ -290,7 +290,7 @@ export class MasterItemComponent implements OnInit, OnDestroy {
 
     // 🚀 Critical Path: Load items and types
     forkJoin({
-      items: this.masterCache.getMasterItems(),
+      items: this.masterCache.getMasterItems().pipe(take(1)),
       types: this.masterCache.getAllMasterTypes().pipe(take(1))
     }).subscribe({
       next: (res) => {

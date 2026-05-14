@@ -392,7 +392,7 @@ export class MasterLocationComponent implements OnInit, OnDestroy {
 
     // 🚀 Critical Path: Load locations and types
     forkJoin({
-      locations: this.masterCache.getLocations(),
+      locations: this.masterCache.getLocations().pipe(take(1)),
       types: this.masterCache.getAllMasterTypes().pipe(take(1))
     }).subscribe({
       next: (res) => {
