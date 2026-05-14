@@ -10,12 +10,11 @@ router.get('/', async (req, res) => {
     let { companyCode, branchCode, departmentCode, page = 1, limit = 1000 } = req.query;
 
     // Phase T4.1: Enforced Context Isolation
-    // If not admin, enforce context from JWT if missing in query
+    // If not admin, enforce company context from JWT if missing in query
+    // NOTE: For Master Data, we only enforce Company, not Branch/Dept by default
     const isBypass = req.user && ADMIN_BYPASS_ROLES.has(req.user.role);
     if (!isBypass) {
       companyCode = companyCode || req.user.company_code;
-      branchCode = branchCode || req.user.branch;
-      departmentCode = departmentCode || req.user.department;
 
       // Safety: If no company context is found for a non-admin, restrict access
       if (!companyCode) {

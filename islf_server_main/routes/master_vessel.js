@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 const { getUsernameFromToken } = require('../utils/context-helper');
+const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
 
 // Add this function at the top after the requires
 // Replace the findMappingByContext function (lines 6-45)
@@ -79,7 +80,19 @@ async function findMappingByContext(code_type, company_code, branch_code, depart
 // GET all vessels with optional context filtering
 router.get('/', async (req, res) => {
   try {
-    const { company_code, branch_code, department_code, service_type_code } = req.query;
+    let { company_code, branch_code, department_code, service_type_code } = req.query;
+
+    // Phase T4.1: Enforced Context Isolation
+    // If not admin, enforce company context from JWT if missing in query
+    const isBypass = req.user && ADMIN_BYPASS_ROLES.has(req.user.role);
+    if (!isBypass) {
+      company_code = company_code || req.user.company_code;
+
+      if (!company_code) {
+        console.warn(`⚠️ [Context Leakage Prevention] No company context for user: ${req.user?.username}`);
+        return res.json([]);
+      }
+    }
 
     let query = `
       SELECT *
