@@ -35,19 +35,19 @@ router.get('/', async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
-    // Hierarchical filtering
+    // Hierarchical filtering (Phase T4.1 updated: allow NULL for global records)
     if (companyCode) {
-      query += ` AND company_code = $${paramIndex}`;
+      query += ` AND (company_code = $${paramIndex} OR company_code IS NULL)`;
       params.push(companyCode);
       paramIndex++;
 
       if (branchCode) {
-        query += ` AND branch_code = $${paramIndex}`;
+        query += ` AND (branch_code = $${paramIndex} OR branch_code IS NULL)`;
         params.push(branchCode);
         paramIndex++;
 
         if (departmentCode) {
-          query += ` AND department_code = $${paramIndex}`;
+          query += ` AND (department_code = $${paramIndex} OR department_code IS NULL)`;
           params.push(departmentCode);
           paramIndex++;
         }

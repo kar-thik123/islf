@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { getUsernameFromToken } = require('../utils/context-helper');
+const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
 
 // Utility for safe JSON parsing (handles jsonb objects and strings)
 const safeJsonParse = (val) => {
@@ -146,8 +147,21 @@ async function insertBookingRelatedData(client, bookingId, data) {
 
 router.get('/', async (req, res) => {
   try {
+    let { page = 1, limit = 10, search = '', status = '', companyCode, branchCode, departmentCode } = req.query;
 
-    const { page = 1, limit = 10, search = '', status = '', companyCode, branchCode, departmentCode } = req.query;
+    // Phase T4.1: Enforced Context Isolation (Alignment with Location module)
+    const isBypass = req.user && ADMIN_BYPASS_ROLES.has(req.user.role);
+    if (!isBypass) {
+      companyCode = companyCode || req.user.company_code;
+      branchCode = branchCode || req.user.branch;
+      departmentCode = departmentCode || req.user.department;
+
+      if (!companyCode) {
+        console.warn(`⚠️ [Context Leakage Prevention] No company context for user: ${req.user?.username}`);
+        return res.json({ data: [], total: 0 });
+      }
+    }
+
     const offset = (Number(page) - 1) * Number(limit);
 
     // Select only necessary columns for the list view to reduce payload size
@@ -156,9 +170,21 @@ router.get('/', async (req, res) => {
     const params = [];
     let idx = 1;
     if (status) { query += ` AND status = $${idx}`; params.push(status); idx++; }
-    if (companyCode) { query += ` AND company_code = $${idx}`; params.push(companyCode); idx++; }
-    if (branchCode) { query += ` AND branch_code = $${idx}`; params.push(branchCode); idx++; }
-    if (departmentCode) { query += ` AND department_code = $${idx}`; params.push(departmentCode); idx++; }
+    if (companyCode) {
+      query += ` AND (company_code = $${idx} OR company_code IS NULL)`;
+      params.push(companyCode);
+      idx++;
+      if (branchCode) {
+        query += ` AND (branch_code = $${idx} OR branch_code IS NULL)`;
+        params.push(branchCode);
+        idx++;
+        if (departmentCode) {
+          query += ` AND (department_code = $${idx} OR department_code IS NULL)`;
+          params.push(departmentCode);
+          idx++;
+        }
+      }
+    }
     if (search) {
       query += ` AND (booking_no ILIKE $${idx} OR customer_name ILIKE $${idx} OR company_name ILIKE $${idx})`;
       params.push(`%${search}%`); idx++;
@@ -171,9 +197,21 @@ router.get('/', async (req, res) => {
     const countParams = [];
     let cIdx = 1;
     if (status) { countQuery += ` AND status = $${cIdx}`; countParams.push(status); cIdx++; }
-    if (companyCode) { countQuery += ` AND company_code = $${cIdx}`; countParams.push(companyCode); cIdx++; }
-    if (branchCode) { countQuery += ` AND branch_code = $${cIdx}`; countParams.push(branchCode); cIdx++; }
-    if (departmentCode) { countQuery += ` AND department_code = $${cIdx}`; countParams.push(departmentCode); cIdx++; }
+    if (companyCode) {
+      countQuery += ` AND (company_code = $${cIdx} OR company_code IS NULL)`;
+      countParams.push(companyCode);
+      cIdx++;
+      if (branchCode) {
+        countQuery += ` AND (branch_code = $${cIdx} OR branch_code IS NULL)`;
+        countParams.push(branchCode);
+        cIdx++;
+        if (departmentCode) {
+          countQuery += ` AND (department_code = $${cIdx} OR department_code IS NULL)`;
+          countParams.push(departmentCode);
+          cIdx++;
+        }
+      }
+    }
     if (search) {
       countQuery += ` AND (booking_no ILIKE $${cIdx} OR customer_name ILIKE $${cIdx} OR company_name ILIKE $${cIdx})`;
       countParams.push(`%${search}%`); cIdx++;

@@ -5,6 +5,8 @@ const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
 const { getUsernameFromToken } = require("../utils/context-helper");
+const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
+
 // GET /enquiry - Fetch all enquiries with context filtering
 // router.get('/', async (req, res) => {
 //     try {
@@ -115,7 +117,7 @@ router.get("/", async (req, res) => {
   console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
 
   try {
-    const {
+    let {
       companyCode,
       branchCode,
       departmentCode,
@@ -126,10 +128,21 @@ router.get("/", async (req, res) => {
       status = "",
     } = req.query;
 
-    // Do not require username for GET; proceed without user context
-    const userContext = {};
+    // Phase T4.1: Enforced Context Isolation (Alignment with Location module)
+    const isBypass = req.user && ADMIN_BYPASS_ROLES.has(req.user.role);
+    if (!isBypass) {
+      companyCode = companyCode || req.user.company_code;
+      branchCode = branchCode || req.user.branch;
+      departmentCode = departmentCode || req.user.department;
+
+      if (!companyCode) {
+        console.warn(`⚠️ [Context Leakage Prevention] No company context for user: ${req.user?.username}`);
+        return res.json({ data: [], total: 0 });
+      }
+    }
+
     console.log(
-      "📌 [DEBUG] User context skipped for GET /enquiry; using optional query filters."
+      `📌 [DEBUG] Enquiry fetch for user: ${req.user?.username}, context: ${companyCode}/${branchCode}/${departmentCode}`
     );
 
     // Build dynamic query with context filtering
@@ -143,19 +156,19 @@ router.get("/", async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
-    // Optional query param filtering (similar to master_location)
+    // Mandatory context filtering (allow NULL for global compatibility if needed, though rare for Enquiries)
     if (companyCode) {
-      query += ` AND e.company_code = $${paramIndex}`;
+      query += ` AND (e.company_code = $${paramIndex} OR e.company_code IS NULL)`;
       params.push(companyCode);
       paramIndex++;
 
       if (branchCode) {
-        query += ` AND e.branch_code = $${paramIndex}`;
+        query += ` AND (e.branch_code = $${paramIndex} OR e.branch_code IS NULL)`;
         params.push(branchCode);
         paramIndex++;
 
         if (departmentCode) {
-          query += ` AND e.department_code = $${paramIndex}`;
+          query += ` AND (e.department_code = $${paramIndex} OR e.department_code IS NULL)`;
           params.push(departmentCode);
           paramIndex++;
         }
@@ -202,11 +215,11 @@ router.get("/", async (req, res) => {
     const countParams = params.slice(0, -2); // Remove limit and offset
 
     if (companyCode) {
-      countQuery += ` AND e.company_code = $1`;
+      countQuery += ` AND (e.company_code = $1 OR e.company_code IS NULL)`;
       if (branchCode) {
-        countQuery += ` AND e.branch_code = $2`;
+        countQuery += ` AND (e.branch_code = $2 OR e.branch_code IS NULL)`;
         if (departmentCode) {
-          countQuery += ` AND e.department_code = $3`;
+          countQuery += ` AND (e.department_code = $3 OR e.department_code IS NULL)`;
         }
       }
     }
