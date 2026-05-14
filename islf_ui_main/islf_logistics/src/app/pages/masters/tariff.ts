@@ -2223,12 +2223,17 @@ export class TariffComponent implements OnInit, OnDestroy {
   loadLocationTypeOptions() {
     return this.masterCache.getAllMasterTypes().pipe(
       tap((types: any[]) => {
-        this.locationTypeOptions = types
-          .filter((t) => t.key === 'LOCATION' && t.status === 'Active')
+        this.locationTypeOptions = (types || [])
+          .filter(
+            (t) =>
+              t.key === 'LOCATION' &&
+              (t.status === 'Active' || t.status === 'active')
+          )
           .map((t) => ({ label: t.value, value: t.value }));
 
         // Debug: Log the location type options
         console.log('Location type options:', this.locationTypeOptions);
+        this.cdr.detectChanges();
       })
     );
   }

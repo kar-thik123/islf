@@ -3510,10 +3510,12 @@ export class EnquiryComponent implements OnInit, OnDestroy {
           'DEBUG: Loading the initial value from the location types,',
           locationTypes
         );
-        // Fix: Use 'key' instead of 'type' and add status filter
+        // Fix: Use 'key' instead of 'type' and add status filter (case-insensitive)
         this.allLocationTypes =
           locationTypes?.filter(
-            (lt: any) => lt.key === 'LOCATION' && lt.status === 'Active'
+            (lt: any) =>
+              lt.key === 'LOCATION' &&
+              (lt.status === 'Active' || lt.status === 'active')
           ) || [];
         console.log('DEBUG: Filtered location types:', this.allLocationTypes);
 
@@ -3527,6 +3529,7 @@ export class EnquiryComponent implements OnInit, OnDestroy {
           this.locationTypeFromOptions.length,
           this.locationTypeFromOptions
         );
+        this.cdr.detectChanges();
       })
     );
   }

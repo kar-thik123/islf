@@ -409,7 +409,7 @@ export class MasterTypeComponent implements OnInit, OnDestroy {
             isEditing: false,
             isNew: false
           }));
-          this.activeTypes = this.types.filter((t: any) => t.status === 'Active');
+          this.activeTypes = this.types.filter((t: any) => t.status === 'Active' || t.status === 'active');
           console.log('Master types loaded successfully:', this.types.length);
         },
         error: (error) => {
