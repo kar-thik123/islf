@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require("../db");
 const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
 const { getUsernameFromToken } = require("../utils/context-helper");
+const fs = require("fs");
+const path = require("path");
 
 router.get("/", async (req, res) => {
   try {
@@ -1680,8 +1682,12 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    const logData = `[${new Date().toISOString()}] SOURCING QUERY:\n${query}\nPARAMS: ${JSON.stringify(params)}\n\n`;
-    fs.appendFileSync(path.join(__dirname, "../sourcing_query_log.txt"), logData);
+    try {
+      const logData = `[${new Date().toISOString()}] SOURCING QUERY:\n${query}\nPARAMS: ${JSON.stringify(params)}\n\n`;
+      fs.appendFileSync(path.join(__dirname, "../sourcing_query_log.txt"), logData);
+    } catch (logErr) {
+      console.warn("sourcing route: query log write failed", logErr.message);
+    }
 
     const { rows: sourceResult } = await pool.query(query, params);
 

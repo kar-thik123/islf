@@ -34,3 +34,21 @@ PARAMS: ["EXPORT","FCL Freight","INKAT1","SEA PORT","LKCMB1","SEA PORT","GENERAL
       )
 PARAMS: ["EXPORT","FCL Freight","INKAT1","SEA PORT","LKCMB1","SEA PORT","GENERAL","20'GP","FREIGHT","FCL_Export","2026-02-01","2026-02-14"]
 
+[2026-05-18T12:24:08.578Z] SOURCING QUERY:
+
+      SELECT * FROM ( 
+        SELECT s.*, COALESCE(v.vendor_no, s.vendor_name) AS vendor_name, v.name AS vendor_alias,
+        CASE
+          WHEN s.period_end_date IS NULL THEN 'Active'
+          WHEN NOW() > s.period_end_date::DATE THEN 'Expired'
+          ELSE 'Active' 
+        END AS source_status
+        FROM sourcing s
+        LEFT JOIN vendor v ON (s.vendor_name = v.vendor_no OR s.vendor_name = v.name OR s.vendor_name = v.name2)
+      ) AS sub WHERE source_status = 'Active'
+     AND LOWER(REPLACE(REPLACE(mode, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($1, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(service_area, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($2, ' ', ''), '_', '')) AND (LOWER(REPLACE(REPLACE(from_location, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($3, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(location_type_from, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($4, ' ', ''), '_', ''))) AND (LOWER(REPLACE(REPLACE(to_location, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($5, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(location_type_to, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($6, ' ', ''), '_', ''))) AND LOWER(REPLACE(REPLACE(cargo_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($7, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(basis, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($8, ' ', ''), '_', '')) AND LOWER(REPLACE(REPLACE(type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($9, ' ', ''), '_', '')) AND ((LOWER(REPLACE(REPLACE(shipping_type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($10, ' ', ''), '_', '')) OR LOWER(REPLACE(REPLACE(type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($10, ' ', ''), '_', '')))) AND (
+        (period_start_date IS NULL OR period_start_date <= $12) AND 
+        (period_end_date IS NULL OR period_end_date >= $11)
+      )
+PARAMS: ["EXPORT","FCL Freight","INKAT","SEA PORT","VNSGN","SEA PORT","GENERAL","20'GP","FREIGHT","FCL_Export","2026-05-18","2026-05-18"]
+
