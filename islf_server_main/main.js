@@ -254,10 +254,20 @@ const gstSetupRouter = require('./routes/gst_setup');
 app.use('/api/gst_setup',       requirePermission('Masters', 'GST Setup'),       gstSetupRouter);
 
 const tariffRouter = require('./routes/tariff');
-app.use('/api/tariff',          requirePermission('Masters', 'Local Tariff'),    tariffRouter);
+app.use('/api/tariff',
+  requirePermission('Masters', 'Local Tariff'),
+  requireContext(),
+  requireOwnership({ table: 'tariff', ownerField: 'created_by', ownerType: 'username', adminBypass: true }),
+  tariffRouter
+);
 
 const sourceRouter = require('./routes/source');
-app.use('/api/source',          requirePermission('Masters', 'Sourcing'),        sourceRouter);
+app.use('/api/source',
+  requirePermission('Operations', 'Sourcing'),
+  requireContext(),
+  requireOwnership({ table: 'sourcing', ownerField: 'created_by', ownerType: 'username', adminBypass: true }),
+  sourceRouter
+);
 
 // Phase H Batch 2: Ownership on service_area.
 const serviceAreaRouter = require('./routes/service_area');

@@ -1,7 +1,7 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { tap, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { tap, switchMap, catchError } from 'rxjs/operators';
 import { ContextService } from './context.service';
 import { environment } from '../../environments/environment'; // Add this line
 
@@ -262,7 +262,7 @@ export class ConfigService {
   };
 
   constructor(private http: HttpClient, private injector: Injector) {
-    this.loadConfig();
+    this.loadConfig().subscribe();
 
     // Subscribe to context changes and reload config when context changes
     // Use setTimeout to avoid circular dependency during initialization
@@ -355,6 +355,16 @@ export class ConfigService {
       tap(config => {
         this.configSubject.next(config);
         this.applyConfig(config);
+      }),
+      catchError(err => {
+        // ⚡ Critical resilience fix: If config fetch fails (e.g. 403 from RBAC or network error),
+        // fall back to defaultConfig so configSubject is never null.
+        // Without this, any filter(config => !!config) in components will block forever.
+        console.warn('[ConfigService] loadConfig failed, falling back to defaultConfig:', err?.status, err?.message);
+        if (!this.configSubject.value) {
+          this.configSubject.next(this.defaultConfig);
+        }
+        return of(this.configSubject.value || this.defaultConfig);
       })
     );
   }

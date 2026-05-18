@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { ConfigService } from './config.service';
@@ -64,16 +64,21 @@ export class SourceService {
     const config = this.configService.getConfig();
     const filter = config?.validation?.sourceFilter || '';
 
+    console.log('[DEBUG-INVESTIGATION] SourcingService.getAll - Context from service:', context);
+    console.log('[DEBUG-INVESTIGATION] SourcingService.getAll - IT Setup Filter:', filter);
+
     const params: any = {};
 
-    if (filter.includes('C') && context.companyCode) {
-      params.companyCode = context.companyCode;
-    }
-    if (filter.includes('B') && context.branchCode) {
-      params.branchCode = context.branchCode;
-    }
+    // 🛡️ Hierarchy Protection: Ensure child context always includes its parent context
     if (filter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
+      if (context.branchCode) params.branchCode = context.branchCode;
+      if (context.companyCode) params.companyCode = context.companyCode;
+    } else if (filter.includes('B') && context.branchCode) {
+      params.branchCode = context.branchCode;
+      if (context.companyCode) params.companyCode = context.companyCode;
+    } else if (filter.includes('C') && context.companyCode) {
+      params.companyCode = context.companyCode;
     }
 
     const headers: any = {};
@@ -81,7 +86,17 @@ export class SourceService {
       headers['X-Skip-Loading'] = 'true';
     }
 
-    return this.http.get<Source[]>(this.baseUrl, { params, headers });
+    console.log('[DEBUG-INVESTIGATION] SourcingService.getAll - Final Query Params:', params);
+
+    return this.http.get<Source[]>(this.baseUrl, { params, headers }).pipe(
+      tap((response: any) => {
+        console.log('[DEBUG-INVESTIGATION] SourcingService.getAll - API Response status:', response ? 'Success' : 'Empty');
+        if (response && response.data) {
+          console.log('[DEBUG-INVESTIGATION] SourcingService.getAll - Record count:', response.data.length);
+          console.log('[DEBUG-INVESTIGATION] SourcingService.getAll - Total count:', response.total);
+        }
+      })
+    );
   }
 
   create(source: Source, skipLoading = false): Observable<Source> {

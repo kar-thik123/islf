@@ -94,7 +94,6 @@ export class VendorService {
   createDuplicate(
     data: Partial<Vendor> & { seriesCode?: string }
   ): Observable<Vendor> {
-    console.log('Creating duplicate vendors with data:', data);
     const context = this.contextService.getContext();
     const config = this.configService.getConfig();
     const vendorFilter = config?.validation?.vendorFilter || '';

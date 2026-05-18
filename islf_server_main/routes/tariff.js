@@ -21,7 +21,10 @@ function buildWhereClause(filters) {
 
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== "") {
-      conditions.push(`${key} = $${index}`);
+      // 🛡️ Legacy Data Protection: Allow rows with NULL context values
+      // This ensures rows created before mandatory context assignment are visible
+      // while still enforcing isolation for records that DO have a context.
+      conditions.push(`(${key} = $${index} OR ${key} IS NULL OR ${key} = '')`);
       values.push(value);
       index++;
     }
@@ -36,16 +39,36 @@ function buildWhereClause(filters) {
 // GET all tariffs
 router.get("/", async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode } = req.query;
-    enforceHierarchy(companyCode, branchCode, departmentCode);
+    let { companyCode, branchCode, departmentCode } = req.query;
 
-    const filters = {
-      company_code: companyCode,
-      branch_code: branchCode,
-      department_code: departmentCode,
-    };
+    console.log(`[DEBUG-INVESTIGATION] Backend Tariff GET - Received Query: C=${companyCode}, B=${branchCode}, D=${departmentCode}`);
+    console.log(`[DEBUG-INVESTIGATION] Backend Tariff GET - User from Token: ${req.user.username}, Role: ${req.user.role}`);
+
+    // 🔹 Sanitize query params (convert "null"/"undefined" strings to null)
+    if (companyCode === "null" || companyCode === "undefined" || companyCode === "") companyCode = null;
+    if (branchCode === "null" || branchCode === "undefined" || branchCode === "") branchCode = null;
+    if (departmentCode === "null" || departmentCode === "undefined" || departmentCode === "") departmentCode = null;
+
+    console.log(`[DEBUG-INVESTIGATION] Backend Tariff GET - Sanitized Query: C=${companyCode}, B=${branchCode}, D=${departmentCode}`);
+
+    // 🔹 Role-based Filter Bypass: SYSTEM_ADMIN/ADMIN can see all if no filter explicitly requested
+    const isPowerUser = req.user && (req.user.role === 'SYSTEM_ADMIN' || req.user.role === 'ADMIN');
+    const hasRequestedContext = companyCode || branchCode || departmentCode;
+
+    if (hasRequestedContext) {
+      enforceHierarchy(companyCode, branchCode, departmentCode);
+    }
+
+    const filters = {};
+    if (companyCode) filters.company_code = companyCode;
+    if (branchCode) filters.branch_code = branchCode;
+    if (departmentCode) filters.department_code = departmentCode;
 
     const { clause, values } = buildWhereClause(filters);
+
+    console.log(`[DEBUG-INVESTIGATION] Tariff Fetch - User: ${req.user.username}, Role: ${req.user.role}`);
+    console.log(`[DEBUG-INVESTIGATION] Filters:`, filters);
+    console.log(`[DEBUG-INVESTIGATION] Clause: ${clause}, Values:`, values);
 
     const query = `
       SELECT *
@@ -55,6 +78,7 @@ router.get("/", async (req, res) => {
     `;
 
     const result = await pool.query(query, values);
+    console.log(`[DEBUG-INVESTIGATION] Records returned from query: ${result.rows.length}`);
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching tariffs:", err);
@@ -66,12 +90,26 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const data = req.body;
 
+  // 🛡️ Normalize camelCase context properties to snake_case for backend consistency
+  if (data.companyCode && !data.company_code) data.company_code = data.companyCode;
+  if (data.branchCode && !data.branch_code) data.branch_code = data.branchCode;
+  if (data.departmentCode && !data.department_code) data.department_code = data.departmentCode;
+
   // 🔹 Convert empty strings → null
   const cleanData = Object.fromEntries(
     Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
   );
 
   try {
+    // 🔹 Resolve User Context if not provided in payload
+    const username = getUsernameFromToken(req);
+    const userRes = await pool.query('SELECT company_code, branch_code, department_code FROM users WHERE username = $1', [username]);
+    const uCtx = userRes.rows[0] || {};
+
+    cleanData.company_code = cleanData.company_code || uCtx.company_code;
+    cleanData.branch_code = cleanData.branch_code || uCtx.branch_code;
+    cleanData.department_code = cleanData.department_code || uCtx.department_code;
+
     enforceHierarchy(
       cleanData.company_code,
       cleanData.branch_code,
@@ -150,7 +188,7 @@ router.post("/", async (req, res) => {
         duplicateCode: duplicateResult.rows[0].code,
       });
     }
-    console.log("DEBUG: req body,", cleanData);
+
     let code = cleanData.code;
     let seriesCode;
 
@@ -187,7 +225,7 @@ router.post("/", async (req, res) => {
       const mappingRes = await pool.query(mappingQuery, queryParams);
       if (mappingRes.rows.length > 0) {
         seriesCode = mappingRes.rows[0].mapping;
-        console.log("DEBUG: Series Code,", seriesCode);
+
       }
     }
 
@@ -249,7 +287,7 @@ router.post("/", async (req, res) => {
               : Number(rel.last_no_used) + Number(rel.increment_by);
 
           code = `${rel.prefix || ""}${nextNo}`;
-          console.log("Debug Code value if is not manual,", code);
+
           await client.query(
             "UPDATE number_relation SET last_no_used = $1 WHERE id = $2",
             [nextNo, rel.id]
@@ -328,6 +366,12 @@ router.put("/:id", async (req, res) => {
   }
 
   const data = req.body;
+
+  // 🛡️ Normalize camelCase context properties to snake_case for backend consistency
+  if (data.companyCode && !data.company_code) data.company_code = data.companyCode;
+  if (data.branchCode && !data.branch_code) data.branch_code = data.branchCode;
+  if (data.departmentCode && !data.department_code) data.department_code = data.departmentCode;
+
   const cleanData = Object.fromEntries(
     Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
   );
@@ -405,7 +449,7 @@ router.post("/:tariffId/charge", async (req, res) => {
     res.status(400).json({ error: "Tariff ID is required" });
   }
   try {
-    console.log("request body", req.body);
+
     // check if tariff exists
     const { rows: tariffResult } = await pool.query(
       "SELECT * FROM tariff WHERE id = $1",
@@ -596,7 +640,7 @@ router.delete("/:tariffId/charge/:chargeId", async (req, res) => {
         .status(404)
         .json({ error: "Tariff charge not found or already deleted" });
     }
-    console.log("Delete Result:", deleteResult);
+
     res.status(200).json({ message: "Tariff charge deleted successfully" });
   } catch (err) {
     console.error("Error updating tariff charge:", err);

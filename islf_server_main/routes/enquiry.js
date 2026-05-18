@@ -1,121 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db");
-const jwt = require("jsonwebtoken");
-const fs = require("fs");
-const path = require("path");
-const { getUsernameFromToken } = require("../utils/context-helper");
 const { ADMIN_BYPASS_ROLES } = require('../constants/roles');
+const { getUsernameFromToken } = require("../utils/context-helper");
 
-// GET /enquiry - Fetch all enquiries with context filtering
-// router.get('/', async (req, res) => {
-//     try {
-//         const username = getUsernameFromToken(req);
-//         if (!username) {
-//             return res.status(401).json({ error: 'Unauthorized' });
-//         }
-
-//         const { page = 1, limit = 10, search = '', status = '' } = req.query;
-//         const offset = (page - 1) * limit;
-
-//         // Get user context
-//         const userResult = await pool.query(
-//             'SELECT company_code, branch_code, department_code, service_type_code FROM users WHERE username = $1',
-//             [username]
-//         );
-
-//         if (userResult.rows.length === 0) {
-//             return res.status(404).json({ error: 'User not found' });
-//         }
-
-//         const userContext = userResult.rows[0];
-
-//         // Build dynamic query with context filtering
-//         let query = `
-//             SELECT e.*, c.name as customer_display_name, c.name as customer_company
-//             FROM enquiry e
-//             LEFT JOIN customer c ON e.customer_id = c.id
-//             WHERE 1=1
-//         `;
-
-//         const params = [];
-//         let paramIndex = 1;
-
-//         // Context filtering
-//         if (userContext.company_code) {
-//             query += ` AND e.company_code = $${paramIndex}`;
-//             params.push(userContext.company_code);
-//             paramIndex++;
-//         }
-
-//         if (userContext.branch_code) {
-//             query += ` AND e.branch_code = $${paramIndex}`;
-//             params.push(userContext.branch_code);
-//             paramIndex++;
-//         }
-
-//         if (userContext.department_code) {
-//             query += ` AND e.department_code = $${paramIndex}`;
-//             params.push(userContext.department_code);
-//             paramIndex++;
-//         }
-
-//         // Search filtering
-//         if (search) {
-//             query += ` AND (e.enquiry_no ILIKE $${paramIndex} OR e.customer_name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`;
-//             params.push(`%${search}%`);
-//             paramIndex++;
-//         }
-
-//         // Status filtering
-//         if (status) {
-//             query += ` AND e.status = $${paramIndex}`;
-//             params.push(status);
-//             paramIndex++;
-//         }
-
-//         query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-//         params.push(limit, offset);
-
-//         const result = await pool.query(query, params);
-
-//         // Get total count for pagination
-//         let countQuery = `
-//             SELECT COUNT(*)
-//             FROM enquiry e
-//             LEFT JOIN customer c ON e.customer_id = c.id
-//             WHERE 1=1
-//         `;
-
-//         const countParams = params.slice(0, -2); // Remove limit and offset
-
-//         if (userContext.company_code) countQuery += ` AND e.company_code = $1`;
-//         if (userContext.branch_code) countQuery += ` AND e.branch_code = $${userContext.company_code ? 2 : 1}`;
-//         if (userContext.department_code) countQuery += ` AND e.department_code = $${(userContext.company_code ? 1 : 0) + (userContext.branch_code ? 1 : 0) + 1}`;
-//         if (search) countQuery += ` AND (e.enquiry_no ILIKE $${countParams.length} OR e.customer_name ILIKE $${countParams.length} OR c.name ILIKE $${countParams.length})`;
-//         if (status) countQuery += ` AND e.status = $${countParams.length}`;
-
-//         const countResult = await pool.query(countQuery, countParams);
-//         const totalRecords = parseInt(countResult.rows[0].count);
-
-//         res.json({
-//             data: result.rows,
-//             pagination: {
-//                 page: parseInt(page),
-//                 limit: parseInt(limit),
-//                 total: totalRecords,
-//                 pages: Math.ceil(totalRecords / limit)
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error('Error fetching enquiries:', error);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// });
 router.get("/", async (req, res) => {
-  console.log("📩 [DEBUG] /api/enquiry called with query:", req.query);
-
   try {
     let {
       companyCode,
@@ -136,14 +25,9 @@ router.get("/", async (req, res) => {
       departmentCode = departmentCode || req.user.department;
 
       if (!companyCode) {
-        console.warn(`⚠️ [Context Leakage Prevention] No company context for user: ${req.user?.username}`);
         return res.json({ data: [], total: 0 });
       }
     }
-
-    console.log(
-      `📌 [DEBUG] Enquiry fetch for user: ${req.user?.username}, context: ${companyCode}/${branchCode}/${departmentCode}`
-    );
 
     // Build dynamic query with context filtering
     let query = `
@@ -198,9 +82,6 @@ router.get("/", async (req, res) => {
     const offset = (Number(page) - 1) * Number(limit);
     query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(Number(limit), Number(offset));
-
-    console.log("📝 [DEBUG] Final query:", query);
-    console.log("📊 [DEBUG] Query params:", params);
 
     const result = await pool.query(query, params);
 
@@ -677,7 +558,6 @@ router.post("/", async (req, res) => {
             userContext.service_type_code || null,
           ]
         );
-        console.log("Created New Customer:", customerResult.rows[0]);
         finalCustomerId = customerResult.rows[0].id;
       }
 
@@ -690,9 +570,6 @@ router.post("/", async (req, res) => {
         );
 
         if (existingContact.rows.length === 0) {
-          console.log(
-            `Creating new contact '${customer_name}' for customer ID ${finalCustomerId}`
-          );
           await client.query(
             `INSERT INTO customer_contacts (customer_id, name, department, mobile, landline, email) VALUES ($1, $2, $3, $4, $5, $6)`,
             [
@@ -1103,7 +980,6 @@ router.put("/:code", async (req, res) => {
             userContext.service_type_code || null,
           ]
         );
-        console.log("Created New Customer (UPDATE Enquiry):", customerResult.rows[0]);
         finalCustomerId = customerResult.rows[0].id;
       }
 
@@ -1116,9 +992,6 @@ router.put("/:code", async (req, res) => {
         );
 
         if (existingContact.rows.length === 0) {
-          console.log(
-            `Creating new contact '${customer_name}' for customer ID ${finalCustomerId}`
-          );
           await client.query(
             `INSERT INTO customer_contacts (customer_id, name, department, mobile, landline, email) VALUES ($1, $2, $3, $4, $5, $6)`,
             [
@@ -1210,12 +1083,11 @@ router.put("/:code", async (req, res) => {
             });
 
             if (hasChange) {
-              console.log(`Line Item ${item.id} changed. Clearing associated vendor cards for S_NO ${newSno}.`);
-              await client.query(
-                `DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2`,
-                [enquiryId, newSno]
-              );
-            }
+            await client.query(
+              `DELETE FROM enquiry_vendor_cards WHERE enquiry_id = $1 AND enquiry_line_item_id = $2`,
+              [enquiryId, newSno]
+            );
+          }
           }
 
           await client.query(
@@ -1315,7 +1187,6 @@ router.get("/customers/dropdown", async (req, res) => {
     const username = getUsernameFromToken(req);
 
     const { search = "" } = req.query;
-    console.log("🔍 Search query received:", search);
 
     // Get user context
     const userResult = await pool.query(
@@ -1323,7 +1194,6 @@ router.get("/customers/dropdown", async (req, res) => {
       [username]
     );
     const userContext = userResult.rows[0] || {};
-    console.log("✅ User context:", userContext);
 
     // Get customers from customer table with primary contact details
     let customerQuery = `
@@ -1356,11 +1226,7 @@ router.get("/customers/dropdown", async (req, res) => {
 
     customerQuery += ` GROUP BY c.id, c.name, cc.email, cc.mobile, cc.landline, cc.name, cc.department ORDER BY c.name LIMIT 50`;
 
-    console.log("📌 Customer query:", customerQuery);
-    console.log("📌 Customer params:", customerParams);
-
     const customerResult = await pool.query(customerQuery, customerParams);
-    console.log(`✅ Customers fetched: ${customerResult.rows.length}`);
 
     // Also get unique customers from enquiry table (for existing enquiries)
     let enquiryQuery = `
@@ -1388,11 +1254,7 @@ router.get("/customers/dropdown", async (req, res) => {
 
     enquiryQuery += ` ORDER BY customer_name LIMIT 50`;
 
-    console.log("📌 Enquiry query:", enquiryQuery);
-    console.log("📌 Enquiry params:", enquiryParams);
-
     const enquiryResult = await pool.query(enquiryQuery, enquiryParams);
-    console.log(`✅ Enquiry customers fetched: ${enquiryResult.rows.length}`);
 
     // Combine and deduplicate results with case-insensitive comparison
     const allCustomers = [...customerResult.rows, ...enquiryResult.rows];
@@ -1431,8 +1293,6 @@ router.get("/customers/dropdown", async (req, res) => {
         })
       );
     });
-
-    console.log(`🎯 Final unique customers: ${uniqueCustomers.length}`);
 
     res.json(uniqueCustomers);
   } catch (error) {
@@ -1584,12 +1444,6 @@ router.get("/departments/dropdown", async (req, res) => {
     const { search, company_code } = req.query;
     const userContext = getUsernameFromToken(req);
 
-    console.log("🏢 Departments dropdown request:", {
-      search,
-      company_code,
-      userContext,
-    });
-
     let query = `
       SELECT DISTINCT d.code, d.name, d.company_code, d.branch_code,
              CONCAT(d.name, CASE WHEN d.description IS NOT NULL THEN ' - ' || d.description ELSE '' END) as display_name
@@ -1623,11 +1477,7 @@ router.get("/departments/dropdown", async (req, res) => {
 
     query += ` ORDER BY d.name LIMIT 50`;
 
-    console.log("📌 Department query:", query);
-    console.log("📌 Department params:", params);
-
     const result = await pool.query(query, params);
-    console.log(`✅ Departments fetched: ${result.rows.length}`);
 
     res.json(result.rows);
   } catch (err) {
@@ -1768,10 +1618,8 @@ router.post("/:code/sourcing", async (req, res) => {
     if (locationConditions.length > 0) {
       if (sourcing === "match_any") {
         query += ` AND (${locationConditions.join(" OR ")})`;
-        console.log("Applying match_any logic:", locationConditions.join(" OR "));
       } else {
         query += ` AND ${locationConditions.join(" AND ")}`;
-        console.log("Applying match_all logic:", locationConditions.join(" AND "));
       }
     }
 
@@ -1836,7 +1684,6 @@ router.post("/:code/sourcing", async (req, res) => {
     fs.appendFileSync(path.join(__dirname, "../sourcing_query_log.txt"), logData);
 
     const { rows: sourceResult } = await pool.query(query, params);
-    console.log(`Found ${sourceResult.length} sourcing vendors`);
 
     const sourceIds = sourceResult.map((s) => s.id);
 
@@ -1861,7 +1708,6 @@ router.post("/:code/sourcing", async (req, res) => {
       selected_subcharges: subChargesBySource[src.id] || [],
     }));
 
-    console.log("Sourcing response prepared:", sourceResponse);
     res.json(sourceResponse);
   } catch (error) {
     console.error("Error fetching sourcing options:", error);
@@ -2519,7 +2365,6 @@ router.get("/:code/lineItem", async (req, res) => {
   `,
       [code]
     );
-    console.log("Enquiry Id for the line item,", enquiryIdRow);
     const [{ id: enquiry_id }] = enquiryIdRow;
 
     const { rows: lineItemsResult } = await pool.query(
@@ -2643,22 +2488,12 @@ router.put("/:code/line-items/selection", async (req, res) => {
     );
     const [{ id: enquiry_id }] = enquiryIdRow;
 
-    // console.log("line Item Selection enquiry ID", enquiry_id);
     // unselect all line item for the id
     const result = await pool.query(
       `UPDATE enquiry_line_items SET is_selected = false WHERE enquiry_id = $1 RETURNING * `,
       [enquiry_id]
     );
-    // console.log(
-    //   "all line Items of the corresponding enquiry updated  to false",
-    //   result
-    // );
 
-    // console.log("lineItems api body,", selectedLineItems);
-
-    // if (lineItems[0].enquiry_id !== enquiry_id) {
-    //   res.status(404).json({ msg: "enquiry Id mismatch." });
-    // }
     let lineItemsList = selectedLineItems.map((lineItem) => ({
       lineItemId: lineItem.id,
       enquiryId: lineItem.enquiry_id,
@@ -2667,9 +2502,7 @@ router.put("/:code/line-items/selection", async (req, res) => {
     if (selectedLineItems.length > 0) {
       query = ` UPDATE enquiry_line_items SET is_selected = true WHERE enquiry_id = $1 AND`;
       params = [enquiry_id];
-      console.log("mapped Line Item Result,", lineItemsList);
       lineItemsList.forEach((lineItem, index) => {
-        console.log("index,", index, "line item result,", lineItemsList.length);
         if (lineItemsList.length === 1) {
           query += `(s_no = $${index + 2})`;
           params.push(lineItem.lineItemSno);
@@ -2683,7 +2516,6 @@ router.put("/:code/line-items/selection", async (req, res) => {
           params.push(lineItem.lineItemSno);
         }
       });
-      console.log("line item selection query,", query, "params list,", params);
       const { rows: lineItemSelectionResult } = await pool.query(query, params);
     }
     // const lineItemSelectionResult = await pool.query(
@@ -2709,8 +2541,6 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
 
     typeof vendorCardList === "undefined" && (vendorCardList = []);
 
-    console.log("DEBUG: vendor cards list from post met:", vendorCardList);
-
     // First get the enquiry ID from the code
     const enquiryResult = await pool.query(
       "SELECT id FROM enquiry WHERE code = $1",
@@ -2724,11 +2554,6 @@ router.put("/:code/line-item/:lineItemId/selection", async (req, res) => {
     // Column is_selected does not exist in the schema, and we're moving to "Live Snapshot"
     // where any vendor added to an enquiry is considered selected.
     // Thus, we skip the selection flag update.
-    console.log("Selection update skipped - Live Snapshot model active (no is_selected column)");
-    // const lineItemSelectionResult = await pool.query(
-    //   ` UPDATE enquiry_line_items SET is_selected = true `
-    // );
-
     res.status(200).json({ msg: "Updated Line Item Selection !" });
   } catch (error) {
     console.error(error.message);

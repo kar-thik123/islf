@@ -243,7 +243,6 @@ export class EnquiryService {
     code: string,
     lineItemList: Partial<{ [key: string]: EnquiryLineItem[] }>
   ) {
-    console.log('Enquiry Line Item Selection list,', lineItemList);
     return this.http.put<EnquiryLineItem[]>(
       `${this.baseUrl}/${code}/line-items/selection`,
       lineItemList
@@ -258,7 +257,6 @@ export class EnquiryService {
     vendorCardList: EnquiryVendorCard[]
   ) {
     const payload = { vendorCardList, sourcingType };
-    console.log('vendor card line items list payload,', payload);
 
     return this.http.put<EnquiryVendorCard[]>(
       `${this.baseUrl}/${code}/line-item/${lineItemId}/selection`,
@@ -272,12 +270,6 @@ export class EnquiryService {
       enquiry,
       this.contextService.getContext()
     );
-    console.log(
-      'Debug: enquiry value from create enquiry service method',
-      enquiry,
-      'payload value',
-      payload
-    );
     return this.http.post<Enquiry>(`${this.baseUrl}`, payload);
   }
 
@@ -287,7 +279,6 @@ export class EnquiryService {
       enquiry,
       this.contextService.getContext()
     );
-    console.log('Update enquiry payload,', payload);
     return this.http.put<Enquiry>(`${this.baseUrl}/${code}`, payload);
   }
 
@@ -346,7 +337,6 @@ export class EnquiryService {
     enquiryCode: string,
     criteria: any
   ): Observable<SourcingOption[]> {
-    console.log('get Sourcing Options:', enquiryCode, 'Criteria', criteria);
     return this.http.post<SourcingOption[]>(
       `${this.baseUrl}/${enquiryCode}/sourcing`,
       criteria
@@ -358,12 +348,6 @@ export class EnquiryService {
     enquiryCode: string,
     criteria: any
   ): Observable<TariffOption[]> {
-    console.log(
-      'get Tariff options payload for code:',
-      enquiryCode,
-      'is:',
-      criteria
-    );
     return this.http.post<TariffOption[]>(
       `${this.baseUrl}/${enquiryCode}/tariff`,
       criteria
@@ -416,7 +400,6 @@ export class EnquiryService {
       { vendorCards: normalizedVendorCards, masterType, lineItemId },
       this.contextService.getContext()
     );
-    console.log('add Vendor Cards payload,', payload);
     return this.http.post(
       `${this.baseUrl}/${enquiryCode}/vendor-cards`,
       payload

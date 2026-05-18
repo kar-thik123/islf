@@ -109,10 +109,32 @@ export class ContextSelectorComponent implements OnInit, OnChanges {
   constructor(public contextService: ContextService) {}
  
   ngOnInit() {
-    this.isBypass = this.contextService.isBypassRolePublic();
-    // Initialize context values if already set
-    this.initializeContextValues();
-    this.setupAutoSelection();
+    console.log('[DEBUG-SELECTOR] OnInit - Initializing context selector');
+    this.reloadAllOptions();
+
+    const currentContext = this.contextService.getContext();
+    console.log('[DEBUG-SELECTOR] OnInit - Current context from service:', currentContext);
+    
+    if (currentContext.companyCode) {
+      console.log('[DEBUG-SELECTOR] OnInit - Restoring company:', currentContext.companyCode);
+      this.selectedCompany = currentContext.companyCode;
+      this.onCompanyChange();
+      
+      if (currentContext.branchCode) {
+        console.log('[DEBUG-SELECTOR] OnInit - Restoring branch:', currentContext.branchCode);
+        this.selectedBranch = currentContext.branchCode;
+        this.onBranchChange();
+        
+        if (currentContext.departmentCode) {
+          console.log('[DEBUG-SELECTOR] OnInit - Restoring department:', currentContext.departmentCode);
+          this.selectedDepartment = currentContext.departmentCode;
+        }
+      }
+    }
+    
+    if (currentContext.serviceType) {
+      this.selectedServiceType = currentContext.serviceType;
+    }
   }
   
   ngOnChanges(changes: SimpleChanges) {

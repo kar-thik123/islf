@@ -6,7 +6,6 @@ import { RouterModule } from '@angular/router';
 import { Observable, forkJoin, of, BehaviorSubject, combineLatest, Subject } from 'rxjs';
 import { take, tap, catchError, takeUntil, distinctUntilChanged, startWith, map } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { TableModule } from 'primeng/table';
@@ -44,7 +43,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
     CommonModule,
     FormsModule,
     RouterModule,
-    CardModule,
     ButtonModule,
     InputTextModule,
     TextareaModule,
@@ -1219,11 +1217,6 @@ export class BookingComponent implements OnInit, OnDestroy {
   bookings: any[] = [];
   search = '';
   statusFilter = '';
-  statusOptions = [
-    { label: 'Open', value: 'Open' },
-    { label: 'Confirmed', value: 'Confirmed' },
-    { label: 'Closed', value: 'Closed' },
-  ];
   bookingStatusOptions: any[] = [];
 
   showCreateDialog = false;
@@ -1488,11 +1481,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.allAirlines = (res.airlines || []).filter((a: any) => a.active === true);
         this.airlineOptions = this.allAirlines.map(a => ({ label: a.airline_name, value: a.airline_name }));
 
-        console.log('Vessel Data Loaded:', res.vessels);
         // Filter only active vessels
         this.allVessels = (res.vessels || []).filter((v: any) => v.active === true);
         this.vesselOptions = this.allVessels.map(v => ({ label: v.vessel_name, value: v.vessel_name }));
-        console.log('Vessel Options Mapped (Active only):', this.vesselOptions);
 
         // 8. Vendor Types
         this.vendorTypeOptions = (res.vendorTypes || [])
@@ -1625,11 +1616,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   // on closing the create booking dialog
   onCreateBookingCancel() {
-    console.log("linkTargetBooking value before cancelling", this.linkTargetBooking);
     this.showCreateDialog = false;
     this.linkTargetBooking = null;
     this.linkedEnquiryCodes.clear();
-    console.log("linkTargetBooking value after cancelling", this.linkTargetBooking);
   }
 
   // on creating booking from enquiries
@@ -1652,7 +1641,6 @@ export class BookingComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    console.log('Selected Enquiries: during the save enquiry', this.selectedEnquiries);
     // Carriage Validation
     const carriageTypes = ['Place of Receipt', 'Port of Loading', 'Final Destination', 'Place of Delivery', 'Port of Discharge'];
     for (const type of carriageTypes) {
@@ -1689,13 +1677,11 @@ export class BookingComponent implements OnInit, OnDestroy {
       if (toDates.length > 0) {
         overrides.effective_date_to = this.formatDate(new Date(Math.max(...toDates)));
       }
-      // console.log('Select Enquiry Overrides for min from and to dates: ', overrides);
     }
     this.pendingOverrides = overrides;
 
 
     const selected = this.selectedEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
-    console.log('Selected Enquiries: during the save enquiry', this.selectedEnquiries);
     // Check for Link Mode (Existing Booking)
     if (this.linkTargetBooking) {
       if (selected.length === 0) {
@@ -2124,10 +2110,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       .map((l: any) => ({ label: l.name, value: l.code }));
   }
 
-  onTransitLocTypeChange(trn: any, field: 'from' | 'to') {
-    // Deprecated: Template now binds directly to getLocationsByType
-  }
-
   getCargoNamesByType(type: any) {
     const t = (type || '').toString();
     return (this.allCargoItems || [])
@@ -2409,7 +2391,6 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   openLinkEnquiryDialog(row: any) {
     this.linkTargetBooking = row;
-    console.log("Row value argument from the booking link:", row);
     this.dialog = {
       department: row.department,
       service_type: row.service_type,
@@ -2460,7 +2441,6 @@ export class BookingComponent implements OnInit, OnDestroy {
               }
             }
           });
-          console.log('Already linked enquiry codes:', Array.from(this.linkedEnquiryCodes));
           // Now search for enquiries after we have the linked codes
           this.searchEnquiries();
         },
@@ -2474,10 +2454,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       // If no booking_no, just search enquiries
       this.searchEnquiries();
     }
-  }
-
-  saveLinkEnquiry() {
-    // Deprecated: Logic moved to saveFromEnquiries
   }
 
   addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { enq_no: '', enq_exp: '', type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', status: 'Active', remarks: '' }]; }
@@ -3199,7 +3175,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       next: (response: any) => {
         const previewData = response;
         this.selectedEnquiryForPreview = previewData; // Structure might be different but code/customer_name usually at top level
-        console.log('Enquiry Preview Response loaded:', previewData);
 
         // Find matching line item in the preview response
         // We match by Service Area
@@ -3209,8 +3184,6 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.selectedEnquiryLineItem = (previewData.line_items || []).find((eli: any) =>
           (eli.service_area || eli.type || '').toString().trim().toLowerCase() === bookingServiceArea
         );
-
-        console.log('Matched Line Item in Preview:', this.selectedEnquiryLineItem);
 
         if (this.selectedEnquiryLineItem) {
           // Grouping logic for Sourcing
@@ -3374,7 +3347,6 @@ export class BookingComponent implements OnInit, OnDestroy {
             .forEach((t) => {
               if (t.value) this.chargeCodeToName.set(t.value, t.description || t.value);
             });
-          console.log('Charge Type Names Loaded (merged):', this.chargeCodeToName.size);
         });
       }),
       catchError((error: any) => {

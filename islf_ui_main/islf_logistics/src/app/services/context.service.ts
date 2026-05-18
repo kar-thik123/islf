@@ -42,16 +42,25 @@ export class ContextService {
 
   constructor(private injector: Injector) {
     const stored = sessionStorage.getItem(this.storageKey);
-    console.log('Context service initialized, stored context:', stored);
+    console.log('[DEBUG-CONTEXT] ContextService constructor - stored context:', stored);
     if (stored) {
-      this.context = JSON.parse(stored);
+      try {
+        this.context = JSON.parse(stored);
+        console.log('[DEBUG-CONTEXT] Context parsed successfully:', this.context);
+        // Important: notify subscribers about the restored context immediately
+        this.contextSubject.next(this.context);
+      } catch (e) {
+        console.error('[DEBUG-CONTEXT] Failed to parse stored context:', e);
+      }
     }
   }
 
   setContext(ctx: UserContext) {
-    console.log('Setting context:', ctx);
+    console.log('[DEBUG-CONTEXT] setContext called with:', ctx);
     this.context = ctx; // This completely replaces the old context
-    sessionStorage.setItem(this.storageKey, JSON.stringify(ctx));
+    const contextStr = JSON.stringify(ctx);
+    sessionStorage.setItem(this.storageKey, contextStr);
+    console.log('[DEBUG-CONTEXT] Context saved to sessionStorage:', contextStr);
 
     // Emit the new context to all subscribers
     this.contextSubject.next(ctx);

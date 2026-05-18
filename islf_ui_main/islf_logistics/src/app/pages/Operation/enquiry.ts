@@ -67,8 +67,8 @@ import {
   ServiceAreaService,
   ServiceArea,
 } from '../../services/service-area.service';
-import { forkJoin, from, Observable, BehaviorSubject, combineLatest, Subject, of } from 'rxjs';
-import { tap, debounceTime, distinctUntilChanged, takeUntil, map, startWith, take, catchError } from 'rxjs/operators';
+import { forkJoin, Observable, combineLatest, Subject, of } from 'rxjs';
+import { tap, debounceTime, takeUntil, map, take, catchError } from 'rxjs/operators';
 import { ServiceAreaComponent } from '../masters/servicearea';
 import { SourceSalesService } from '@/services/source-sales.service';
 import { SourceService } from '../../services/sourcing.service';
@@ -2697,8 +2697,7 @@ export class EnquiryComponent implements OnInit, OnDestroy {
   loading = false;
   isLoadingDialogData = false;
   private destroy$ = new Subject<void>();
-  private selectedEnquiryTrigger$ = new BehaviorSubject<Enquiry | null>(null);
-  
+
   showServiceAreaDialog = false;
   serviceAreaDropdownOptions: { label: string; value: string }[] = [];
   // Tree Table Properties
@@ -3065,7 +3064,6 @@ export class EnquiryComponent implements OnInit, OnDestroy {
     this.loadInitialData();
     this.loadMappedEnquirySeriesCode();
     this.loadChargeTypeNames().subscribe();
-    this.setupReactiveDropdowns();
   }
 
   ngOnDestroy() {
@@ -3076,38 +3074,6 @@ export class EnquiryComponent implements OnInit, OnDestroy {
   /**
    * Implements Reactive Dropdown Stabilization for Enquiry.
    */
-  private setupReactiveDropdowns() {
-    // 1. Service Type (Depends on Department)
-    combineLatest([
-      this.masterCache.getServiceTypes().pipe(startWith([])),
-      this.selectedEnquiryTrigger$.pipe(distinctUntilChanged())
-    ]).pipe(takeUntil(this.destroy$)).subscribe(([serviceTypes, enquiry]) => {
-      this.allServiceTypes = serviceTypes || [];
-      this.filterServiceType();
-      this.cdr.detectChanges();
-    });
-
-    // 2. From/To Locations (Depends on Location Type)
-    combineLatest([
-      this.masterCache.getLocations().pipe(startWith([])),
-      this.selectedEnquiryTrigger$.pipe(distinctUntilChanged())
-    ]).pipe(takeUntil(this.destroy$)).subscribe(([locations, enquiry]) => {
-      this.allLocations = (locations || []).filter(l => this.masterLocationService.isActiveLocation(l));
-      // Update location options
-      this.fromLocationOptions = this.allLocations.map(l => ({ label: `${l.code} - ${l.name}`, value: l.code }));
-      this.toLocationOptions = [...this.fromLocationOptions];
-      this.cdr.detectChanges();
-    });
-
-    // 3. Departments
-    this.masterCache.getDepartments().pipe(takeUntil(this.destroy$)).subscribe(depts => {
-      this.departmentOptions = (depts || [])
-        .filter(d => d.status === 'Active' || !d.status)
-        .map(d => ({ label: d.name, value: d.name }));
-      this.cdr.detectChanges();
-    });
-  }
-
   initializeForm() {
     this.enquiryForm = this.fb.group({
       code: ['', Validators.required],
@@ -3927,7 +3893,6 @@ export class EnquiryComponent implements OnInit, OnDestroy {
         // Show dialog immediately after critical data is ready
         this.isLoadingDialogData = false;
         this.isDialogVisible = true;
-        this.selectedEnquiryTrigger$.next(this.selectedEnquiry);
         this.cdr.detectChanges();
 
         // 🔄 Background Hydration: Load non-critical data without blocking the UI
@@ -4204,7 +4169,6 @@ export class EnquiryComponent implements OnInit, OnDestroy {
         // Finalize UI state
         this.isLoadingDialogData = false;
         this.isDialogVisible = true;
-        this.selectedEnquiryTrigger$.next(this.selectedEnquiry); // Trigger reactive filters
         this.cdr.detectChanges();
 
         if (targetLineItemId) {

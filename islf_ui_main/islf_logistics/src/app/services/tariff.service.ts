@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { ContextPayloadService } from './context-payload.service';
 import { ContextService } from './context.service';
 import { ConfigService } from './config.service';
@@ -57,19 +57,33 @@ export class TariffService {
     const config = this.configService.getConfig();
     const filter = config?.validation?.tariffFilter || '';
 
+    console.log('[DEBUG-INVESTIGATION] TariffService.getAll - Context from service:', context);
+    console.log('[DEBUG-INVESTIGATION] TariffService.getAll - IT Setup Filter:', filter);
+
     const params: any = {};
 
-    if (filter.includes('C') && context.companyCode) {
-      params.companyCode = context.companyCode;
-    }
-    if (filter.includes('B') && context.branchCode) {
-      params.branchCode = context.branchCode;
-    }
+    // 🛡️ Hierarchy Protection: Ensure child context always includes its parent context
     if (filter.includes('D') && context.departmentCode) {
       params.departmentCode = context.departmentCode;
+      if (context.branchCode) params.branchCode = context.branchCode;
+      if (context.companyCode) params.companyCode = context.companyCode;
+    } else if (filter.includes('B') && context.branchCode) {
+      params.branchCode = context.branchCode;
+      if (context.companyCode) params.companyCode = context.companyCode;
+    } else if (filter.includes('C') && context.companyCode) {
+      params.companyCode = context.companyCode;
     }
 
-    return this.http.get<Tariff[]>(this.baseUrl, { params });
+    console.log('[DEBUG-INVESTIGATION] TariffService.getAll - Final Query Params:', params);
+
+    return this.http.get<Tariff[]>(this.baseUrl, { params }).pipe(
+      tap((response: any) => {
+        console.log('[DEBUG-INVESTIGATION] TariffService.getAll - API Response status:', response ? 'Success' : 'Empty');
+        if (Array.isArray(response)) {
+          console.log('[DEBUG-INVESTIGATION] TariffService.getAll - Record count:', response.length);
+        }
+      })
+    );
   }
 
   create(tariff: Tariff): Observable<Tariff> {

@@ -34,15 +34,10 @@ import {
   EntityDocumentService,
   EntityDocument,
 } from '../../services/entity-document.service';
-import { DepartmentService } from '../../services/department.service';
 import { ConfigService } from '@/services/config.service';
 import { ContextService } from '@/services/context.service';
-import {
-  AccountDetailsService,
-  AccountDetail,
-} from '../../services/account-details.service';
+import { AccountDetailsService, AccountDetail } from '../../services/account-details.service';
 import { MasterCacheService } from '../../services/master-cache.service';
-// import {} from '@angular/material/'
 import { Country, State, City } from 'country-state-city';
 import { Subscription, forkJoin } from 'rxjs';
 import { take } from 'rxjs/operators';
@@ -56,13 +51,6 @@ function uniqueCaseInsensitive(arr: string[]): string[] {
     seen.add(lower);
     return true;
   });
-}
-
-function toTitleCase(str: string): string {
-  return str.replace(
-    /\w\S*/g,
-    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-  );
 }
 
 @Component({
@@ -235,12 +223,6 @@ function toTitleCase(str: string): string {
                   class="p-button-sm"
                 ></button>
 </ng-container>
-                <!-- <p-menu #menu [model]="getMenuItems(vendor)" [popup]="true" />
-                <p-button
-                  class="p-button-sm"
-                  (click)="menu.toggle($event)"
-                  icon="pi pi-ellipsis-v"
-                /> -->
                 <button
                   pButton
                   icon="pi pi-clone"
@@ -1435,23 +1417,12 @@ export class VendorComponent implements OnInit, OnDestroy {
   vendorDocuments: (EntityDocument & { file?: File })[] = [];
   documentUploadPath: string = '/uploads/documents/vendor';
   documentTypeOptions: any[] = [];
-  departmentOptions: any[] = [];
 
   // Account Details properties
   vendorAccountDetails: AccountDetail[] = [];
   displayAccountDetailFormDialog = false;
   selectedAccountDetail: AccountDetail = {} as AccountDetail;
   accountDetailFormError = '';
-  accountDetailFields = [
-    { key: 'beneficiary', label: 'Beneficiary', required: true },
-    { key: 'bank_name', label: 'Bank Name', required: true },
-    { key: 'account_number', label: 'Account Number', required: true },
-    { key: 'account_type', label: 'Account Type', required: false },
-    { key: 'bank_branch_code', label: 'Bank Branch Code', required: false },
-    { key: 'rtgs_neft_code', label: 'RTGS/NEFT Code', required: false },
-    { key: 'swift_code', label: 'Swift Code', required: false },
-    { key: 'bank_address', label: 'Bank Address', required: false },
-  ];
 
   // Document viewer dialog
   isDocumentViewerVisible = false;
@@ -1630,7 +1601,6 @@ export class VendorComponent implements OnInit, OnDestroy {
     private masterLocationService: MasterLocationService,
     private masterTypeService: MasterTypeService,
     private entityDocumentService: EntityDocumentService,
-    private departmentService: DepartmentService,
     public configService: ConfigService,
     private contextService: ContextService,
     private sanitizer: DomSanitizer,
@@ -1646,7 +1616,6 @@ export class VendorComponent implements OnInit, OnDestroy {
 
     // Subscribe to context changes and reload data when context changes
     this.contextSubscription = this.contextService.context$.subscribe(() => {
-      console.log('Context changed in VendorComponent, reloading data...');
       this.refreshList();
       this.loadMappedVendorSeriesCode();
       this.loadDocumentUploadPath();
@@ -1660,8 +1629,6 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   loadOptions() {
-    console.log('Loading critical vendor data...');
-
     // 🚀 Critical Path: Load only data needed for table display
     forkJoin({
       vendors: this.masterCache.getVendors(),
@@ -1674,19 +1641,14 @@ export class VendorComponent implements OnInit, OnDestroy {
           label: `${c.vendor_no} - ${c.name}`,
           value: `${c.vendor_no} - ${c.name}`,
         }));
-        console.log('Vendors loaded:', this.vendors.length);
 
         // 2. Vendor types (CRITICAL for dropdown)
         this.vendorTypeOptions = (res.types || [])
           .filter((t: any) => t.key === 'VENDOR')
           .map((t: any) => ({ label: t.value, value: t.value, disabled: t.status !== 'Active' }));
         this.duplicationVendorTypeOptions = this.vendorTypeOptions;
-        console.log('Vendor type options loaded:', this.vendorTypeOptions.length);
-
-        console.log('Critical vendor data loaded, table ready!');
 
         // 🔄 Background Hydration: Load locations asynchronously
-        console.log('Hydrating vendor locations in background...');
         this.loadLocations();
       },
       error: (error) => {
@@ -1712,7 +1674,6 @@ export class VendorComponent implements OnInit, OnDestroy {
           label: `${c.vendor_no} - ${c.name}`,
           value: `${c.vendor_no} - ${c.name}`,
         }));
-        console.log('Vendors loaded:', this.vendors.length);
       },
       error: (error) => {
         console.error('Error loading vendors:', error);
@@ -1728,7 +1689,6 @@ export class VendorComponent implements OnInit, OnDestroy {
   loadMappedVendorSeriesCode(): Promise<void> {
     return new Promise((resolve) => {
       const context = this.contextService.getContext();
-      console.log('Loading vendor series code for context:', context);
 
       // Try context-based mapping first
       this.mappingService
@@ -1741,40 +1701,22 @@ export class VendorComponent implements OnInit, OnDestroy {
         )
         .subscribe({
           next: (contextMapping) => {
-            console.log('Context mapping result:', contextMapping);
             if (contextMapping && contextMapping.mapping) {
               this.mappedVendorSeriesCode = contextMapping.mapping;
               this.checkSeriesManualFlag().then(() => {
-                console.log(
-                  'Vendor series code mapped (context-based):',
-                  this.mappedVendorSeriesCode,
-                  'Manual:',
-                  this.isManualSeries
-                );
                 resolve();
               });
             } else {
-              console.log(
-                'No context mapping found, falling back to generic mapping'
-              );
               // Fallback to generic mapping
               this.mappingService.getMapping().subscribe({
                 next: (mapping) => {
-                  console.log('Generic mapping result:', mapping);
                   this.mappedVendorSeriesCode = mapping.vendorCode;
                   if (this.mappedVendorSeriesCode) {
                     this.checkSeriesManualFlag().then(() => {
-                      console.log(
-                        'Vendor series code mapped (generic):',
-                        this.mappedVendorSeriesCode,
-                        'Manual:',
-                        this.isManualSeries
-                      );
                       resolve();
                     });
                   } else {
                     this.isManualSeries = false;
-                    console.log('No vendor series code mapped');
                     resolve();
                   }
                 },
@@ -1787,28 +1729,16 @@ export class VendorComponent implements OnInit, OnDestroy {
             }
           },
           error: (error) => {
-            console.error(
-              'Error loading context-based mapping, falling back to generic:',
-              error
-            );
             // Fallback to generic mapping
             this.mappingService.getMapping().subscribe({
               next: (mapping) => {
-                console.log('Generic mapping result (fallback):', mapping);
                 this.mappedVendorSeriesCode = mapping.vendorCode;
                 if (this.mappedVendorSeriesCode) {
                   this.checkSeriesManualFlag().then(() => {
-                    console.log(
-                      'Vendor series code mapped (generic fallback):',
-                      this.mappedVendorSeriesCode,
-                      'Manual:',
-                      this.isManualSeries
-                    );
                     resolve();
                   });
                 } else {
                   this.isManualSeries = false;
-                  console.log('No vendor series code mapped');
                   resolve();
                 }
               },
@@ -1826,19 +1756,12 @@ export class VendorComponent implements OnInit, OnDestroy {
   private checkSeriesManualFlag(): Promise<void> {
     return new Promise((resolve) => {
       if (this.mappedVendorSeriesCode) {
-        console.log(
-          'Checking series manual flag for code:',
-          this.mappedVendorSeriesCode
-        );
         this.numberSeriesService.getAll().subscribe({
           next: (seriesList) => {
-            console.log('Number series list:', seriesList);
             const found = seriesList.find(
               (s: any) => s.code === this.mappedVendorSeriesCode
             );
-            console.log('Found series:', found);
             this.isManualSeries = !!(found && found.is_manual);
-            console.log('Is manual series:', this.isManualSeries);
             resolve();
           },
           error: (error) => {
@@ -1849,7 +1772,6 @@ export class VendorComponent implements OnInit, OnDestroy {
         });
       } else {
         this.isManualSeries = false;
-        console.log('No mapped vendor series code, setting manual to false');
         resolve();
       }
     });
@@ -1860,19 +1782,10 @@ export class VendorComponent implements OnInit, OnDestroy {
     const config = this.configService.getConfig();
     const vendorFilter = config?.validation?.vendorFilter || '';
 
-    console.log(
-      'Vendor filter:',
-      vendorFilter,
-      'is Duplicate,',
-      this.isDuplicate
-    );
-
     // Check if we need to validate context
     if (vendorFilter) {
       // Get the current context
       const context = this.contextService.getContext();
-
-      console.log('Current context:', context);
 
       // Check if the required context is set based on the filter
       let contextValid = true;
@@ -1898,9 +1811,6 @@ export class VendorComponent implements OnInit, OnDestroy {
         missingContexts.push('Service Type');
       }
 
-      console.log('Context valid:', contextValid);
-      console.log('Missing contexts:', missingContexts);
-
       // If context is not valid, show an error message and trigger the context selector
       if (!contextValid) {
         this.messageService.add({
@@ -1916,8 +1826,6 @@ export class VendorComponent implements OnInit, OnDestroy {
         return;
       }
     }
-
-    console.log('Validation passed, proceeding with adding vendor');
 
     this.selectedVendor = {
       vendor_no: '',
@@ -1957,24 +1865,12 @@ export class VendorComponent implements OnInit, OnDestroy {
       this.selectedVendor.bill_to_vendor_name = `${this.selectedVendor.vendor_no} - ${this.selectedVendor.name}`;
     }
 
-    console.log(
-      'Selected Vendor,',
-      this.selectedVendor,
-      'selectedVendorType,',
-      this.selectedVendorType
-    );
-
     this.selectedVendorRecords = this.vendors.filter(
       //since vendor no are always unique will use vendor name
       // (v) => v.vendor_no === this.selectedVendor?.vendor_no
       (v) => v.name === this.selectedVendor?.name
     );
-    console.log(
-      'selected vendor records matching the vendor,',
-      this.selectedVendor.vendor_no,
-      'are:',
-      this.selectedVendorRecords
-    );
+
     this.selectedVendorType = this.selectedVendor.type!;
     this.duplicationVendorTypeOptions = this.vendorTypeOptions.map((option) => {
       const isAsigned = this.selectedVendorRecords.some(
@@ -1983,11 +1879,6 @@ export class VendorComponent implements OnInit, OnDestroy {
 
       return isAsigned ? { ...option, disabled: true } : option;
     });
-
-    console.log(
-      'Duplication vendor type options,',
-      this.duplicationVendorTypeOptions
-    );
 
     this.isDialogVisible = true;
   }
@@ -2150,15 +2041,7 @@ export class VendorComponent implements OnInit, OnDestroy {
       dupVendorPayload = {
         vendors: dupVendorList
       }
-      console.log('Duplicate vendor payload:', dupVendorPayload, 'vendors list,', this.vendors);
     }
-
-    console.log(
-      'Saving vendor:',
-      this.selectedVendor,
-      'if duplicate selected vendor type,',
-      this.selectedVendorTypes
-    );
 
     if (!this.validateForm()) {
       this.messageService.add({
@@ -2182,7 +2065,6 @@ export class VendorComponent implements OnInit, OnDestroy {
       if (this.selectedVendor.isNew && !this.isDuplicate) {
         savedVendor = await this.vendorService.create(payload).toPromise();
       } else if (this.isDuplicate) {
-        console.log('Creating duplicate vendors:', dupVendorPayload);
         const dupVendor = await this.vendorService
           .createDuplicate(dupVendorPayload)
           .toPromise();
@@ -2278,25 +2160,11 @@ export class VendorComponent implements OnInit, OnDestroy {
       next: (locations) => {
         this.allLocations = (locations || []).filter((l) => this.masterLocationService.isActiveLocation(l));
 
-        {
-          /* // Unique countries - show ALL active locations regardless of type
-            this.countryOptions = uniqueCaseInsensitive(this.allLocations.map(l => l.country))
-              .map(c => ({ label: toTitleCase(c), value: c }));
-            // Reset state and city options
-            this.stateOptions = [];
-            this.cityOptions = [];*/
-        }
         // Place of Supply: GST_LOCATION type, format 'gst_state_code-name'
         const gstLocations = this.allLocations.filter((l) => l.type === 'GST');
         this.placeOfSupplyOptions = uniqueCaseInsensitive(
           gstLocations.map((l) => `${l.gst_state_code}-${l.name}`)
         ).map((val) => ({ label: val, value: val }));
-        console.log('Locations loaded:', this.allLocations.length);
-        console.log('Countries loaded:', this.countryOptions.length);
-        console.log(
-          'Place of supply options loaded:',
-          this.placeOfSupplyOptions.length
-        );
       },
       error: (error) => {
         console.error('Error loading locations:', error);
@@ -2320,9 +2188,6 @@ export class VendorComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('Selected country:', this.selectedVendor.country);
-    console.log('All locations for debugging:', this.allLocations);
-
     // getting the country object for retrieving state of corresponding country
     let country = Country.getAllCountries().find(
       (c) => c.name === this.selectedVendor?.country
@@ -2341,22 +2206,6 @@ export class VendorComponent implements OnInit, OnDestroy {
     this.cityOptions = [];
     this.selectedVendor.state = '';
     this.selectedVendor.city = '';
-
-    {
-      /* // Show ALL states for the selected country regardless of location type (case-insensitive)
-    const matchingLocations = this.allLocations.filter(l => 
-      l.country && l.country.toLowerCase() === this.selectedVendor!.country.toLowerCase()
-    );
-    console.log('Matching locations for country:', matchingLocations);
-    
-    const states = matchingLocations
-      .map(l => l.state)
-      .filter(Boolean);
-    console.log('All states found:', states);
-    
-    this.stateOptions = uniqueCaseInsensitive(states).map(s => ({ label: toTitleCase(s), value: s }));
-    console.log('Final state options:', this.stateOptions);*/
-    }
   }
 
   onStateChange() {
@@ -2368,19 +2217,6 @@ export class VendorComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Previous Master based listing
-    {
-      /*// Show ALL cities for the selected country and state regardless of location type (case-insensitive)
-    const cities = this.allLocations
-      .filter(l => 
-        l.country && l.country.toLowerCase() === this.selectedVendor!.country.toLowerCase() &&
-        l.state && l.state.toLowerCase() === this.selectedVendor!.state.toLowerCase()
-      )
-      .map(l => l.city)
-      .filter(Boolean);
-    this.cityOptions = uniqueCaseInsensitive(cities).map(c => ({ label: toTitleCase(c), value: c }));
-    this.selectedVendor.city = ''; */
-    }
     // Check if both country and state are from the database
     const country = Country.getAllCountries().find(
       (c) => c.name === this.selectedVendor!.country
@@ -2399,13 +2235,7 @@ export class VendorComponent implements OnInit, OnDestroy {
           label: city.name,
           value: city.name,
         }));
-      } else {
-        // State is manual entry, keep existing city options or clear them
-        // Don't clear city options for manual state entries
       }
-    } else {
-      // Country is manual entry, keep existing city options or clear them
-      // Don't clear city options for manual country entries
     }
 
     // Clear city selection when state changes
@@ -2502,10 +2332,8 @@ export class VendorComponent implements OnInit, OnDestroy {
 
   // Document handling methods
   loadDocumentUploadPath() {
-    console.log('Loading document upload path for vendor...');
     this.entityDocumentService.getUploadPath('vendor').subscribe({
       next: (response: any) => {
-        console.log('Document upload path loaded:', response.value);
         this.documentUploadPath = response.value;
       },
       error: (error: any) => {
@@ -2521,7 +2349,6 @@ export class VendorComponent implements OnInit, OnDestroy {
         this.documentTypeOptions = (types || [])
           .filter((t) => t.key === 'VEN_DOC_TYPE' && t.status === 'Active')
           .map((t) => ({ label: t.value, value: t.value }));
-        console.log('Document type options loaded:', this.documentTypeOptions);
       },
       error: (error) => {
         console.error('Error loading document types:', error);
@@ -2609,17 +2436,9 @@ export class VendorComponent implements OnInit, OnDestroy {
         link.download = doc.file_name;
         link.click();
         window.URL.revokeObjectURL(url);
-
-        console.log('Download link clicked');
       },
       error: (error: any) => {
         console.error('Error downloading document:', error);
-        console.error('Error details:', {
-          status: error.status,
-          statusText: error.statusText,
-          message: error.message,
-          url: error.url,
-        });
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -2718,13 +2537,11 @@ export class VendorComponent implements OnInit, OnDestroy {
   }
 
   onPdfLoad() {
-    console.log('PDF loaded successfully');
     this.pdfLoaded = true;
     this.pdfError = false;
   }
 
   onPdfError() {
-    console.log('PDF failed to load');
     this.pdfError = true;
     this.pdfLoaded = false;
   }
@@ -2763,18 +2580,6 @@ export class VendorComponent implements OnInit, OnDestroy {
     }
 
     const uploadPromises = documentsToUpload.map((doc) => {
-      console.log('Preparing to upload document:', {
-        entity_type: 'vendor',
-        entity_code: vendor.vendor_no,
-        entity_name: vendor.name, // Include vendor name for folder creation
-        doc_type: doc.doc_type,
-        document_number: doc.document_number || '',
-        valid_from: doc.valid_from || '',
-        valid_till: doc.valid_till || '',
-        file_name: doc.file?.name,
-        uploadPath: this.documentUploadPath,
-      });
-
       const formData = new FormData();
       formData.append('entity_type', 'vendor');
       formData.append('entity_code', vendor.vendor_no);

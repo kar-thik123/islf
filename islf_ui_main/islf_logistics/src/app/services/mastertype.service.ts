@@ -56,7 +56,6 @@ export class MasterTypeService {
       params.departmentCode = context.departmentCode;
     }
 
-    console.log("Fetching Master Types for type:", type);
     return this.http.get<any[]>(`${this.apiUrl}/type/${type}`, { params });
   }
 

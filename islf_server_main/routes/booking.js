@@ -231,7 +231,6 @@ router.get('/', async (req, res) => {
 
 router.post('/search-enquiries', async (req, res) => {
   try {
-    // await ensureBookingTable();
     const { department, service_type, from_location, to_location } = req.body || {};
     let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status,
                  COALESCE((SELECT json_agg(ecm.*) FROM enquiry_carriage_mapping ecm WHERE ecm.enquiry_id = enquiry.id), '[]'::json) as carriage_map
@@ -261,7 +260,6 @@ router.post('/search-enquiries', async (req, res) => {
 router.post('/', async (req, res) => {
   const username = getUsernameFromToken(req);
   try {
-    // await ensureBookingTable();
     const { booking_type, criteria, selected_enquiries = [], freeze, customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status = 'Open', remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, booking_breakup, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type, sub_breakup_vendor_type } = req.body || {};
 
     // Resolve User Context for Number Series
@@ -526,7 +524,6 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const username = getUsernameFromToken(req);
   try {
-    // await ensureBookingTable();
     const { booking_type, selected_enquiries = [], customer_id, customer_name, company_name, department, service_type, from_location, to_location, effective_date_from, effective_date_to, status, remarks, vendor_details, line_items, charges, cargo, carriage_map, schedules, companyCode, branchCode, departmentCode, serviceTypeCode, enquiry_type, booking_breakup, sub_breakup_vendor_type } = req.body || {};
 
     const client = await pool.connect();

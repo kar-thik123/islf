@@ -115,8 +115,6 @@ router.post("/", async (req, res) => {
     department_code,
     service_type_code, // <-- Use snake_case
   } = req.body;
-  // Debug: log the request body
-  console.log("REQ BODY:", req.body);
 
   try {
     // Relation-based number series lookup
@@ -156,12 +154,8 @@ router.post("/", async (req, res) => {
         );
       }
 
-      // Debug: log mapping result
-      console.log("MAPPING RESULT:", mappingRes.rows);
       if (mappingRes.rows.length > 0) {
         seriesCode = mappingRes.rows[0].mapping;
-        // Debug: log series code from mapping
-        console.log("SERIES CODE FROM MAPPING:", seriesCode);
       }
     }
 
@@ -170,8 +164,6 @@ router.post("/", async (req, res) => {
         "SELECT * FROM number_series WHERE code = $1 ORDER BY id DESC LIMIT 1",
         [seriesCode]
       );
-      // Debug: log number series result
-      console.log("NUMBER SERIES RESULT:", seriesResult.rows);
       if (seriesResult.rows.length === 0) {
         return res.status(400).json({ error: "Number series not found" });
       }
@@ -220,7 +212,6 @@ router.post("/", async (req, res) => {
           }
 
           vendor_no = `${rel.prefix || ""}${nextNo}`;
-          console.log("Generated vendor code:", vendor_no);
 
           // Update the last_no_used within the same transaction
           await client.query(
@@ -329,8 +320,6 @@ router.post("/duplicate", async (req, res) => {
     department_code,
     service_type_code,
   } = req.body;
-
-  console.log("Vendor data type:", typeof vendors, "vendor data", vendors);
 
   if (!Array.isArray(vendors) || vendors.length === 0) {
     return res.status(400).json({ error: "Vendors array is required" });

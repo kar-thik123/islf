@@ -29,7 +29,7 @@ import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
-import { forkJoin, Subscription, of, Observable } from 'rxjs';
+import { forkJoin, Subscription, of, Observable, Subject, combineLatest } from 'rxjs';
 import { TooltipModule } from 'primeng/tooltip';
 import {
   tap,
@@ -37,6 +37,8 @@ import {
   distinctUntilChanged,
   catchError,
   take,
+  takeUntil,
+  filter,
 } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { VendorService } from '@/services/vendor.service';
@@ -108,6 +110,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
       <p-table
         #dt
         [value]="sources"
+        [totalRecords]="totalRecords"
         dataKey="id"
         [paginator]="true"
         [rows]="configService.getSystemConfig().maxRecordsPerPage"
@@ -242,12 +245,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 ></p-columnFilter>
               </div>
             </th>
-            <!--<th>
-              <div class="flex justify-between items-center">
-                Tariff Type
-                <p-columnFilter type="text" field="tariffType" display="menu" placeholder="Search by tariff type"></p-columnFilter>
-              </div>
-            </th> -->
             <th>
               <div class="flex justify-between items-center">
                 Basis
@@ -259,17 +256,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 ></p-columnFilter>
               </div>
             </th>
-            <!-- <th>
-              <div class="flex justify-between items-center">
-                Charge Name
-                <p-columnFilter
-                  type="text"
-                  field="itemName"
-                  display="menu"
-                  placeholder="Search by charge name"
-                ></p-columnFilter>
-              </div>
-            </th> -->
             <th>
               <div class="flex justify-between items-center">
                 From Location
@@ -314,28 +300,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 ></p-columnFilter>
               </div>
             </th>
-            <!--<th>
-              <div class="flex justify-between items-center">
-                Currency
-                <p-columnFilter
-                  type="text"
-                  field="currency"
-                  display="menu"
-                  placeholder="Search by currency"
-                ></p-columnFilter>
-              </div>
-            </th>-->
-            <!-- <th>
-              <div class="flex justify-between items-center">
-                Charges
-                <p-columnFilter
-                  type="text"
-                  field="charges"
-                  display="menu"
-                  placeholder="Search by charges"
-                ></p-columnFilter>
-              </div>
-            </th>-->
             <th>
               <div class="flex justify-between items-center">
                 Status
@@ -391,13 +355,10 @@ import { MasterCacheService } from '../../services/master-cache.service';
             <td>{{ source.cargoType }}</td>
 
             <td>{{ source.basis }}</td>
-            <!-- <td>{{ source.itemName }}</td> -->
             <td>{{ getLocationName(source.fromLocation) }}</td>
             <td>{{ getLocationName(source.toLocation) }}</td>
             <td>{{ source.periodStartDate | configDate }}</td>
             <td>{{ source.periodEndDate | configDate }}</td>
-            <!-- <td>{{ source.currency }}</td>-->
-            <!--<td>{{ source.charges || source.amount || '-' }}</td>-->
             <td>
               <span [ngClass]="getStatusClass(getSourceStatus(source))">
                 {{ getSourceStatus(source) }}
@@ -749,41 +710,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 fieldErrors['cargoType']
               }}</small>
             </div>
-            <!--   <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Charge Name</label>
-              <div class="flex gap-2">
-                <p-dropdown
-                  [options]="itemNameOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  [(ngModel)]="selectedTariff.itemName"
-                  (ngModelChange)="
-                    onFieldChange('itemName', selectedTariff.itemName)
-                  "
-                  [ngClass]="getFieldErrorClass('itemName')"
-                  [ngStyle]="getFieldErrorStyle('itemName')"
-                  placeholder="Select Item Name"
-                  [filter]="true"
-                  filterBy="label"
-                  [showClear]="true"
-                  class="flex-1"
-                ></p-dropdown>
-                <button
-                  pButton
-                  [icon]="
-                    masterDialogLoading['itemName']
-                      ? 'pi pi-spin pi-spinner'
-                      : 'pi pi-ellipsis-h'
-                  "
-                  class="p-button-sm"
-                  [disabled]="masterDialogLoading['itemName']"
-                  (click)="openMaster('itemName')"
-                ></button>
-              </div>
-              <small *ngIf="fieldErrors['itemName']" class="p-error">{{
-                fieldErrors['itemName']
-              }}</small>
-            </div>  -->
 
             <div class="col-span-12 md:col-span-3">
               <label class="block font-semibold mb-1">Basis</label>
@@ -1435,10 +1361,10 @@ import { MasterCacheService } from '../../services/master-cache.service';
   ],
 })
 export class SourcingComponent implements OnInit, OnDestroy {
-  private contextSubscription: Subscription | undefined;
-  tariffs: any[] = [];
+  private destroy$ = new Subject<void>();
   // sources list
   sources: any[] = [];
+  totalRecords: number = 0;
   loading = signal(false);
 
   statusOptions = [
@@ -1551,7 +1477,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   containerTypeOptions: any[] = [];
   itemNameOptions: any[] = [];
   currencyOptions: any[] = [];
-  locationOptions: any[] = [];
   locationTypeOptions: any[] = []; // New property
   fromLocationOptions: any[] = []; // New property
   toLocationOptions: any[] = []; // New property
@@ -1559,10 +1484,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   allServiceAreas: any[] = []; // New property to store all service areas
   allShippingType: any[] = [];
   allDepartments: any[] = [];
-  containerCodeOptions: any[] = [];
-  currencyCodeOptions: any[] = [];
-  itemCodeOptions: any[] = [];
-  uomOptions: any[] = [];
   serviceAreaOptions: any[] = [];
   serviceAreaTypeOptions: any[] = [];
 
@@ -1621,16 +1542,10 @@ export class SourcingComponent implements OnInit, OnDestroy {
   constructor(
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    private masterCodeService: MasterCodeService,
     private masterTypeService: MasterTypeService,
     private masterLocationService: MasterLocationService,
-    private tariffService: TariffService,
     private sourceService: SourceService,
-    private masterUOMService: MasterUOMService,
-    private containerCodeService: ContainerCodeService,
     private masterItemService: MasterItemService,
-    private currencyCodeService: CurrencyCodeService,
-    private vendorService: VendorService,
     public configService: ConfigService,
     private contextService: ContextService,
     private basisService: BasisService,
@@ -1640,8 +1555,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
     private numberSeriesService: NumberSeriesService,
     private numberSeriesRelationService: NumberSeriesRelationService,
     private masterCache: MasterCacheService,
-    private serviceAreaService: ServiceAreaService,
-    private sourceSalesService: SourceSalesService,
     private cdr: ChangeDetectorRef,
     private router: Router
   ) { }
@@ -1686,16 +1599,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   onDeptModeChange() {
-    console.log(
-      'Selected Tariff value from the onDept Mode Change',
-      this.selectedTariff
-    );
-
-    // console.log("locations: from on dept mode change:",this.allLocations);
-    console.log(
-      'shipping Types from on dept mode change:',
-      this.shippingTypeOptions
-    );
     if (this.selectedTariff) {
       this.selectedTariff.shippingType = '';
       this.fieldErrors['shippingType'] = '';
@@ -1737,7 +1640,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   filterServiceType() {
-    console.log('Filtering service/shipping Type by matching all departments:', this.selectedTariff?.mode);
     if (this.selectedTariff?.mode) {
       const selectedMode = this.selectedTariff.mode.trim().toLowerCase();
 
@@ -1747,8 +1649,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
           d?.name?.trim().toLowerCase() === selectedMode ||
           d?.code?.trim().toLowerCase() === selectedMode
       );
-
-      console.log('Matched department objects in sourcing:', matchingDepts);
 
       // Get all unique codes from matching departments
       const validDeptCodes = matchingDepts
@@ -1773,24 +1673,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   filterFromLocations() {
-    console.log(
-      'Filtering from locations for type:',
-      this.selectedTariff?.locationTypeFrom
-    );
-    console.log('All locations:', this.allLocations.length);
-
     if (this.selectedTariff?.locationTypeFrom) {
       // Debug: Log all location types to see what's available
       const availableTypes = [...new Set(this.allLocations.map((l) => l.type))];
-      console.log('Available location types in data:', availableTypes);
 
       const filteredLocations = this.allLocations.filter((l) => {
-        console.log(
-          `Comparing location type '${l.type}' with selected '${this.selectedTariff.locationTypeFrom}'`
-        );
         return l.type === this.selectedTariff.locationTypeFrom;
       });
-      console.log('Filtered from locations:', filteredLocations.length);
 
       // If no exact match, try case-insensitive comparison
       if (filteredLocations.length === 0) {
@@ -1798,10 +1687,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
           (l) =>
             l.type?.toLowerCase() ===
             this.selectedTariff.locationTypeFrom?.toLowerCase()
-        );
-        console.log(
-          'Case-insensitive filtered locations:',
-          caseInsensitiveFiltered.length
         );
 
         this.fromLocationOptions = caseInsensitiveFiltered.map((l) => ({
@@ -1821,28 +1706,16 @@ export class SourcingComponent implements OnInit, OnDestroy {
         value: l.code,
       }));
     }
-    console.log('From location options:', this.fromLocationOptions.length);
   }
 
   filterToLocations() {
-    console.log(
-      'Filtering to locations for type:',
-      this.selectedTariff?.locationTypeTo
-    );
-    console.log('All locations:', this.allLocations.length);
-
     if (this.selectedTariff?.locationTypeTo) {
       // Debug: Log all location types to see what's available
       const availableTypes = [...new Set(this.allLocations.map((l) => l.type))];
-      console.log('Available location types in data:', availableTypes);
 
       const filteredLocations = this.allLocations.filter((l) => {
-        console.log(
-          `Comparing location type '${l.type}' with selected '${this.selectedTariff.locationTypeTo}'`
-        );
         return l.type === this.selectedTariff.locationTypeTo;
       });
-      console.log('Filtered to locations:', filteredLocations.length);
 
       // If no exact match, try case-insensitive comparison
       if (filteredLocations.length === 0) {
@@ -1850,10 +1723,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
           (l) =>
             l.type?.toLowerCase() ===
             this.selectedTariff.locationTypeTo?.toLowerCase()
-        );
-        console.log(
-          'Case-insensitive filtered locations:',
-          caseInsensitiveFiltered.length
         );
 
         this.toLocationOptions = caseInsensitiveFiltered.map((l) => ({
@@ -1873,7 +1742,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         value: l.code,
       }));
     }
-    console.log('To location options:', this.toLocationOptions.length);
   }
   updateFormValidity() {
     // Only code and mode are required fields
@@ -1896,7 +1764,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   isCodeDuplicate(code: string): boolean {
     if (!this.selectedTariff?.isNew) return false;
     const codeValue = code.trim().toLowerCase();
-    return this.tariffs.some(
+    return this.sources.some(
       (t) => (t.code || '').trim().toLowerCase() === codeValue
     );
   }
@@ -1910,78 +1778,64 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    console.log('Sourcing Component ngOnInit - Initial load');
-    // Load data immediately
-    this.loadAllData();
-    this.loadMappedTariffSeriesCode();
-
-    // Subscribe to context changes to reload data
-    this.contextSubscription = this.contextService.context$
-      .pipe(debounceTime(300), distinctUntilChanged())
-      .subscribe((context) => {
-        console.log('🔄 Context changed in TariffComponent:', {
-          previous: this.contextService.getContext(),
-          new: context,
-          timestamp: new Date().toISOString(),
-        });
-
-        // Increased delay to ensure context is fully propagated
-        setTimeout(() => {
-          console.log('⏰ Starting data reload after context change...');
-          const currentContext = this.contextService.getContext();
-          console.log('📊 Current context during reload:', currentContext);
-
-          this.loadAllData();
-          this.loadMappedTariffSeriesCode();
-
-          // Force change detection to update the UI
-          this.cdr.detectChanges();
-          console.log('✅ Data reload and change detection completed');
-        }, 500); // Increased from 100ms to 500ms
-      });
+    // 🛡️ Synchronized Readiness Flow: Wait for both Context and Config to be ready
+    combineLatest([
+      this.contextService.context$,
+      this.configService.config$.pipe(filter(config => !!config))
+    ]).pipe(
+      debounceTime(300),
+      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+      takeUntil(this.destroy$)
+    ).subscribe(([context, config]) => {
+      console.log('[DEBUG-INVESTIGATION] SourcingComponent - Context & Config Ready. Loading data...');
+      this.loadAllData();
+      this.loadMappedTariffSeriesCode();
+      this.cdr.detectChanges();
+    });
   }
 
   ngOnDestroy() {
-    if (this.contextSubscription) {
-      this.contextSubscription.unsubscribe();
-    }
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private loadAllData() {
-    console.log('Loading critical source master data...');
     this.loading.set(true);
 
     // Initial critical data needed for table display mapping
+    // 🛡️ Resilience: Use catchError on each critical loader to ensure refreshList() is still called
     forkJoin({
-      locations: this.loadLocationOptions(),
-      vendors: this.loadVendorOptions(),
+      locations: this.loadLocationOptions().pipe(take(1), catchError(err => {
+        console.error('Error loading locations:', err);
+        return of([]);
+      })),
+      vendors: this.loadVendorOptions().pipe(take(1), catchError(err => {
+        console.error('Error loading vendors:', err);
+        return of([]);
+      })),
     }).subscribe({
       next: () => {
-        console.log('Critical data loaded, loading primary list...');
+        console.log('[DEBUG-INVESTIGATION] forkJoin successfully completed! Calling refreshList()');
         this.refreshList();
 
         // Hydrate other dropdowns/metadata in the background
-        this.loadModeOptions().subscribe();
-        this.loadShippingTypeOptions().subscribe();
-        this.loadCargoTypeOptions().subscribe();
-        this.loadServiceAreaTypeOptions().subscribe();
-        this.loadLocationTypeOptions().subscribe();
-        this.loadBasisOptions().subscribe();
-        this.loadItemOptions().subscribe();
-        this.loadVendorTypeOptions().subscribe();
-        this.loadServiceAreaOptions().subscribe();
-        this.loadSourceSalesOptions().subscribe();
+        this.loadModeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadShippingTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadCargoTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadServiceAreaTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadLocationTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadBasisOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadItemOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadVendorTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadServiceAreaOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadSourceSalesOptions().pipe(catchError(() => of([]))).subscribe();
 
         this.loadMappedTariffSeriesCode();
       },
       error: (error) => {
-        console.error('Error loading critical data:', error);
-        this.loading.set(false);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load critical master data',
-        });
+        console.error('Critical data load failed:', error);
+        // Even if forkJoin fails, try to load the list
+        this.refreshList();
       },
     });
   }
@@ -1993,8 +1847,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
     return departmentObservable.pipe(
       tap((departments: any[]) => {
-        console.log('Departments loaded for context:', context, departments);
-
         // Get unique department names with case-insensitive deduplication
         const uniqueNames = new Map<string, string>();
         (departments || [])
@@ -2027,8 +1879,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.modeOptions = Array.from(uniqueNames.values())
           .map((name) => ({ label: name, value: name }))
           .sort((a, b) => a.label.localeCompare(b.label));
-
-        console.log('Mode options:', this.modeOptions);
       })
     );
   }
@@ -2039,7 +1889,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
     return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
-        console.log('Service types loaded for context:', context, serviceTypes);
         this.allShippingType = (serviceTypes || []).filter(
           (st) => st?.status === 'active'
         );
@@ -2059,8 +1908,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.shippingTypeOptions = Array.from(uniqueNames.values())
           .map((name) => ({ label: name, value: name }))
           .sort((a, b) => a.label.localeCompare(b.label));
-
-        console.log('Shipping type options:', this.shippingTypeOptions);
       })
     );
   }
@@ -2072,7 +1919,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
             (type) => type.status === 'Active' && type.key === 'CARGO_TYPE'
           )
           .map((type) => ({ label: `${type.value}`, value: type.value }));
-        console.log('Cargo Type options:', this.cargoTypeOptions);
       }),
       catchError((error) => {
         console.error('Error loading cargo type options', error);
@@ -2101,8 +1947,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
           )
           .map((t) => ({ label: t.value, value: t.value }));
 
-        // Debug: Log the location type options
-        console.log('Location type options:', this.locationTypeOptions);
         this.cdr.detectChanges();
       })
     );
@@ -2112,30 +1956,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
     return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
         this.allLocations = (locations || []).filter((l) => this.masterLocationService.isActiveLocation(l));
-        console.log('Loaded all locations:', this.allLocations.length);
-
-        // Debug: Log the first few locations to see their structure
-        if (this.allLocations.length > 0) {
-          console.log('Sample location data:', this.allLocations.slice(0, 3));
-          console.log('Available location types in data:', [
-            ...new Set(this.allLocations.map((l) => l.type)),
-          ]);
-        }
-
-        // Keep the existing logic for backward compatibility
-        const uniqueCities = Array.from(
-          new Set(
-            (locations || [])
-              .filter((l) => this.masterLocationService.isActiveLocation(l) && l.city)
-              .map((l) => l.city.trim())
-              .filter(Boolean)
-          )
-        );
-
-        this.locationOptions = uniqueCities.map((city) => ({
-          label: city,
-          value: city,
-        }));
 
         // Initialize filtered location options with all locations formatted as CODE - NAME
         this.fromLocationOptions = this.allLocations.map((l) => ({
@@ -2201,8 +2021,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
         // Filter service areas based on selected type
         this.filterServiceAreasByType();
-
-        console.log('Service area options:', this.serviceAreaOptions);
       }),
       catchError((error) => {
         console.error('Error loading service areas:', error);
@@ -2214,7 +2032,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
     return this.masterTypeService.getUniqueServiceAreaTypes().pipe(
       tap((options: any[]) => {
         this.serviceAreaTypeOptions = options;
-        console.log('Service area type options:', this.serviceAreaTypeOptions);
       }),
       catchError((error) => {
         console.error('Error loading service area types:', error);
@@ -2252,7 +2069,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.sourceSalesOptions = (sourceSales || [])
           .filter((s) => s.status === 'active' || s.status === 'Active')
           .map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }));
-        console.log('Source sales options loaded:', this.sourceSalesOptions);
       }),
       catchError((error) => {
         console.error('Error loading source sales:', error);
@@ -2278,7 +2094,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.vendorTypeOptions = (types || [])
           .filter((t) => t.key === 'VENDOR' && t.status === 'Active')
           .map((t) => ({ label: t.value, value: t.value }));
-        console.log('Vendor type options loaded:', this.vendorTypeOptions);
       })
     );
   }
@@ -2295,11 +2110,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
           value: v.vendor_no,
           vendorType: v.type, // Include vendor type for filtering
         }));
-
-        console.log(
-          'Mapped Vendor Options in loadVendorOptions,',
-          this.vendorOptions
-        );
       })
     );
   }
@@ -2335,17 +2145,17 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
   refreshList(skipLoading = false) {
     const context = this.contextService.getContext();
-    console.log('🔄 Refreshing source list with context:', context);
+    console.log('[DEBUG-INVESTIGATION] SourcingComponent.refreshList - Current Context:', context);
+    console.log('[DEBUG-INVESTIGATION] SourcingComponent.refreshList - sessionStorage Raw:', sessionStorage.getItem('userContext'));
 
     if (!skipLoading) this.loading.set(true);
 
     this.sourceService.getAll(skipLoading).subscribe({
-      next: (data) => {
-        console.log('📊 Source data loaded Successfully:', {
-          recordCount: data.length,
-          context: context,
-          sampleData: data.slice(0, 2),
-        });
+      next: (response: any) => {
+        console.log('[DEBUG-INVESTIGATION] SourcingComponent.refreshList - API Success. Total:', response.total);
+        // Extract data and total from paginated response
+        const data = response.data || [];
+        this.totalRecords = response.total || 0;
 
         // mapping the subscribed data to the sources list
         this.sources = data.map((source: any) => {
@@ -2391,11 +2201,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
           return mappedSource;
         });
 
-        console.log(
-          '✅ Source data processing completed, final value:',
-          this.sources
-        );
-
         this.cdr.detectChanges();
         this.loading.set(false);
       },
@@ -2412,67 +2217,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
     });
   }
 
-  // refreshList2() {
-  //   const context = this.contextService.getContext();
-  //   console.log('🔄 Refreshing tariff list with context:', context);
-
-  //   this.tariffService.getAll().subscribe({
-  //     next: (data) => {
-  //       console.log('📊 Tariff data loaded successfully:', {
-  //         recordCount: data.length,
-  //         context: context,
-  //         sampleData: data.slice(0, 2) // Show first 2 records for debugging
-  //       });
-
-  //       this.tariffs = data.map((tariff: any) => {
-  //         const mappedTariff = {
-  //           ...tariff,
-  //           shippingType: tariff.shipping_type,
-  //           cargoType: tariff.cargo_type,
-  //           containerType: tariff.container_type,
-  //           itemName: tariff.item_name,
-  //           from: tariff.from_location,
-  //           to: tariff.to_location,
-  //           vendorType: tariff.vendor_type,
-  //           vendorName: tariff.vendor_name,
-  //           locationTypeFrom: tariff.location_type_from,
-  //           locationTypeTo: tariff.location_type_to,
-  //           tariffType: tariff.tariff_type,
-  //           basis: tariff.basis,
-  //           currency: tariff.currency,
-  //           charges: tariff.charges,
-  //           mode: tariff.mode,
-  //           effectiveDate: tariff.effective_date,
-  //           periodStartDate: tariff.period_start_date,
-  //           periodEndDate: tariff.period_end_date,
-  //           freightChargeType: tariff.freight_charge_type,
-  //           isMandatory: tariff.is_mandatory
-  //         };
-  //         // Add status field to each tariff object
-  //         mappedTariff.status = this.getTariffStatus(mappedTariff);
-  //         return mappedTariff;
-  //       });
-
-  //       console.log('✅ Tariff data processing completed, final count:', this.tariffs.length);
-
-  //       // Force change detection after data update
-  //       this.cdr.detectChanges();
-  //     },
-  //     error: (error) => {
-  //       console.error('❌ Error loading tariff data:', error);
-  //       this.messageService.add({
-  //         severity: 'error',
-  //         summary: 'Error',
-  //         detail: 'Failed to load tariff data'
-  //       });
-  //       this.tariffs = [];
-  //     }
-  //   });
-  // }
-
   loadMappedTariffSeriesCode() {
     const context = this.contextService.getContext();
-    console.log('Loading Source series code for context:', context);
 
     // Use context-based mapping with NumberSeriesRelation
     this.mappingService
@@ -2485,7 +2231,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (contextMapping: any) => {
-          console.log('source mapping relation response:', contextMapping);
           this.mappedTariffSeriesCode = contextMapping.mapping;
           if (this.mappedTariffSeriesCode) {
             this.numberSeriesService.getAll().subscribe({
@@ -2494,12 +2239,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
                   (s: any) => s.code === this.mappedTariffSeriesCode
                 );
                 this.isManualSeries = !!(found && found.is_manual);
-                console.log(
-                  'source series code mapped:',
-                  this.mappedTariffSeriesCode,
-                  'Manual:',
-                  this.isManualSeries
-                );
               },
               error: (error: any) => {
                 console.error('Error loading number series:', error);
@@ -2508,16 +2247,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
             });
           } else {
             this.isManualSeries = true;
-            console.log('No source series code mapping found for context');
           }
         },
         error: (error: any) => {
           console.error('Error loading tariff mapping relation:', error);
           // Fallback to generic mapping if context-based mapping fails
-          console.log('Falling back to generic mapping method');
           this.mappingService.getMapping().subscribe({
             next: (mapping: any) => {
-              console.log('Fallback mapping response:', mapping);
               this.mappedTariffSeriesCode = mapping.tariffCode || '';
               if (this.mappedTariffSeriesCode) {
                 this.numberSeriesService.getAll().subscribe({
@@ -2526,12 +2262,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
                       (s: any) => s.code === this.mappedTariffSeriesCode
                     );
                     this.isManualSeries = !!(found && found.is_manual);
-                    console.log(
-                      'source series code mapped (fallback):',
-                      this.mappedTariffSeriesCode,
-                      'Manual:',
-                      this.isManualSeries
-                    );
                   },
                   error: (error: any) => {
                     console.error(
@@ -2555,24 +2285,17 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   addRow() {
-    console.log('Add source button clicked - starting addRow method');
-
     // Get the validation settings
     const config = this.configService.getConfig();
     const sourceFilter = config?.validation?.sourceFilter || '';
-
-    console.log('source filter:', sourceFilter);
 
     // Check if we need to validate context
     if (sourceFilter) {
       // Get the current context
       const context = this.contextService.getContext();
 
-      console.log('Current context:', context);
-
       // Check if the required context is set based on the filter
       if (sourceFilter.includes('C') && !context.companyCode) {
-        console.log('Company context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2583,7 +2306,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
       }
 
       if (sourceFilter.includes('B') && !context.branchCode) {
-        console.log('Branch context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2594,7 +2316,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
       }
 
       if (sourceFilter.includes('D') && !context.departmentCode) {
-        console.log('Department context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2604,8 +2325,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         return;
       }
     }
-
-    console.log('Context validation passed - proceeding with add source');
 
     // Existing addRow logic
     this.selectedTariff = {
@@ -2858,24 +2577,17 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   editRow(tariff: any) {
-    console.log('Edit Tariff button clicked - starting editRow method', tariff);
-
     // Get the validation settings
     const config = this.configService.getConfig();
     const tariffFilter = config?.validation?.tariffFilter || '';
-
-    console.log('Tariff filter:', tariffFilter);
 
     // Check if we need to validate context
     if (tariffFilter) {
       // Get the current context
       const context = this.contextService.getContext();
 
-      console.log('Current context:', context);
-
       // Check if the required context is set based on the filter
       if (tariffFilter.includes('C') && !context.companyCode) {
-        console.log('Company context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2886,7 +2598,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
       }
 
       if (tariffFilter.includes('B') && !context.branchCode) {
-        console.log('Branch context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2897,7 +2608,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
       }
 
       if (tariffFilter.includes('D') && !context.departmentCode) {
-        console.log('Department context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2907,8 +2617,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
         return;
       }
     }
-
-    console.log('Context validation passed - proceeding with edit tariff');
 
     // Store original data for cancel functionality
     this.originalTariffData = JSON.parse(JSON.stringify(tariff));
@@ -2941,7 +2649,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
       this.selectedTariff.sub_charges = [];
     }
 
-    console.log('Selected Tariff Value in editRow:', this.selectedTariff);
     // Convert date strings to Date objects for the calendar components
     // Use proper date parsing to avoid timezone issues
     if (this.selectedTariff.effectiveDate) {
@@ -3020,10 +2727,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
     }
 
     const payload: any = { ...this.selectedTariff };
-    console.log(
-      'DEBUG: Saving the source value for the selected source payload',
-      payload
-    );
 
     // Clear original data backup since we're saving changes
     this.originalTariffData = null;
@@ -3116,26 +2819,23 @@ export class SourcingComponent implements OnInit, OnDestroy {
             observer.error(err);
             observer.complete();
           },
-          complete: () => {
-            console.log('Source updated successfully');
-          },
         });
       }
     });
   }
 
   hideDialog() {
-    // If we were editing and have original data, restore it to the tariffs array
+    // If we were editing and have original data, restore it to the sources array
     if (
       this.selectedTariff &&
       this.selectedTariff.isEdit &&
       this.originalTariffData
     ) {
-      const index = this.tariffs.findIndex(
-        (t) => t.id === this.originalTariffData.id
+      const index = this.sources.findIndex(
+        (t: any) => t.id === this.originalTariffData.id
       );
       if (index !== -1) {
-        this.tariffs[index] = { ...this.originalTariffData };
+        this.sources[index] = { ...this.originalTariffData };
       }
     }
 
@@ -3244,8 +2944,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   closeMasterDialog(type: string) {
-    console.log(`Closing master dialog: ${type}`);
-
     // Reset the appropriate dialog visibility
     switch (type) {
       case 'currency':
@@ -3634,8 +3332,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
     // Prepare data for export (excluding code field)
     const exportData = this.sources.map((source) => {
-      console.log('source export data:', source);
-
       ({
         Mode: source.mode || '',
         'Shipping Type': source.shippingType || '',

@@ -18,10 +18,13 @@ function buildWhereClause(filters) {
   const conditions = [];
   const values = [];
   let index = 1;
-  console.log(filters);
+
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== "") {
-      conditions.push(`${key} = $${index}`);
+      // 🛡️ Legacy Data Protection: Allow rows with NULL context values
+      // This ensures rows created before mandatory context assignment are visible
+      // while still enforcing isolation for records that DO have a context.
+      conditions.push(`(${key} = $${index} OR ${key} IS NULL OR ${key} = '')`);
       values.push(value);
       index++;
     }
@@ -36,23 +39,47 @@ function buildWhereClause(filters) {
 // GET all sources with pagination
 router.get("/", async (req, res) => {
   try {
-    const { companyCode, branchCode, departmentCode, page = 1, limit = 10 } = req.query;
-    enforceHierarchy(companyCode, branchCode, departmentCode);
+    let { companyCode, branchCode, departmentCode, page = 1, limit = 10 } = req.query;
+
+    console.log(`[DEBUG-INVESTIGATION] Backend Sourcing GET - Received Query: C=${companyCode}, B=${branchCode}, D=${departmentCode}`);
+    console.log(`[DEBUG-INVESTIGATION] Backend Sourcing GET - User from Token: ${req.user.username}, Role: ${req.user.role}`);
+
+    // 🔹 Sanitize query params (convert "null"/"undefined" strings to null)
+    if (companyCode === "null" || companyCode === "undefined" || companyCode === "") companyCode = null;
+    if (branchCode === "null" || branchCode === "undefined" || branchCode === "") branchCode = null;
+    if (departmentCode === "null" || departmentCode === "undefined" || departmentCode === "") departmentCode = null;
+
+    console.log(`[DEBUG-INVESTIGATION] Backend Sourcing GET - Sanitized Query: C=${companyCode}, B=${branchCode}, D=${departmentCode}`);
+
+    // 🔹 Role-based Filter Bypass: SYSTEM_ADMIN/ADMIN can see all if no filter explicitly requested
+    const isPowerUser = req.user && (req.user.role === 'SYSTEM_ADMIN' || req.user.role === 'ADMIN');
+    const hasRequestedContext = companyCode || branchCode || departmentCode;
+
+    if (hasRequestedContext) {
+      enforceHierarchy(companyCode, branchCode, departmentCode);
+    }
 
     const offset = (Number(page) - 1) * Number(limit);
 
-    const filters = {
-      company_code: companyCode,
-      branch_code: branchCode,
-      department_code: departmentCode,
-    };
+    // If not a power user, and no context is requested, we might want to default to their assigned context
+    // But for now, we follow the existing logic: filters are only applied if provided in query.
+    const filters = {};
+    if (companyCode) filters.company_code = companyCode;
+    if (branchCode) filters.branch_code = branchCode;
+    if (departmentCode) filters.department_code = departmentCode;
 
     const { clause, values } = buildWhereClause(filters);
+
+    console.log(`[DEBUG-INVESTIGATION] Sourcing Fetch - User: ${req.user.username}, Role: ${req.user.role}`);
+    console.log(`[DEBUG-INVESTIGATION] Filters:`, filters);
+    console.log(`[DEBUG-INVESTIGATION] Clause: ${clause}, Values:`, values);
 
     // Get total count
     const countQuery = `SELECT COUNT(*) FROM sourcing ${clause}`;
     const countResult = await pool.query(countQuery, values);
     const total = parseInt(countResult.rows[0].count, 10);
+
+    console.log(`[DEBUG-INVESTIGATION] Total Records in DB matching filters: ${total}`);
 
     const query = `
       SELECT *
@@ -63,6 +90,7 @@ router.get("/", async (req, res) => {
     `;
 
     const result = await pool.query(query, [...values, Number(limit), Number(offset)]);
+    console.log(`[DEBUG-INVESTIGATION] Records returned from query: ${result.rows.length}`);
     res.json({ data: result.rows, total });
   } catch (err) {
     console.error("Error fetching source:", err);
@@ -73,6 +101,11 @@ router.get("/", async (req, res) => {
 // CREATE new source
 router.post("/", async (req, res) => {
   const data = req.body;
+
+  // 🛡️ Normalize camelCase context properties to snake_case for backend consistency
+  if (data.companyCode && !data.company_code) data.company_code = data.companyCode;
+  if (data.branchCode && !data.branch_code) data.branch_code = data.branchCode;
+  if (data.departmentCode && !data.department_code) data.department_code = data.departmentCode;
 
   // 🔹 Convert empty strings → null
   const cleanData = Object.fromEntries(
@@ -332,6 +365,12 @@ router.put("/:id", async (req, res) => {
   }
 
   const data = req.body;
+
+  // 🛡️ Normalize camelCase context properties to snake_case for backend consistency
+  if (data.companyCode && !data.company_code) data.company_code = data.companyCode;
+  if (data.branchCode && !data.branch_code) data.branch_code = data.branchCode;
+  if (data.departmentCode && !data.department_code) data.department_code = data.departmentCode;
+
   const cleanData = Object.fromEntries(
     Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
   );
@@ -516,8 +555,7 @@ router.delete("/:sourceId/sub-charges/:id", async (req, res) => {
         .status(404)
         .json({ error: "Sub-charge not found or already deleted" });
     }
-    console.log("Delete Result:", deleteResult);
-    res.status(200).json({ message: "Sub-charge deleted successfully" });
+      res.status(200).json({ message: "Sub-charge deleted successfully" });
   } catch (err) {
     console.error("Error deleting sub-charge:", err);
     res.status(500).json({ error: "Failed to delete sub-charge" });

@@ -2,8 +2,6 @@ import {
   Component,
   OnInit,
   OnDestroy,
-  ViewChild,
-  ElementRef,
   ChangeDetectorRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -26,7 +24,7 @@ import { MasterUOMService, MasterUOM } from '../../services/master-uom.service';
 import { ContainerCodeService } from '@/services/containercode.service';
 import { MasterItemService } from '@/services/master-item.service';
 import { CurrencyCodeService } from '@/services/currencycode.service';
-import { forkJoin, Subscription, of, Observable, BehaviorSubject, combineLatest } from 'rxjs';
+import { forkJoin, Subscription, of, Observable, BehaviorSubject, combineLatest, Subject } from 'rxjs';
 import {
   tap,
   debounceTime,
@@ -35,6 +33,8 @@ import {
   map,
   startWith,
   take,
+  takeUntil,
+  filter,
 } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { VendorService } from '@/services/vendor.service';
@@ -48,8 +48,6 @@ import { BasisService } from '@/services/basis.service';
 import { BasisComponent } from './basis';
 import { MasterTypeComponent } from './mastertype';
 import { MasterLocationComponent } from './masterlocation';
-import { MasterItemComponent } from './masteritem';
-import { CompanyManagementComponent } from '../setup/Company/company_management';
 import { CompanyService } from '@/services/company.service';
 import { DepartmentService } from '@/services/department.service';
 import { ServiceTypeService } from '@/services/servicetype.service';
@@ -241,12 +239,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 ></p-columnFilter>
               </div>
             </th>
-            <!--<th>
-              <div class="flex justify-between items-center">
-                Tariff Type
-                <p-columnFilter type="text" field="tariffType" display="menu" placeholder="Search by tariff type"></p-columnFilter>
-              </div>
-            </th>-->
             <th>
               <div class="flex justify-between items-center">
                 Basis
@@ -259,17 +251,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
               </div>
             </th>
 
-            <!-- <th>
-              <div class="flex justify-between items-center">
-                Charge Name
-                <p-columnFilter
-                  type="text"
-                  field="itemName"
-                  display="menu"
-                  placeholder="Search by charge name"
-                ></p-columnFilter>
-              </div>
-            </th> -->
             <th>
               <div class="flex justify-between items-center">
                 From Location
@@ -314,28 +295,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
                 ></p-columnFilter>
               </div>
             </th>
-            <!-- <th>
-              <div class="flex justify-between items-center">
-                Currency
-                <p-columnFilter
-                  type="text"
-                  field="currency"
-                  display="menu"
-                  placeholder="Search by currency"
-                ></p-columnFilter>
-              </div>
-            </th>
-            <th>
-              <div class="flex justify-between items-center">
-                Charges
-                <p-columnFilter
-                  type="text"
-                  field="charges"
-                  display="menu"
-                  placeholder="Search by charges"
-                ></p-columnFilter>
-              </div>
-            </th> -->
             <th>
               <div class="flex justify-between items-center">
                 Status
@@ -381,13 +340,10 @@ import { MasterCacheService } from '../../services/master-cache.service';
             <td>{{ tariff.cargoType }}</td>
 
             <td>{{ tariff.basis }}</td>
-            <!-- <td>{{ tariff.itemName }}</td> -->
             <td>{{ getLocationName(tariff.fromLocation) }}</td>
             <td>{{ getLocationName(tariff.toLocation) }}</td>
             <td>{{ tariff.periodStartDate | configDate }}</td>
             <td>{{ tariff.periodEndDate | configDate }}</td>
-            <!-- <td>{{ tariff.currency }}</td>
-            <td>{{ tariff.charges || tariff.amount || '-' }}</td> -->
             <td>
               <span [ngClass]="getStatusClass(getTariffStatus(tariff))">
                 {{ getTariffStatus(tariff) }}
@@ -669,38 +625,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
             </div>
 
             <!-- <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Basis</label>
-              <div class="flex gap-2">
-                <p-dropdown
-                  [options]="basisOptions"
-                  [(ngModel)]="selectedTariff.basis"
-                  (ngModelChange)="onFieldChange('basis', selectedTariff.basis)"
-                  [ngClass]="getFieldErrorClass('basis')"
-                  [ngStyle]="getFieldErrorStyle('basis')"
-                  placeholder="Select Basis"
-                  class="flex-1"
-                  [filter]="true"
-                  filterBy="label"
-                  [showClear]="true"
-                ></p-dropdown>
-                <button
-                  pButton
-                  [icon]="
-                    masterDialogLoading['basis']
-                      ? 'pi pi-spin pi-spinner'
-                      : 'pi pi-ellipsis-h'
-                  "
-                  class="p-button-sm"
-                  [disabled]="masterDialogLoading['basis']"
-                  (click)="openMaster('basis')"
-                ></button>
-              </div>
-              <small *ngIf="fieldErrors['basis']" class="p-error">{{
-                fieldErrors['basis']
-              }}</small>
-            </div> -->
-            <!-- <div class="col-span-12 md:col-span-3">
-              <label class="block font-semibold mb-1">Charge Name</label>
               <div class="flex gap-2">
                 <p-dropdown
                   [options]="itemNameOptions"
@@ -1617,7 +1541,6 @@ export class TariffComponent implements OnInit, OnDestroy {
   containerTypeOptions: any[] = [];
   itemNameOptions: any[] = [];
   currencyOptions: any[] = [];
-  locationOptions: any[] = [];
   locationTypeOptions: any[] = []; // New property
   fromLocationOptions: any[] = []; // New property
   toLocationOptions: any[] = []; // New property
@@ -1625,10 +1548,6 @@ export class TariffComponent implements OnInit, OnDestroy {
   allServiceAreas: any[] = []; // New property to store all service areas
   allShippingType: any[] = [];
   allDepartments: any[] = [];
-  containerCodeOptions: any[] = [];
-  currencyCodeOptions: any[] = [];
-  itemCodeOptions: any[] = [];
-  uomOptions: any[] = [];
   serviceAreaOptions: any[] = []; // Service Area dropdown options
   serviceAreaTypeOptions: any[] = []; // Service Area Type dropdown options
 
@@ -1783,7 +1702,6 @@ export class TariffComponent implements OnInit, OnDestroy {
     }
   }
   filterServiceType() {
-    console.log('Filtering service/shipping Type by matching all departments:', this.selectedTariff?.mode);
     if (this.selectedTariff?.mode) {
       const selectedMode = this.selectedTariff.mode.trim().toLowerCase();
 
@@ -1794,7 +1712,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           d?.code?.trim().toLowerCase() === selectedMode
       );
 
-      console.log('Matched department objects:', matchingDepts);
 
       // Get all unique codes from matching departments
       const validDeptCodes = matchingDepts
@@ -1816,31 +1733,16 @@ export class TariffComponent implements OnInit, OnDestroy {
         value: st.name,
       }));
     }
-    console.log(
-      'Final shipping type options count:',
-      this.shippingTypeOptions.length
-    );
   }
 
   filterFromLocations() {
-    console.log(
-      'Filtering from locations for type:',
-      this.selectedTariff?.locationTypeFrom
-    );
-    console.log('All locations:', this.allLocations.length);
-
     if (this.selectedTariff?.locationTypeFrom) {
       // Debug: Log all location types to see what's available
       const availableTypes = [...new Set(this.allLocations.map((l) => l.type))];
-      console.log('Available location types in data:', availableTypes);
 
       const filteredLocations = this.allLocations.filter((l) => {
-        console.log(
-          `Comparing location type '${l.type}' with selected '${this.selectedTariff.locationTypeFrom}'`
-        );
         return l.type === this.selectedTariff.locationTypeFrom;
       });
-      console.log('Filtered from locations:', filteredLocations.length);
 
       // If no exact match, try case-insensitive comparison
       if (filteredLocations.length === 0) {
@@ -1848,10 +1750,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           (l) =>
             l.type?.toLowerCase() ===
             this.selectedTariff.locationTypeFrom?.toLowerCase()
-        );
-        console.log(
-          'Case-insensitive filtered locations:',
-          caseInsensitiveFiltered.length
         );
 
         this.fromLocationOptions = caseInsensitiveFiltered.map((l) => ({
@@ -1871,28 +1769,16 @@ export class TariffComponent implements OnInit, OnDestroy {
         value: l.code,
       }));
     }
-    console.log('From location options:', this.fromLocationOptions.length);
   }
 
   filterToLocations() {
-    console.log(
-      'Filtering to locations for type:',
-      this.selectedTariff?.locationTypeTo
-    );
-    console.log('All locations:', this.allLocations.length);
-
     if (this.selectedTariff?.locationTypeTo) {
       // Debug: Log all location types to see what's available
       const availableTypes = [...new Set(this.allLocations.map((l) => l.type))];
-      console.log('Available location types in data:', availableTypes);
 
       const filteredLocations = this.allLocations.filter((l) => {
-        console.log(
-          `Comparing location type '${l.type}' with selected '${this.selectedTariff.locationTypeTo}'`
-        );
         return l.type === this.selectedTariff.locationTypeTo;
       });
-      console.log('Filtered to locations:', filteredLocations.length);
 
       // If no exact match, try case-insensitive comparison
       if (filteredLocations.length === 0) {
@@ -1900,10 +1786,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           (l) =>
             l.type?.toLowerCase() ===
             this.selectedTariff.locationTypeTo?.toLowerCase()
-        );
-        console.log(
-          'Case-insensitive filtered locations:',
-          caseInsensitiveFiltered.length
         );
 
         this.toLocationOptions = caseInsensitiveFiltered.map((l) => ({
@@ -1923,7 +1805,6 @@ export class TariffComponent implements OnInit, OnDestroy {
         value: l.code,
       }));
     }
-    console.log('To location options:', this.toLocationOptions.length);
   }
   updateFormValidity() {
     // Only code and mode are required fields
@@ -1960,39 +1841,23 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    console.log('TariffComponent ngOnInit - Initial load');
-    
-    // 1. Initial critical data load
-    this.loadAllData();
-    this.loadMappedTariffSeriesCode();
+    // 🛡️ Synchronized Readiness Flow: Wait for both Context and Config to be ready
+    combineLatest([
+      this.contextService.context$,
+      this.configService.config$.pipe(filter(config => !!config))
+    ]).pipe(
+      debounceTime(300),
+      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+      takeUntil(this.destroy$.pipe(filter(v => v !== undefined)))
+    ).subscribe(([context, config]) => {
+      console.log('[DEBUG-INVESTIGATION] TariffComponent - Context & Config Ready. Loading data...');
+      this.loadAllData();
+      this.loadMappedTariffSeriesCode();
+      this.cdr.detectChanges();
+    });
 
     // 2. Setup Reactive Dropdown Streams
     this.setupReactiveDropdowns();
-
-    // 3. Subscribe to context changes to reload data
-    this.contextSubscription = this.contextService.context$
-      .pipe(debounceTime(300), distinctUntilChanged())
-      .subscribe((context) => {
-        console.log('🔄 Context changed in TariffComponent:', {
-          previous: this.contextService.getContext(),
-          new: context,
-          timestamp: new Date().toISOString(),
-        });
-
-        // Increased delay to ensure context is fully propagated
-        setTimeout(() => {
-          console.log('⏰ Starting data reload after context change...');
-          const currentContext = this.contextService.getContext();
-          console.log('📊 Current context during reload:', currentContext);
-
-          this.loadAllData();
-          this.loadMappedTariffSeriesCode();
-
-          // Force change detection to update the UI
-          this.cdr.detectChanges();
-          console.log('✅ Data reload and change detection completed');
-        }, 500); // Increased from 100ms to 500ms
-      });
   }
 
   /**
@@ -2043,51 +1908,49 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this.contextSubscription) {
-      this.contextSubscription.unsubscribe();
-    }
     this.destroy$.next();
     this.destroy$.complete();
   }
 
   private loadAllData() {
-    console.log('Loading critical tariff master data...');
     this.loading = true;
 
     // Initial critical data needed for table display mapping
+    // 🛡️ Resilience: Use catchError on each critical loader to ensure refreshList() is still called
     forkJoin({
-      locations: this.loadLocationOptions(),
-      vendors: this.loadVendorOptions(),
+      locations: this.loadLocationOptions().pipe(take(1), catchError(err => {
+        console.error('Error loading locations:', err);
+        return of([]);
+      })),
+      vendors: this.loadVendorOptions().pipe(take(1), catchError(err => {
+        console.error('Error loading vendors:', err);
+        return of([]);
+      })),
     }).subscribe({
       next: () => {
-        console.log('Critical data loaded, loading primary list...');
         this.refreshList();
 
         // Hydrate other dropdowns/metadata in the background
-        this.loadModeOptions().subscribe();
-        this.loadShippingTypeOptions().subscribe();
-        this.loadCargoTypeOptions().subscribe();
-        this.loadTariffTypeOptions().subscribe();
-        this.loadLocationTypeOptions().subscribe();
-        this.loadBasisOptions().subscribe();
-        this.loadContainersOptions().subscribe();
-        this.loadCurrencyOptions().subscribe();
-        this.loadItemOptions().subscribe();
-        this.loadVendorTypeOptions().subscribe();
-        this.loadServiceAreaOptions().subscribe();
-        this.loadServiceAreaTypeOptions().subscribe();
-        this.loadSourceSalesOptions().subscribe();
+        this.loadModeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadShippingTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadCargoTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadTariffTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadLocationTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadBasisOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadContainersOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadCurrencyOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadItemOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadVendorTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadServiceAreaOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadServiceAreaTypeOptions().pipe(catchError(() => of([]))).subscribe();
+        this.loadSourceSalesOptions().pipe(catchError(() => of([]))).subscribe();
 
         this.loadMappedTariffSeriesCode();
       },
       error: (error) => {
-        console.error('Error loading critical data:', error);
-        this.loading = false;
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load critical master data',
-        });
+        console.error('Critical data load failed:', error);
+        // Even if forkJoin fails, try to load the list
+        this.refreshList();
       },
     });
   }
@@ -2099,7 +1962,6 @@ export class TariffComponent implements OnInit, OnDestroy {
 
     return departmentObservable.pipe(
       tap((departments: any[]) => {
-        console.log('Departments loaded for context:', context, departments);
 
         // Get unique department names with case-insensitive deduplication
         const uniqueNames = new Map<string, string>();
@@ -2133,7 +1995,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           .map((name) => ({ label: name, value: name }))
           .sort((a, b) => a.label.localeCompare(b.label));
 
-        console.log('Mode options:', this.modeOptions);
       })
     );
   }
@@ -2143,7 +2004,6 @@ export class TariffComponent implements OnInit, OnDestroy {
         this.sourceSalesOptions = (sourceSales || [])
           .filter((s) => s.status === 'active' || s.status === 'Active')
           .map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }));
-        console.log('Source sales options loaded:', this.sourceSalesOptions);
       }),
       catchError((error) => {
         console.error('Error loading source sales:', error);
@@ -2169,7 +2029,6 @@ export class TariffComponent implements OnInit, OnDestroy {
 
     return serviceTypeObservable.pipe(
       tap((serviceTypes: any[]) => {
-        console.log('Service types loaded for context:', context, serviceTypes);
         this.allShippingType = (serviceTypes || []).filter(
           (st) => st.status === 'active'
         );
@@ -2190,7 +2049,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           .map((name) => ({ label: name, value: name }))
           .sort((a, b) => a.label.localeCompare(b.label));
 
-        console.log('Shipping type options:', this.shippingTypeOptions);
       })
     );
   }
@@ -2202,7 +2060,6 @@ export class TariffComponent implements OnInit, OnDestroy {
             (type) => type.status === 'Active' && type.key === 'CARGO_TYPE'
           )
           .map((type) => ({ label: `${type.value}`, value: type.value }));
-        console.log('Cargo Type options:', this.cargoTypeOptions);
       }),
       catchError((error) => {
         console.error('Error loading cargo type options', error);
@@ -2231,8 +2088,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           )
           .map((t) => ({ label: t.value, value: t.value }));
 
-        // Debug: Log the location type options
-        console.log('Location type options:', this.locationTypeOptions);
         this.cdr.detectChanges();
       })
     );
@@ -2242,29 +2097,6 @@ export class TariffComponent implements OnInit, OnDestroy {
     return this.masterCache.getLocations().pipe(
       tap((locations: any[]) => {
         this.allLocations = (locations || []).filter((l) => this.masterLocationService.isActiveLocation(l));
-        console.log('Loaded all locations:', this.allLocations.length);
-
-        // Debug: Log the first few locations to see their structure
-        if (this.allLocations.length > 0) {
-          console.log('Sample location data:', this.allLocations.slice(0, 3));
-          console.log('Available location types in data:', [
-            ...new Set(this.allLocations.map((l) => l.type)),
-          ]);
-        }
-
-        // Keep the existing logic for backward compatibility
-        const uniqueCities = Array.from(
-          new Set(
-            (locations || [])
-              .filter((l) => this.masterLocationService.isActiveLocation(l) && l.city)
-              .map((l) => l.city.trim())
-              .filter(Boolean)
-          )
-        );
-        this.locationOptions = uniqueCities.map((city) => ({
-          label: city,
-          value: city,
-        }));
 
         // Initialize filtered location options with all locations formatted as CODE - NAME
         this.fromLocationOptions = this.allLocations.map((l) => ({
@@ -2332,7 +2164,7 @@ export class TariffComponent implements OnInit, OnDestroy {
         // Filter service areas based on selected type
         this.filterServiceAreasByType();
 
-        console.log('Service area options:', this.serviceAreaOptions);
+
       }),
       catchError((error) => {
         console.error('Error loading service areas:', error);
@@ -2346,7 +2178,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     return this.masterCache.getMasterTypes('SERVICE_AREA_TYPE').pipe(
       tap((options: any[]) => {
         this.serviceAreaTypeOptions = options;
-        console.log('Service area type options:', this.serviceAreaTypeOptions);
+
       }),
       catchError((error) => {
         console.error('Error loading service area types:', error);
@@ -2384,7 +2216,7 @@ export class TariffComponent implements OnInit, OnDestroy {
         this.vendorTypeOptions = (types || [])
           .filter((t) => t.key === 'VENDOR' && t.status === 'Active')
           .map((t) => ({ label: t.value, value: t.value }));
-        console.log('Vendor type options loaded:', this.vendorTypeOptions);
+
       })
     );
   }
@@ -2429,15 +2261,12 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   refreshList() {
     const context = this.contextService.getContext();
-    console.log('🔄 Refreshing tariff list with context:', context);
+    console.log('[DEBUG-INVESTIGATION] TariffComponent.refreshList - Current Context:', context);
+    console.log('[DEBUG-INVESTIGATION] TariffComponent.refreshList - sessionStorage Raw:', sessionStorage.getItem('userContext'));
 
     this.tariffService.getAll().subscribe({
       next: (data) => {
-        console.log('📊 Tariff data loaded successfully:', {
-          recordCount: data.length,
-          context: context,
-          sampleData: data.slice(0, 2), // Show first 2 records for debugging
-        });
+        console.log('[DEBUG-INVESTIGATION] TariffComponent.refreshList - API Success. Record count:', data.length);
 
         this.tariffs = data.map((tariff: any) => {
           const mappedTariff = {
@@ -2490,12 +2319,6 @@ export class TariffComponent implements OnInit, OnDestroy {
           return mappedTariff;
         });
 
-        console.log(
-          '✅ Tariff data processing completed, final count:',
-          this.tariffs.length,
-          'data,',
-          this.tariffs
-        );
 
         // Force change detection after data update
         this.cdr.detectChanges();
@@ -2514,7 +2337,6 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   loadMappedTariffSeriesCode() {
     const context = this.contextService.getContext();
-    console.log('Loading tariff series code for context:', context);
 
     // Use context-based mapping with NumberSeriesRelation
     this.mappingService
@@ -2527,7 +2349,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (contextMapping: any) => {
-          console.log('Tariff mapping relation response:', contextMapping);
           this.mappedTariffSeriesCode = contextMapping.mapping;
           if (this.mappedTariffSeriesCode) {
             this.numberSeriesService.getAll().subscribe({
@@ -2536,12 +2357,6 @@ export class TariffComponent implements OnInit, OnDestroy {
                   (s: any) => s.code === this.mappedTariffSeriesCode
                 );
                 this.isManualSeries = !!(found && found.is_manual);
-                console.log(
-                  'Tariff series code mapped:',
-                  this.mappedTariffSeriesCode,
-                  'Manual:',
-                  this.isManualSeries
-                );
               },
               error: (error: any) => {
                 console.error('Error loading number series:', error);
@@ -2550,16 +2365,13 @@ export class TariffComponent implements OnInit, OnDestroy {
             });
           } else {
             this.isManualSeries = true;
-            console.log('No tariff series code mapping found for context');
           }
         },
         error: (error: any) => {
           console.error('Error loading tariff mapping relation:', error);
           // Fallback to generic mapping if context-based mapping fails
-          console.log('Falling back to generic mapping method');
           this.mappingService.getMapping().subscribe({
             next: (mapping: any) => {
-              console.log('Fallback mapping response:', mapping);
               this.mappedTariffSeriesCode = mapping.tariffCode || '';
               if (this.mappedTariffSeriesCode) {
                 this.numberSeriesService.getAll().subscribe({
@@ -2568,12 +2380,6 @@ export class TariffComponent implements OnInit, OnDestroy {
                       (s: any) => s.code === this.mappedTariffSeriesCode
                     );
                     this.isManualSeries = !!(found && found.is_manual);
-                    console.log(
-                      'Tariff series code mapped (fallback):',
-                      this.mappedTariffSeriesCode,
-                      'Manual:',
-                      this.isManualSeries
-                    );
                   },
                   error: (error: any) => {
                     console.error(
@@ -2597,24 +2403,19 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   addRow() {
-    console.log('Add Tariff button clicked - starting addRow method');
-
     // Get the validation settings
     const config = this.configService.getConfig();
     const tariffFilter = config?.validation?.tariffFilter || '';
 
-    console.log('Tariff filter:', tariffFilter);
 
     // Check if we need to validate context
     if (tariffFilter) {
       // Get the current context
       const context = this.contextService.getContext();
 
-      console.log('Current context:', context);
 
       // Check if the required context is set based on the filter
       if (tariffFilter.includes('C') && !context.companyCode) {
-        console.log('Company context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2625,7 +2426,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       }
 
       if (tariffFilter.includes('B') && !context.branchCode) {
-        console.log('Branch context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2636,7 +2436,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       }
 
       if (tariffFilter.includes('D') && !context.departmentCode) {
-        console.log('Department context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -2647,7 +2446,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       }
     }
 
-    console.log('Context validation passed - proceeding with add tariff');
 
     // Set up initial tariff object
     this.selectedTariff = {
@@ -2718,16 +2516,10 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   addCharge() {
-    console.log(
-      'Add Charge button clicked for the selected tariff,',
-      this.selectedTariff
-    );
     // First save the main sourcing record if it's new
     if (!this.selectedTariff.id) {
-      console.log('Saving the main tariff due to no id');
       this.saveRow(true).subscribe({
         next: (response: any) => {
-          console.log('saved Tariff Response,', response);
           // Only update id/code/isNew to preserve current form selections
           this.selectedTariff.id = response?.id ?? this.selectedTariff.id;
           this.selectedTariff.code = response?.code ?? this.selectedTariff.code;
@@ -2751,10 +2543,6 @@ export class TariffComponent implements OnInit, OnDestroy {
             remarks: '',
           });
           this.cdr.detectChanges();
-          console.log(
-            'Selected Tariff value for newly added charge,',
-            this.selectedTariff
-          );
         },
         error: (error: any) => {
           console.error('Error saving main sourcing record:', error);
@@ -2785,10 +2573,6 @@ export class TariffComponent implements OnInit, OnDestroy {
         remarks: '',
       });
       this.cdr.detectChanges();
-      console.log(
-        'selected tariff value during add charge,',
-        this.selectedTariff
-      );
     }
   }
 
@@ -2828,12 +2612,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       remarks: subCharge.remarks,
     };
 
-    console.log(
-      'subcharge Id,',
-      subCharge,
-      'payload prepared for save:',
-      subChargePayload
-    );
 
     // Step 4: Call the service to save the sub-charge
     if (!subCharge.id) {
@@ -3013,24 +2791,17 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   editRow(tariff: any) {
-    console.log('Edit Tariff button clicked - starting editRow method', tariff);
-
     // Get the validation settings
     const config = this.configService.getConfig();
     const tariffFilter = config?.validation?.tariffFilter || '';
-
-    console.log('Tariff filter:', tariffFilter);
 
     // Check if we need to validate context
     if (tariffFilter) {
       // Get the current context
       const context = this.contextService.getContext();
 
-      console.log('Current context:', context);
-
       // Check if the required context is set based on the filter
       if (tariffFilter.includes('C') && !context.companyCode) {
-        console.log('Company context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -3041,7 +2812,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       }
 
       if (tariffFilter.includes('B') && !context.branchCode) {
-        console.log('Branch context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -3052,7 +2822,6 @@ export class TariffComponent implements OnInit, OnDestroy {
       }
 
       if (tariffFilter.includes('D') && !context.departmentCode) {
-        console.log('Department context required but not set');
         this.messageService.add({
           severity: 'warn',
           summary: 'Context Required',
@@ -3062,8 +2831,6 @@ export class TariffComponent implements OnInit, OnDestroy {
         return;
       }
     }
-
-    console.log('Context validation passed - proceeding with edit tariff');
 
     // Store original data for cancel functionality
     this.originalTariffData = JSON.parse(JSON.stringify(tariff));
@@ -3246,7 +3013,7 @@ export class TariffComponent implements OnInit, OnDestroy {
       this.originalTariffData
     ) {
       const index = this.tariffs.findIndex(
-        (t) => t.id === this.originalTariffData.id
+        (t: any) => t.id === this.originalTariffData.id
       );
       if (index !== -1) {
         this.tariffs[index] = { ...this.originalTariffData };
@@ -3409,8 +3176,6 @@ export class TariffComponent implements OnInit, OnDestroy {
   }
 
   closeMasterDialog(type: string) {
-    console.log(`Closing master dialog: ${type}`);
-
     // Reset the appropriate dialog visibility
     switch (type) {
       case 'currency':

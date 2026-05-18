@@ -102,8 +102,6 @@ export class MappingService {
     const filterKey = `${codeType.toLowerCase().replace('code', '')}Filter`;
     const filter = (config?.validation as any)?.[filterKey] || '';
     
-    console.log(`IT Setup filter for ${codeType}:`, filter);
-    
     // Build parameters based on IT setup validation
     let params = `codeType=${codeType}`;
     
@@ -121,7 +119,6 @@ export class MappingService {
       params += `&serviceTypeCode=${serviceTypeCode}`;
     }
     
-    console.log('Mapping lookup params:', params);
     return this.http.get<any>(`${this.apiUrl}/find?${params}`);
   }
 }

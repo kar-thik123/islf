@@ -41,6 +41,7 @@ function requireContext() {
     const reqDepartment = source.departmentCode || source.department_code;
 
     // 4. Validate mismatch (Fail-open logic for legacy tokens without assignments)
+    console.log(`[DEBUG-INVESTIGATION] ContextGuard - User: ${req.user.username}, Requested: C=${reqCompany}, B=${reqBranch}, D=${reqDepartment}, Assigned: C=${req.user.company_code}, B=${req.user.branch}, D=${req.user.department}`);
 
     // Company Validation
     if (reqCompany) {
