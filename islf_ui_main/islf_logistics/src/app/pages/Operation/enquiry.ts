@@ -2539,8 +2539,6 @@ import { MasterCacheService } from '../../services/master-cache.service';
       }
 
       .preview-container {
-        max-height: calc(95vh - 120px);
-        overflow-y: auto;
         font-family: 'Inter', sans-serif;
         color: #1a202c;
         border: 2px solid #e2e8f0;
@@ -2561,13 +2559,38 @@ import { MasterCacheService } from '../../services/master-cache.service';
       }
 
       @media print {
-        .professional-preview p-dialog-header,
-        .professional-preview p-dialog-footer {
+        /* ── Hide all modal/dialog chrome ── */
+        .p-dialog-header,
+        .p-dialog-footer,
+        .p-dialog-titlebar,
+        .p-dialog-titlebar-icons,
+        .p-component-overlay,
+        .p-dialog-mask,
+        .no-print {
           display: none !important;
         }
+
+        /* ── Reset modal positioning so only the content prints ── */
+        .p-dialog,
+        .p-dialog-content {
+          position: static !important;
+          box-shadow: none !important;
+          border: none !important;
+          overflow: visible !important;
+          max-height: none !important;
+          width: 100% !important;
+          padding: 0 !important;
+        }
+
+        /* ── Make preview container fill the page ── */
         .preview-container {
           overflow: visible !important;
           max-height: none !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
         }
       }
 
@@ -7037,43 +7060,384 @@ export class EnquiryComponent implements OnInit, OnDestroy {
             <base href="/">
             <title>Quote Preview - ${this.selectedEnquiryPreview?.enquiry?.code || ''}</title>
             <link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
-            <script src="https://cdn.tailwindcss.com"></script>
             <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-            body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; }
-            .custom-preview-table th { background-color: #dbeafe !important; color: #1e3a8a !important; }
-            .bg-blue-900 { background-color: #1e3a8a !important; }
-            @media print {
-              @page { margin: 10mm; size: A4; }
-              body { padding: 0; font-size: 11px; }
-              .p-8 { padding: 1.5rem !important; } 
-              .p-6 { padding: 1rem !important; }
-              .gap-8 { gap: 1rem !important; }
-              .mb-6, .mb-8, .mb-10 { margin-bottom: 1rem !important; }
-              .text-3xl { font-size: 18px !important; }
-              .text-2xl { font-size: 16px !important; }
-              .text-xl { font-size: 14px !important; }
-              .text-lg { font-size: 12px !important; }
-              h2 { font-size: 18px !important; }
-              h4 { font-size: 13px !important; }
-              p, span, div { font-size: 11px; }
-              .font-bold { font-weight: 700 !important; }
-              .no-print { display: none; }
-              
-              /* Table Compactness */
-              table th, table td { padding: 4px 8px !important; font-size: 10px !important; }
-              .px-6 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-              .py-3, .py-4 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
-              
-              /* Fix Valid Date Circle Alignment */
-              .rounded-md { padding: 2px 6px !important; display: inline-block; white-space: nowrap; }
+            /* ── Google Font ── */
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
 
-              /* Signature Section Avoid Break */
-              .mt-16 { margin-top: 2rem !important; }
-              .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-              
-              /* Logo Sizing */
-              .h-24 { height: 3rem !important; width: auto; }
+            /* ═══════════════════════════════════════════════════
+               BASE RESET & PRINT PAGE SETUP
+            ═══════════════════════════════════════════════════ */
+            *, *::before, *::after {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            @page {
+              size: A4 portrait;
+              margin: 12mm 12mm 15mm 12mm;
+            }
+
+            html, body {
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              font-family: 'Inter', Arial, sans-serif;
+              font-size: 11px;
+              color: #1a202c;
+              background: #ffffff;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               QUOTATION CONTAINER
+            ═══════════════════════════════════════════════════ */
+            .preview-container {
+              width: 100%;
+              padding: 16px;
+              background: #ffffff;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               LOGO + HEADER ROW  (flex — must stay side-by-side)
+            ═══════════════════════════════════════════════════ */
+            .flex.justify-between.items-center.mb-6.border-b.pb-4 {
+              display: flex !important;
+              flex-direction: row !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              width: 100% !important;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 10px;
+              margin-bottom: 14px;
+            }
+
+            .logo-section img,
+            .logo-section img.h-24 {
+              height: 60px !important;
+              width: auto !important;
+              object-fit: contain;
+              display: block;
+            }
+
+            .text-right {
+              text-align: right !important;
+            }
+
+            h2.text-3xl {
+              font-size: 20px !important;
+              font-weight: 900 !important;
+              color: #1a202c !important;
+              margin: 0 0 4px 0;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               TWO-COLUMN INFO GRID  (TO: + QUOTATION SUMMARY)
+            ═══════════════════════════════════════════════════ */
+            .grid.grid-cols-1.md\\:grid-cols-2.gap-8.mb-8,
+            .grid {
+              display: grid !important;
+              grid-template-columns: 1fr 1fr !important;
+              gap: 14px !important;
+              width: 100% !important;
+              margin-bottom: 14px !important;
+            }
+
+            .customer-info,
+            .quotation-info {
+              width: 100% !important;
+              background: #f8fafc !important;
+              border: 1px solid #e2e8f0 !important;
+              border-radius: 6px;
+              padding: 12px !important;
+            }
+
+            .customer-info h4,
+            .quotation-info h4 {
+              font-size: 12px !important;
+              font-weight: 700 !important;
+              color: #1e40af !important;
+              border-bottom: 2px solid #bfdbfe;
+              padding-bottom: 5px;
+              margin: 0 0 8px 0;
+            }
+
+            /* Inner two-column label/value grid inside Quotation Summary */
+            .quotation-info .grid.grid-cols-2 {
+              display: grid !important;
+              grid-template-columns: 50% 50% !important;
+              gap: 4px 8px !important;
+              width: 100% !important;
+              margin: 0 !important;
+            }
+
+            /* TO section flex items */
+            .space-y-2 > * { margin-bottom: 4px; }
+            .flex.items-center.gap-2 {
+              display: flex !important;
+              flex-direction: row !important;
+              align-items: center !important;
+              gap: 5px !important;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               SERVICE AREA SECTION HEADER  (blue band)
+            ═══════════════════════════════════════════════════ */
+            .line-items-wrapper { width: 100% !important; }
+
+            .line-item-group {
+              width: 100% !important;
+              margin-bottom: 14px !important;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .bg-blue-900 {
+              background-color: #1e3a8a !important;
+              color: #ffffff !important;
+            }
+
+            .bg-blue-900.text-white.px-6.py-3.rounded-t-lg {
+              display: flex !important;
+              flex-direction: row !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              width: 100% !important;
+              padding: 8px 12px !important;
+              border-radius: 6px 6px 0 0;
+            }
+
+            .bg-blue-900 .text-lg {
+              font-size: 12px !important;
+              font-weight: 700 !important;
+              letter-spacing: 0.05em;
+            }
+
+            /* Vendor/route sub-header */
+            .bg-gray-100 {
+              background-color: #f3f4f6 !important;
+              padding: 5px 12px !important;
+            }
+
+            .bg-gray-100 .text-sm {
+              font-size: 10px !important;
+              font-weight: 700 !important;
+              color: #1e3a8a !important;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               CHARGES TABLE
+            ═══════════════════════════════════════════════════ */
+            .border.border-blue-900.border-t-0 {
+              width: 100% !important;
+              border: 1px solid #1e3a8a;
+              border-top: none;
+              border-radius: 0 0 6px 6px;
+              overflow: hidden;
+            }
+
+            table,
+            .custom-preview-table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+              table-layout: fixed !important;
+            }
+
+            .custom-preview-table thead,
+            .bg-blue-50 {
+              background-color: #dbeafe !important;
+            }
+
+            .custom-preview-table th,
+            thead tr th {
+              background-color: #dbeafe !important;
+              color: #1e3a8a !important;
+              font-size: 9px !important;
+              font-weight: 700 !important;
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+              padding: 5px 8px !important;
+              border-bottom: 2px solid #bfdbfe !important;
+              border-right: 1px solid #bfdbfe;
+            }
+
+            .custom-preview-table td,
+            tbody tr td {
+              font-size: 10px !important;
+              padding: 5px 8px !important;
+              border-bottom: 1px solid #edf2f7 !important;
+              border-right: 1px solid #edf2f7;
+              color: #1a202c;
+            }
+
+            /* Fixed column widths matching the template definitions */
+            .custom-preview-table th:nth-child(1),
+            .custom-preview-table td:nth-child(1) { width: 40%; }
+            .custom-preview-table th:nth-child(2),
+            .custom-preview-table td:nth-child(2) { width: 20%; }
+            .custom-preview-table th:nth-child(3),
+            .custom-preview-table td:nth-child(3) { width: 15%; }
+            .custom-preview-table th:nth-child(4),
+            .custom-preview-table td:nth-child(4) { width: 25%; text-align: right; }
+
+            /* Rate column right-align */
+            .text-right { text-align: right !important; }
+            .font-black.text-blue-700 { color: #1d4ed8 !important; font-weight: 900 !important; }
+
+            /* Remarks area */
+            .p-4.bg-gray-50 {
+              background-color: #f9fafb !important;
+              padding: 6px 12px !important;
+              border-top: 1px solid #e2e8f0;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               REMARKS SECTION (amber)
+            ═══════════════════════════════════════════════════ */
+            .bg-amber-50 {
+              background-color: #fffbeb !important;
+              border: 1px solid #fcd34d !important;
+              border-radius: 6px;
+              padding: 10px 12px !important;
+              margin-top: 12px;
+            }
+
+            .bg-amber-50 h4 {
+              font-size: 11px !important;
+              font-weight: 700 !important;
+              color: #92400e !important;
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              margin: 0 0 4px 0;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               SIGNATURE SECTION  (must stay side-by-side)
+            ═══════════════════════════════════════════════════ */
+            .mt-16.flex.justify-between.items-center.px-4.break-inside-avoid,
+            .mt-16 {
+              display: flex !important;
+              flex-direction: row !important;
+              justify-content: space-between !important;
+              align-items: flex-end !important;
+              width: 100% !important;
+              margin-top: 28px !important;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .mt-16 .text-center.w-56,
+            .mt-16 > div {
+              width: 180px !important;
+              text-align: center !important;
+            }
+
+            .border-t.border-gray-400.pt-2 {
+              border-top: 1px solid #9ca3af !important;
+              padding-top: 4px !important;
+              font-size: 10px !important;
+              font-weight: 600 !important;
+              color: #4b5563 !important;
+            }
+
+            .mb-8.font-bold {
+              font-size: 11px !important;
+              font-weight: 700 !important;
+              color: #1e3a8a !important;
+              letter-spacing: 0.08em;
+              margin-bottom: 20px !important;
+              display: block;
+            }
+
+            /* ═══════════════════════════════════════════════════
+               UTILITY OVERRIDES
+            ═══════════════════════════════════════════════════ */
+            /* Validity badge */
+            .px-2.py-0\.5.bg-blue-100.text-blue-800 {
+              background-color: #dbeafe !important;
+              color: #1e40af !important;
+              padding: 2px 6px !important;
+              border-radius: 4px;
+              font-weight: 700 !important;
+              display: inline-block;
+              white-space: nowrap;
+            }
+
+            /* Font size helpers */
+            .text-xl  { font-size: 14px !important; }
+            .text-lg  { font-size: 12px !important; }
+            .text-sm  { font-size: 10px !important; }
+            .text-xs  { font-size: 9px !important;  }
+            .font-bold   { font-weight: 700 !important; }
+            .font-medium { font-weight: 500 !important; }
+            .font-semibold { font-weight: 600 !important; }
+
+            .uppercase { text-transform: uppercase !important; }
+            .italic    { font-style: italic !important; }
+
+            .border-b  { border-bottom: 1px solid #e2e8f0; }
+            .pb-4      { padding-bottom: 10px; }
+            .mb-4      { margin-bottom: 8px; }
+            .mb-6      { margin-bottom: 12px; }
+            .mb-8      { margin-bottom: 14px; }
+            .mb-10     { margin-bottom: 16px; }
+
+            /* ═══════════════════════════════════════════════════
+               @media print  — enforce all of the above on print
+            ═══════════════════════════════════════════════════ */
+            @media print {
+              @page { size: A4 portrait; margin: 12mm 12mm 15mm 12mm; }
+
+              html, body { width: 100%; margin: 0; padding: 0; }
+
+              /* ── Header row stays flex side-by-side ── */
+              .flex.justify-between.items-center.mb-6.border-b.pb-4 {
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+              }
+
+              /* ── Info grid stays two columns ── */
+              .grid.grid-cols-1.md\\:grid-cols-2.gap-8.mb-8,
+              .grid {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                width: 100% !important;
+              }
+
+              /* ── Inner label/value grid ── */
+              .quotation-info .grid.grid-cols-2 {
+                display: grid !important;
+                grid-template-columns: 50% 50% !important;
+                width: 100% !important;
+              }
+
+              /* ── Tables fill full width ── */
+              table, .custom-preview-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+              }
+
+              /* ── Signature row stays flex ── */
+              .mt-16 {
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: flex-end !important;
+                width: 100% !important;
+              }
+
+              /* ── Prevent page breaks inside groups ── */
+              .line-item-group { break-inside: avoid; page-break-inside: avoid; }
+
+              /* ── Ensure colored backgrounds print ── */
+              .bg-blue-900 { background-color: #1e3a8a !important; }
+              .custom-preview-table th { background-color: #dbeafe !important; }
+              .customer-info, .quotation-info { background-color: #f8fafc !important; }
+              .bg-amber-50 { background-color: #fffbeb !important; }
             }
           </style>
           </head>
@@ -7084,7 +7448,7 @@ export class EnquiryComponent implements OnInit, OnDestroy {
                 setTimeout(function() {
                   window.print();
                   window.close();
-                }, 500);
+                }, 800);
               };
             </script>
           </body>

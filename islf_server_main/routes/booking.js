@@ -231,10 +231,11 @@ router.get('/', async (req, res) => {
 
 router.post('/search-enquiries', async (req, res) => {
   try {
-    const { department, service_type, from_location, to_location } = req.body || {};
+    const { department, service_type, from_location, to_location, companyCode, branchCode, departmentCode } = req.body || {};
     let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status,
                  COALESCE((SELECT json_agg(ecm.*) FROM enquiry_carriage_mapping ecm WHERE ecm.enquiry_id = enquiry.id), '[]'::json) as carriage_map
-                 FROM enquiry WHERE (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)`;
+                 FROM enquiry WHERE (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)
+                 AND LOWER(COALESCE(status, '')) NOT IN ('closed', 'cancelled')`;
     const params = [];
     let idx = 1;
     const norm = (f, i) => `LOWER(REPLACE(${f}, ' ', '')) = LOWER(REPLACE($${i}, ' ', ''))`;
@@ -246,8 +247,37 @@ router.post('/search-enquiries', async (req, res) => {
       query += ` AND (${norm('service_type', idx)} OR ${norm('service_type_code', idx)})`;
       params.push(service_type); idx++;
     }
-    if (from_location) { query += ` AND ${norm('from_location', idx)}`; params.push(from_location); idx++; }
-    if (to_location) { query += ` AND ${norm('to_location', idx)}`; params.push(to_location); idx++; }
+    if (from_location) { 
+      query += ` AND (
+        ${norm('from_location', idx)} 
+        OR LOWER(from_location) = (SELECT LOWER(name) FROM master_location WHERE code = $${idx} LIMIT 1)
+      )`; 
+      params.push(from_location); 
+      idx++; 
+    }
+    if (to_location) { 
+      query += ` AND (
+        ${norm('to_location', idx)} 
+        OR LOWER(to_location) = (SELECT LOWER(name) FROM master_location WHERE code = $${idx} LIMIT 1)
+      )`; 
+      params.push(to_location); 
+      idx++; 
+    }
+    if (companyCode) {
+      query += ` AND company_code = $${idx}`;
+      params.push(companyCode);
+      idx++;
+    }
+    if (branchCode) {
+      query += ` AND branch_code = $${idx}`;
+      params.push(branchCode);
+      idx++;
+    }
+    if (departmentCode) {
+      query += ` AND department_code = $${idx}`;
+      params.push(departmentCode);
+      idx++;
+    }
     query += ` ORDER BY id DESC LIMIT 100`;
     const { rows } = await pool.query(query, params);
     res.json(rows);

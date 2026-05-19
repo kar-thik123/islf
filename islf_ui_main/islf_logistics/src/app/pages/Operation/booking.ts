@@ -1534,6 +1534,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         // Setup initial options
         this.allLocations = results.locations || [];
         this.allServiceTypes = results.serviceTypes || [];
+        this.departmentOptionsRaw = results.depts || [];
         this.departmentOptions = (results.depts || []).map((d: any) => ({ label: d.name, value: d.name }));
         this.locationTypeOptions = results.locationTypes.map((t: any) => ({ label: t.value, value: t.value }));
         
@@ -2391,69 +2392,93 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   openLinkEnquiryDialog(row: any) {
     this.linkTargetBooking = row;
-    this.dialog = {
-      department: row.department,
-      service_type: row.service_type,
-      from_location_type: '',
-      from_location: row.from_location,
-      to_location_type: '',
-      to_location: row.to_location
-    };
+    this.isLoadingDialogData = true;
 
-    // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
-    if (this.dialog.from_location) {
-      const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
-      if (loc) {
-        this.dialog.from_location = loc.code;
-        this.dialog.from_location_type = loc.type;
-      }
-    }
-    if (this.dialog.to_location) {
-      const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
-      if (loc) {
-        this.dialog.to_location = loc.code;
-        this.dialog.to_location_type = loc.type;
-      }
-    }
+    forkJoin({
+      depts: this.masterCache.getDepartments().pipe(take(1)),
+      locations: this.masterCache.getLocations().pipe(take(1)),
+      serviceTypes: this.masterCache.getServiceTypes().pipe(take(1)),
+      locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'LOCATION')))
+    }).subscribe({
+      next: (results: any) => {
+        this.isLoadingDialogData = false;
+        
+        // Setup initial options
+        this.allLocations = results.locations || [];
+        this.allServiceTypes = results.serviceTypes || [];
+        this.departmentOptionsRaw = results.depts || [];
+        this.departmentOptions = (results.depts || []).map((d: any) => ({ label: d.name, value: d.name }));
+        this.locationTypeOptions = results.locationTypes.map((t: any) => ({ label: t.value, value: t.value }));
 
-    this.onLocationTypeChange('from');
-    this.onLocationTypeChange('to');
-    this.onDepartmentChange();
+        this.dialog = {
+          department: row.department,
+          service_type: row.service_type,
+          from_location_type: '',
+          from_location: row.from_location,
+          to_location_type: '',
+          to_location: row.to_location
+        };
 
-    this.matchingEnquiries = [];
-    this.selectedEnquiries = [];
-    this.linkedEnquiryCodes.clear();
-    this.showCreateDialog = true;
-    this.isSelectingForExisting = true;
+        // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
+        if (this.dialog.from_location) {
+          const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
+          if (loc) {
+            this.dialog.from_location = loc.code;
+            this.dialog.from_location_type = loc.type;
+          }
+        }
+        if (this.dialog.to_location) {
+          const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
+          if (loc) {
+            this.dialog.to_location = loc.code;
+            this.dialog.to_location_type = loc.type;
+          }
+        }
 
-    // Fetch booking details to get already-linked enquiries
-    if (row.booking_no) {
-      this.bookingService.getByNo(row.booking_no).subscribe({
-        next: (booking: any) => {
-          // Extract enquiry codes from line items
-          const lineItems = booking?.line_items || [];
-          lineItems.forEach((li: any) => {
-            if (li.enq_no) {
-              // Handle both string and object formats
-              const enqCode = typeof li.enq_no === 'object' ? li.enq_no.code : li.enq_no;
-              if (enqCode) {
-                this.linkedEnquiryCodes.add(enqCode.toString());
-              }
+        this.onLocationTypeChange('from');
+        this.onLocationTypeChange('to');
+        this.onDepartmentChange();
+
+        this.matchingEnquiries = [];
+        this.selectedEnquiries = [];
+        this.linkedEnquiryCodes.clear();
+        this.showCreateDialog = true;
+        this.isSelectingForExisting = true;
+
+        // Fetch booking details to get already-linked enquiries
+        if (row.booking_no) {
+          this.bookingService.getByNo(row.booking_no).subscribe({
+            next: (booking: any) => {
+              // Extract enquiry codes from line items
+              const lineItems = booking?.line_items || [];
+              lineItems.forEach((li: any) => {
+                if (li.enq_no) {
+                  // Handle both string and object formats
+                  const enqCode = typeof li.enq_no === 'object' ? li.enq_no.code : li.enq_no;
+                  if (enqCode) {
+                    this.linkedEnquiryCodes.add(enqCode.toString());
+                  }
+                }
+              });
+              // Now search for enquiries after we have the linked codes
+              this.searchEnquiries();
+            },
+            error: (err) => {
+              console.error('Failed to fetch booking details:', err);
+              // Still search enquiries even if fetch fails
+              this.searchEnquiries();
             }
           });
-          // Now search for enquiries after we have the linked codes
-          this.searchEnquiries();
-        },
-        error: (err) => {
-          console.error('Failed to fetch booking details:', err);
-          // Still search enquiries even if fetch fails
+        } else {
+          // If no booking_no, just search enquiries
           this.searchEnquiries();
         }
-      });
-    } else {
-      // If no booking_no, just search enquiries
-      this.searchEnquiries();
-    }
+      },
+      error: () => {
+        this.isLoadingDialogData = false;
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load master data' });
+      }
+    });
   }
 
   addLineItemRow() { this.lineItemsRows = [...this.lineItemsRows, { enq_no: '', enq_exp: '', type: '', service_area: '', basis: '', from_location: '', to_location: '', sourced_vendor: '', status: 'Active', remarks: '' }]; }
