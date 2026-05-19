@@ -1631,7 +1631,7 @@ export class VendorComponent implements OnInit, OnDestroy {
   loadOptions() {
     // 🚀 Critical Path: Load only data needed for table display
     forkJoin({
-      vendors: this.masterCache.getVendors(),
+      vendors: this.masterCache.getVendors().pipe(take(1)),
       types: this.masterCache.getAllMasterTypes().pipe(take(1)),
     }).subscribe({
       next: (res) => {
