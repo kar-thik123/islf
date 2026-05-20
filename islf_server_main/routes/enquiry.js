@@ -1632,20 +1632,6 @@ router.post("/:code/sourcing", async (req, res) => {
       paramIndex++;
     }
 
-    // Basis filter (code match, normalized)
-    if (basis && basis.trim() !== "") {
-      query += ` AND LOWER(REPLACE(REPLACE(basis, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
-      params.push(basis);
-      paramIndex++;
-    }
-
-    // Line item type filter (e.g., Freight, Transportation)
-    if (line_item_type && line_item_type.trim() !== "") {
-      query += ` AND LOWER(REPLACE(REPLACE(type, ' ', ''), '_', '')) = LOWER(REPLACE(REPLACE($${paramIndex}, ' ', ''), '_', ''))`;
-      params.push(line_item_type);
-      paramIndex++;
-    }
-
     // Service type filter -> match either "shipping_type" or "type" columns (flexible matching)
     if (serviceTypeKeywords.length > 0) {
       const typeIdxStart = paramIndex;

@@ -5001,7 +5001,6 @@ export class EnquiryComponent implements OnInit, OnDestroy {
    
   */
   canGetSourcing(): boolean {
-    const firstBasis = this.lineItems[0]?.basis;
     const enq = this.selectedEnquiry;
     return !!(
       enq &&
@@ -5009,14 +5008,11 @@ export class EnquiryComponent implements OnInit, OnDestroy {
       enq.from_location &&
       enq.to_location &&
       enq.effective_date_from &&
-      enq.effective_date_to &&
-      firstBasis &&
-      this.lineItems.length > 0
+      enq.effective_date_to
     );
   }
 
   canGetTariff(): boolean {
-    const firstBasis = this.lineItems[0]?.basis;
     const enq = this.selectedEnquiry;
     return !!(
       enq &&
@@ -5024,9 +5020,7 @@ export class EnquiryComponent implements OnInit, OnDestroy {
       enq.from_location &&
       enq.to_location &&
       enq.effective_date_from &&
-      enq.effective_date_to &&
-      firstBasis &&
-      this.lineItems.length > 0
+      enq.effective_date_to
     );
   }
   // 11/15/2025

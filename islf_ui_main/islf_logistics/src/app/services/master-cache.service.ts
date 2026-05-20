@@ -85,6 +85,17 @@ export class MasterCacheService {
     }
 
     /**
+     * Specifically clears service types cache and triggers refresh.
+     */
+    public clearServiceTypeCache() {
+        if (this.cache.has('serviceTypes')) {
+            this.cache.delete('serviceTypes');
+        }
+        this.refreshTrigger$.next();
+        console.log('🔄 Service Types Cache Cleared & Global Refresh Triggered');
+    }
+
+    /**
      * Centralized caching logic using RxJS shareReplay(1) and a refresh trigger.
      */
     private getCachedObservable(key: string, fetchFn: () => Observable<any>): Observable<any> {

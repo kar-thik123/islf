@@ -1,7 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { MasterCacheService } from './master-cache.service';
 
 export interface ServiceType {
   id?: number;
@@ -30,7 +32,11 @@ export interface ServiceType {
 export class ServiceTypeService {
   private apiUrl = `${environment.apiUrl}/api/service_types`; // Fixed: was /api/number_series
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private injector: Injector) { }
+
+  private get masterCache(): MasterCacheService {
+    return this.injector.get(MasterCacheService);
+  }
 
   getAll(): Observable<ServiceType[]> {
     return this.http.get<ServiceType[]>(this.apiUrl);
@@ -45,14 +51,20 @@ export class ServiceTypeService {
   }
 
   create(serviceType: ServiceType): Observable<ServiceType> {
-    return this.http.post<ServiceType>(this.apiUrl, serviceType);
+    return this.http.post<ServiceType>(this.apiUrl, serviceType).pipe(
+      tap(() => this.masterCache.clearServiceTypeCache())
+    );
   }
 
   update(code: string, serviceType: ServiceType): Observable<ServiceType> {
-    return this.http.put<ServiceType>(`${this.apiUrl}/${code}`, serviceType);
+    return this.http.put<ServiceType>(`${this.apiUrl}/${code}`, serviceType).pipe(
+      tap(() => this.masterCache.clearServiceTypeCache())
+    );
   }
 
   delete(code: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${code}`);
+    return this.http.delete<void>(`${this.apiUrl}/${code}`).pipe(
+      tap(() => this.masterCache.clearServiceTypeCache())
+    );
   }
 }

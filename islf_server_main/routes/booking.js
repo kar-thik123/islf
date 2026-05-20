@@ -232,7 +232,7 @@ router.get('/', async (req, res) => {
 router.post('/search-enquiries', async (req, res) => {
   try {
     const { department, service_type, from_location, to_location, companyCode, branchCode, departmentCode } = req.body || {};
-    let query = `SELECT id, code, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status,
+    let query = `SELECT id, code, cargo_type, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, service_type_code, department_code, status,
                  COALESCE((SELECT json_agg(ecm.*) FROM enquiry_carriage_mapping ecm WHERE ecm.enquiry_id = enquiry.id), '[]'::json) as carriage_map
                  FROM enquiry WHERE (effective_date_to >= CURRENT_DATE OR effective_date_to IS NULL)
                  AND LOWER(COALESCE(status, '')) NOT IN ('closed', 'cancelled')`;
@@ -402,6 +402,14 @@ router.post('/', async (req, res) => {
         chargesSnap = chargesSnap || (
           Array.isArray(vendorSnap) ? (vendorSnap[0]?.negotiated_charges || null) : (vendorSnap ? vendorSnap.negotiated_charges : null)
         );
+
+        // Auto-initialize a default cargo row from the enquiry's cargo_type if no cargo was supplied
+        const enquiryCargoType = enq.cargo_type || null;
+        let effectiveCargo = cargo;
+        if ((!effectiveCargo || (Array.isArray(effectiveCargo) && effectiveCargo.length === 0)) && enquiryCargoType) {
+          effectiveCargo = [{ cargo_type: enquiryCargoType, description: '', hs_code: '', quantity: null, unit: '', weight: null, volume: null, remarks: '' }];
+        }
+
         await client.query(
           `INSERT INTO booking (booking_no, booking_type, enquiry_id, selected_enquiries, customer_id, customer_name, company_name, from_location, to_location, effective_date_from, effective_date_to, department, service_type, status, remarks, vendor_details, line_items, charges, carriage_map, cargo, schedules, company_code, branch_code, department_code, service_type_code, created_by, enquiry_type, sub_breakup_vendor_type)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
@@ -425,7 +433,7 @@ router.post('/', async (req, res) => {
             lineItemSnap ? JSON.stringify(lineItemSnap) : null,
             chargesSnap ? JSON.stringify(chargesSnap) : null,
             carriageMapSnap ? JSON.stringify(carriageMapSnap) : null,
-            cargo ? JSON.stringify(cargo) : null,
+            effectiveCargo ? JSON.stringify(effectiveCargo) : null,
             schedules ? JSON.stringify(schedules) : null,
             enq.company_code || effectiveCompany || null,
             enq.branch_code || effectiveBranch || null,
@@ -442,7 +450,7 @@ router.post('/', async (req, res) => {
           await insertBookingRelatedData(client, bookingId, {
             lineItemSnap,
             chargesSnap,
-            cargo,
+            cargo: effectiveCargo,
             schedules,
             carriage_map: carriageMapSnap,
             booking_breakup
@@ -641,8 +649,29 @@ router.put('/:id', async (req, res) => {
 
       await client.query('COMMIT');
 
-      const resUpdated = await client.query('SELECT * FROM booking WHERE id = $1', [id]);
-      res.json(resUpdated.rows[0]);
+      const resUpdated = await client.query(
+        `SELECT b.*, e.cargo_type as enquiry_cargo_type 
+         FROM booking b 
+         LEFT JOIN enquiry e ON b.enquiry_id = e.id 
+         WHERE b.id = $1`, 
+        [id]
+      );
+      const booking = resUpdated.rows[0];
+      if (booking) {
+        let enquiryCargoType = booking.enquiry_cargo_type;
+        if (!enquiryCargoType && booking.line_items) {
+          const lineItems = safeJsonParse(booking.line_items);
+          const firstLineItemWithEnq = lineItems.find(li => li.enq_no);
+          if (firstLineItemWithEnq) {
+            const enqRes = await pool.query('SELECT cargo_type FROM enquiry WHERE code = $1', [firstLineItemWithEnq.enq_no]);
+            if (enqRes.rows.length > 0) {
+              enquiryCargoType = enqRes.rows[0].cargo_type;
+            }
+          }
+        }
+        booking.enquiry_cargo_type = enquiryCargoType;
+      }
+      res.json(booking);
     } catch (e) {
       await client.query('ROLLBACK');
       console.error('Error updating booking:', e);
@@ -660,10 +689,40 @@ router.put('/:id', async (req, res) => {
 router.get('/:bookingNo', async (req, res) => {
   try {
     const { bookingNo } = req.params;
-    const { rows } = await pool.query('SELECT * FROM booking WHERE booking_no = $1', [bookingNo]);
+    const { rows } = await pool.query(
+      `SELECT b.*, e.cargo_type as enquiry_cargo_type 
+       FROM booking b 
+       LEFT JOIN enquiry e ON b.enquiry_id = e.id 
+       WHERE b.booking_no = $1`, 
+      [bookingNo]
+    );
     if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
 
     const booking = rows[0];
+    let enquiryCargoType = booking.enquiry_cargo_type;
+    if (!enquiryCargoType && booking.selected_enquiries) {
+      const selectedEnqs = safeJsonParse(booking.selected_enquiries);
+      if (selectedEnqs.length > 0) {
+        const firstEnq = selectedEnqs[0];
+        if (firstEnq && firstEnq.id) {
+          const enqRes = await pool.query('SELECT cargo_type FROM enquiry WHERE id = $1', [firstEnq.id]);
+          if (enqRes.rows.length > 0) {
+            enquiryCargoType = enqRes.rows[0].cargo_type;
+          }
+        }
+      }
+    }
+    if (!enquiryCargoType && booking.line_items) {
+      const lineItems = safeJsonParse(booking.line_items);
+      const firstLineItemWithEnq = lineItems.find(li => li.enq_no);
+      if (firstLineItemWithEnq) {
+        const enqRes = await pool.query('SELECT cargo_type FROM enquiry WHERE code = $1', [firstLineItemWithEnq.enq_no]);
+        if (enqRes.rows.length > 0) {
+          enquiryCargoType = enqRes.rows[0].cargo_type;
+        }
+      }
+    }
+    booking.enquiry_cargo_type = enquiryCargoType;
     const breakupRes = await pool.query('SELECT * FROM booking_breakup WHERE booking_id = $1 ORDER BY id', [booking.id]);
     const breakupRows = breakupRes.rows;
 

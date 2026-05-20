@@ -338,7 +338,7 @@ import { MasterCacheService } from '../../services/master-cache.service';
         <ng-template pTemplate="body" let-cg let-i="rowIndex">
           <tr>
             <td>
-               <p-dropdown [(ngModel)]="cg.cargo_type" [options]="cargoTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" [style]="{'width':'200px'}" (onChange)="onCargoTypeChange(cg)"></p-dropdown>
+               <p-dropdown [(ngModel)]="cg.cargo_type" [options]="cargoTypeOptions" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" [style]="{'width':'200px'}" (onChange)="onCargoTypeChange(cg)" [disabled]="!!getInheritedCargoType() || i > 0"></p-dropdown>
             </td>
             <td>
               <p-dropdown [(ngModel)]="cg.description" [options]="cg._descriptionOptions || []" optionLabel="label" optionValue="value" [filter]="true" filterBy="label" appendTo="body" class="w-60" [style]="{'width':'250px'}" (onChange)="onCargoNameChange(cg)"></p-dropdown>
@@ -1358,6 +1358,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Setup reactive dropdown listeners
     this.setupReactiveDropdowns();
+    
+    // 🚀 Restore Global Pre-warming
+    this.loadDropdowns();
   }
 
   ngOnDestroy() {
@@ -1696,8 +1699,8 @@ export class BookingComponent implements OnInit, OnDestroy {
         (e.company_name || '').trim().toLowerCase() !== (target.company_name || '').trim().toLowerCase() ||
         (e.department || '').trim().toLowerCase() !== (target.department || '').trim().toLowerCase() ||
         (e.service_type || '').trim().toLowerCase() !== (target.service_type || '').trim().toLowerCase() ||
-        this.locName(e.from_location).trim().toLowerCase() !== (target.from_location || '').trim().toLowerCase() ||
-        this.locName(e.to_location).trim().toLowerCase() !== (target.to_location || '').trim().toLowerCase()
+        this.locName(e.from_location).trim().toLowerCase() !== this.locName(target.from_location).trim().toLowerCase() ||
+        this.locName(e.to_location).trim().toLowerCase() !== this.locName(target.to_location).trim().toLowerCase()
       );
 
       if (mismatch) {
@@ -1838,7 +1841,11 @@ export class BookingComponent implements OnInit, OnDestroy {
       basis: this.masterCache.getBasis().pipe(take(1)),
       items: this.masterCache.getItems().pipe(take(1)),
       containers: this.masterCache.getContainers().pipe(take(1)),
-      locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'LOCATION')))
+      locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'LOCATION'))),
+      vendorTypes: this.masterCache.getMasterTypes('VENDOR').pipe(take(1)),
+      bookingStatuses: this.masterCache.getMasterTypes('BOOKING_STATUS').pipe(take(1)),
+      airlines: this.masterCache.getAirlines().pipe(take(1)),
+      vessels: this.masterCache.getVessels().pipe(take(1))
     });
 
     const bookingObs = this.bookingService.getByNo(bookingNo).pipe(take(1));
@@ -1854,6 +1861,27 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.allServiceTypes = results.serviceTypes || [];
         this.departmentOptions = (results.depts || []).map((d: any) => ({ label: d.name, value: d.name }));
         this.locationTypeOptions = results.locationTypes.map((t: any) => ({ label: t.value, value: t.value }));
+
+        // Fix Cargo
+        this.allCargoItems = (results.items || []).filter((item: any) => item.active === true || (item.status || '').toString().toLowerCase() === 'active');
+        this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.filter(i => i.item_type === 'CARGO_TYPE').map(i => i.charge_type || i.cargo_type)))
+          .filter(val => !!val)
+          .map(type => ({ label: type, value: type }));
+
+        // Fix Sub-charges
+        this.vendorTypeOptions = (results.vendorTypes || [])
+          .filter((t: any) => (t.status || '').toString().toLowerCase() === 'active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
+        this.allAirlines = (results.airlines || []).filter((a: any) => a.active === true);
+        this.airlineOptions = this.allAirlines.map((a: any) => ({ label: a.airline_name, value: a.airline_name }));
+        this.allVessels = (results.vessels || []).filter((v: any) => v.active === true);
+        this.vesselOptions = this.allVessels.map((v: any) => ({ label: v.vessel_name, value: v.vessel_name }));
+        this.bookingStatusOptions = (results.bookingStatuses || [])
+          .filter((s: any) => (s.status || '').toString().toLowerCase() === 'active')
+          .map((s: any) => ({ label: s.value, value: s.value }));
+        this.basisMasterOptions = (results.basis || [])
+          .filter((b: any) => (b.status || '').toString().toLowerCase() === 'active')
+          .map((b: any) => ({ label: b.code, value: b.code }));
 
         const b = booking;
         this.currentBooking = b as any;
@@ -1893,11 +1921,18 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.isFrozen = (b as any)?.booking_type === 'from_enquiry';
 
         // Init Cargo Rows and their pre-calculated options
-        this.cargoRows = (Array.isArray((b as any)?.cargo) ? (b as any).cargo : []).map((cg: any) => ({
-          ...cg,
-          _descriptionOptions: this.getCargoNamesByType(cg.cargo_type),
-          _hsCodeOptions: this.getHsCodesByTypeAndName(cg.cargo_type, cg.description)
-        }));
+        const inheritedCargo = (b as any)?.enquiry_cargo_type || 
+                               (this.selectedEnquiries && this.selectedEnquiries.length > 0 ? this.selectedEnquiries[0].cargo_type : '') ||
+                               (Array.isArray((b as any)?.cargo) ? (b as any).cargo.find((cg: any) => cg.cargo_type)?.cargo_type : '') || '';
+        this.cargoRows = (Array.isArray((b as any)?.cargo) ? (b as any).cargo : []).map((cg: any) => {
+          const rowCargoType = cg.cargo_type || inheritedCargo;
+          return {
+            ...cg,
+            cargo_type: rowCargoType,
+            _descriptionOptions: this.getCargoNamesByType(rowCargoType),
+            _hsCodeOptions: this.getHsCodesByTypeAndName(rowCargoType, cg.description)
+          };
+        });
 
         this.carriageRows = Array.isArray((b as any)?.carriage_map) ? (b as any).carriage_map : [];
         const rawItems = Array.isArray((b as any)?.line_items) ? (b as any).line_items : [];
@@ -1981,6 +2016,25 @@ export class BookingComponent implements OnInit, OnDestroy {
             const observables = this.pendingLinkEnquiries.map(e => this.enquiryService.getByCode(e.code).pipe(take(1)));
 
             forkJoin(observables).subscribe((fullEnquiries: any[]) => {
+              if (fullEnquiries.length > 0 && !this.currentBooking.enquiry_cargo_type) {
+                this.currentBooking.enquiry_cargo_type = fullEnquiries[0].cargo_type;
+              }
+
+              // Update any existing cargo rows that are missing cargo_type
+              const inherited = this.getInheritedCargoType();
+              if (inherited) {
+                this.cargoRows = this.cargoRows.map(row => {
+                  if (!row.cargo_type) {
+                    return {
+                      ...row,
+                      cargo_type: inherited,
+                      _descriptionOptions: this.getCargoNamesByType(inherited)
+                    };
+                  }
+                  return row;
+                });
+              }
+
               fullEnquiries.forEach((fullEnq: any) => {
                 // Append Line Items
                 if (Array.isArray(fullEnq.line_items)) {
@@ -2021,13 +2075,16 @@ export class BookingComponent implements OnInit, OnDestroy {
 
                 // Append Cargo
                 if (Array.isArray(fullEnq.cargo)) {
-                  const newCargo = fullEnq.cargo.map((cg: any) => ({
-                    cargo_type: cg.cargo_type,
-                    description: cg.description,
-                    hs_code: cg.hs_code,
-                    _descriptionOptions: this.getCargoNamesByType(cg.cargo_type),
-                    _hsCodeOptions: this.getHsCodesByTypeAndName(cg.cargo_type, cg.description)
-                  }));
+                  const newCargo = fullEnq.cargo.map((cg: any) => {
+                    const rowCargoType = cg.cargo_type || fullEnq.cargo_type || this.getInheritedCargoType() || '';
+                    return {
+                      cargo_type: rowCargoType,
+                      description: cg.description,
+                      hs_code: cg.hs_code,
+                      _descriptionOptions: this.getCargoNamesByType(rowCargoType),
+                      _hsCodeOptions: this.getHsCodesByTypeAndName(rowCargoType, cg.description)
+                    };
+                  });
                   this.cargoRows = [...this.cargoRows, ...newCargo];
                 }
 
@@ -2082,12 +2139,36 @@ export class BookingComponent implements OnInit, OnDestroy {
     });
   }
 
+  getInheritedCargoType(): string {
+    console.log('DEBUG [getInheritedCargoType] currentBooking:', this.currentBooking);
+    console.log('DEBUG [getInheritedCargoType] selectedEnquiries:', this.selectedEnquiries);
+    console.log('DEBUG [getInheritedCargoType] cargoRows:', this.cargoRows);
+    if (this.currentBooking?.enquiry_cargo_type) {
+      console.log('DEBUG [getInheritedCargoType] Resolved via currentBooking.enquiry_cargo_type:', this.currentBooking.enquiry_cargo_type);
+      return this.currentBooking.enquiry_cargo_type;
+    }
+    if (this.selectedEnquiries && this.selectedEnquiries.length > 0) {
+      console.log('DEBUG [getInheritedCargoType] Resolved via selectedEnquiries:', this.selectedEnquiries[0].cargo_type);
+      return this.selectedEnquiries[0].cargo_type || '';
+    }
+    if (this.cargoRows && this.cargoRows.length > 0) {
+      const firstWithCargoType = this.cargoRows.find(r => r.cargo_type);
+      if (firstWithCargoType) {
+        console.log('DEBUG [getInheritedCargoType] Resolved via cargoRows:', firstWithCargoType.cargo_type);
+        return firstWithCargoType.cargo_type;
+      }
+    }
+    console.log('DEBUG [getInheritedCargoType] Resolved to empty string');
+    return '';
+  }
+
   addCargoRow() {
+    const inherited = this.getInheritedCargoType();
     this.cargoRows = [...this.cargoRows, {
-      cargo_type: '',
+      cargo_type: inherited,
       description: '',
       hs_code: '',
-      _descriptionOptions: [],
+      _descriptionOptions: inherited ? this.getCargoNamesByType(inherited) : [],
       _hsCodeOptions: []
     }];
   }
@@ -2127,18 +2208,25 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   onCargoTypeChange(cg: any) {
-    cg._descriptionOptions = this.getCargoNamesByType(cg.cargo_type);
-    if (cg._descriptionOptions.length === 1) {
-      cg.description = cg._descriptionOptions[0].value;
-    } else {
-      cg.description = '';
-    }
-    this.onCargoNameChange(cg);
+    const selectedType = cg.cargo_type;
+    this.cargoRows.forEach((row) => {
+      row.cargo_type = selectedType;
+      row._descriptionOptions = this.getCargoNamesByType(selectedType);
+      if (row.description) {
+        const isValid = row._descriptionOptions.some((o: any) => o.value === row.description);
+        if (!isValid) {
+          row.description = '';
+          row.hs_code = '';
+          row._hsCodeOptions = [];
+        }
+      }
+    });
+    this.cargoRows = [...this.cargoRows];
   }
 
   onCargoNameChange(cg: any) {
     cg._hsCodeOptions = this.getHsCodesByTypeAndName(cg.cargo_type, cg.description);
-    if (cg._hsCodeOptions.length === 1) {
+    if (cg._hsCodeOptions.length > 0) {
       cg.hs_code = cg._hsCodeOptions[0].value;
     } else {
       cg.hs_code = '';

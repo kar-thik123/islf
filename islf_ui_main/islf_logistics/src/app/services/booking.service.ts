@@ -36,6 +36,7 @@ export interface BookingRecord extends BookingGeneral {
   booking_breakup?: any[];
   selected_enquiries?: Array<{ id: number; code: string }>;
   sub_breakup_vendor_type?: string;
+  enquiry_cargo_type?: string;
 }
 
 @Injectable({ providedIn: 'root' })
