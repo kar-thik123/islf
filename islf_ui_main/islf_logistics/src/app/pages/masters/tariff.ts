@@ -1680,6 +1680,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     if (this.selectedTariff) {
       this.selectedTariff.shippingType = '';
       this.fieldErrors['shippingType'] = '';
+      this.filterServiceType();
       this.selectedTariffTrigger$.next(this.selectedTariff);
     }
   }
@@ -1689,6 +1690,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     if (this.selectedTariff) {
       this.selectedTariff.from = '';
       this.fieldErrors['from'] = '';
+      this.filterFromLocations();
       this.selectedTariffTrigger$.next(this.selectedTariff);
     }
   }
@@ -1698,6 +1700,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     if (this.selectedTariff) {
       this.selectedTariff.to = '';
       this.fieldErrors['to'] = '';
+      this.filterToLocations();
       this.selectedTariffTrigger$.next(this.selectedTariff);
     }
   }
@@ -1868,7 +1871,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     // A. Shipping Type (Depends on Mode)
     combineLatest([
       this.masterCache.getServiceTypes().pipe(startWith([])),
-      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+      this.selectedTariffTrigger$.pipe(startWith(null))
     ]).subscribe(([serviceTypes, selectedTariff]) => {
       this.allShippingType = (serviceTypes || []).filter(st => st.status === 'active');
       this.filterServiceType();
@@ -1878,7 +1881,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     // B. From/To Locations (Depends on Location Type)
     combineLatest([
       this.masterCache.getLocations().pipe(startWith([])),
-      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+      this.selectedTariffTrigger$.pipe(startWith(null))
     ]).subscribe(([locations, selectedTariff]) => {
       this.allLocations = (locations || []).filter(l => this.masterLocationService.isActiveLocation(l));
       this.filterFromLocations();
@@ -1889,7 +1892,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     // C. Vendors (Depends on Vendor Type)
     combineLatest([
       this.masterCache.getVendors().pipe(startWith([])),
-      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+      this.selectedTariffTrigger$.pipe(startWith(null))
     ]).subscribe(([vendors, selectedTariff]) => {
       this.allVendors = vendors || [];
       this.onVendorTypeChange();
@@ -1899,7 +1902,7 @@ export class TariffComponent implements OnInit, OnDestroy {
     // D. Service Areas (Depends on Service Area Type)
     combineLatest([
       this.masterCache.getServiceAreas().pipe(startWith([])),
-      this.selectedTariffTrigger$.pipe(startWith(null), distinctUntilChanged())
+      this.selectedTariffTrigger$.pipe(startWith(null))
     ]).subscribe(([serviceAreas, selectedTariff]) => {
       this.allServiceAreas = (serviceAreas || []).filter(sa => sa.status === 'active');
       this.filterServiceAreasByType();
@@ -2175,10 +2178,9 @@ export class TariffComponent implements OnInit, OnDestroy {
 
   // Load service area types
   loadServiceAreaTypeOptions() {
-    return this.masterCache.getMasterTypes('SERVICE_AREA_TYPE').pipe(
+    return this.masterTypeService.getUniqueServiceAreaTypes().pipe(
       tap((options: any[]) => {
         this.serviceAreaTypeOptions = options;
-
       }),
       catchError((error) => {
         console.error('Error loading service area types:', error);

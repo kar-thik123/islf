@@ -1461,9 +1461,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         // 4. Cargo
         // Filter only active cargo items
         this.allCargoItems = (res.cargoItems || []).filter((item: any) => item.active === true || (item.status || '').toString().toLowerCase() === 'active');
-        this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.filter(i => i.item_type === 'CARGO_TYPE').map(i => i.charge_type || i.cargo_type)))
-          .filter(val => !!val)
-          .map(type => ({ label: type, value: type }));
+        this.cargoTypeOptions = (res.locationTypes || [])
+          .filter((t: any) => (t.key || '').toString().toLowerCase() === 'cargo_type' && (t.status || '').toString().toLowerCase() === 'active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
 
         // 5. Vendors
         // Filter only active vendors
@@ -1842,6 +1842,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       items: this.masterCache.getItems().pipe(take(1)),
       containers: this.masterCache.getContainers().pipe(take(1)),
       locationTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'LOCATION'))),
+      cargoMasterTypes: this.masterCache.getAllMasterTypes().pipe(take(1), map((types: any[]) => types.filter((t: any) => t.key === 'CARGO_TYPE'))),
       vendorTypes: this.masterCache.getMasterTypes('VENDOR').pipe(take(1)),
       bookingStatuses: this.masterCache.getMasterTypes('BOOKING_STATUS').pipe(take(1)),
       airlines: this.masterCache.getAirlines().pipe(take(1)),
@@ -1864,9 +1865,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
         // Fix Cargo
         this.allCargoItems = (results.items || []).filter((item: any) => item.active === true || (item.status || '').toString().toLowerCase() === 'active');
-        this.cargoTypeOptions = Array.from(new Set(this.allCargoItems.filter(i => i.item_type === 'CARGO_TYPE').map(i => i.charge_type || i.cargo_type)))
-          .filter(val => !!val)
-          .map(type => ({ label: type, value: type }));
+        this.cargoTypeOptions = (results.cargoMasterTypes || [])
+          .filter((t: any) => (t.status || '').toString().toLowerCase() === 'active')
+          .map((t: any) => ({ label: t.value, value: t.value }));
 
         // Fix Sub-charges
         this.vendorTypeOptions = (results.vendorTypes || [])
@@ -1933,6 +1934,16 @@ export class BookingComponent implements OnInit, OnDestroy {
             _hsCodeOptions: this.getHsCodesByTypeAndName(rowCargoType, cg.description)
           };
         });
+
+        if (this.cargoRows.length === 0 && inheritedCargo) {
+          this.cargoRows = [{
+            cargo_type: inheritedCargo,
+            description: '',
+            hs_code: '',
+            _descriptionOptions: this.getCargoNamesByType(inheritedCargo),
+            _hsCodeOptions: []
+          }];
+        }
 
         this.carriageRows = Array.isArray((b as any)?.carriage_map) ? (b as any).carriage_map : [];
         const rawItems = Array.isArray((b as any)?.line_items) ? (b as any).line_items : [];
@@ -2107,6 +2118,18 @@ export class BookingComponent implements OnInit, OnDestroy {
                 uniqueKeys.add(key);
                 return true;
               });
+
+              // Auto-populate default cargo row if empty
+              const finalInherited = this.getInheritedCargoType();
+              if (this.cargoRows.length === 0 && finalInherited) {
+                this.cargoRows = [{
+                  cargo_type: finalInherited,
+                  description: '',
+                  hs_code: '',
+                  _descriptionOptions: this.getCargoNamesByType(finalInherited),
+                  _hsCodeOptions: []
+                }];
+              }
 
               // Append selected enquiries to current booking list
               const currentIds = new Set((this.currentBooking.selected_enquiries || []).map((e: any) => e.code));
