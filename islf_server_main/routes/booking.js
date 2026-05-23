@@ -251,6 +251,7 @@ router.post('/search-enquiries', async (req, res) => {
       query += ` AND (
         ${norm('from_location', idx)} 
         OR LOWER(from_location) = (SELECT LOWER(name) FROM master_location WHERE code = $${idx} LIMIT 1)
+        OR LOWER(from_location) IN (SELECT LOWER(code) FROM master_location WHERE LOWER(name) = LOWER($${idx}))
       )`; 
       params.push(from_location); 
       idx++; 
@@ -259,6 +260,7 @@ router.post('/search-enquiries', async (req, res) => {
       query += ` AND (
         ${norm('to_location', idx)} 
         OR LOWER(to_location) = (SELECT LOWER(name) FROM master_location WHERE code = $${idx} LIMIT 1)
+        OR LOWER(to_location) IN (SELECT LOWER(code) FROM master_location WHERE LOWER(name) = LOWER($${idx}))
       )`; 
       params.push(to_location); 
       idx++; 
@@ -377,12 +379,15 @@ router.post('/', async (req, res) => {
             if (r.enquiry_line_item_id) liVendorMap[r.enquiry_line_item_id] = r.vendor_name || null;
           }
         }
-        lineItemSnap = lineItemSnap || lis.map(li => ({
-          ...li,
-          sourced_vendor: liVendorMap[li.id] || li.sourced_vendor || null,
-          enq_no: enq.code || null,
-          enq_exp: enq.effective_date_to || null
-        }));
+        lineItemSnap = lineItemSnap || lis.map(li => {
+          const correspondingEnq = enqs.find(e => e.id === li.enquiry_id) || enqs[0] || {};
+          return {
+            ...li,
+            sourced_vendor: liVendorMap[li.id] || li.sourced_vendor || null,
+            enq_no: correspondingEnq.code || null,
+            enq_exp: correspondingEnq.effective_date_to || null
+          };
+        });
         let carr = [];
         if (ids.length > 0) {
           const resCarr = await client.query(`SELECT * FROM enquiry_carriage_mapping WHERE enquiry_id = ANY($1) ORDER BY id`, [ids]);

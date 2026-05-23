@@ -1712,7 +1712,14 @@ export class BookingComponent implements OnInit, OnDestroy {
 
       this.pendingLinkEnquiries = [...this.selectedEnquiries];
       this.showCreateDialog = false;
-      this.openBooking(this.linkTargetBooking.booking_no);
+
+      // If the booking details form is already open for the target booking, merge in-memory.
+      // This prevents discarding other unsaved changes or prior local appends.
+      if (this.showBookingForm && this.currentBooking && String(this.currentBooking.booking_no) === String(this.linkTargetBooking.booking_no)) {
+        this.appendPendingEnquiriesDirectly(selected);
+      } else {
+        this.openBooking(this.linkTargetBooking.booking_no);
+      }
       this.linkTargetBooking = null;
       return;
     }
@@ -2008,7 +2015,10 @@ export class BookingComponent implements OnInit, OnDestroy {
         if (this.pendingLinkEnquiries.length > 0) {
           // this.currentBooking.booking_type = 'from_enquiry'; // Removed to prevents creation of new booking
           const selected = this.pendingLinkEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
-          this.currentBooking.selected_enquiries = selected;
+          const existingSelections = this.currentBooking.selected_enquiries || [];
+          const existingCodes = new Set(existingSelections.map((e: any) => e.code));
+          const newSelections = selected.filter((s: any) => !existingCodes.has(s.code));
+          this.currentBooking.selected_enquiries = [...existingSelections, ...newSelections];
 
           // Apply overrides if any
           if (this.pendingOverrides) {
@@ -2160,6 +2170,155 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load booking details' });
       }
     });
+  }
+
+  appendPendingEnquiriesDirectly(selected: any[]) {
+    if (this.pendingLinkEnquiries.length > 0) {
+      this.isLoadingDialogData = true;
+      const observables = this.pendingLinkEnquiries.map(e => this.enquiryService.getByCode(e.code).pipe(take(1)));
+
+      forkJoin(observables).subscribe({
+        next: (fullEnquiries: any[]) => {
+          this.isLoadingDialogData = false;
+          if (fullEnquiries.length > 0 && !this.currentBooking.enquiry_cargo_type) {
+            this.currentBooking.enquiry_cargo_type = fullEnquiries[0].cargo_type;
+          }
+
+          // Update any existing cargo rows that are missing cargo_type
+          const inherited = this.getInheritedCargoType();
+          if (inherited) {
+            this.cargoRows = this.cargoRows.map(row => {
+              if (!row.cargo_type) {
+                return {
+                  ...row,
+                  cargo_type: inherited,
+                  _descriptionOptions: this.getCargoNamesByType(inherited)
+                };
+              }
+              return row;
+            });
+          }
+
+          fullEnquiries.forEach((fullEnq: any) => {
+            // Append Line Items
+            if (Array.isArray(fullEnq.line_items)) {
+              const enqVendorCards = fullEnq.vendor_cards || [];
+              const newItems = fullEnq.line_items.map((li: any) => {
+                const sourcingSummary = Array.isArray(li.enquiry_summary) ? li.enquiry_summary.find((s: any) => s.summary_type === 'sourcing') : null;
+                const validVendor = enqVendorCards.find((vc: any) => {
+                  const lookup = (li.sourced_vendor || '').toString().trim().toLowerCase();
+                  return (vc.vendor_no || '').toString().trim().toLowerCase() === lookup ||
+                    (vc.vendor_code || '').toString().trim().toLowerCase() === lookup ||
+                    (vc.code || '').toString().trim().toLowerCase() === lookup;
+                });
+                let vendorName = validVendor?.vendor_name || (sourcingSummary ? sourcingSummary.vendor_name : (li.sourced_vendor || ''));
+                if (vendorName && this.allVendors.length > 0) {
+                  const lookup = vendorName.toString().trim().toLowerCase();
+                  const masterVendor = this.allVendors.find((v: any) => (v.vendor_no || '').toString().trim().toLowerCase() === lookup || (v.code || '').toString().trim().toLowerCase() === lookup);
+                  if (masterVendor) vendorName = masterVendor.name || masterVendor.name2 || masterVendor.vendor_name || vendorName;
+                }
+                return {
+                  type: li.type,
+                  service_area: li.service_area,
+                  basis: li.basis,
+                  from_location: this.locName(li.line_from_location || li.from_location),
+                  to_location: this.locName(li.line_to_location || li.to_location),
+                  sourced_vendor: vendorName,
+                  basis_qty: li.basis_qty,
+                  booking_ref: '',
+                  valid_till: this.parseDate(li.valid_till),
+                  status: 'Active',
+                  remarks: li.remarks,
+                  schedule: 'NO',
+                  enq_no: fullEnq.code,
+                  enq_exp: fullEnq.effective_date_to
+                };
+              });
+              this.lineItemsRows = [...this.lineItemsRows, ...newItems];
+            }
+
+            // Append Cargo
+            if (Array.isArray(fullEnq.cargo)) {
+              const newCargo = fullEnq.cargo.map((cg: any) => {
+                const rowCargoType = cg.cargo_type || fullEnq.cargo_type || this.getInheritedCargoType() || '';
+                return {
+                  cargo_type: rowCargoType,
+                  description: cg.description,
+                  hs_code: cg.hs_code,
+                  _descriptionOptions: this.getCargoNamesByType(rowCargoType),
+                  _hsCodeOptions: this.getHsCodesByTypeAndName(rowCargoType, cg.description)
+                };
+              });
+              this.cargoRows = [...this.cargoRows, ...newCargo];
+            }
+
+            // Append Carriage Map
+            if (Array.isArray(fullEnq.carriage_map)) {
+              const newCarriage = fullEnq.carriage_map.map((cm: any) => ({
+                carriage: cm.carriage,
+                location_type: cm.location_type,
+                location: this.locName(cm.location)
+              }));
+              this.carriageRows = [...this.carriageRows, ...newCarriage];
+            }
+          });
+
+          // Re-run Carriage Deduplication
+          const uniqueKeys = new Set();
+          this.carriageRows = this.carriageRows.filter(cr => {
+            const key = `${cr.carriage}-${cr.location_type}-${cr.location}`;
+            if (uniqueKeys.has(key)) return false;
+            uniqueKeys.add(key);
+            return true;
+          });
+
+          // Auto-populate default cargo row if empty
+          const finalInherited = this.getInheritedCargoType();
+          if (this.cargoRows.length === 0 && finalInherited) {
+            this.cargoRows = [{
+              cargo_type: finalInherited,
+              description: '',
+              hs_code: '',
+              _descriptionOptions: this.getCargoNamesByType(finalInherited),
+              _hsCodeOptions: []
+            }];
+          }
+
+          // Append selected enquiries to current booking list
+          const currentIds = new Set((this.currentBooking.selected_enquiries || []).map((e: any) => e.code));
+          const newSelections = selected.filter((s: any) => !currentIds.has(s.code));
+          this.currentBooking.selected_enquiries = [...(this.currentBooking.selected_enquiries || []), ...newSelections];
+
+          this.pendingLinkEnquiries = [];
+
+          // Apply overrides if any
+          if (this.pendingOverrides) {
+            if (this.pendingOverrides.effective_date_from) {
+              this.currentBooking.effective_date_from = this.parseDate(this.pendingOverrides.effective_date_from) as any;
+            }
+            if (this.pendingOverrides.effective_date_to) {
+              this.currentBooking.effective_date_to = this.parseDate(this.pendingOverrides.effective_date_to) as any;
+            }
+            // Clear overrides after use
+            this.pendingOverrides = {};
+          }
+
+          // Initialize Quote Mapping
+          this.loadEnquiryOptions();
+          this.initializeQuoteMappings();
+
+          this.selectedBookingTrigger$.next(this.currentBooking); // Trigger reactive filters
+          this.cdr.detectChanges();
+
+          this.messageService.add({ severity: 'success', summary: 'Enquiries Linked', detail: 'New enquiries appended successfully.' });
+        },
+        error: (err) => {
+          this.isLoadingDialogData = false;
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to retrieve enquiry details' });
+          console.error(err);
+        }
+      });
+    }
   }
 
   getInheritedCargoType(): string {
@@ -2531,15 +2690,27 @@ export class BookingComponent implements OnInit, OnDestroy {
         };
 
         // Fix: Find codes from names if necessary to ensure dropdowns in the search dialog are pre-filled
+        const resolveLocationCode = (val: string) => {
+          if (!val) return null;
+          let matched = this.allLocations.find((l: any) => l.code === val);
+          if (matched) return matched;
+          const matches = this.allLocations.filter((l: any) => l.name === val);
+          if (matches.length > 0) {
+            const portMatch = matches.find((l: any) => l.type !== 'COUNTRY');
+            return portMatch || matches[0];
+          }
+          return null;
+        };
+
         if (this.dialog.from_location) {
-          const loc = this.allLocations.find((l: any) => l.code == this.dialog.from_location || l.name == this.dialog.from_location);
+          const loc = resolveLocationCode(this.dialog.from_location);
           if (loc) {
             this.dialog.from_location = loc.code;
             this.dialog.from_location_type = loc.type;
           }
         }
         if (this.dialog.to_location) {
-          const loc = this.allLocations.find((l: any) => l.code == this.dialog.to_location || l.name == this.dialog.to_location);
+          const loc = resolveLocationCode(this.dialog.to_location);
           if (loc) {
             this.dialog.to_location = loc.code;
             this.dialog.to_location_type = loc.type;
@@ -2926,6 +3097,11 @@ export class BookingComponent implements OnInit, OnDestroy {
   isEnquirySelectable(enq: any): boolean {
     // Check if enquiry is already linked to the current booking
     if (this.linkTargetBooking && this.linkedEnquiryCodes.has(enq.code)) {
+      return false;
+    }
+
+    // Check if enquiry is appended locally but not yet saved
+    if (this.lineItemsRows && this.lineItemsRows.some((li: any) => li.enq_no === enq.code)) {
       return false;
     }
 
