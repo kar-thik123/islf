@@ -315,6 +315,15 @@ app.use('/api/booking',
   bookingRouter
 );
 
+const jobCardRouter = require('./routes/job_card');
+app.use('/api/job_card',
+  requirePermission('Operations', 'Job Card'),
+  requireContext(),
+  requireOwnership({ table: 'job_card', ownerField: 'created_by', ownerType: 'username', adminBypass: true }),
+  jobCardRouter
+);
+
+
 const inchargeRouter = require('./routes/incharge');
 app.use('/api/incharge',        requirePermission('Masters', 'Customer'),        inchargeRouter);
 

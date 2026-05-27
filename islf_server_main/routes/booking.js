@@ -147,14 +147,28 @@ async function insertBookingRelatedData(client, bookingId, data) {
 
 router.get('/', async (req, res) => {
   try {
-    let { page = 1, limit = 10, search = '', status = '', companyCode, branchCode, departmentCode } = req.query;
+    let { page = 1, limit = 10, search = '', status = '', companyCode, branchCode, departmentCode, department, service_type, from_location, to_location } = req.query;
+
+    // ─── DEBUG LOGGING ─────────────────────────────────────────────────────────
+    console.log(`\n[BOOKING-FILTER] GET / called`);
+    console.log(`  req.query     :`, JSON.stringify(req.query));
+    console.log(`  user.role     :`, req.user?.role);
+    console.log(`  user.dept     :`, req.user?.department);
+    console.log(`  user.company  :`, req.user?.company_code);
+    console.log(`  user.branch   :`, req.user?.branch);
+    // ───────────────────────────────────────────────────────────────────────────
 
     // Phase T4.1: Enforced Context Isolation (Alignment with Location module)
     const isBypass = req.user && ADMIN_BYPASS_ROLES.has(req.user.role);
     if (!isBypass) {
       companyCode = companyCode || req.user.company_code;
-      branchCode = branchCode || req.user.branch;
-      departmentCode = departmentCode || req.user.department;
+      branchCode  = branchCode  || req.user.branch;
+
+      // ── KEY FIX ────────────────────────────────────────────────────────────
+      if (!department) {
+        departmentCode = departmentCode || req.user.department;
+      }
+      // ───────────────────────────────────────────────────────────────────────
 
       if (!companyCode) {
         console.warn(`⚠️ [Context Leakage Prevention] No company context for user: ${req.user?.username}`);
@@ -189,8 +203,50 @@ router.get('/', async (req, res) => {
       query += ` AND (booking_no ILIKE $${idx} OR customer_name ILIKE $${idx} OR company_name ILIKE $${idx})`;
       params.push(`%${search}%`); idx++;
     }
+    
+    // ── Explicit filter params (Link Booking dialog) ──────────────────────────
+    if (department) {
+      query += ` AND (
+        LOWER(REPLACE(department, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))
+        OR LOWER(REPLACE(department_code, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))
+        OR department ILIKE $${idx}
+      )`;
+      params.push(department); idx++;
+    }
+    if (service_type) {
+      query += ` AND (
+        LOWER(REPLACE(service_type, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))
+        OR LOWER(REPLACE(service_type_code, ' ', '')) = LOWER(REPLACE($${idx}, ' ', ''))
+        OR service_type ILIKE $${idx}
+      )`;
+      params.push(service_type); idx++;
+    }
+    if (from_location) {
+      query += ` AND (
+        LOWER(TRIM(from_location)) = LOWER(TRIM($${idx}))
+        OR from_location ILIKE $${idx}
+        OR LOWER(from_location) = (SELECT LOWER(name) FROM master_location WHERE LOWER(code) = LOWER($${idx}) LIMIT 1)
+        OR from_location IN (SELECT code FROM master_location WHERE LOWER(name) = LOWER($${idx}) LIMIT 1)
+      )`;
+      params.push(from_location); idx++;
+    }
+    if (to_location) {
+      query += ` AND (
+        LOWER(TRIM(to_location)) = LOWER(TRIM($${idx}))
+        OR to_location ILIKE $${idx}
+        OR LOWER(to_location) = (SELECT LOWER(name) FROM master_location WHERE LOWER(code) = LOWER($${idx}) LIMIT 1)
+        OR to_location IN (SELECT code FROM master_location WHERE LOWER(name) = LOWER($${idx}) LIMIT 1)
+      )`;
+      params.push(to_location); idx++;
+    }
+
     query += ` ORDER BY id DESC LIMIT $${idx} OFFSET $${idx + 1}`;
     params.push(Number(limit), Number(offset));
+
+    // ─── DEBUG: log final SQL ────────────────────────────────────────────────
+    console.log(`[BOOKING-FILTER] Final SQL params :`, params);
+    console.log(`[BOOKING-FILTER] Final SQL query  :`, query.replace(/\s+/g, ' ').trim());
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Get total count (filtering applied)
     let countQuery = `SELECT COUNT(*) FROM booking WHERE 1=1`;
@@ -217,10 +273,48 @@ router.get('/', async (req, res) => {
       countParams.push(`%${search}%`); cIdx++;
     }
 
+    // Add explicit filter params for count query (mirror of main query above)
+    if (department) {
+      countQuery += ` AND (
+        LOWER(REPLACE(department, ' ', '')) = LOWER(REPLACE($${cIdx}, ' ', ''))
+        OR LOWER(REPLACE(department_code, ' ', '')) = LOWER(REPLACE($${cIdx}, ' ', ''))
+        OR department ILIKE $${cIdx}
+      )`;
+      countParams.push(department); cIdx++;
+    }
+    if (service_type) {
+      countQuery += ` AND (
+        LOWER(REPLACE(service_type, ' ', '')) = LOWER(REPLACE($${cIdx}, ' ', ''))
+        OR LOWER(REPLACE(service_type_code, ' ', '')) = LOWER(REPLACE($${cIdx}, ' ', ''))
+        OR service_type ILIKE $${cIdx}
+      )`;
+      countParams.push(service_type); cIdx++;
+    }
+    if (from_location) {
+      countQuery += ` AND (
+        LOWER(TRIM(from_location)) = LOWER(TRIM($${cIdx}))
+        OR from_location ILIKE $${cIdx}
+        OR LOWER(from_location) = (SELECT LOWER(name) FROM master_location WHERE LOWER(code) = LOWER($${cIdx}) LIMIT 1)
+        OR from_location IN (SELECT code FROM master_location WHERE LOWER(name) = LOWER($${cIdx}) LIMIT 1)
+      )`;
+      countParams.push(from_location); cIdx++;
+    }
+    if (to_location) {
+      countQuery += ` AND (
+        LOWER(TRIM(to_location)) = LOWER(TRIM($${cIdx}))
+        OR to_location ILIKE $${cIdx}
+        OR LOWER(to_location) = (SELECT LOWER(name) FROM master_location WHERE LOWER(code) = LOWER($${cIdx}) LIMIT 1)
+        OR to_location IN (SELECT code FROM master_location WHERE LOWER(name) = LOWER($${cIdx}) LIMIT 1)
+      )`;
+      countParams.push(to_location); cIdx++;
+    }
+
     const [resRows, resCount] = await Promise.all([
       pool.query(query, params),
       pool.query(countQuery, countParams)
     ]);
+
+    console.log(`[BOOKING-FILTER] Result count: ${resCount.rows[0].count}, returned rows: ${resRows.rows.length}`);
 
     res.json({ data: resRows.rows, total: Number(resCount.rows[0].count) });
   } catch (error) {

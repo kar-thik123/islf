@@ -49,10 +49,14 @@ export class BookingService {
     private contextService: ContextService
   ) { }
 
-  getAll(page: number = 1, limit: number = 10, search: string = '', status: string = ''): Observable<any> {
+  getAll(page: number = 1, limit: number = 10, search: string = '', status: string = '', department: string = '', service_type: string = '', from_location: string = '', to_location: string = ''): Observable<any> {
     let params = new HttpParams().set('page', page.toString()).set('limit', limit.toString());
     if (search) params = params.set('search', search);
     if (status) params = params.set('status', status);
+    if (department) params = params.set('department', department);
+    if (service_type) params = params.set('service_type', service_type);
+    if (from_location) params = params.set('from_location', from_location);
+    if (to_location) params = params.set('to_location', to_location);
     return this.http.get<any>(`${this.baseUrl}`, { params });
   }
 

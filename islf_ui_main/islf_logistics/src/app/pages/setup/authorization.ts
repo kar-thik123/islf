@@ -161,7 +161,7 @@ export class AuthorizationComponent implements OnInit {
     { module: 'Masters', subModules: ['Master Code', 'Master Type', 'Customer', 'Vendor', 'Location', 'Vessel', 'Airline', 'Unit of Measure', 'Basis', 'Master Item', 'Cargo', 'Charges', 'Currency Code', 'Container', 'GST Setup', 'Local Tariff', 'Sourcing', 'Service Area', 'Source Sales'] },
     { module: 'Master Types', subModules: ['User Status', 'Tariff Type', 'Customer', 'Vendor', 'Cargo Type', 'Charge Type', 'Basis', 'Service Area', 'Item', 'Location', 'Carriage'] },
     { module: 'Search', subModules: ['Tariff'] },
-    { module: 'Operations', subModules: ['Enquiry', 'Booking'] }
+    { module: 'Operations', subModules: ['Enquiry', 'Booking', 'Job Card'] }
   ];
 
   constructor(

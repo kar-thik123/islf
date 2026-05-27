@@ -83,6 +83,7 @@ const ROUTE_MAP = {
   // Operations module
   '/api/enquiry':           { module: 'Operations',    sub: 'Enquiry' },
   '/api/booking':           { module: 'Operations',    sub: 'Booking' },
+  '/api/job_card':          { module: 'Operations',    sub: 'Job Card' },
 };
 
 // Public endpoints — never reached authenticated (whitelisted in authenticateToken)

@@ -12,7 +12,11 @@ const migrations = [
     '002_audit_logs.sql',
     '003_audit_log_changes.sql',
     '004_system_logs.sql',
-    '20260210_register_missing_modules.sql'
+    '20260210_register_missing_modules.sql',
+    '20260523_create_job_card_tables.sql',
+    '20260523_add_booking_link_to_job_card.sql',
+    '20260523_create_job_card_breakup_allocation.sql',
+    '20260527_add_multi_booking_to_job_card.sql'
 ];
 
 async function runMigrations() {

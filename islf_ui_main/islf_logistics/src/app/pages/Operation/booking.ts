@@ -1238,6 +1238,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   selectedEnquiries: any[] = [];
   showLinkDialog = false;
   linkTargetBooking: any = null;
+  activeLinkBookingNo: string | null = null;
+  activeBookingNo: string | null = null;
   linkedEnquiryCodes: Set<string> = new Set();
   pendingLinkEnquiries: any[] = [];
   pendingOverrides: any = {};
@@ -1623,6 +1625,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.showCreateDialog = false;
     this.linkTargetBooking = null;
     this.linkedEnquiryCodes.clear();
+    this.selectedEnquiries = [];
+    this.matchingEnquiries = [];
+    this.dialog = { department: '', service_type: '', from_location_type: '', from_location: '', to_location_type: '', to_location: '' };
   }
 
   // on creating booking from enquiries
@@ -1794,10 +1799,15 @@ export class BookingComponent implements OnInit, OnDestroy {
           rowData.container_breakup = this.containerBreakupRows
             .filter(cb => cb.breakup_no === bk.breakup_no)
             .map(cb => ({ ...cb, pickup_handover_date: this.formatDate(cb.pickup_handover_date) }));
+          delete rowData.package_breakup;
         } else if (this.breakupType === 'PACKAGE BREAKUP') {
           rowData.package_breakup = this.packageBreakupRows
             .filter(pb => pb.breakup_no === bk.breakup_no)
             .map(pb => ({ ...pb, handover_date: this.formatDate(pb.handover_date) }));
+          delete rowData.container_breakup;
+        } else {
+          delete rowData.container_breakup;
+          delete rowData.package_breakup;
         }
         return rowData;
       })
@@ -1835,6 +1845,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     return type || '';
   }
   openBooking(bookingNo: string) {
+    this.activeBookingNo = bookingNo;
     this.isLoadingDialogData = true;
     
     // 1. Prepare observables for all required masters
@@ -1861,6 +1872,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     // 2. Wait for EVERYTHING
     combineLatest([bookingObs, mastersObs]).subscribe({
       next: ([booking, results]: [any, any]) => {
+        if (this.activeBookingNo !== bookingNo) return;
         this.isLoadingDialogData = false;
         
         // Setup masters
@@ -2013,7 +2025,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
 
         if (this.pendingLinkEnquiries.length > 0) {
-          // this.currentBooking.booking_type = 'from_enquiry'; // Removed to prevents creation of new booking
+          this.currentBooking.booking_type = 'from_enquiry';
+          this.isFrozen = true;
           const selected = this.pendingLinkEnquiries.map((e: any) => ({ id: e.id, code: e.code }));
           const existingSelections = this.currentBooking.selected_enquiries || [];
           const existingCodes = new Set(existingSelections.map((e: any) => e.code));
@@ -2102,6 +2115,11 @@ export class BookingComponent implements OnInit, OnDestroy {
                       cargo_type: rowCargoType,
                       description: cg.description,
                       hs_code: cg.hs_code,
+                      quantity: cg.quantity,
+                      unit: cg.unit,
+                      weight: cg.weight,
+                      volume: cg.volume,
+                      remarks: cg.remarks,
                       _descriptionOptions: this.getCargoNamesByType(rowCargoType),
                       _hsCodeOptions: this.getHsCodesByTypeAndName(rowCargoType, cg.description)
                     };
@@ -2165,6 +2183,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
       error: (err) => {
+        if (this.activeBookingNo !== bookingNo) return;
         console.error('Failed to load booking:', err);
         this.isLoadingDialogData = false;
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to load booking details' });
@@ -2245,6 +2264,11 @@ export class BookingComponent implements OnInit, OnDestroy {
                   cargo_type: rowCargoType,
                   description: cg.description,
                   hs_code: cg.hs_code,
+                  quantity: cg.quantity,
+                  unit: cg.unit,
+                  weight: cg.weight,
+                  volume: cg.volume,
+                  remarks: cg.remarks,
                   _descriptionOptions: this.getCargoNamesByType(rowCargoType),
                   _hsCodeOptions: this.getHsCodesByTypeAndName(rowCargoType, cg.description)
                 };
@@ -2290,6 +2314,8 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.currentBooking.selected_enquiries = [...(this.currentBooking.selected_enquiries || []), ...newSelections];
 
           this.pendingLinkEnquiries = [];
+          this.currentBooking.booking_type = 'from_enquiry';
+          this.isFrozen = true;
 
           // Apply overrides if any
           if (this.pendingOverrides) {
@@ -2662,6 +2688,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   openLinkEnquiryDialog(row: any) {
     this.linkTargetBooking = row;
+    this.activeLinkBookingNo = row.booking_no;
     this.isLoadingDialogData = true;
 
     forkJoin({
@@ -2731,6 +2758,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         if (row.booking_no) {
           this.bookingService.getByNo(row.booking_no).subscribe({
             next: (booking: any) => {
+              if (this.activeLinkBookingNo !== row.booking_no) return;
               // Extract enquiry codes from line items
               const lineItems = booking?.line_items || [];
               lineItems.forEach((li: any) => {
@@ -2746,6 +2774,7 @@ export class BookingComponent implements OnInit, OnDestroy {
               this.searchEnquiries();
             },
             error: (err) => {
+              if (this.activeLinkBookingNo !== row.booking_no) return;
               console.error('Failed to fetch booking details:', err);
               // Still search enquiries even if fetch fails
               this.searchEnquiries();

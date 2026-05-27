@@ -323,6 +323,11 @@ export class AppMenu {
                 label: 'Booking',
                 icon: 'fa-solid fa-clipboard-check',
                 routerLink: ['/operation/booking'],
+              },
+              {
+                label: 'Job Card',
+                icon: 'fa-solid fa-file-invoice',
+                routerLink: ['/operation/job-card'],
               }
             ],
           },
