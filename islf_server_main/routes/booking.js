@@ -870,6 +870,49 @@ router.get('/:bookingNo', async (req, res) => {
 // QUOTE MAPPING ENDPOINTS
 // =====================================================
 
+// Helper to get all associated enquiries from all valid sources
+async function getAllAssociatedEnquiries(client, bookingNo) {
+  const query = `
+    SELECT b.enquiry_id, b.selected_enquiries, b.line_items, e.code as primary_enquiry_code
+    FROM booking b
+    LEFT JOIN enquiry e ON b.enquiry_id = e.id
+    WHERE b.booking_no = $1
+  `;
+  const res = await client.query(query, [bookingNo]);
+  if (res.rows.length === 0) return null;
+
+  const booking = res.rows[0];
+  const selectedEnquiries = safeJsonParse(booking.selected_enquiries || '[]');
+  const lineItems = safeJsonParse(booking.line_items || '[]');
+
+  const codeSet = new Set();
+  
+  if (booking.primary_enquiry_code) codeSet.add(booking.primary_enquiry_code);
+  
+  if (Array.isArray(selectedEnquiries)) {
+    selectedEnquiries.forEach(e => {
+      if (e.code) codeSet.add(e.code);
+    });
+  }
+  
+  if (Array.isArray(lineItems)) {
+    lineItems.forEach(li => {
+      if (li.enq_no) codeSet.add(li.enq_no);
+    });
+  }
+
+  const qmRes = await client.query(`SELECT enquiry_no FROM booking_quote_mapping WHERE booking_no = $1`, [bookingNo]);
+  qmRes.rows.forEach(qm => {
+    if (qm.enquiry_no) codeSet.add(qm.enquiry_no);
+  });
+
+  const uniqueCodes = Array.from(codeSet);
+  if (uniqueCodes.length === 0) return [];
+
+  const enqRes = await client.query(`SELECT id, code FROM enquiry WHERE code = ANY($1)`, [uniqueCodes]);
+  return enqRes.rows;
+}
+
 // Get all quote mappings for a booking
 router.get('/:bookingNo/quote-mappings', async (req, res) => {
   try {
@@ -893,11 +936,10 @@ router.get('/:bookingNo/quote-mappings', async (req, res) => {
 router.get('/:bookingNo/enquiries', async (req, res) => {
   try {
     const { bookingNo } = req.params;
-    const { rows } = await pool.query('SELECT selected_enquiries FROM booking WHERE booking_no = $1', [bookingNo]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    const allEnquiries = await getAllAssociatedEnquiries(pool, bookingNo);
+    if (!allEnquiries) return res.status(404).json({ error: 'Booking not found' });
 
-    const selectedEnquiries = safeJsonParse(rows[0].selected_enquiries);
-    res.json(selectedEnquiries);
+    res.json(allEnquiries);
   } catch (error) {
     console.error('Get booking enquiries error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -910,11 +952,10 @@ router.get('/:bookingNo/enquiry/:enquiryNo/line-item-types', async (req, res) =>
     const { bookingNo, enquiryNo } = req.params;
 
     // Verify booking exists and enquiry is associated
-    const bookingRes = await pool.query('SELECT selected_enquiries FROM booking WHERE booking_no = $1', [bookingNo]);
-    if (bookingRes.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    const allEnquiries = await getAllAssociatedEnquiries(pool, bookingNo);
+    if (!allEnquiries) return res.status(404).json({ error: 'Booking not found' });
 
-    const selectedEnquiries = safeJsonParse(bookingRes.rows[0].selected_enquiries);
-    const enquiryCodes = selectedEnquiries.map(e => e.code);
+    const enquiryCodes = allEnquiries.map(e => e.code);
 
     if (!enquiryCodes.includes(enquiryNo)) {
       return res.status(400).json({ error: 'Enquiry not associated with this booking' });
@@ -954,16 +995,16 @@ router.post('/:bookingNo/quote-mappings', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Get booking ID
-      const bookingRes = await client.query('SELECT id, selected_enquiries FROM booking WHERE booking_no = $1', [bookingNo]);
+      // Get booking ID and all associated enquiries
+      const bookingRes = await client.query('SELECT id FROM booking WHERE booking_no = $1', [bookingNo]);
       if (bookingRes.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Booking not found' });
       }
 
       const bookingId = bookingRes.rows[0].id;
-      const selectedEnquiries = safeJsonParse(bookingRes.rows[0].selected_enquiries);
-      const enquiryCodes = selectedEnquiries.map(e => e.code);
+      const allEnquiries = await getAllAssociatedEnquiries(client, bookingNo);
+      const enquiryCodes = allEnquiries.map(e => e.code);
 
       // Delete existing mappings
       await client.query('DELETE FROM booking_quote_mapping WHERE booking_id = $1', [bookingId]);

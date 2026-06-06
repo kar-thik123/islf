@@ -2896,27 +2896,28 @@ export class BookingComponent implements OnInit, OnDestroy {
     return numbers.map(num => ({ label: num, value: num }));
   }
 
-  loadEnquiryOptions() {
-    // Extract enquiries from selected_enquiries
-    let selectedEnquiries: any[] = [];
-    const val = this.currentBooking.selected_enquiries;
-
-    if (Array.isArray(val)) {
-      selectedEnquiries = val;
-    } else if (typeof val === 'string') {
-      try {
-        selectedEnquiries = JSON.parse(val || '[]');
-      } catch (e) {
-        console.error('Error parsing selected_enquiries:', e);
-        selectedEnquiries = [];
-      }
+  async loadEnquiryOptions() {
+    if (!this.currentBooking || !this.currentBooking.booking_no) {
+      this.enquiryOptions = [];
+      return;
     }
 
-    this.enquiryOptions = selectedEnquiries.map((enq: any) => ({
-      label: enq.code,
-      value: enq.code,
-      id: enq.id
-    }));
+    try {
+      const enquiries = await this.bookingService.getBookingEnquiries(this.currentBooking.booking_no).toPromise();
+      this.enquiryOptions = (enquiries || []).map((enq: any) => ({
+        label: enq.code,
+        value: enq.code,
+        id: enq.id
+      }));
+    } catch (error) {
+      console.error('Error fetching booking enquiries:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to load associated enquiries.'
+      });
+      this.enquiryOptions = [];
+    }
   }
 
   async onEnquiryChange(qm: any) {
